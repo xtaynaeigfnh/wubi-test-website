@@ -35,12 +35,12 @@ import type {
   WubiEntry,
 } from "../types";
 
-const navItems: Array<{ view: AppView; href: string; label: string; icon: string }> = [
-  { view: "typing", href: "/", label: "文章测速", icon: "⌨" },
-  { view: "challenge", href: "/challenge", label: "字码挑战", icon: "◇" },
-  { view: "lookup", href: "/lookup", label: "五笔查码", icon: "⌕" },
-  { view: "history", href: "/history", label: "本地成绩", icon: "↗" },
-  { view: "settings", href: "/settings", label: "设置", icon: "⚙" },
+const navItems: Array<{ view: AppView; href: string; label: string; shortcut: string }> = [
+  { view: "typing", href: "/", label: "文章测速", shortcut: "01" },
+  { view: "challenge", href: "/challenge", label: "字码挑战", shortcut: "02" },
+  { view: "lookup", href: "/lookup", label: "五笔查码", shortcut: "03" },
+  { view: "history", href: "/history", label: "本地成绩", shortcut: "04" },
+  { view: "settings", href: "/settings", label: "设置", shortcut: "05" },
 ];
 
 export function WubiApp({ view }: { view: AppView }) {
@@ -66,10 +66,10 @@ export function WubiApp({ view }: { view: AppView }) {
       <header className="site-header">
         <div className="header-inner">
           <Link href="/" className="brand" aria-label="五笔测试网站首页">
-            <span className="brand-mark">W</span>
+            <span className="brand-mark">五</span>
             <span>
               <strong>五笔测试网站</strong>
-              <small>86 版 · 本地练习</small>
+              <small>WUBI 86 / LOCAL LAB</small>
             </span>
           </Link>
           <nav className="main-nav" aria-label="主导航">
@@ -79,7 +79,7 @@ export function WubiApp({ view }: { view: AppView }) {
                 href={item.href}
                 className={view === item.view ? "nav-item active" : "nav-item"}
               >
-                <span aria-hidden="true">{item.icon}</span>
+                <span aria-hidden="true">{item.shortcut}</span>
                 {item.label}
               </Link>
             ))}
@@ -174,7 +174,7 @@ function TypingView({
   );
 
   const chooseArticle = useCallback(
-    (next: PracticeArticle) => {
+    (next: PracticeArticle, focusInput = true) => {
       setArticle(next);
       writeLocal(STORAGE.current, next.id);
       const recent = readLocal<string[]>(STORAGE.recent, []);
@@ -193,7 +193,7 @@ function TypingView({
       setPickerOpen(false);
       window.setTimeout(() => {
         articleTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
-        inputRef.current?.focus();
+        if (focusInput) inputRef.current?.focus();
       }, 50);
     },
     [],
@@ -215,6 +215,7 @@ function TypingView({
       articles.find((item) => item.id === currentId) ||
         articles.find((item) => item.length === "short") ||
         articles[0],
+      false,
     );
   }, [article, articles, chooseArticle]);
 
@@ -392,9 +393,9 @@ function TypingView({
     <>
       <section className="hero-row">
         <div>
-          <span className="eyebrow">86 版五笔 · 文章测速</span>
-          <h1>把注意力留给文字，<em>速度交给数据。</em></h1>
-          <p>系统五笔直接上屏，实时统计速度、击键、码长与准确率。</p>
+          <span className="eyebrow">WUBI 86 / 文章测速</span>
+          <h1>一字一键，<em>练到手比眼快。</em></h1>
+          <p>切换到系统五笔后直接输入。计时、速度、击键和错字都在本机完成。</p>
         </div>
         <div className="hero-actions">
           <button className="button secondary" onClick={() => setCustomOpen(true)}>
@@ -437,6 +438,24 @@ function TypingView({
                 width: `${Math.min(100, (typed.length / Math.max(1, visibleText.length)) * 100)}%`,
               }}
             />
+          </div>
+          <div className="root-rail" aria-label="五笔字根分区与当前文章进度">
+            {[
+              ["QWERT", "横区"],
+              ["YUIOP", "竖区"],
+              ["ASDFG", "撇区"],
+              ["HJKLM", "捺区"],
+              ["XCVBN", "折区"],
+            ].map(([keys, label], index) => {
+              const progressRatio = typed.length / Math.max(1, targetText.length);
+              const isActive = Math.min(4, Math.floor(progressRatio * 5)) === index;
+              return (
+                <span className={isActive ? "active" : ""} key={keys}>
+                  <b>{keys}</b>
+                  <small>{label}</small>
+                </span>
+              );
+            })}
           </div>
           <div
             ref={articleTextRef}
@@ -513,7 +532,7 @@ function TypingView({
           </div>
           {completed && (
             <div className="completion-panel">
-              <span className="completion-icon">✓</span>
+              <span className="completion-icon">成</span>
               <div>
                 <strong>完成本次练习</strong>
                 <p>速度 {speed} 字/分，准确率 {accuracy.toFixed(1)}%，成绩已保存在本机。</p>
@@ -849,7 +868,7 @@ function LookupView() {
         <p>输入汉字、词组或 1–4 位编码，结果完全来自本地码表。</p>
       </div>
       <div className="lookup-search">
-        <span>⌕</span>
+        <span aria-hidden="true">查</span>
         <input
           autoFocus
           value={query}
@@ -1043,7 +1062,7 @@ function SettingsView({
           </label>
         </div>
         <div className="settings-card">
-          <div className="settings-card-title"><span>⌨</span><div><h2>练习偏好</h2><p>控制默认训练方式</p></div></div>
+          <div className="settings-card-title"><span>键</span><div><h2>练习偏好</h2><p>控制默认训练方式</p></div></div>
           <label>
             默认文章长度
             <select value={settings.preferredLength} onChange={(event) => update("preferredLength", event.target.value as UserSettings["preferredLength"])}>
@@ -1053,7 +1072,7 @@ function SettingsView({
           <Toggle label="完成后自动下一篇" note="结算后按钮直接抽取新文章" checked={settings.autoNext} onChange={(value) => update("autoNext", value)} />
         </div>
         <div className="settings-card">
-          <div className="settings-card-title"><span>◇</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
+          <div className="settings-card-title"><span>辅</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
           <Toggle label="显示编码提示" note="为后续拆字提示预留的本地设置" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
           <Toggle label="按键声音" note="默认关闭，避免长时间练习疲劳" checked={settings.sound} onChange={(value) => update("sound", value)} />
         </div>
