@@ -431,9 +431,13 @@ a {
 
 .article-text {
   min-height: 340px;
+  height: clamp(340px, 42vh, 500px);
   max-height: 500px;
   padding: 32px 34px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scroll-padding-block: 28%;
   color: color-mix(in srgb, var(--muted) 65%, var(--ink));
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--brand) 3%, transparent) 1px, transparent 1px),
@@ -444,6 +448,17 @@ a {
   line-height: 1.9;
   letter-spacing: 0.035em;
   white-space: pre-wrap;
+}
+
+.article-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.article-text::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 34%, transparent);
+  background-clip: padding-box;
 }
 
 .article-text span {
