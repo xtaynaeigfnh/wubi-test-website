@@ -145,6 +145,8 @@ function TypingView({
   const composing = useRef(false);
   const recorded = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const articleTextRef = useRef<HTMLDivElement>(null);
+  const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
 
   useEffect(() => {
@@ -189,7 +191,10 @@ function TypingView({
       recorded.current = false;
       errorPositions.current = new Set();
       setPickerOpen(false);
-      window.setTimeout(() => inputRef.current?.focus(), 50);
+      window.setTimeout(() => {
+        articleTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
+        inputRef.current?.focus();
+      }, 50);
     },
     [],
   );
@@ -256,6 +261,29 @@ function TypingView({
   const kps = seconds > 0 ? keyCount / seconds : 0;
   const codeLength = correctChars > 0 ? letterKeys / correctChars : 0;
   const accuracy = typed.length > 0 ? (correctChars / typed.length) * 100 : 100;
+
+  useEffect(() => {
+    const viewport = articleTextRef.current;
+    const currentCharacter = currentCharacterRef.current;
+    if (!viewport || !currentCharacter) return;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const characterRect = currentCharacter.getBoundingClientRect();
+    const readingLine = viewportRect.top + viewport.clientHeight * 0.68;
+
+    if (characterRect.bottom <= readingLine && characterRect.top >= viewportRect.top) {
+      return;
+    }
+
+    const nextTop = Math.max(
+      0,
+      viewport.scrollTop +
+        characterRect.top -
+        viewportRect.top -
+        viewport.clientHeight * 0.28,
+    );
+    viewport.scrollTo({ top: nextTop, behavior: "smooth" });
+  }, [article?.id, typed.length]);
 
   useEffect(() => {
     if (!article || !typed) return;
@@ -411,9 +439,11 @@ function TypingView({
             />
           </div>
           <div
+            ref={articleTextRef}
             className="article-text"
             style={{ fontSize: `${settings.fontSize}px` }}
             onClick={() => inputRef.current?.focus()}
+            aria-live="off"
           >
             {displayCharacters.map(({ character, visibleIndex, targetIndex }) => {
               if (targetIndex === null) {
@@ -432,7 +462,11 @@ function TypingView({
                     ? "correct"
                     : "wrong";
               return (
-                <span className={state} key={`${visibleIndex}-${character}`}>
+                <span
+                  ref={state === "current" ? currentCharacterRef : undefined}
+                  className={state}
+                  key={`${visibleIndex}-${character}`}
+                >
                   {character}
                 </span>
               );
