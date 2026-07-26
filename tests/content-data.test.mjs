@@ -103,6 +103,50 @@ test("chat articles advance meaning instead of padding repeated phrases", async 
   }
 });
 
+test("all articles reject recycled generator phrases and internal repetition", async () => {
+  const groups = ["short", "medium", "long", "water"];
+  const articles = (
+    await Promise.all(groups.map((name) => readJson(`articles-${name}.json`)))
+  ).flat();
+  const retiredTemplates = [
+    "许多人首先想到的是结果，但真正值得留意的是过程",
+    "这个不显眼的片段使",
+    "有人愿意多观察一步，于是",
+    "合适的做法不是急着下结论，而是先确认事实",
+    "可以看到习惯如何形成：先从小处开始，再依据反馈调整",
+  ];
+
+  for (const { id, text } of articles) {
+    for (const phrase of retiredTemplates) {
+      assert.equal(text.includes(phrase), false, `${id} contains retired template: ${phrase}`);
+    }
+
+    const sentences = text
+      .split(/[。！？]/)
+      .map((sentence) => sentence.replace(/\s/g, ""))
+      .filter((sentence) => sentence.length >= 8);
+    assert.equal(
+      new Set(sentences).size,
+      sentences.length,
+      `${id} contains a repeated sentence`,
+    );
+
+    const compact = text.replace(/\s/g, "");
+    const phraseCounts = new Map();
+    for (let index = 0; index <= compact.length - 12; index += 1) {
+      const phrase = compact.slice(index, index + 12);
+      if (/[，。！？；：“”]/.test(phrase)) continue;
+      phraseCounts.set(phrase, (phraseCounts.get(phrase) ?? 0) + 1);
+    }
+    const repeatedPhrase = [...phraseCounts].find(([, count]) => count >= 3);
+    assert.equal(
+      repeatedPhrase,
+      undefined,
+      `${id} repeats phrase ${repeatedPhrase?.[0]}`,
+    );
+  }
+});
+
 test("Wubi dictionary contains core words and no invalid codes", async () => {
   const rows = await readJson("wubi86.json");
   assert.ok(rows.length > 100000);
