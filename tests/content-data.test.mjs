@@ -71,6 +71,38 @@ test("article bodies are complete, unique, and inside their length bands", async
   }
 });
 
+test("chat articles advance meaning instead of padding repeated phrases", async () => {
+  const articles = await readJson("articles-water.json");
+  const knownPadding = [
+    "看到这里，看到这里",
+    "先先",
+    "这场关于",
+    "大家平时都是怎么处理的",
+    "不能只看表面",
+    "第二天再看也不会觉得空洞",
+  ];
+
+  for (const { id, text } of articles) {
+    for (const phrase of knownPadding) {
+      assert.equal(text.includes(phrase), false, `${id} contains template padding: ${phrase}`);
+    }
+
+    const sentences = text
+      .split(/[。！？]/)
+      .map((sentence) => sentence.replace(/\s/g, ""))
+      .filter((sentence) => sentence.length >= 8);
+    assert.equal(
+      new Set(sentences).size,
+      sentences.length,
+      `${id} contains a repeated sentence`,
+    );
+    assert.ok(
+      text.split(/\n\s*\n/).length >= 3,
+      `${id} should have a clear multi-paragraph progression`,
+    );
+  }
+});
+
 test("Wubi dictionary contains core words and no invalid codes", async () => {
   const rows = await readJson("wubi86.json");
   assert.ok(rows.length > 100000);
