@@ -408,7 +408,13 @@ function TypingView({
       </section>
 
       <section className="metric-strip" aria-label="实时成绩">
-        <Metric label="速度" value={speed.toString()} unit="字/分" accent />
+        <Metric
+          label="速度"
+          value={speed.toString()}
+          unit="字/分"
+          primary
+          active={startedAt !== null && !completed}
+        />
         <Metric label="击键" value={kps.toFixed(2)} unit="次/秒" />
         <Metric label="码长" value={codeLength.toFixed(2)} unit="键/字" />
         <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
@@ -651,15 +657,23 @@ function Metric({
   label,
   value,
   unit,
-  accent = false,
+  primary = false,
+  active = false,
 }: {
   label: string;
   value: string;
   unit: string;
-  accent?: boolean;
+  primary?: boolean;
+  active?: boolean;
 }) {
+  const className = [
+    "metric",
+    primary ? "primary-metric" : "",
+    active ? "is-active" : "",
+  ].filter(Boolean).join(" ");
+
   return (
-    <div className={accent ? "metric accent" : "metric"}>
+    <div className={className}>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{unit}</small>
