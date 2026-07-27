@@ -60,6 +60,28 @@ export async function loadWubi(): Promise<WubiEntry[]> {
   return fetch("/data/wubi86.json").then((response) => response.json());
 }
 
+export async function loadWubiChallenge(): Promise<WubiEntry[]> {
+  return fetch("/data/wubi86-challenge.json").then((response) => response.json());
+}
+
+export function preferShortestWubiCodes(entries: WubiEntry[]): WubiEntry[] {
+  const preferred = new Map<string, WubiEntry>();
+
+  for (const entry of entries) {
+    const [text, code, weight] = entry;
+    const current = preferred.get(text);
+    if (
+      !current ||
+      code.length < current[1].length ||
+      (code.length === current[1].length && weight > current[2])
+    ) {
+      preferred.set(text, entry);
+    }
+  }
+
+  return Array.from(preferred.values());
+}
+
 export function getSessions() {
   return readLocal<SessionResult[]>(STORAGE.sessions, []);
 }

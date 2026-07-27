@@ -19,6 +19,8 @@ import {
   lengthLabels,
   loadArticles,
   loadWubi,
+  loadWubiChallenge,
+  preferShortestWubiCodes,
   readLocal,
   saveSession,
   STORAGE,
@@ -683,13 +685,13 @@ function ChallengeView() {
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
 
   useEffect(() => {
-    loadWubi()
+    loadWubiChallenge()
       .then(setRows)
       .finally(() => setLoading(false));
   }, []);
 
   const pool = useMemo(() => {
-    const filtered = rows.filter(([text, code, weight]) => {
+    const filtered = preferShortestWubiCodes(rows).filter(([text, code, weight]) => {
       if (code.length > 4 || weight < 100000) return false;
       const size = Array.from(text).length;
       return mode === "char" ? size === 1 : size >= 2 && size <= 4;
@@ -759,7 +761,7 @@ function ChallengeView() {
                   <strong>{correct}</strong><span>/ {index} 正确</span>
                 </div>
               )}
-              <p>看到汉字后输入规范五笔编码，按回车提交。</p>
+              <p>看到汉字后输入最短可用五笔编码，按回车提交。</p>
               <button className="button primary" disabled={loading} onClick={start}>
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
@@ -773,7 +775,7 @@ function ChallengeView() {
               </div>
               <div className="question-character">{question?.[0]}</div>
               <div className="code-slots">
-                {[0, 1, 2, 3].map((slot) => (
+                {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
                     {input[slot]?.toUpperCase() || "·"}
                   </span>
@@ -783,7 +785,7 @@ function ChallengeView() {
                 autoFocus
                 className={`code-input ${feedback}`}
                 value={input}
-                maxLength={4}
+                maxLength={question?.[1].length ?? 4}
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && feedback === "idle") submit();
