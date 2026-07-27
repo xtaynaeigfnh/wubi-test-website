@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
 } from "react";
 import Link from "next/link";
@@ -262,6 +263,8 @@ function TypingView({
   const kps = seconds > 0 ? keyCount / seconds : 0;
   const codeLength = correctChars > 0 ? letterKeys / correctChars : 0;
   const accuracy = typed.length > 0 ? (correctChars / typed.length) * 100 : 100;
+  const progressRatio = Math.min(1, typed.length / Math.max(1, targetText.length));
+  const progressPercent = Math.round(progressRatio * 100);
 
   useEffect(() => {
     const viewport = articleTextRef.current;
@@ -418,7 +421,7 @@ function TypingView({
         <Metric label="击键" value={kps.toFixed(2)} unit="次/秒" />
         <Metric label="码长" value={codeLength.toFixed(2)} unit="键/字" />
         <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
-        <Metric label="错字" value={errorCount.toString()} unit="处" />
+        <Metric label="回退" value={errorCount.toString()} unit="处" />
         <Metric label="用时" value={formatDuration(seconds)} unit="" />
       </section>
 
@@ -438,14 +441,15 @@ function TypingView({
               <button onClick={() => chooseArticle(article)}>重新开始</button>
             </div>
           </div>
-          <div className="progress-track">
-            <i
-              style={{
-                width: `${Math.min(100, (typed.length / Math.max(1, visibleText.length)) * 100)}%`,
-              }}
-            />
-          </div>
-          <div className="root-rail" aria-label="五笔字根分区与文章五段进度">
+          <div
+            className="root-rail"
+            role="progressbar"
+            aria-label="文章输入进度"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            aria-valuetext={`已完成 ${progressPercent}%，五格依次对应撇、捺、横、竖、折区`}
+          >
             {[
               ["QWERT", "撇区"],
               ["YUIOP", "捺区"],
@@ -453,10 +457,17 @@ function TypingView({
               ["HJKLM", "竖区"],
               ["XCVBN", "折区"],
             ].map(([keys, label], index) => {
-              const progressRatio = typed.length / Math.max(1, targetText.length);
-              const isActive = Math.min(4, Math.floor(progressRatio * 5)) === index;
+              const segmentProgress = Math.min(
+                1,
+                Math.max(0, progressRatio * 5 - index),
+              );
               return (
-                <span className={isActive ? "active" : ""} key={keys}>
+                <span
+                  key={keys}
+                  style={{
+                    "--segment-progress": `${segmentProgress * 100}%`,
+                  } as CSSProperties}
+                >
                   <b>{keys}</b>
                   <small>{label}</small>
                 </span>

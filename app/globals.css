@@ -16,6 +16,7 @@
   --accent-vermilion-dark: #8f271f;
   --accent-bamboo: #2d6654;
   --accent-bamboo-fill: #2d6654;
+  --progress-fill: #a9cfc0;
   --state-success: #24664d;
   --state-success-fill: #24664d;
   --state-error: #a52d27;
@@ -45,6 +46,7 @@
   --accent-vermilion-dark: #ff8a7f;
   --accent-bamboo: #6eb29a;
   --accent-bamboo-fill: #2d6654;
+  --progress-fill: #2d6654;
   --state-success: #70c19d;
   --state-success-fill: #24664d;
   --state-error: #ff8279;
@@ -71,6 +73,7 @@
     --accent-vermilion-dark: #ff8a7f;
     --accent-bamboo: #6eb29a;
     --accent-bamboo-fill: #2d6654;
+    --progress-fill: #2d6654;
     --state-success: #70c19d;
     --state-success-fill: #24664d;
     --state-error: #ff8279;
@@ -497,18 +500,6 @@ a {
   font-size: 11px;
 }
 
-.progress-track {
-  height: 3px;
-  background: var(--bg-key);
-}
-
-.progress-track i {
-  height: 100%;
-  display: block;
-  background: var(--accent-bamboo);
-  transition: width 180ms ease;
-}
-
 .root-rail {
   min-height: 52px;
   display: grid;
@@ -519,11 +510,28 @@ a {
 }
 
 .root-rail > span {
+  --segment-progress: 0%;
+  position: relative;
   padding: 10px 12px;
   display: grid;
   gap: 4px;
+  overflow: hidden;
   border-right: 1px solid var(--border-subtle);
-  transition: color 160ms ease, background 160ms ease;
+}
+
+.root-rail > span::before {
+  content: "";
+  width: var(--segment-progress);
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--progress-fill);
+  transition: width 120ms linear;
+}
+
+.root-rail b,
+.root-rail small {
+  position: relative;
+  z-index: 1;
 }
 
 .root-rail > span:last-child {
@@ -537,11 +545,6 @@ a {
 
 .root-rail small {
   font-size: 9px;
-}
-
-.root-rail > span.active {
-  color: #fff;
-  background: var(--accent-bamboo-fill);
 }
 
 .article-text {
