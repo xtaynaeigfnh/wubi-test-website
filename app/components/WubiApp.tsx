@@ -43,7 +43,7 @@ import type {
   UserSettings,
   WubiEntry,
 } from "../types";
-import { ErrorState, Metric, Modal, SummaryCard, Toggle } from "./Ui";
+import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 
 const navItems: Array<{ view: AppView; href: string; label: string; shortcut: string }> = [
   { view: "typing", href: "/", label: "文章测速", shortcut: "01" },
@@ -563,7 +563,13 @@ function TypingView({
       </section>
 
       <section className="metric-strip" aria-label="实时成绩">
-        <Metric label="速度" value={speed.toString()} unit="字/分" accent />
+        <Metric
+          label="速度"
+          value={speed.toString()}
+          unit="字/分"
+          primary
+          active={startedAt !== null && !completed}
+        />
         <Metric label="击键" value={kps.toFixed(2)} unit="次/秒" />
         <Metric label="码长" value={codeLength.toFixed(2)} unit="键/字" />
         <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
@@ -599,12 +605,12 @@ function TypingView({
               }}
             />
           </div>
-          <div className="root-rail" aria-label="五笔字根分区与当前文章进度">
+          <div className="root-rail" aria-label="五笔字根分区与文章五段进度">
             {[
-              ["QWERT", "横区"],
-              ["YUIOP", "竖区"],
-              ["ASDFG", "撇区"],
-              ["HJKLM", "捺区"],
+              ["QWERT", "撇区"],
+              ["YUIOP", "捺区"],
+              ["ASDFG", "横区"],
+              ["HJKLM", "竖区"],
               ["XCVBN", "折区"],
             ].map(([keys, label], index) => {
               const progressRatio = typed.length / Math.max(1, targetText.length);
@@ -802,6 +808,34 @@ function TypingView({
         </Modal>
       )}
     </>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  unit,
+  primary = false,
+  active = false,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  primary?: boolean;
+  active?: boolean;
+}) {
+  const className = [
+    "metric",
+    primary ? "primary-metric" : "",
+    active ? "is-active" : "",
+  ].filter(Boolean).join(" ");
+
+  return (
+    <div className={className}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{unit}</small>
+    </div>
   );
 }
 
