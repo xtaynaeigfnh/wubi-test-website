@@ -780,6 +780,12 @@ select,
   background:
     linear-gradient(90deg, transparent 49.8%, color-mix(in srgb, var(--border-default) 45%, transparent) 50%, transparent 50.2%),
     var(--bg-paper);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.challenge-card.has-error {
+  border-color: var(--state-error);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--state-error) 28%, transparent);
 }
 
 .challenge-start,
@@ -888,10 +894,25 @@ select,
 
 .code-input.wrong {
   border-color: var(--state-error);
+  background: color-mix(in srgb, var(--state-error) 8%, var(--bg-raised));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-error) 16%, transparent);
+}
+
+.challenge-running.is-wrong .code-slots span.filled {
+  border-color: var(--state-error-fill);
+  background: var(--state-error-fill);
+}
+
+.feedback-region {
+  min-height: 116px;
+  margin-top: 14px;
+  display: grid;
+  place-items: start center;
 }
 
 .feedback {
-  min-height: 20px;
+  margin: 0;
+  padding: 8px 12px;
   font-size: 12px;
   font-weight: 750;
 }
@@ -902,6 +923,57 @@ select,
 
 .feedback.wrong {
   color: var(--state-error);
+}
+
+.wrong-answer {
+  width: min(400px, 100%);
+  padding: 14px 16px 16px;
+  color: var(--text-primary);
+  border: 1px solid var(--state-error);
+  background: color-mix(in srgb, var(--state-error) 9%, var(--bg-raised));
+  text-align: left;
+}
+
+.wrong-answer > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--state-error);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.wrong-answer p {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.wrong-answer del,
+.wrong-answer strong {
+  font: 800 20px/1 var(--font-data);
+}
+
+.wrong-answer del {
+  color: var(--state-error);
+  text-decoration-thickness: 2px;
+}
+
+.wrong-answer strong {
+  color: var(--state-success);
+}
+
+.wrong-answer i {
+  color: var(--text-secondary);
+  font-style: normal;
+}
+
+.wrong-answer .button {
+  width: 100%;
+  min-height: 38px;
 }
 
 .settings-mini > h3 {
@@ -932,6 +1004,24 @@ select,
 .segmented button.active {
   color: #fff;
   background: var(--accent-bamboo-fill);
+}
+
+.history-filter {
+  width: min(220px, 100%);
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.history-filter button {
+  min-width: 58px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+}
+
+.history-filter button.active {
+  border-color: var(--accent-bamboo-fill);
 }
 
 .switch-row {
@@ -1678,6 +1768,18 @@ select,
   .subpage-heading.with-action {
     align-items: start;
     flex-direction: column;
+  }
+
+  .panel-title:has(.history-filter) {
+    min-height: auto;
+    padding-block: 14px;
+    align-items: start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .history-filter {
+    width: 100%;
   }
 
   .summary-grid,

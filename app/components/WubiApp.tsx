@@ -681,6 +681,8 @@ function ChallengeView() {
   const [feedback, setFeedback] = useState<"idle" | "right" | "wrong">("idle");
   const [remaining, setRemaining] = useState(60);
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
+  const advanceTimerRef = useRef<number | null>(null);
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     loadWubi()
@@ -702,7 +704,12 @@ function ChallengeView() {
     setQuestion(pool[Math.floor(Math.random() * pool.length)]);
     setInput("");
     setFeedback("idle");
+    submitLockRef.current = false;
   }, [pool]);
+
+  useEffect(() => () => {
+    if (advanceTimerRef.current !== null) window.clearTimeout(advanceTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!started || !timed || remaining <= 0) return;
@@ -715,6 +722,7 @@ function ChallengeView() {
   }, [remaining, started, timed]);
 
   const start = () => {
+    if (advanceTimerRef.current !== null) window.clearTimeout(advanceTimerRef.current);
     setStarted(true);
     setIndex(0);
     setCorrect(0);
@@ -723,22 +731,28 @@ function ChallengeView() {
     nextQuestion();
   };
 
-  const submit = () => {
-    if (!question || !input) return;
-    const isRight = input.toLowerCase() === question[1];
-    setFeedback(isRight ? "right" : "wrong");
-    if (isRight) setCorrect((value) => value + 1);
-    else {
-      setMistakes((value) => [...value, { text: question[0], code: question[1], input }]);
-      addError(question[0], question[1]);
-    }
+  const advanceQuestion = useCallback(() => {
     const nextIndex = index + 1;
     setIndex(nextIndex);
     if (nextIndex >= limit) {
-      window.setTimeout(() => setStarted(false), 650);
+      setStarted(false);
       return;
     }
-    window.setTimeout(nextQuestion, 650);
+    nextQuestion();
+  }, [index, limit, nextQuestion]);
+
+  const submit = () => {
+    if (!question || !input || feedback !== "idle" || submitLockRef.current) return;
+    submitLockRef.current = true;
+    const isRight = input.toLowerCase() === question[1];
+    setFeedback(isRight ? "right" : "wrong");
+    if (isRight) {
+      setCorrect((value) => value + 1);
+      advanceTimerRef.current = window.setTimeout(advanceQuestion, 520);
+    } else {
+      setMistakes((value) => [...value, { text: question[0], code: question[1], input }]);
+      addError(question[0], question[1]);
+    }
   };
 
   return (
@@ -749,7 +763,7 @@ function ChallengeView() {
         <p>绕过系统输入法，直接检验你对 86 版五笔编码的熟练度。</p>
       </div>
       <div className="challenge-layout">
-        <div className="challenge-card">
+        <div className={`challenge-card${started && feedback === "wrong" ? " has-error" : ""}`}>
           {!started ? (
             <div className="challenge-start">
               <span className="giant-code">86</span>
@@ -759,13 +773,13 @@ function ChallengeView() {
                   <strong>{correct}</strong><span>/ {index} 正确</span>
                 </div>
               )}
-              <p>看到汉字后输入规范五笔编码，按回车提交。</p>
+              <p>看到汉字后输入规范五笔编码，按回车提交。答错后会停留显示正确编码。</p>
               <button className="button primary" disabled={loading} onClick={start}>
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
             </div>
           ) : (
-            <div className="challenge-running">
+            <div className={`challenge-running${feedback === "wrong" ? " is-wrong" : ""}`}>
               <div className="challenge-status">
                 <span>第 {index + 1} / {limit} 题</span>
                 <span>正确 {correct}</span>
@@ -787,14 +801,29 @@ function ChallengeView() {
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && feedback === "idle") submit();
+                  if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
                 placeholder="输入编码后回车"
                 aria-label="五笔编码"
+                aria-invalid={feedback === "wrong"}
+                readOnly={feedback !== "idle"}
               />
-              {feedback === "right" && <p className="feedback right">编码正确</p>}
-              {feedback === "wrong" && (
-                <p className="feedback wrong">正确编码：{question?.[1].toUpperCase()}</p>
-              )}
+              <div className="feedback-region" aria-live="assertive">
+                {feedback === "right" && <p className="feedback right">编码正确，继续下一题</p>}
+                {feedback === "wrong" && (
+                  <div className="wrong-answer" role="alert">
+                    <span>本题答错</span>
+                    <p>
+                      你的输入 <del>{input.toUpperCase()}</del>
+                      <i aria-hidden="true">→</i>
+                      正确编码 <strong>{question?.[1].toUpperCase()}</strong>
+                    </p>
+                    <button className="button danger" onClick={advanceQuestion}>
+                      {index + 1 >= limit ? "查看本轮结果" : "下一题（回车）"}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -962,9 +991,14 @@ function HistoryView({ articles }: { articles: PracticeArticle[] }) {
         <div className="history-panel">
           <div className="panel-title">
             <h2>最近练习</h2>
-            <div className="segmented small">
+            <div className="segmented small history-filter" aria-label="练习类型筛选">
               {(["all", "article", "challenge"] as const).map((value) => (
-                <button key={value} className={type === value ? "active" : ""} onClick={() => setType(value)}>
+                <button
+                  key={value}
+                  className={type === value ? "active" : ""}
+                  aria-pressed={type === value}
+                  onClick={() => setType(value)}
+                >
                   {value === "all" ? "全部" : value === "article" ? "文章" : "字码"}
                 </button>
               ))}
