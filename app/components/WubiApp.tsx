@@ -15,6 +15,7 @@ import {
   addError,
   buildChallengePool,
   calculateAccuracy,
+  canCompleteTyping,
   countCommittedAttempts,
   defaultSettings,
   formatDuration,
@@ -389,8 +390,7 @@ function TypingView({
     if (
       !article ||
       completed ||
-      typed.length < targetText.length ||
-      typed !== targetText
+      !canCompleteTyping(typed, targetText)
     ) {
       return;
     }
@@ -758,10 +758,6 @@ function TypingView({
               <option value="practiced">已练习</option>
             </select>
           </label>
-          <div className="filter-result">
-            <strong>{filtered.length}</strong>
-            <span>篇符合条件</span>
-          </div>
           <button className="side-action" disabled={!filtered.length} onClick={randomArticle}>随机抽取一篇 <b>↗</b></button>
           <button className="side-action subtle" onClick={pickMostDifficult}>重练错字较多文章</button>
           <div className="tip-box">

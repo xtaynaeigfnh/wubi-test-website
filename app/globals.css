@@ -685,29 +685,9 @@ select,
   background: var(--bg-raised);
 }
 
-.filter-result,
 .mistake-summary,
 .completion-stat {
   background: var(--bg-raised);
-}
-
-.filter-result {
-  margin: 18px 0 10px;
-  padding: 12px;
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  border-left: 3px solid var(--accent-vermilion);
-}
-
-.filter-result strong {
-  color: var(--accent-vermilion);
-  font: 700 22px/1 var(--font-data);
-}
-
-.filter-result span {
-  color: var(--text-secondary);
-  font-size: 11px;
 }
 
 .side-action {
@@ -1676,7 +1656,6 @@ select,
     margin-top: 0;
   }
 
-  .filter-result,
   .side-action {
     margin-top: 0;
   }
@@ -1813,7 +1792,6 @@ select,
     margin-top: 15px;
   }
 
-  .filter-result,
   .side-action {
     margin-top: 10px;
   }
