@@ -445,12 +445,12 @@ function TypingView({
               }}
             />
           </div>
-          <div className="root-rail" aria-label="五笔字根分区与当前文章进度">
+          <div className="root-rail" aria-label="五笔字根分区与文章五段进度">
             {[
-              ["QWERT", "横区"],
-              ["YUIOP", "竖区"],
-              ["ASDFG", "撇区"],
-              ["HJKLM", "捺区"],
+              ["QWERT", "撇区"],
+              ["YUIOP", "捺区"],
+              ["ASDFG", "横区"],
+              ["HJKLM", "竖区"],
               ["XCVBN", "折区"],
             ].map(([keys, label], index) => {
               const progressRatio = typed.length / Math.max(1, targetText.length);
