@@ -32,6 +32,7 @@ export const defaultSettings: UserSettings = {
 let articlesPromise: Promise<PracticeArticle[]> | null = null;
 let articleMetadataPromise: Promise<ArticleMetadata[]> | null = null;
 let wubiPromise: Promise<WubiEntry[]> | null = null;
+let wubiChallengePromise: Promise<WubiEntry[]> | null = null;
 
 export function readLocal<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -230,6 +231,17 @@ export function calculateAccuracy(
   attempts: number,
 ): number {
   return attempts > 0 ? (correctAttempts / attempts) * 100 : 100;
+}
+
+export async function loadWubiChallenge(): Promise<WubiEntry[]> {
+  wubiChallengePromise ??= fetchJson<WubiEntry[]>(
+    "/data/wubi86-challenge.json",
+    "挑战题库",
+  ).catch((error) => {
+    wubiChallengePromise = null;
+    throw error;
+  });
+  return wubiChallengePromise;
 }
 
 export function getSessions() {
