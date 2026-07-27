@@ -154,3 +154,23 @@ test("Wubi dictionary contains core words and no invalid codes", async () => {
   assert.ok(rows.some(([text, code]) => text === "测试" && code === "imya"));
   assert.ok(rows.every(([, code]) => /^[a-y]{1,4}$/.test(code)));
 });
+
+test("challenge dictionary contains simplified Chinese and excludes traditional forms", async () => {
+  const rows = await readJson("wubi86-challenge.json");
+  const texts = new Set(rows.map(([text]) => text));
+
+  assert.ok(rows.length > 50000);
+  assert.ok(texts.has("国"));
+  assert.ok(texts.has("后"));
+  assert.ok(texts.has("体"));
+  assert.equal(texts.has("國"), false);
+  assert.equal(texts.has("後"), false);
+  assert.equal(texts.has("體"), false);
+  assert.equal(texts.has("桜"), false);
+  assert.equal(texts.has("沢"), false);
+  assert.equal(
+    rows.some(([text]) => /[國後體發臺灣漢語桜沢辺]/u.test(text)),
+    false,
+  );
+  assert.ok(rows.every(([, code]) => /^[a-y]{1,4}$/.test(code)));
+});

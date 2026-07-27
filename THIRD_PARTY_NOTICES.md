@@ -11,3 +11,13 @@ the unmodified `wubi86.dict.yaml` file in `third_party/rime-wubi`.
 
 The upstream `LICENSE` and `AUTHORS` files are included alongside the original
 dictionary source.
+
+## OpenCC JS
+
+The simplified-only challenge dictionary in
+`public/data/wubi86-challenge.json` is filtered during generation with
+`opencc-js`.
+
+- Project: [nk2028/opencc-js](https://github.com/nk2028/opencc-js)
+- Version: 1.4.1
+- License: MIT AND Apache-2.0
