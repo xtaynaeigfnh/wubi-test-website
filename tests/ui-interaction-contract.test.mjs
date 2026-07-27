@@ -35,13 +35,20 @@ test("typing omits the filtered article count and resets timing on restart", asy
   assert.match(component, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
 });
 
-test("typing progress keeps the five correct Wubi root zones", async () => {
-  const component = await readFile(componentPath, "utf8");
+test("typing progress fills the five correct Wubi root zones continuously", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
 
   assert.match(component, /\["QWERT", "撇区"\]/);
   assert.match(component, /\["YUIOP", "捺区"\]/);
   assert.match(component, /\["ASDFG", "横区"\]/);
   assert.match(component, /\["HJKLM", "竖区"\]/);
   assert.match(component, /\["XCVBN", "折区"\]/);
-  assert.match(component, /Math\.floor\(progressRatio \* 5\)/);
+  assert.match(component, /progressRatio \* 5 - index/);
+  assert.match(component, /"--segment-progress": `\$\{segmentProgress \* 100\}%`/);
+  assert.match(component, /role="progressbar"/);
+  assert.doesNotMatch(component, /className="progress-track"/);
+  assert.match(styles, /transition:\s*width 120ms linear/);
 });
