@@ -26,3 +26,14 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(styles, /\.history-filter\s*\{[^}]*gap:\s*6px/s);
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
 });
+
+test("typing progress keeps the five correct Wubi root zones", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /\["QWERT", "撇区"\]/);
+  assert.match(component, /\["YUIOP", "捺区"\]/);
+  assert.match(component, /\["ASDFG", "横区"\]/);
+  assert.match(component, /\["HJKLM", "竖区"\]/);
+  assert.match(component, /\["XCVBN", "折区"\]/);
+  assert.match(component, /Math\.floor\(progressRatio \* 5\)/);
+});
