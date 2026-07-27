@@ -34,3 +34,14 @@ test("typing omits the filtered article count and resets timing on restart", asy
   assert.doesNotMatch(component, /本次练习出现过错字，无法提交成绩/);
   assert.match(component, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
 });
+
+test("typing progress keeps the five correct Wubi root zones", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /\["QWERT", "撇区"\]/);
+  assert.match(component, /\["YUIOP", "捺区"\]/);
+  assert.match(component, /\["ASDFG", "横区"\]/);
+  assert.match(component, /\["HJKLM", "竖区"\]/);
+  assert.match(component, /\["XCVBN", "折区"\]/);
+  assert.match(component, /Math\.floor\(progressRatio \* 5\)/);
+});
