@@ -3,6 +3,7 @@
 
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -12,6 +13,9 @@ import {
 import Link from "next/link";
 import {
   addError,
+  buildChallengePool,
+  calculateAccuracy,
+  countCommittedAttempts,
   defaultSettings,
   formatDuration,
   getProgress,
@@ -19,7 +23,10 @@ import {
   lengthLabels,
   loadArticles,
   loadWubi,
+  preferShortestWubiCodes,
   readLocal,
+  readLocalArray,
+  readSettings,
   saveSession,
   STORAGE,
   writeLocal,
@@ -34,6 +41,7 @@ import type {
   UserSettings,
   WubiEntry,
 } from "../types";
+import { ErrorState, Metric, Modal, SummaryCard, Toggle } from "./Ui";
 
 const navItems: Array<{ view: AppView; href: string; label: string; shortcut: string }> = [
   { view: "typing", href: "/", label: "文章测速", shortcut: "01" },
@@ -44,15 +52,10 @@ const navItems: Array<{ view: AppView; href: string; label: string; shortcut: st
 ];
 
 export function WubiApp({ view }: { view: AppView }) {
-  const [articles, setArticles] = useState<PracticeArticle[]>([]);
-  const [articlesLoading, setArticlesLoading] = useState(true);
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
 
   useEffect(() => {
-    setSettings({ ...defaultSettings, ...readLocal(STORAGE.settings, defaultSettings) });
-    loadArticles()
-      .then(setArticles)
-      .finally(() => setArticlesLoading(false));
+    setSettings(readSettings());
   }, []);
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export function WubiApp({ view }: { view: AppView }) {
                 key={item.view}
                 href={item.href}
                 className={view === item.view ? "nav-item active" : "nav-item"}
+                aria-current={view === item.view ? "page" : undefined}
               >
                 <span aria-hidden="true">{item.shortcut}</span>
                 {item.label}
@@ -89,16 +93,10 @@ export function WubiApp({ view }: { view: AppView }) {
       </header>
 
       <main className="page-wrap">
-        {view === "typing" && (
-          <TypingView
-            articles={articles}
-            loading={articlesLoading}
-            settings={settings}
-          />
-        )}
+        {view === "typing" && <TypingView settings={settings} />}
         {view === "challenge" && <ChallengeView />}
         {view === "lookup" && <LookupView />}
-        {view === "history" && <HistoryView articles={articles} />}
+        {view === "history" && <HistoryView />}
         {view === "settings" && (
           <SettingsView settings={settings} onChange={setSettings} />
         )}
@@ -115,14 +113,15 @@ export function WubiApp({ view }: { view: AppView }) {
 }
 
 function TypingView({
-  articles,
-  loading,
   settings,
 }: {
-  articles: PracticeArticle[];
-  loading: boolean;
   settings: UserSettings;
 }) {
+  const [articles, setArticles] = useState<PracticeArticle[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
+  const [articlesError, setArticlesError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [customTexts, setCustomTexts] = useState<PracticeArticle[]>([]);
   const [article, setArticle] = useState<PracticeArticle | null>(null);
   const [filter, setFilter] = useState<ArticleFilter>({
     length: settings.preferredLength,
@@ -139,6 +138,8 @@ function TypingView({
   const [elapsed, setElapsed] = useState(0);
   const [keyCount, setKeyCount] = useState(0);
   const [letterKeys, setLetterKeys] = useState(0);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [correctAttemptCount, setCorrectAttemptCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
@@ -148,6 +149,85 @@ function TypingView({
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
+  const [codeHintsError, setCodeHintsError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setArticlesLoading(true);
+    setArticlesError("");
+    loadArticles()
+      .then((rows) => {
+        if (active) setArticles(rows);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setArticlesError(
+            error instanceof Error ? error.message : "练习文章加载失败",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setArticlesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
+  useEffect(() => {
+    setCustomTexts(readLocalArray<PracticeArticle>(STORAGE.customTexts));
+  }, []);
+
+  useEffect(() => {
+    setFilter((value) => ({
+      ...value,
+      length: settings.preferredLength,
+    }));
+  }, [settings.preferredLength]);
+
+  useEffect(() => {
+    if (!settings.showCodeHints) {
+      setCodeHints(new Map());
+      setCodeHintsError("");
+      return;
+    }
+    let active = true;
+    setCodeHintsError("");
+    loadWubi()
+      .then((rows) => {
+        if (!active) return;
+        const singleCharacters = rows.filter(
+          ([text]) => Array.from(text).length === 1,
+        );
+        setCodeHints(
+          new Map(
+            preferShortestWubiCodes(singleCharacters).map(([text, code]) => [
+              text,
+              code,
+            ]),
+          ),
+        );
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setCodeHintsError(
+            error instanceof Error ? error.message : "编码提示加载失败",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [settings.showCodeHints]);
+
+  useEffect(
+    () => () => {
+      void audioContextRef.current?.close();
+    },
+    [],
+  );
 
   useEffect(() => {
     setProgress(getProgress());
@@ -156,13 +236,18 @@ function TypingView({
     () => new Map(progress.map((row) => [row.articleId, row])),
     [progress],
   );
+  const availableArticles = useMemo(
+    () => [...customTexts, ...articles],
+    [articles, customTexts],
+  );
   const topics = useMemo(
-    () => Array.from(new Set(articles.map((item) => item.topic))).sort(),
-    [articles],
+    () =>
+      Array.from(new Set(availableArticles.map((item) => item.topic))).sort(),
+    [availableArticles],
   );
   const filtered = useMemo(
     () =>
-      articles.filter((item) => {
+      availableArticles.filter((item) => {
         const record = progressMap.get(item.id);
         if (filter.length !== "all" && item.length !== filter.length) return false;
         if (filter.topic !== "all" && item.topic !== filter.topic) return false;
@@ -170,14 +255,14 @@ function TypingView({
         if (filter.status === "practiced" && !record) return false;
         return true;
       }),
-    [articles, filter, progressMap],
+    [availableArticles, filter, progressMap],
   );
 
   const chooseArticle = useCallback(
     (next: PracticeArticle, focusInput = true) => {
       setArticle(next);
       writeLocal(STORAGE.current, next.id);
-      const recent = readLocal<string[]>(STORAGE.recent, []);
+      const recent = readLocalArray<string>(STORAGE.recent);
       writeLocal(STORAGE.recent, [next.id, ...recent.filter((id) => id !== next.id)].slice(0, 10));
       setInputValue("");
       setTyped("");
@@ -185,6 +270,8 @@ function TypingView({
       setElapsed(0);
       setKeyCount(0);
       setLetterKeys(0);
+      setAttemptCount(0);
+      setCorrectAttemptCount(0);
       setErrorCount(0);
       setCompleted(false);
       composing.current = false;
@@ -200,24 +287,23 @@ function TypingView({
   );
 
   const randomArticle = useCallback(() => {
-    const pool = filtered.length ? filtered : articles;
-    if (!pool.length) return;
-    const recent = new Set(readLocal<string[]>(STORAGE.recent, []));
-    const fresh = pool.filter((item) => !recent.has(item.id));
-    const candidates = fresh.length ? fresh : pool;
+    if (!filtered.length) return;
+    const recent = new Set(readLocalArray<string>(STORAGE.recent));
+    const fresh = filtered.filter((item) => !recent.has(item.id));
+    const candidates = fresh.length ? fresh : filtered;
     chooseArticle(candidates[Math.floor(Math.random() * candidates.length)]);
-  }, [articles, chooseArticle, filtered]);
+  }, [chooseArticle, filtered]);
 
   useEffect(() => {
-    if (!articles.length || article) return;
+    if (articlesLoading || !availableArticles.length || article) return;
     const currentId = readLocal<string | null>(STORAGE.current, null);
     chooseArticle(
-      articles.find((item) => item.id === currentId) ||
+      availableArticles.find((item) => item.id === currentId) ||
         articles.find((item) => item.length === "short") ||
-        articles[0],
+        availableArticles[0],
       false,
     );
-  }, [article, articles, chooseArticle]);
+  }, [article, articles, articlesLoading, availableArticles, chooseArticle]);
 
   useEffect(() => {
     if (!startedAt || completed) return;
@@ -261,7 +347,7 @@ function TypingView({
   const speed = seconds > 0 ? Math.round(correctChars / (seconds / 60)) : 0;
   const kps = seconds > 0 ? keyCount / seconds : 0;
   const codeLength = correctChars > 0 ? letterKeys / correctChars : 0;
-  const accuracy = typed.length > 0 ? (correctChars / typed.length) * 100 : 100;
+  const accuracy = calculateAccuracy(correctAttemptCount, attemptCount);
 
   useEffect(() => {
     const viewport = articleTextRef.current;
@@ -324,18 +410,19 @@ function TypingView({
       date: new Date().toISOString(),
       durationSeconds: finalSeconds,
       correctChars: targetText.length,
-      attemptedChars: Math.max(targetText.length, typed.length),
+      attemptedChars: Math.max(targetText.length, attemptCount),
       speed: finalSeconds > 0 ? Math.round(targetText.length / (finalSeconds / 60)) : 0,
       kps: finalSeconds > 0 ? keyCount / finalSeconds : 0,
       codeLength: targetText.length ? letterKeys / targetText.length : 0,
-      accuracy: typed.length ? (correctChars / typed.length) * 100 : 100,
+      accuracy,
       errors: errorPositions.current.size,
       errorChars,
     });
   }, [
     article,
+    accuracy,
+    attemptCount,
     completed,
-    correctChars,
     keyCount,
     letterKeys,
     startedAt,
@@ -343,11 +430,49 @@ function TypingView({
     typed,
   ]);
 
+  const commitTypedValue = (nextValue: string) => {
+    const committed = nextValue
+      .replace(/[\r\n]/g, "")
+      .slice(0, targetText.length);
+    const attempt = countCommittedAttempts(typed, committed, targetText);
+    if (attempt.attempts > 0) {
+      setAttemptCount((value) => value + attempt.attempts);
+      setCorrectAttemptCount((value) => value + attempt.correct);
+    }
+    setInputValue(committed);
+    setTyped(committed);
+  };
+
+  const playKeySound = () => {
+    if (!settings.sound) return;
+    const AudioContextClass =
+      window.AudioContext ||
+      (
+        window as typeof window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context =
+      audioContextRef.current ?? (audioContextRef.current = new AudioContextClass());
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 520;
+    gain.gain.setValueAtTime(0.025, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.025);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.025);
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completed) return;
     if (!startedAt && event.key.length === 1) setStartedAt(Date.now());
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
+      playKeySound();
     }
     if (/^[a-y]$/i.test(event.key)) setLetterKeys((value) => value + 1);
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
@@ -370,8 +495,13 @@ function TypingView({
       version: 1,
       text: clean,
     };
-    const saved = readLocal<PracticeArticle[]>(STORAGE.customTexts, []);
-    writeLocal(STORAGE.customTexts, [custom, ...saved].slice(0, 20));
+    const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
+    const nextCustomTexts = [
+      custom,
+      ...saved.filter((item) => item.id !== custom.id),
+    ].slice(0, 20);
+    writeLocal(STORAGE.customTexts, nextCustomTexts);
+    setCustomTexts(nextCustomTexts);
     chooseArticle(custom);
     setCustomOpen(false);
   };
@@ -385,8 +515,32 @@ function TypingView({
     else randomArticle();
   };
 
-  if (loading || !article) {
-    return <div className="loading-card">正在整理 200 篇练习文章…</div>;
+  if (articlesLoading) {
+    return (
+      <div className="loading-card" role="status" aria-busy="true">
+        正在整理 200 篇练习文章…
+      </div>
+    );
+  }
+
+  if (articlesError) {
+    return (
+      <ErrorState
+        title="练习文章没有加载成功"
+        message={articlesError}
+        onRetry={() => setLoadAttempt((value) => value + 1)}
+      />
+    );
+  }
+
+  if (!article) {
+    return (
+      <ErrorState
+        title="暂时没有可练习的文章"
+        message="请重新加载文章库后再试。"
+        onRetry={() => setLoadAttempt((value) => value + 1)}
+      />
+    );
   }
 
   return (
@@ -434,8 +588,13 @@ function TypingView({
           </div>
           <div className="progress-track">
             <i
+              role="progressbar"
+              aria-label="文章输入进度"
+              aria-valuemin={0}
+              aria-valuemax={targetText.length}
+              aria-valuenow={typed.length}
               style={{
-                width: `${Math.min(100, (typed.length / Math.max(1, visibleText.length)) * 100)}%`,
+                width: `${Math.min(100, (typed.length / Math.max(1, targetText.length)) * 100)}%`,
               }}
             />
           </div>
@@ -504,20 +663,14 @@ function TypingView({
                 setInputValue(next);
                 return;
               }
-              const committed = next.replace(/[\r\n]/g, "").slice(0, targetText.length);
-              setInputValue(committed);
-              setTyped(committed);
+              commitTypedValue(next);
             }}
             onCompositionStart={() => {
               composing.current = true;
             }}
             onCompositionEnd={(event) => {
               composing.current = false;
-              const committed = event.currentTarget.value
-                .replace(/[\r\n]/g, "")
-                .slice(0, targetText.length);
-              setInputValue(committed);
-              setTyped(committed);
+              commitTypedValue(event.currentTarget.value);
             }}
             onKeyDown={onKeyDown}
             onPaste={(event) => event.preventDefault()}
@@ -528,7 +681,15 @@ function TypingView({
           />
           <div className="typing-footer">
             <span>第 {Math.min(typed.length + 1, targetText.length)} / {targetText.length} 字</span>
-            <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
+            <span>
+              {settings.showCodeHints
+                ? codeHintsError ||
+                  `当前编码：${
+                    codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                    "暂无"
+                  }`
+                : "输入第一个字符后开始计时 · 已禁用粘贴"}
+            </span>
           </div>
           {completed && (
             <div className="completion-panel">
@@ -550,7 +711,7 @@ function TypingView({
               <span className="eyebrow">文章库</span>
               <h3>200 篇离线练习</h3>
             </div>
-            <span className="count-badge">200</span>
+            <span className="count-badge">{articles.length}</span>
           </div>
           <label>
             长度
@@ -600,7 +761,7 @@ function TypingView({
             <strong>{filtered.length}</strong>
             <span>篇符合条件</span>
           </div>
-          <button className="side-action" onClick={randomArticle}>随机抽取一篇 <b>↗</b></button>
+          <button className="side-action" disabled={!filtered.length} onClick={randomArticle}>随机抽取一篇 <b>↗</b></button>
           <button className="side-action subtle" onClick={pickMostDifficult}>重练错字较多文章</button>
           <div className="tip-box">
             <span>小提示</span>
@@ -634,7 +795,7 @@ function TypingView({
       {customOpen && (
         <Modal title="粘贴自定义文本" onClose={() => setCustomOpen(false)}>
           <div className="custom-form">
-            <label>标题<input value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} /></label>
+            <label>标题<input data-modal-autofocus value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} /></label>
             <label>正文<textarea value={customText} onChange={(event) => setCustomText(event.target.value)} placeholder="粘贴 10–5000 字的纯文本…" /></label>
             <div className="modal-actions">
               <span>{customText.trim().length} / 5000 字</span>
@@ -647,29 +808,11 @@ function TypingView({
   );
 }
 
-function Metric({
-  label,
-  value,
-  unit,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={accent ? "metric accent" : "metric"}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{unit}</small>
-    </div>
-  );
-}
-
 function ChallengeView() {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [mode, setMode] = useState<"char" | "phrase">("char");
   const [limit, setLimit] = useState<20 | 50>(20);
   const [timed, setTimed] = useState(false);
@@ -681,53 +824,139 @@ function ChallengeView() {
   const [feedback, setFeedback] = useState<"idle" | "right" | "wrong">("idle");
   const [remaining, setRemaining] = useState(60);
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
+  const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
+  const startedAtRef = useRef(0);
+  const recordedRef = useRef(false);
+  const nextTimerRef = useRef<number | null>(null);
+  const seenQuestionsRef = useRef(new Set<string>());
 
   useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError("");
     loadWubi()
-      .then(setRows)
-      .finally(() => setLoading(false));
-  }, []);
+      .then((nextRows) => {
+        if (active) setRows(nextRows);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadError(
+            error instanceof Error ? error.message : "五笔码表加载失败",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   const pool = useMemo(() => {
-    const filtered = rows.filter(([text, code, weight]) => {
-      if (code.length > 4 || weight < 100000) return false;
-      const size = Array.from(text).length;
-      return mode === "char" ? size === 1 : size >= 2 && size <= 4;
-    });
-    return filtered.sort((a, b) => b[2] - a[2]).slice(0, 5000);
+    return buildChallengePool(rows, mode);
   }, [mode, rows]);
 
   const nextQuestion = useCallback(() => {
     if (!pool.length) return;
-    setQuestion(pool[Math.floor(Math.random() * pool.length)]);
+    let candidates = pool.filter(
+      ([text]) => !seenQuestionsRef.current.has(text),
+    );
+    if (!candidates.length) {
+      seenQuestionsRef.current.clear();
+      candidates = pool;
+    }
+    const next = candidates[Math.floor(Math.random() * candidates.length)];
+    seenQuestionsRef.current.add(next[0]);
+    setQuestion(next);
     setInput("");
     setFeedback("idle");
   }, [pool]);
 
-  useEffect(() => {
-    if (!started || !timed || remaining <= 0) return;
-    const timer = window.setInterval(() => setRemaining((value) => value - 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [remaining, started, timed]);
+  const finishChallenge = useCallback(
+    (
+      answered: number,
+      correctAnswers: number,
+      reason: "complete" | "timeout",
+    ) => {
+      if (recordedRef.current) return;
+      recordedRef.current = true;
+      const durationSeconds = Math.max(
+        0,
+        (Date.now() - startedAtRef.current) / 1000,
+      );
+      if (answered > 0) {
+        saveSession({
+          id: crypto.randomUUID(),
+          type: "challenge",
+          title: `${mode === "char" ? "单字" : "词组"}挑战${timed ? " · 60 秒" : ""}`,
+          date: new Date().toISOString(),
+          durationSeconds,
+          correctChars: correctAnswers,
+          attemptedChars: answered,
+          speed:
+            durationSeconds > 0
+              ? Math.round(correctAnswers / (durationSeconds / 60))
+              : 0,
+          kps: 0,
+          codeLength: 0,
+          accuracy: calculateAccuracy(correctAnswers, answered),
+          errors: answered - correctAnswers,
+        });
+      }
+      if (nextTimerRef.current) {
+        window.clearTimeout(nextTimerRef.current);
+        nextTimerRef.current = null;
+      }
+      setFinishedReason(reason);
+      setStarted(false);
+    },
+    [mode, timed],
+  );
 
   useEffect(() => {
-    if (started && timed && remaining <= 0) setStarted(false);
-  }, [remaining, started, timed]);
+    if (!started || !timed) return;
+    const timer = window.setInterval(
+      () => setRemaining((value) => Math.max(0, value - 1)),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [started, timed]);
+
+  useEffect(() => {
+    if (started && timed && remaining <= 0) {
+      finishChallenge(index, correct, "timeout");
+    }
+  }, [correct, finishChallenge, index, remaining, started, timed]);
+
+  useEffect(
+    () => () => {
+      if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
+    },
+    [],
+  );
 
   const start = () => {
+    if (!pool.length) return;
+    if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
+    recordedRef.current = false;
+    seenQuestionsRef.current.clear();
+    startedAtRef.current = Date.now();
     setStarted(true);
     setIndex(0);
     setCorrect(0);
     setRemaining(60);
     setMistakes([]);
+    setFinishedReason("");
     nextQuestion();
   };
 
   const submit = () => {
-    if (!question || !input) return;
+    if (!question || !input || feedback !== "idle") return;
     const isRight = input.toLowerCase() === question[1];
     setFeedback(isRight ? "right" : "wrong");
-    if (isRight) setCorrect((value) => value + 1);
+    const nextCorrect = correct + (isRight ? 1 : 0);
+    if (isRight) setCorrect(nextCorrect);
     else {
       setMistakes((value) => [...value, { text: question[0], code: question[1], input }]);
       addError(question[0], question[1]);
@@ -735,10 +964,10 @@ function ChallengeView() {
     const nextIndex = index + 1;
     setIndex(nextIndex);
     if (nextIndex >= limit) {
-      window.setTimeout(() => setStarted(false), 650);
+      finishChallenge(nextIndex, nextCorrect, "complete");
       return;
     }
-    window.setTimeout(nextQuestion, 650);
+    nextTimerRef.current = window.setTimeout(nextQuestion, 650);
   };
 
   return (
@@ -748,19 +977,32 @@ function ChallengeView() {
         <h1>字码挑战</h1>
         <p>绕过系统输入法，直接检验你对 86 版五笔编码的熟练度。</p>
       </div>
+      {loadError ? (
+        <ErrorState
+          title="字码挑战暂时不可用"
+          message={loadError}
+          onRetry={() => setLoadAttempt((value) => value + 1)}
+        />
+      ) : (
       <div className="challenge-layout">
         <div className="challenge-card">
           {!started ? (
             <div className="challenge-start">
               <span className="giant-code">86</span>
-              <h2>{index ? "本轮挑战完成" : "准备好了吗？"}</h2>
+              <h2>
+                {index
+                  ? finishedReason === "timeout"
+                    ? "时间到，本轮结束"
+                    : "本轮挑战完成"
+                  : "准备好了吗？"}
+              </h2>
               {index > 0 && (
                 <div className="result-score">
                   <strong>{correct}</strong><span>/ {index} 正确</span>
                 </div>
               )}
-              <p>看到汉字后输入规范五笔编码，按回车提交。</p>
-              <button className="button primary" disabled={loading} onClick={start}>
+              <p>看到汉字后输入最短可用五笔编码，按回车提交。</p>
+              <button className="button primary" disabled={loading || !pool.length} onClick={start}>
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
             </div>
@@ -773,7 +1015,7 @@ function ChallengeView() {
               </div>
               <div className="question-character">{question?.[0]}</div>
               <div className="code-slots">
-                {[0, 1, 2, 3].map((slot) => (
+                {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
                     {input[slot]?.toUpperCase() || "·"}
                   </span>
@@ -783,7 +1025,7 @@ function ChallengeView() {
                 autoFocus
                 className={`code-input ${feedback}`}
                 value={input}
-                maxLength={4}
+                maxLength={question?.[1].length ?? 4}
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && feedback === "idle") submit();
@@ -791,9 +1033,9 @@ function ChallengeView() {
                 placeholder="输入编码后回车"
                 aria-label="五笔编码"
               />
-              {feedback === "right" && <p className="feedback right">编码正确</p>}
+              {feedback === "right" && <p className="feedback right" role="status" aria-live="polite">编码正确</p>}
               {feedback === "wrong" && (
-                <p className="feedback wrong">正确编码：{question?.[1].toUpperCase()}</p>
+                <p className="feedback wrong" role="status" aria-live="polite">正确编码：{question?.[1].toUpperCase()}</p>
               )}
             </div>
           )}
@@ -801,18 +1043,18 @@ function ChallengeView() {
         <aside className="side-panel settings-mini">
           <h3>挑战设置</h3>
           <div className="segmented">
-            <button className={mode === "char" ? "active" : ""} onClick={() => setMode("char")}>单字</button>
-            <button className={mode === "phrase" ? "active" : ""} onClick={() => setMode("phrase")}>词组</button>
+            <button disabled={started} aria-pressed={mode === "char"} className={mode === "char" ? "active" : ""} onClick={() => setMode("char")}>单字</button>
+            <button disabled={started} aria-pressed={mode === "phrase"} className={mode === "phrase" ? "active" : ""} onClick={() => setMode("phrase")}>词组</button>
           </div>
           <label>题量
-            <select value={limit} onChange={(event) => setLimit(Number(event.target.value) as 20 | 50)}>
+            <select disabled={started} value={limit} onChange={(event) => setLimit(Number(event.target.value) as 20 | 50)}>
               <option value={20}>20 题</option>
               <option value={50}>50 题</option>
             </select>
           </label>
           <label className="switch-row">
             <span><strong>60 秒限时</strong><small>时间结束自动停止</small></span>
-            <input type="checkbox" checked={timed} onChange={(event) => setTimed(event.target.checked)} />
+            <input type="checkbox" disabled={started} checked={timed} onChange={(event) => setTimed(event.target.checked)} />
           </label>
           <div className="mistake-summary">
             <span>本轮错题</span>
@@ -825,6 +1067,7 @@ function ChallengeView() {
           ))}
         </aside>
       </div>
+      )}
     </section>
   );
 }
@@ -833,24 +1076,59 @@ function LookupView() {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const deferredQuery = useDeferredValue(query.trim());
 
   useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError("");
     loadWubi()
-      .then(setRows)
-      .finally(() => setLoading(false));
-  }, []);
+      .then((nextRows) => {
+        if (active) setRows(nextRows);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadError(
+            error instanceof Error ? error.message : "五笔码表加载失败",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
+  const searchIndexes = useMemo(() => {
+    const byCode = new Map<string, WubiEntry[]>();
+    const byText = new Map<string, WubiEntry[]>();
+    rows.forEach((entry) => {
+      const codeEntries = byCode.get(entry[1]) || [];
+      codeEntries.push(entry);
+      byCode.set(entry[1], codeEntries);
+      const textEntries = byText.get(entry[0]) || [];
+      textEntries.push(entry);
+      byText.set(entry[0], textEntries);
+    });
+    return { byCode, byText };
+  }, [rows]);
 
   const results = useMemo(() => {
-    const value = query.trim().toLowerCase();
+    const value = deferredQuery.toLowerCase();
     if (!value) return [];
     const isCode = /^[a-y]{1,4}$/.test(value);
-    const matches = rows.filter(([text, code]) =>
-      isCode ? code === value : text === query.trim() || text.includes(query.trim()),
-    );
-    return matches.sort((a, b) => b[2] - a[2]).slice(0, 60);
-  }, [query, rows]);
+    const matches = isCode
+      ? searchIndexes.byCode.get(value) ?? []
+      : searchIndexes.byText.get(deferredQuery) ??
+        rows.filter(([text]) => text.includes(deferredQuery));
+    return [...matches].sort((a, b) => b[2] - a[2]).slice(0, 60);
+  }, [deferredQuery, rows, searchIndexes]);
 
-  const exact = useMemo(() => {
+  const groupedResults = useMemo(() => {
     const map = new Map<string, WubiEntry[]>();
     results.forEach((entry) => {
       const list = map.get(entry[0]) || [];
@@ -870,13 +1148,20 @@ function LookupView() {
       <div className="lookup-search">
         <span aria-hidden="true">查</span>
         <input
-          autoFocus
+          aria-label="查询汉字、词组或五笔编码"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={loading ? "正在加载离线码表…" : "例如：五笔、测试、ggtt"}
         />
         {query && <button onClick={() => setQuery("")}>清除</button>}
       </div>
+      {loadError && (
+        <ErrorState
+          title="五笔码表没有加载成功"
+          message={loadError}
+          onRetry={() => setLoadAttempt((value) => value + 1)}
+        />
+      )}
       {!query && (
         <div className="lookup-empty">
           <div className="keyboard-visual">
@@ -891,12 +1176,12 @@ function LookupView() {
           </div>
         </div>
       )}
-      {query && !loading && (
+      {query && !loading && !loadError && (
         <div className="lookup-results">
-          <div className="result-heading">
+          <div className="result-heading" role="status" aria-live="polite">
             <span>查询结果</span><strong>{results.length} 条</strong>
           </div>
-          {exact.map(([text, entries]) => (
+          {groupedResults.map(([text, entries]) => (
             <div className="lookup-row" key={text}>
               <strong>{text}</strong>
               <div>
@@ -912,7 +1197,7 @@ function LookupView() {
   );
 }
 
-function HistoryView({ articles }: { articles: PracticeArticle[] }) {
+function HistoryView() {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
@@ -932,7 +1217,6 @@ function HistoryView({ articles }: { articles: PracticeArticle[] }) {
   const averageAccuracy = articleSessions.length
     ? articleSessions.reduce((sum, session) => sum + session.accuracy, 0) / articleSessions.length
     : 0;
-  const articleMap = new Map(articles.map((article) => [article.id, article]));
 
   const clearAll = () => {
     if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
@@ -964,7 +1248,7 @@ function HistoryView({ articles }: { articles: PracticeArticle[] }) {
             <h2>最近练习</h2>
             <div className="segmented small">
               {(["all", "article", "challenge"] as const).map((value) => (
-                <button key={value} className={type === value ? "active" : ""} onClick={() => setType(value)}>
+                <button key={value} aria-pressed={type === value} className={type === value ? "active" : ""} onClick={() => setType(value)}>
                   {value === "all" ? "全部" : value === "article" ? "文章" : "字码"}
                 </button>
               ))}
@@ -975,7 +1259,7 @@ function HistoryView({ articles }: { articles: PracticeArticle[] }) {
             {filtered.slice(0, 12).map((session) => (
               <div className="table-row" key={session.id}>
                 <span><strong>{session.title}</strong><small>{new Date(session.date).toLocaleString("zh-CN")}</small></span>
-                <span>{session.speed || "—"}<small>字/分</small></span>
+                <span>{session.speed || "—"}<small>{session.type === "challenge" ? "题/分" : "字/分"}</small></span>
                 <span>{session.accuracy.toFixed(1)}<small>%</small></span>
                 <span>{formatDuration(session.durationSeconds)}</span>
               </div>
@@ -989,7 +1273,7 @@ function HistoryView({ articles }: { articles: PracticeArticle[] }) {
             {errors.slice(0, 18).map((error) => (
               <div key={`${error.text}-${error.code}`}>
                 <strong>{error.text}</strong>
-                <span>{error.code?.toUpperCase() || articleMap.get(error.text)?.title || "文章错字"}</span>
+                <span>{error.code?.toUpperCase() || "文章错字"}</span>
                 <b>{error.count}</b>
               </div>
             ))}
@@ -998,33 +1282,19 @@ function HistoryView({ articles }: { articles: PracticeArticle[] }) {
           <div className="completion-stat">
             <span>文章完成度</span>
             <strong>{progress.filter((item) => item.completed).length} / 200</strong>
-            <i><b style={{ width: `${Math.min(100, progress.length / 2)}%` }} /></i>
+            <i
+              role="progressbar"
+              aria-label="文章完成度"
+              aria-valuemin={0}
+              aria-valuemax={200}
+              aria-valuenow={progress.filter((item) => item.completed).length}
+            >
+              <b style={{ width: `${Math.min(100, progress.length / 2)}%` }} />
+            </i>
           </div>
         </aside>
       </div>
     </section>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  unit,
-  note,
-  accent,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  note: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={accent ? "summary-card accent" : "summary-card"}>
-      <span>{label}</span>
-      <strong>{value}<small>{unit}</small></strong>
-      <p>{note}</p>
-    </div>
   );
 }
 
@@ -1073,8 +1343,8 @@ function SettingsView({
         </div>
         <div className="settings-card">
           <div className="settings-card-title"><span>辅</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
-          <Toggle label="显示编码提示" note="为后续拆字提示预留的本地设置" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
-          <Toggle label="按键声音" note="默认关闭，避免长时间练习疲劳" checked={settings.sound} onChange={(value) => update("sound", value)} />
+          <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
+          <Toggle label="按键声音" note="输入时播放轻提示音，默认关闭" checked={settings.sound} onChange={(value) => update("sound", value)} />
         </div>
         <div className="settings-card license-card">
           <div className="settings-card-title"><span>i</span><div><h2>离线与版权</h2><p>数据来源清楚可核对</p></div></div>
@@ -1083,43 +1353,5 @@ function SettingsView({
         </div>
       </div>
     </section>
-  );
-}
-
-function Toggle({
-  label,
-  note,
-  checked,
-  onChange,
-}: {
-  label: string;
-  note: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="switch-row">
-      <span><strong>{label}</strong><small>{note}</small></span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-    </label>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>{title}</h2><button onClick={onClose} aria-label="关闭">×</button></header>
-        {children}
-      </section>
-    </div>
   );
 }
