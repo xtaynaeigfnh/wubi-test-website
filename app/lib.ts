@@ -99,7 +99,8 @@ export function writeLocal<T>(key: string, value: T): boolean {
 }
 
 async function fetchJson<T>(url: string, label: string): Promise<T> {
-  const response = await fetch(url);
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  const response = await fetch(`${basePath}${url}`);
   if (!response.ok) {
     throw new Error(`${label}加载失败（HTTP ${response.status}）`);
   }

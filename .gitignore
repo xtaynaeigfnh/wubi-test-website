@@ -39,6 +39,7 @@ next-env.d.ts
 *.tsbuildinfo
 /dist/
 /.wrangler/
-/build/
+/build/*
+!/build/sites-vite-plugin.ts
 /outputs/
 /work/
