@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
 } from "react";
 import Link from "next/link";
@@ -15,6 +16,7 @@ import {
   addError,
   buildChallengePool,
   calculateAccuracy,
+  canCompleteTyping,
   countCommittedAttempts,
   defaultSettings,
   formatDuration,
@@ -42,7 +44,7 @@ import type {
   UserSettings,
   WubiEntry,
 } from "../types";
-import { ErrorState, Metric, Modal, SummaryCard, Toggle } from "./Ui";
+import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 
 const navItems: Array<{ view: AppView; href: string; label: string; shortcut: string }> = [
   { view: "typing", href: "/", label: "文章测速", shortcut: "01" },
@@ -349,6 +351,8 @@ function TypingView({
   const kps = seconds > 0 ? keyCount / seconds : 0;
   const codeLength = correctChars > 0 ? letterKeys / correctChars : 0;
   const accuracy = calculateAccuracy(correctAttemptCount, attemptCount);
+  const progressRatio = Math.min(1, typed.length / Math.max(1, targetText.length));
+  const progressPercent = Math.round(progressRatio * 100);
 
   useEffect(() => {
     const viewport = articleTextRef.current;
@@ -389,8 +393,7 @@ function TypingView({
     if (
       !article ||
       completed ||
-      typed.length < targetText.length ||
-      typed !== targetText
+      !canCompleteTyping(typed, targetText)
     ) {
       return;
     }
@@ -563,11 +566,17 @@ function TypingView({
       </section>
 
       <section className="metric-strip" aria-label="实时成绩">
-        <Metric label="速度" value={speed.toString()} unit="字/分" accent />
+        <Metric
+          label="速度"
+          value={speed.toString()}
+          unit="字/分"
+          primary
+          active={startedAt !== null && !completed}
+        />
         <Metric label="击键" value={kps.toFixed(2)} unit="次/秒" />
         <Metric label="码长" value={codeLength.toFixed(2)} unit="键/字" />
         <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
-        <Metric label="错字" value={errorCount.toString()} unit="处" />
+        <Metric label="回退" value={errorCount.toString()} unit="处" />
         <Metric label="用时" value={formatDuration(seconds)} unit="" />
       </section>
 
@@ -587,30 +596,33 @@ function TypingView({
               <button onClick={() => chooseArticle(article)}>重新开始</button>
             </div>
           </div>
-          <div className="progress-track">
-            <i
-              role="progressbar"
-              aria-label="文章输入进度"
-              aria-valuemin={0}
-              aria-valuemax={targetText.length}
-              aria-valuenow={typed.length}
-              style={{
-                width: `${Math.min(100, (typed.length / Math.max(1, targetText.length)) * 100)}%`,
-              }}
-            />
-          </div>
-          <div className="root-rail" aria-label="五笔字根分区与当前文章进度">
+          <div
+            className="root-rail"
+            role="progressbar"
+            aria-label="文章输入进度"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            aria-valuetext={`已完成 ${progressPercent}%，五格依次对应撇、捺、横、竖、折区`}
+          >
             {[
-              ["QWERT", "横区"],
-              ["YUIOP", "竖区"],
-              ["ASDFG", "撇区"],
-              ["HJKLM", "捺区"],
+              ["QWERT", "撇区"],
+              ["YUIOP", "捺区"],
+              ["ASDFG", "横区"],
+              ["HJKLM", "竖区"],
               ["XCVBN", "折区"],
             ].map(([keys, label], index) => {
-              const progressRatio = typed.length / Math.max(1, targetText.length);
-              const isActive = Math.min(4, Math.floor(progressRatio * 5)) === index;
+              const segmentProgress = Math.min(
+                1,
+                Math.max(0, progressRatio * 5 - index),
+              );
               return (
-                <span className={isActive ? "active" : ""} key={keys}>
+                <span
+                  key={keys}
+                  style={{
+                    "--segment-progress": `${segmentProgress * 100}%`,
+                  } as CSSProperties}
+                >
                   <b>{keys}</b>
                   <small>{label}</small>
                 </span>
@@ -758,10 +770,6 @@ function TypingView({
               <option value="practiced">已练习</option>
             </select>
           </label>
-          <div className="filter-result">
-            <strong>{filtered.length}</strong>
-            <span>篇符合条件</span>
-          </div>
           <button className="side-action" disabled={!filtered.length} onClick={randomArticle}>随机抽取一篇 <b>↗</b></button>
           <button className="side-action subtle" onClick={pickMostDifficult}>重练错字较多文章</button>
           <div className="tip-box">
@@ -809,6 +817,34 @@ function TypingView({
   );
 }
 
+function Metric({
+  label,
+  value,
+  unit,
+  primary = false,
+  active = false,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  primary?: boolean;
+  active?: boolean;
+}) {
+  const className = [
+    "metric",
+    primary ? "primary-metric" : "",
+    active ? "is-active" : "",
+  ].filter(Boolean).join(" ");
+
+  return (
+    <div className={className}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{unit}</small>
+    </div>
+  );
+}
+
 function ChallengeView() {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -830,6 +866,7 @@ function ChallengeView() {
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
   const seenQuestionsRef = useRef(new Set<string>());
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -872,6 +909,7 @@ function ChallengeView() {
     setQuestion(next);
     setInput("");
     setFeedback("idle");
+    submitLockRef.current = false;
   }, [pool]);
 
   const finishChallenge = useCallback(
@@ -926,9 +964,10 @@ function ChallengeView() {
 
   useEffect(() => {
     if (started && timed && remaining <= 0) {
-      finishChallenge(index, correct, "timeout");
+      const answered = index + (feedback === "idle" ? 0 : 1);
+      finishChallenge(answered, correct, "timeout");
     }
-  }, [correct, finishChallenge, index, remaining, started, timed]);
+  }, [correct, feedback, finishChallenge, index, remaining, started, timed]);
 
   useEffect(
     () => () => {
@@ -952,23 +991,35 @@ function ChallengeView() {
     nextQuestion();
   };
 
+  const advanceQuestion = useCallback(
+    (correctAnswers = correct) => {
+      const nextIndex = index + 1;
+      setIndex(nextIndex);
+      if (nextIndex >= limit) {
+        finishChallenge(nextIndex, correctAnswers, "complete");
+        return;
+      }
+      nextQuestion();
+    },
+    [correct, finishChallenge, index, limit, nextQuestion],
+  );
+
   const submit = () => {
-    if (!question || !input || feedback !== "idle") return;
+    if (!question || !input || feedback !== "idle" || submitLockRef.current) return;
+    submitLockRef.current = true;
     const isRight = input.toLowerCase() === question[1];
     setFeedback(isRight ? "right" : "wrong");
     const nextCorrect = correct + (isRight ? 1 : 0);
-    if (isRight) setCorrect(nextCorrect);
-    else {
+    if (isRight) {
+      setCorrect(nextCorrect);
+      nextTimerRef.current = window.setTimeout(
+        () => advanceQuestion(nextCorrect),
+        520,
+      );
+    } else {
       setMistakes((value) => [...value, { text: question[0], code: question[1], input }]);
       addError(question[0], question[1]);
     }
-    const nextIndex = index + 1;
-    setIndex(nextIndex);
-    if (nextIndex >= limit) {
-      finishChallenge(nextIndex, nextCorrect, "complete");
-      return;
-    }
-    nextTimerRef.current = window.setTimeout(nextQuestion, 650);
   };
 
   return (
@@ -986,7 +1037,7 @@ function ChallengeView() {
         />
       ) : (
       <div className="challenge-layout">
-        <div className="challenge-card">
+        <div className={`challenge-card${started && feedback === "wrong" ? " has-error" : ""}`}>
           {!started ? (
             <div className="challenge-start">
               <span className="giant-code">86</span>
@@ -1002,13 +1053,13 @@ function ChallengeView() {
                   <strong>{correct}</strong><span>/ {index} 正确</span>
                 </div>
               )}
-              <p>看到汉字后输入最短可用五笔编码，按回车提交。</p>
+              <p>看到汉字后输入最短可用五笔编码，按回车提交。答错后会停留显示正确编码。</p>
               <button className="button primary" disabled={loading || !pool.length} onClick={start}>
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
             </div>
           ) : (
-            <div className="challenge-running">
+            <div className={`challenge-running${feedback === "wrong" ? " is-wrong" : ""}`}>
               <div className="challenge-status">
                 <span>第 {index + 1} / {limit} 题</span>
                 <span>正确 {correct}</span>
@@ -1030,14 +1081,29 @@ function ChallengeView() {
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && feedback === "idle") submit();
+                  if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
                 placeholder="输入编码后回车"
                 aria-label="五笔编码"
+                aria-invalid={feedback === "wrong"}
+                readOnly={feedback !== "idle"}
               />
-              {feedback === "right" && <p className="feedback right" role="status" aria-live="polite">编码正确</p>}
-              {feedback === "wrong" && (
-                <p className="feedback wrong" role="status" aria-live="polite">正确编码：{question?.[1].toUpperCase()}</p>
-              )}
+              <div className="feedback-region" aria-live="assertive">
+                {feedback === "right" && <p className="feedback right">编码正确，继续下一题</p>}
+                {feedback === "wrong" && (
+                  <div className="wrong-answer" role="alert">
+                    <span>本题答错</span>
+                    <p>
+                      你的输入 <del>{input.toUpperCase()}</del>
+                      <i aria-hidden="true">→</i>
+                      正确编码 <strong>{question?.[1].toUpperCase()}</strong>
+                    </p>
+                    <button className="button danger" onClick={() => advanceQuestion()}>
+                      {index + 1 >= limit ? "查看本轮结果" : "下一题（回车）"}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1247,9 +1313,14 @@ function HistoryView() {
         <div className="history-panel">
           <div className="panel-title">
             <h2>最近练习</h2>
-            <div className="segmented small">
+            <div className="segmented small history-filter" aria-label="练习类型筛选">
               {(["all", "article", "challenge"] as const).map((value) => (
-                <button key={value} aria-pressed={type === value} className={type === value ? "active" : ""} onClick={() => setType(value)}>
+                <button
+                  key={value}
+                  className={type === value ? "active" : ""}
+                  aria-pressed={type === value}
+                  onClick={() => setType(value)}
+                >
                   {value === "all" ? "全部" : value === "article" ? "文章" : "字码"}
                 </button>
               ))}

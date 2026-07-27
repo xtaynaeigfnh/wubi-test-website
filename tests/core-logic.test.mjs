@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildChallengePool,
   calculateAccuracy,
+  canCompleteTyping,
   countCommittedAttempts,
   preferShortestWubiCodes,
 } from "../app/lib.ts";
@@ -30,6 +31,13 @@ test("typing accuracy keeps corrected mistakes in the denominator", () => {
   assert.equal(correct, 2);
   assert.ok(Math.abs(calculateAccuracy(correct, attempts) - 200 / 3) < 1e-10);
   assert.equal(calculateAccuracy(0, 0), 100);
+});
+
+test("typing completes at full length even when answers contain mistakes", () => {
+  assert.equal(canCompleteTyping("中国", "中国"), true);
+  assert.equal(canCompleteTyping("中错", "中国"), true);
+  assert.equal(canCompleteTyping("中", "中国"), false);
+  assert.equal(canCompleteTyping("", ""), false);
 });
 
 test("shortest Wubi code wins and equal lengths prefer higher weight", () => {

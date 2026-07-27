@@ -233,6 +233,10 @@ export function calculateAccuracy(
   return attempts > 0 ? (correctAttempts / attempts) * 100 : 100;
 }
 
+export function canCompleteTyping(typed: string, target: string): boolean {
+  return target.length > 0 && typed.length >= target.length;
+}
+
 export async function loadWubiChallenge(): Promise<WubiEntry[]> {
   wubiChallengePromise ??= fetchJson<WubiEntry[]>(
     "/data/wubi86-challenge.json",
