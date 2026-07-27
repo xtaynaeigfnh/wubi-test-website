@@ -536,6 +536,17 @@ a {
   white-space: pre-wrap;
 }
 
+.article-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.article-text::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-secondary) 34%, transparent);
+  background-clip: padding-box;
+}
+
 .article-text span {
   border-radius: 2px;
   transition: color 90ms ease, background 90ms ease;
