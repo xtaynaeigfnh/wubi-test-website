@@ -23,6 +23,7 @@ import {
   lengthLabels,
   loadArticles,
   loadWubi,
+  loadWubiChallenge,
   preferShortestWubiCodes,
   readLocal,
   readLocalArray,
@@ -834,7 +835,7 @@ function ChallengeView() {
     let active = true;
     setLoading(true);
     setLoadError("");
-    loadWubi()
+    loadWubiChallenge()
       .then((nextRows) => {
         if (active) setRows(nextRows);
       })
