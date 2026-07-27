@@ -29,6 +29,10 @@ export const defaultSettings: UserSettings = {
   autoNext: false,
 };
 
+let articlesPromise: Promise<PracticeArticle[]> | null = null;
+let articleMetadataPromise: Promise<ArticleMetadata[]> | null = null;
+let wubiPromise: Promise<WubiEntry[]> | null = null;
+
 export function readLocal<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
@@ -39,33 +43,201 @@ export function readLocal<T>(key: string, fallback: T): T {
   }
 }
 
-export function writeLocal<T>(key: string, value: T) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(key, JSON.stringify(value));
+export function readLocalArray<T>(key: string): T[] {
+  const value = readLocal<unknown>(key, []);
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function readSettings(): UserSettings {
+  const value = readLocal<unknown>(STORAGE.settings, {});
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return defaultSettings;
+  }
+  const partial = value as Partial<UserSettings>;
+  return {
+    fontSize:
+      typeof partial.fontSize === "number" &&
+      partial.fontSize >= 22 &&
+      partial.fontSize <= 42
+        ? partial.fontSize
+        : defaultSettings.fontSize,
+    preferredLength:
+      partial.preferredLength &&
+      ["all", "short", "medium", "long", "water"].includes(
+        partial.preferredLength,
+      )
+        ? partial.preferredLength
+        : defaultSettings.preferredLength,
+    showCodeHints:
+      typeof partial.showCodeHints === "boolean"
+        ? partial.showCodeHints
+        : defaultSettings.showCodeHints,
+    sound:
+      typeof partial.sound === "boolean"
+        ? partial.sound
+        : defaultSettings.sound,
+    theme:
+      partial.theme && ["light", "dark", "system"].includes(partial.theme)
+        ? partial.theme
+        : defaultSettings.theme,
+    autoNext:
+      typeof partial.autoNext === "boolean"
+        ? partial.autoNext
+        : defaultSettings.autoNext,
+  };
+}
+
+export function writeLocal<T>(key: string, value: T): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchJson<T>(url: string, label: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${label}加载失败（HTTP ${response.status}）`);
+  }
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(`${label}内容损坏，无法解析`);
+  }
+}
+
+export function loadArticleMetadata(): Promise<ArticleMetadata[]> {
+  articleMetadataPromise ??= fetchJson<ArticleMetadata[]>(
+    "/data/articles-index.json",
+    "文章索引",
+  ).catch((error) => {
+    articleMetadataPromise = null;
+    throw error;
+  });
+  return articleMetadataPromise;
 }
 
 export async function loadArticles(): Promise<PracticeArticle[]> {
-  const [index, short, medium, long, water] = await Promise.all([
-    fetch("/data/articles-index.json").then((response) => response.json()) as Promise<ArticleMetadata[]>,
-    fetch("/data/articles-short.json").then((response) => response.json()) as Promise<Array<{ id: string; text: string }>>,
-    fetch("/data/articles-medium.json").then((response) => response.json()) as Promise<Array<{ id: string; text: string }>>,
-    fetch("/data/articles-long.json").then((response) => response.json()) as Promise<Array<{ id: string; text: string }>>,
-    fetch("/data/articles-water.json").then((response) => response.json()) as Promise<Array<{ id: string; text: string }>>,
-  ]);
-  const texts = new Map([...short, ...medium, ...long, ...water].map((row) => [row.id, row.text]));
-  return index.map((metadata) => ({ ...metadata, text: texts.get(metadata.id) || "" }));
+  articlesPromise ??= Promise.all([
+    loadArticleMetadata(),
+    fetchJson<Array<{ id: string; text: string }>>(
+      "/data/articles-short.json",
+      "短文数据",
+    ),
+    fetchJson<Array<{ id: string; text: string }>>(
+      "/data/articles-medium.json",
+      "中篇数据",
+    ),
+    fetchJson<Array<{ id: string; text: string }>>(
+      "/data/articles-long.json",
+      "长文数据",
+    ),
+    fetchJson<Array<{ id: string; text: string }>>(
+      "/data/articles-water.json",
+      "水文数据",
+    ),
+  ])
+    .then(([index, short, medium, long, water]) => {
+      const texts = new Map(
+        [...short, ...medium, ...long, ...water].map((row) => [
+          row.id,
+          row.text,
+        ]),
+      );
+      return index.map((metadata) => ({
+        ...metadata,
+        text: texts.get(metadata.id) || "",
+      }));
+    })
+    .catch((error) => {
+      articlesPromise = null;
+      throw error;
+    });
+  return articlesPromise;
 }
 
 export async function loadWubi(): Promise<WubiEntry[]> {
-  return fetch("/data/wubi86.json").then((response) => response.json());
+  wubiPromise ??= fetchJson<WubiEntry[]>(
+    "/data/wubi86.json",
+    "五笔码表",
+  ).catch((error) => {
+    wubiPromise = null;
+    throw error;
+  });
+  return wubiPromise;
+}
+
+export function preferShortestWubiCodes(entries: WubiEntry[]): WubiEntry[] {
+  const preferred = new Map<string, WubiEntry>();
+  for (const entry of entries) {
+    const [text, code, weight] = entry;
+    const current = preferred.get(text);
+    if (
+      !current ||
+      code.length < current[1].length ||
+      (code.length === current[1].length && weight > current[2])
+    ) {
+      preferred.set(text, entry);
+    }
+  }
+  return Array.from(preferred.values());
+}
+
+export function buildChallengePool(
+  entries: WubiEntry[],
+  mode: "char" | "phrase",
+  limit = 5000,
+): WubiEntry[] {
+  const eligible = entries.filter(([text, code, weight]) => {
+    if (code.length > 4 || weight < 100000) return false;
+    const size = Array.from(text).length;
+    return mode === "char" ? size === 1 : size >= 2 && size <= 4;
+  });
+  return preferShortestWubiCodes(eligible)
+    .sort((a, b) => b[2] - a[2])
+    .slice(0, limit);
+}
+
+export function countCommittedAttempts(
+  previous: string,
+  next: string,
+  target: string,
+): { attempts: number; correct: number } {
+  let commonPrefix = 0;
+  const sharedLength = Math.min(previous.length, next.length);
+  while (
+    commonPrefix < sharedLength &&
+    previous[commonPrefix] === next[commonPrefix]
+  ) {
+    commonPrefix += 1;
+  }
+
+  let correct = 0;
+  for (let index = commonPrefix; index < next.length; index += 1) {
+    if (next[index] === target[index]) correct += 1;
+  }
+  return {
+    attempts: Math.max(0, next.length - commonPrefix),
+    correct,
+  };
+}
+
+export function calculateAccuracy(
+  correctAttempts: number,
+  attempts: number,
+): number {
+  return attempts > 0 ? (correctAttempts / attempts) * 100 : 100;
 }
 
 export function getSessions() {
-  return readLocal<SessionResult[]>(STORAGE.sessions, []);
+  return readLocalArray<SessionResult>(STORAGE.sessions);
 }
 
 export function getProgress() {
-  return readLocal<ArticleProgress[]>(STORAGE.progress, []);
+  return readLocalArray<ArticleProgress>(STORAGE.progress);
 }
 
 export function saveSession(session: SessionResult) {
@@ -94,7 +266,7 @@ export function saveSession(session: SessionResult) {
 }
 
 export function addError(text: string, code?: string) {
-  const errors = readLocal<ErrorStat[]>(STORAGE.errors, []);
+  const errors = readLocalArray<ErrorStat>(STORAGE.errors);
   const existing = errors.find((row) => row.text === text && row.code === code);
   if (existing) {
     existing.count += 1;
