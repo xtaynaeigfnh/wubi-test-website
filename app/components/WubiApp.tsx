@@ -31,6 +31,8 @@ import {
   readLocalArray,
   readSettings,
   saveSession,
+  selectInitialArticle,
+  shouldDeferInputCommit,
   STORAGE,
   writeLocal,
 } from "../lib";
@@ -54,11 +56,67 @@ const navItems: Array<{ view: AppView; href: string; label: string; shortcut: st
   { view: "settings", href: "/settings", label: "设置", shortcut: "05" },
 ];
 
+type KeySoundPlayer = (options?: { force?: boolean }) => void;
+
+function useKeySound(enabled: boolean): KeySoundPlayer {
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(
+    () => () => {
+      void audioContextRef.current?.close();
+    },
+    [],
+  );
+
+  return useCallback(
+    ({ force = false } = {}) => {
+      if (!enabled && !force) return;
+      const AudioContextClass =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const context =
+        audioContextRef.current ??
+        (audioContextRef.current = new AudioContextClass());
+      const emit = () => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.value = 620;
+        gain.gain.setValueAtTime(0.045, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          context.currentTime + 0.04,
+        );
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.04);
+      };
+
+      if (context.state === "suspended") {
+        void context.resume().then(emit, () => undefined);
+      } else {
+        emit();
+      }
+    },
+    [enabled],
+  );
+}
+
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const playKeySound = useKeySound(settings.sound);
 
   useEffect(() => {
     setSettings(readSettings());
+    setSettingsReady(true);
   }, []);
 
   useEffect(() => {
@@ -96,12 +154,24 @@ export function WubiApp({ view }: { view: AppView }) {
       </header>
 
       <main className="page-wrap">
-        {view === "typing" && <TypingView settings={settings} />}
-        {view === "challenge" && <ChallengeView />}
+        {view === "typing" && (
+          <TypingView
+            settings={settings}
+            settingsReady={settingsReady}
+            playKeySound={playKeySound}
+          />
+        )}
+        {view === "challenge" && (
+          <ChallengeView playKeySound={playKeySound} />
+        )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
         {view === "settings" && (
-          <SettingsView settings={settings} onChange={setSettings} />
+          <SettingsView
+            settings={settings}
+            onChange={setSettings}
+            playKeySound={playKeySound}
+          />
         )}
       </main>
 
@@ -117,8 +187,12 @@ export function WubiApp({ view }: { view: AppView }) {
 
 function TypingView({
   settings,
+  settingsReady,
+  playKeySound,
 }: {
   settings: UserSettings;
+  settingsReady: boolean;
+  playKeySound: KeySoundPlayer;
 }) {
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
@@ -148,11 +222,13 @@ function TypingView({
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
+  const committedValue = useRef("");
+  const startedAtRef = useRef<number | null>(null);
+  const compositionCommitTimer = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
-  const audioContextRef = useRef<AudioContext | null>(null);
   const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
   const [codeHintsError, setCodeHintsError] = useState("");
 
@@ -227,7 +303,9 @@ function TypingView({
 
   useEffect(
     () => () => {
-      void audioContextRef.current?.close();
+      if (compositionCommitTimer.current !== null) {
+        window.clearTimeout(compositionCommitTimer.current);
+      }
     },
     [],
   );
@@ -261,8 +339,19 @@ function TypingView({
     [availableArticles, filter, progressMap],
   );
 
+  const startTimer = useCallback(() => {
+    if (startedAtRef.current !== null) return;
+    const now = Date.now();
+    startedAtRef.current = now;
+    setStartedAt(now);
+  }, []);
+
   const chooseArticle = useCallback(
     (next: PracticeArticle, focusInput = true) => {
+      if (compositionCommitTimer.current !== null) {
+        window.clearTimeout(compositionCommitTimer.current);
+        compositionCommitTimer.current = null;
+      }
       setArticle(next);
       writeLocal(STORAGE.current, next.id);
       const recent = readLocalArray<string>(STORAGE.recent);
@@ -279,6 +368,8 @@ function TypingView({
       setCompleted(false);
       composing.current = false;
       recorded.current = false;
+      committedValue.current = "";
+      startedAtRef.current = null;
       errorPositions.current = new Set();
       setPickerOpen(false);
       window.setTimeout(() => {
@@ -298,15 +389,31 @@ function TypingView({
   }, [chooseArticle, filtered]);
 
   useEffect(() => {
-    if (articlesLoading || !availableArticles.length || article) return;
+    if (
+      !settingsReady ||
+      articlesLoading ||
+      !availableArticles.length ||
+      article
+    ) {
+      return;
+    }
     const currentId = readLocal<string | null>(STORAGE.current, null);
-    chooseArticle(
-      availableArticles.find((item) => item.id === currentId) ||
-        articles.find((item) => item.length === "short") ||
-        availableArticles[0],
-      false,
+    const initialArticle = selectInitialArticle(
+      availableArticles,
+      articles,
+      currentId,
+      settings.preferredLength,
     );
-  }, [article, articles, articlesLoading, availableArticles, chooseArticle]);
+    if (initialArticle) chooseArticle(initialArticle, false);
+  }, [
+    article,
+    articles,
+    articlesLoading,
+    availableArticles,
+    chooseArticle,
+    settings.preferredLength,
+    settingsReady,
+  ]);
 
   useEffect(() => {
     if (!startedAt || completed) return;
@@ -438,7 +545,14 @@ function TypingView({
     const committed = nextValue
       .replace(/[\r\n]/g, "")
       .slice(0, targetText.length);
-    const attempt = countCommittedAttempts(typed, committed, targetText);
+    const previous = committedValue.current;
+    if (committed === previous) {
+      setInputValue(committed);
+      return;
+    }
+    if (committed) startTimer();
+    committedValue.current = committed;
+    const attempt = countCommittedAttempts(previous, committed, targetText);
     if (attempt.attempts > 0) {
       setAttemptCount((value) => value + attempt.attempts);
       setCorrectAttemptCount((value) => value + attempt.correct);
@@ -447,33 +561,16 @@ function TypingView({
     setTyped(committed);
   };
 
-  const playKeySound = () => {
-    if (!settings.sound) return;
-    const AudioContextClass =
-      window.AudioContext ||
-      (
-        window as typeof window & {
-          webkitAudioContext?: typeof AudioContext;
-        }
-      ).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context =
-      audioContextRef.current ?? (audioContextRef.current = new AudioContextClass());
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = 520;
-    gain.gain.setValueAtTime(0.025, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.025);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.025);
-  };
-
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completed) return;
-    if (!startedAt && event.key.length === 1) setStartedAt(Date.now());
+    if (
+      event.key.length === 1 ||
+      event.key === "Process" ||
+      event.key === "Unidentified" ||
+      event.nativeEvent.isComposing
+    ) {
+      startTimer();
+    }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
       playKeySound();
@@ -630,8 +727,9 @@ function TypingView({
             })}
           </div>
           <div
+            key={article.id}
             ref={articleTextRef}
-            className="article-text"
+            className="article-text article-swap"
             style={{ fontSize: `${settings.fontSize}px` }}
             onClick={() => inputRef.current?.focus()}
             aria-live="off"
@@ -669,7 +767,14 @@ function TypingView({
             value={inputValue}
             onChange={(event) => {
               const next = event.target.value;
-              if (composing.current) {
+              const nativeEvent = event.nativeEvent as InputEvent;
+              if (next) startTimer();
+              if (
+                shouldDeferInputCommit(
+                  composing.current,
+                  nativeEvent.isComposing,
+                )
+              ) {
                 // Keep the IME's full pre-edit buffer (for example "qingxi").
                 // Truncating it to the few remaining article characters cancels
                 // candidate selection near the end of an article in Safari.
@@ -680,10 +785,21 @@ function TypingView({
             }}
             onCompositionStart={() => {
               composing.current = true;
+              startTimer();
             }}
             onCompositionEnd={(event) => {
               composing.current = false;
-              commitTypedValue(event.currentTarget.value);
+              const endedValue = event.currentTarget.value;
+              if (compositionCommitTimer.current !== null) {
+                window.clearTimeout(compositionCommitTimer.current);
+              }
+              // Safari may expose the pre-edit Latin buffer on compositionend
+              // and deliver the committed Chinese text in the following input
+              // event. Wait one task, then read the textarea's final value.
+              compositionCommitTimer.current = window.setTimeout(() => {
+                compositionCommitTimer.current = null;
+                commitTypedValue(inputRef.current?.value ?? endedValue);
+              }, 0);
             }}
             onKeyDown={onKeyDown}
             onPaste={(event) => event.preventDefault()}
@@ -845,7 +961,11 @@ function Metric({
   );
 }
 
-function ChallengeView() {
+function ChallengeView({
+  playKeySound,
+}: {
+  playKeySound: KeySoundPlayer;
+}) {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -1065,7 +1185,12 @@ function ChallengeView() {
                 <span>正确 {correct}</span>
                 {timed && <span>剩余 {remaining}s</span>}
               </div>
-              <div className="question-character">{question?.[0]}</div>
+              <div
+                key={question?.[0]}
+                className="question-character question-swap"
+              >
+                {question?.[0]}
+              </div>
               <div className="code-slots">
                 {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
@@ -1080,6 +1205,9 @@ function ChallengeView() {
                 maxLength={question?.[1].length ?? 4}
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
+                  if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    playKeySound();
+                  }
                   if (event.key === "Enter" && feedback === "idle") submit();
                   if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
@@ -1373,9 +1501,11 @@ function HistoryView() {
 function SettingsView({
   settings,
   onChange,
+  playKeySound,
 }: {
   settings: UserSettings;
   onChange: (settings: UserSettings) => void;
+  playKeySound: KeySoundPlayer;
 }) {
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
     onChange({ ...settings, [key]: value });
@@ -1416,7 +1546,15 @@ function SettingsView({
         <div className="settings-card">
           <div className="settings-card-title"><span>辅</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
           <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
-          <Toggle label="按键声音" note="输入时播放轻提示音，默认关闭" checked={settings.sound} onChange={(value) => update("sound", value)} />
+          <Toggle
+            label="按键声音"
+            note="文章测速和字码挑战输入时播放轻提示音"
+            checked={settings.sound}
+            onChange={(value) => {
+              update("sound", value);
+              if (value) playKeySound({ force: true });
+            }}
+          />
         </div>
         <div className="settings-card license-card">
           <div className="settings-card-title"><span>i</span><div><h2>离线与版权</h2><p>数据来源清楚可核对</p></div></div>
