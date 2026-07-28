@@ -617,8 +617,9 @@ function TypingView({
             })}
           </div>
           <div
+            key={article.id}
             ref={articleTextRef}
-            className="article-text"
+            className="article-text article-swap"
             style={{ fontSize: `${settings.fontSize}px` }}
             onClick={() => inputRef.current?.focus()}
             aria-live="off"
@@ -1013,7 +1014,12 @@ function ChallengeView() {
                 <span>正确 {correct}</span>
                 {timed && <span>剩余 {remaining}s</span>}
               </div>
-              <div className="question-character">{question?.[0]}</div>
+              <div
+                key={question?.[0]}
+                className="question-character question-swap"
+              >
+                {question?.[0]}
+              </div>
               <div className="code-slots">
                 {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
