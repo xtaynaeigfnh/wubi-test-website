@@ -31,6 +31,7 @@ import {
   readLocalArray,
   readSettings,
   saveSession,
+  selectInitialArticle,
   shouldDeferInputCommit,
   STORAGE,
   writeLocal,
@@ -57,9 +58,11 @@ const navItems: Array<{ view: AppView; href: string; label: string; shortcut: st
 
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settingsReady, setSettingsReady] = useState(false);
 
   useEffect(() => {
     setSettings(readSettings());
+    setSettingsReady(true);
   }, []);
 
   useEffect(() => {
@@ -97,7 +100,9 @@ export function WubiApp({ view }: { view: AppView }) {
       </header>
 
       <main className="page-wrap">
-        {view === "typing" && <TypingView settings={settings} />}
+        {view === "typing" && (
+          <TypingView settings={settings} settingsReady={settingsReady} />
+        )}
         {view === "challenge" && <ChallengeView />}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
@@ -118,8 +123,10 @@ export function WubiApp({ view }: { view: AppView }) {
 
 function TypingView({
   settings,
+  settingsReady,
 }: {
   settings: UserSettings;
+  settingsReady: boolean;
 }) {
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
@@ -318,15 +325,31 @@ function TypingView({
   }, [chooseArticle, filtered]);
 
   useEffect(() => {
-    if (articlesLoading || !availableArticles.length || article) return;
+    if (
+      !settingsReady ||
+      articlesLoading ||
+      !availableArticles.length ||
+      article
+    ) {
+      return;
+    }
     const currentId = readLocal<string | null>(STORAGE.current, null);
-    chooseArticle(
-      availableArticles.find((item) => item.id === currentId) ||
-        articles.find((item) => item.length === "short") ||
-        availableArticles[0],
-      false,
+    const initialArticle = selectInitialArticle(
+      availableArticles,
+      articles,
+      currentId,
+      settings.preferredLength,
     );
-  }, [article, articles, articlesLoading, availableArticles, chooseArticle]);
+    if (initialArticle) chooseArticle(initialArticle, false);
+  }, [
+    article,
+    articles,
+    articlesLoading,
+    availableArticles,
+    chooseArticle,
+    settings.preferredLength,
+    settingsReady,
+  ]);
 
   useEffect(() => {
     if (!startedAt || completed) return;

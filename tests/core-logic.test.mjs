@@ -7,6 +7,7 @@ import {
   canCompleteTyping,
   countCommittedAttempts,
   preferShortestWubiCodes,
+  selectInitialArticle,
   shouldDeferInputCommit,
 } from "../app/lib.ts";
 
@@ -39,6 +40,39 @@ test("typing completes at full length even when answers contain mistakes", () =>
   assert.equal(canCompleteTyping("中错", "中国"), true);
   assert.equal(canCompleteTyping("中", "中国"), false);
   assert.equal(canCompleteTyping("", ""), false);
+});
+
+test("initial article follows the preferred length without losing compatible progress", () => {
+  const short = {
+    id: "short-1",
+    title: "短文",
+    length: "short",
+    topic: "测试",
+    wordCount: 2,
+    version: 1,
+    text: "短文",
+  };
+  const water = {
+    ...short,
+    id: "water-1",
+    title: "水文",
+    length: "water",
+    text: "水文",
+  };
+  const articles = [short, water];
+
+  assert.equal(
+    selectInitialArticle(articles, articles, short.id, "water")?.id,
+    water.id,
+  );
+  assert.equal(
+    selectInitialArticle(articles, articles, water.id, "water")?.id,
+    water.id,
+  );
+  assert.equal(
+    selectInitialArticle(articles, articles, short.id, "all")?.id,
+    short.id,
+  );
 });
 
 test("IME pre-edit buffers are deferred and a repeated final value is not counted twice", () => {
