@@ -52,3 +52,18 @@ test("typing progress fills the five correct Wubi root zones continuously", asyn
   assert.doesNotMatch(component, /className="progress-track"/);
   assert.match(styles, /transition:\s*width 120ms linear/);
 });
+
+test("key sound is shared by typing, challenge, and the settings preview", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /function useKeySound\(enabled: boolean\)/);
+  assert.match(component, /context\.state === "suspended"/);
+  assert.match(component, /context\.resume\(\)\.then\(emit/);
+  assert.match(component, /<TypingView[\s\S]*playKeySound=\{playKeySound\}/);
+  assert.match(component, /<ChallengeView playKeySound=\{playKeySound\}/);
+  assert.match(component, /if \(value\) playKeySound\(\{ force: true \}\)/);
+  assert.match(
+    component,
+    /文章测速和字码挑战输入时播放轻提示音/,
+  );
+});
