@@ -203,6 +203,13 @@ export function buildChallengePool(
     .slice(0, limit);
 }
 
+export function shouldDeferInputCommit(
+  compositionSessionActive: boolean,
+  nativeEventIsComposing: boolean,
+): boolean {
+  return compositionSessionActive || nativeEventIsComposing;
+}
+
 export function countCommittedAttempts(
   previous: string,
   next: string,

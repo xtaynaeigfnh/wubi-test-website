@@ -7,6 +7,7 @@ import {
   canCompleteTyping,
   countCommittedAttempts,
   preferShortestWubiCodes,
+  shouldDeferInputCommit,
 } from "../app/lib.ts";
 
 test("typing accuracy keeps corrected mistakes in the denominator", () => {
@@ -38,6 +39,21 @@ test("typing completes at full length even when answers contain mistakes", () =>
   assert.equal(canCompleteTyping("中错", "中国"), true);
   assert.equal(canCompleteTyping("中", "中国"), false);
   assert.equal(canCompleteTyping("", ""), false);
+});
+
+test("IME pre-edit buffers are deferred and a repeated final value is not counted twice", () => {
+  assert.equal(shouldDeferInputCommit(true, false), true);
+  assert.equal(shouldDeferInputCommit(false, true), true);
+  assert.equal(shouldDeferInputCommit(false, false), false);
+
+  const target = "中国";
+  const firstCommit = countCommittedAttempts("", "中", target);
+  const repeatedCommit = countCommittedAttempts("中", "中", target);
+  const secondCommit = countCommittedAttempts("中", "中国", target);
+
+  assert.deepEqual(firstCommit, { attempts: 1, correct: 1 });
+  assert.deepEqual(repeatedCommit, { attempts: 0, correct: 0 });
+  assert.deepEqual(secondCommit, { attempts: 1, correct: 1 });
 });
 
 test("shortest Wubi code wins and equal lengths prefer higher weight", () => {

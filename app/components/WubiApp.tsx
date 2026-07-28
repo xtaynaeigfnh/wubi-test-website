@@ -31,6 +31,7 @@ import {
   readLocalArray,
   readSettings,
   saveSession,
+  shouldDeferInputCommit,
   STORAGE,
   writeLocal,
 } from "../lib";
@@ -148,6 +149,9 @@ function TypingView({
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
+  const committedValue = useRef("");
+  const startedAtRef = useRef<number | null>(null);
+  const compositionCommitTimer = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
@@ -227,6 +231,9 @@ function TypingView({
 
   useEffect(
     () => () => {
+      if (compositionCommitTimer.current !== null) {
+        window.clearTimeout(compositionCommitTimer.current);
+      }
       void audioContextRef.current?.close();
     },
     [],
@@ -261,8 +268,19 @@ function TypingView({
     [availableArticles, filter, progressMap],
   );
 
+  const startTimer = useCallback(() => {
+    if (startedAtRef.current !== null) return;
+    const now = Date.now();
+    startedAtRef.current = now;
+    setStartedAt(now);
+  }, []);
+
   const chooseArticle = useCallback(
     (next: PracticeArticle, focusInput = true) => {
+      if (compositionCommitTimer.current !== null) {
+        window.clearTimeout(compositionCommitTimer.current);
+        compositionCommitTimer.current = null;
+      }
       setArticle(next);
       writeLocal(STORAGE.current, next.id);
       const recent = readLocalArray<string>(STORAGE.recent);
@@ -279,6 +297,8 @@ function TypingView({
       setCompleted(false);
       composing.current = false;
       recorded.current = false;
+      committedValue.current = "";
+      startedAtRef.current = null;
       errorPositions.current = new Set();
       setPickerOpen(false);
       window.setTimeout(() => {
@@ -438,7 +458,14 @@ function TypingView({
     const committed = nextValue
       .replace(/[\r\n]/g, "")
       .slice(0, targetText.length);
-    const attempt = countCommittedAttempts(typed, committed, targetText);
+    const previous = committedValue.current;
+    if (committed === previous) {
+      setInputValue(committed);
+      return;
+    }
+    if (committed) startTimer();
+    committedValue.current = committed;
+    const attempt = countCommittedAttempts(previous, committed, targetText);
     if (attempt.attempts > 0) {
       setAttemptCount((value) => value + attempt.attempts);
       setCorrectAttemptCount((value) => value + attempt.correct);
@@ -473,7 +500,14 @@ function TypingView({
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completed) return;
-    if (!startedAt && event.key.length === 1) setStartedAt(Date.now());
+    if (
+      event.key.length === 1 ||
+      event.key === "Process" ||
+      event.key === "Unidentified" ||
+      event.nativeEvent.isComposing
+    ) {
+      startTimer();
+    }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
       playKeySound();
@@ -669,7 +703,14 @@ function TypingView({
             value={inputValue}
             onChange={(event) => {
               const next = event.target.value;
-              if (composing.current) {
+              const nativeEvent = event.nativeEvent as InputEvent;
+              if (next) startTimer();
+              if (
+                shouldDeferInputCommit(
+                  composing.current,
+                  nativeEvent.isComposing,
+                )
+              ) {
                 // Keep the IME's full pre-edit buffer (for example "qingxi").
                 // Truncating it to the few remaining article characters cancels
                 // candidate selection near the end of an article in Safari.
@@ -680,10 +721,21 @@ function TypingView({
             }}
             onCompositionStart={() => {
               composing.current = true;
+              startTimer();
             }}
             onCompositionEnd={(event) => {
               composing.current = false;
-              commitTypedValue(event.currentTarget.value);
+              const endedValue = event.currentTarget.value;
+              if (compositionCommitTimer.current !== null) {
+                window.clearTimeout(compositionCommitTimer.current);
+              }
+              // Safari may expose the pre-edit Latin buffer on compositionend
+              // and deliver the committed Chinese text in the following input
+              // event. Wait one task, then read the textarea's final value.
+              compositionCommitTimer.current = window.setTimeout(() => {
+                compositionCommitTimer.current = null;
+                commitTypedValue(inputRef.current?.value ?? endedValue);
+              }, 0);
             }}
             onKeyDown={onKeyDown}
             onPaste={(event) => event.preventDefault()}
