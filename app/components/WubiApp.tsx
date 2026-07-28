@@ -56,9 +56,63 @@ const navItems: Array<{ view: AppView; href: string; label: string; shortcut: st
   { view: "settings", href: "/settings", label: "设置", shortcut: "05" },
 ];
 
+type KeySoundPlayer = (options?: { force?: boolean }) => void;
+
+function useKeySound(enabled: boolean): KeySoundPlayer {
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(
+    () => () => {
+      void audioContextRef.current?.close();
+    },
+    [],
+  );
+
+  return useCallback(
+    ({ force = false } = {}) => {
+      if (!enabled && !force) return;
+      const AudioContextClass =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const context =
+        audioContextRef.current ??
+        (audioContextRef.current = new AudioContextClass());
+      const emit = () => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.value = 620;
+        gain.gain.setValueAtTime(0.045, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          context.currentTime + 0.04,
+        );
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.04);
+      };
+
+      if (context.state === "suspended") {
+        void context.resume().then(emit, () => undefined);
+      } else {
+        emit();
+      }
+    },
+    [enabled],
+  );
+}
+
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const playKeySound = useKeySound(settings.sound);
 
   useEffect(() => {
     setSettings(readSettings());
@@ -101,13 +155,23 @@ export function WubiApp({ view }: { view: AppView }) {
 
       <main className="page-wrap">
         {view === "typing" && (
-          <TypingView settings={settings} settingsReady={settingsReady} />
+          <TypingView
+            settings={settings}
+            settingsReady={settingsReady}
+            playKeySound={playKeySound}
+          />
         )}
-        {view === "challenge" && <ChallengeView />}
+        {view === "challenge" && (
+          <ChallengeView playKeySound={playKeySound} />
+        )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
         {view === "settings" && (
-          <SettingsView settings={settings} onChange={setSettings} />
+          <SettingsView
+            settings={settings}
+            onChange={setSettings}
+            playKeySound={playKeySound}
+          />
         )}
       </main>
 
@@ -124,9 +188,11 @@ export function WubiApp({ view }: { view: AppView }) {
 function TypingView({
   settings,
   settingsReady,
+  playKeySound,
 }: {
   settings: UserSettings;
   settingsReady: boolean;
+  playKeySound: KeySoundPlayer;
 }) {
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
@@ -163,7 +229,6 @@ function TypingView({
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
-  const audioContextRef = useRef<AudioContext | null>(null);
   const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
   const [codeHintsError, setCodeHintsError] = useState("");
 
@@ -241,7 +306,6 @@ function TypingView({
       if (compositionCommitTimer.current !== null) {
         window.clearTimeout(compositionCommitTimer.current);
       }
-      void audioContextRef.current?.close();
     },
     [],
   );
@@ -495,30 +559,6 @@ function TypingView({
     }
     setInputValue(committed);
     setTyped(committed);
-  };
-
-  const playKeySound = () => {
-    if (!settings.sound) return;
-    const AudioContextClass =
-      window.AudioContext ||
-      (
-        window as typeof window & {
-          webkitAudioContext?: typeof AudioContext;
-        }
-      ).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context =
-      audioContextRef.current ?? (audioContextRef.current = new AudioContextClass());
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = 520;
-    gain.gain.setValueAtTime(0.025, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.025);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.025);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -920,7 +960,11 @@ function Metric({
   );
 }
 
-function ChallengeView() {
+function ChallengeView({
+  playKeySound,
+}: {
+  playKeySound: KeySoundPlayer;
+}) {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -1155,6 +1199,9 @@ function ChallengeView() {
                 maxLength={question?.[1].length ?? 4}
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
+                  if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    playKeySound();
+                  }
                   if (event.key === "Enter" && feedback === "idle") submit();
                   if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
@@ -1448,9 +1495,11 @@ function HistoryView() {
 function SettingsView({
   settings,
   onChange,
+  playKeySound,
 }: {
   settings: UserSettings;
   onChange: (settings: UserSettings) => void;
+  playKeySound: KeySoundPlayer;
 }) {
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
     onChange({ ...settings, [key]: value });
@@ -1491,7 +1540,15 @@ function SettingsView({
         <div className="settings-card">
           <div className="settings-card-title"><span>辅</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
           <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
-          <Toggle label="按键声音" note="输入时播放轻提示音，默认关闭" checked={settings.sound} onChange={(value) => update("sound", value)} />
+          <Toggle
+            label="按键声音"
+            note="文章测速和字码挑战输入时播放轻提示音"
+            checked={settings.sound}
+            onChange={(value) => {
+              update("sound", value);
+              if (value) playKeySound({ force: true });
+            }}
+          />
         </div>
         <div className="settings-card license-card">
           <div className="settings-card-title"><span>i</span><div><h2>离线与版权</h2><p>数据来源清楚可核对</p></div></div>
