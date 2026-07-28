@@ -21,6 +21,8 @@
   --focus-ring: #1f5f94;
   --shadow-key: 0 2px 0 #aaa393;
   --shadow-panel: 0 20px 55px rgba(43, 48, 43, 0.1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-press: cubic-bezier(0.2, 0, 0, 1);
   --font-display: "STKaiti", "KaiTi", "Kaiti SC", serif;
   --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-data: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
@@ -164,6 +166,12 @@ a {
   border: 1px solid rgba(244, 241, 232, 0.62);
   font: 500 25px/1 var(--font-display);
   transform: rotate(-2deg);
+  transition: transform 220ms var(--ease-out), border-color 220ms ease;
+}
+
+.brand:hover .brand-mark {
+  border-color: var(--accent-vermilion);
+  transform: rotate(0deg);
 }
 
 .brand strong,
@@ -230,6 +238,7 @@ a {
   left: 50%;
   background: var(--accent-vermilion);
   transform: translateX(-50%) rotate(45deg);
+  animation: nav-marker-in 220ms var(--ease-out) both;
 }
 
 .local-badge {
@@ -259,6 +268,19 @@ a {
 
 .page-wrap {
   flex: 1;
+}
+
+.page-wrap > .hero-row,
+.page-wrap > .subpage {
+  animation: page-enter 360ms var(--ease-out) both;
+}
+
+.page-wrap > .metric-strip {
+  animation: page-enter 360ms 70ms var(--ease-out) both;
+}
+
+.page-wrap > .workspace-grid {
+  animation: page-enter 360ms 120ms var(--ease-out) both;
 }
 
 .hero-row {
@@ -317,11 +339,20 @@ a {
   cursor: pointer;
   font-size: 12px;
   font-weight: 750;
-  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    transform 140ms var(--ease-press),
+    box-shadow 140ms var(--ease-press),
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
 .button:hover:not(:disabled) {
   transform: translateY(-2px);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .button:disabled {
@@ -465,6 +496,20 @@ a {
   box-shadow: var(--shadow-key);
   cursor: pointer;
   font-size: 11px;
+  transition:
+    transform 140ms var(--ease-press),
+    box-shadow 140ms var(--ease-press),
+    color 140ms ease;
+}
+
+.toolbar-actions button:hover {
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.toolbar-actions button:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .progress-track {
@@ -554,6 +599,11 @@ a {
   color: #fff;
   background: var(--accent-vermilion-fill);
   box-shadow: 0 0 0 2px var(--accent-vermilion-fill);
+  animation: current-character-in 150ms var(--ease-out) both;
+}
+
+.article-swap {
+  animation: article-swap-in 240ms var(--ease-out) both;
 }
 
 .typing-input {
@@ -593,6 +643,7 @@ a {
   gap: 12px;
   border: 1px solid var(--state-success);
   background: color-mix(in srgb, var(--state-success) 8%, var(--bg-paper));
+  animation: completion-in 360ms var(--ease-out) both;
 }
 
 .completion-icon {
@@ -715,6 +766,19 @@ select,
   cursor: pointer;
   font-size: 12px;
   font-weight: 750;
+  transition:
+    transform 140ms var(--ease-press),
+    box-shadow 140ms var(--ease-press),
+    background 140ms ease;
+}
+
+.side-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.side-action:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .side-action.subtle {
@@ -903,12 +967,18 @@ select,
   color: var(--text-secondary);
   font-size: 26px;
   font-weight: 750;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms var(--ease-out);
 }
 
 .code-slots span.filled {
   color: #fff;
   border-color: var(--accent-bamboo-fill);
   background: var(--accent-bamboo-fill);
+  transform: translateY(-2px);
 }
 
 .code-input {
@@ -939,10 +1009,16 @@ select,
 
 .feedback.right {
   color: var(--state-success);
+  animation: feedback-in 180ms var(--ease-out) both;
 }
 
 .feedback.wrong {
   color: var(--state-error);
+  animation: feedback-in 180ms var(--ease-out) both;
+}
+
+.question-swap {
+  animation: question-swap-in 220ms var(--ease-out) both;
 }
 
 .settings-mini > h3 {
@@ -973,6 +1049,11 @@ select,
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
+  transition: color 160ms ease, background 160ms ease, transform 140ms var(--ease-press);
+}
+
+.segmented button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .segmented button.active {
@@ -1145,6 +1226,15 @@ select,
   border-bottom: 0;
 }
 
+.lookup-row {
+  animation: list-row-in 260ms var(--ease-out) both;
+}
+
+.lookup-row:nth-child(2) { animation-delay: 30ms; }
+.lookup-row:nth-child(3) { animation-delay: 60ms; }
+.lookup-row:nth-child(4) { animation-delay: 90ms; }
+.lookup-row:nth-child(5) { animation-delay: 120ms; }
+
 .lookup-row > strong {
   font-family: var(--font-display);
   font-size: 25px;
@@ -1172,6 +1262,17 @@ select,
 
 .summary-card {
   padding: 20px;
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow 180ms ease;
+}
+
+@media (hover: hover) {
+  .summary-card:hover,
+  .settings-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 24px 58px rgba(43, 48, 43, 0.14);
+  }
 }
 
 .summary-card > span,
@@ -1336,6 +1437,9 @@ select,
 
 .settings-card {
   padding: 24px;
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow 180ms ease;
 }
 
 .settings-card-title {
@@ -1408,6 +1512,7 @@ select,
   display: grid;
   place-items: center;
   background: rgba(17, 23, 20, 0.75);
+  animation: backdrop-in 180ms ease-out both;
 }
 
 .modal {
@@ -1417,6 +1522,7 @@ select,
   border: 1px solid var(--text-primary);
   background: var(--bg-paper);
   box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.25);
+  animation: modal-in 240ms var(--ease-out) both;
 }
 
 .modal > header {
@@ -1464,10 +1570,14 @@ select,
   border-bottom: 1px solid var(--border-default);
   background: transparent;
   cursor: pointer;
+  transition:
+    background 140ms ease,
+    padding-inline 180ms var(--ease-out);
 }
 
 .article-list > button:hover {
   background: var(--bg-raised);
+  padding-inline: 17px 9px;
 }
 
 .article-list > button span:first-child {
@@ -1523,6 +1633,75 @@ select,
   color: var(--text-secondary);
   border-top: 1px solid var(--border-default);
   font-size: 10px;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes nav-marker-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) rotate(45deg) scale(0.65);
+  }
+}
+
+@keyframes article-swap-in {
+  from {
+    opacity: 0.45;
+    transform: translateY(5px);
+  }
+}
+
+@keyframes current-character-in {
+  from {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-vermilion-fill) 24%, transparent);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes completion-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes question-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.98);
+  }
+}
+
+@keyframes feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes list-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
 }
 
 @media (max-width: 1120px) {
