@@ -35,6 +35,7 @@ import {
   readSettings,
   saveSession,
   isCommonPracticeArticle,
+  selectInitialArticle,
   shouldDeferInputCommit,
   STORAGE,
   writeLocal,
@@ -53,19 +54,75 @@ import type {
 } from "../types";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 
-const navItems: Array<{ view: AppView; href: string; label: string; shortcut: string }> = [
-  { view: "typing", href: "/", label: "文章测速", shortcut: "01" },
-  { view: "challenge", href: "/challenge", label: "字码挑战", shortcut: "02" },
-  { view: "lookup", href: "/lookup", label: "五笔查码", shortcut: "03" },
-  { view: "history", href: "/history", label: "本地成绩", shortcut: "04" },
-  { view: "settings", href: "/settings", label: "设置", shortcut: "05" },
+const navItems: Array<{ view: AppView; href: string; label: string }> = [
+  { view: "typing", href: "/", label: "文章测速" },
+  { view: "challenge", href: "/challenge", label: "字码挑战" },
+  { view: "lookup", href: "/lookup", label: "五笔查码" },
+  { view: "history", href: "/history", label: "本地成绩" },
+  { view: "settings", href: "/settings", label: "设置" },
 ];
+
+type KeySoundPlayer = (options?: { force?: boolean }) => void;
+
+function useKeySound(enabled: boolean): KeySoundPlayer {
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(
+    () => () => {
+      void audioContextRef.current?.close();
+    },
+    [],
+  );
+
+  return useCallback(
+    ({ force = false } = {}) => {
+      if (!enabled && !force) return;
+      const AudioContextClass =
+        window.AudioContext ||
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const context =
+        audioContextRef.current ??
+        (audioContextRef.current = new AudioContextClass());
+      const emit = () => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.value = 620;
+        gain.gain.setValueAtTime(0.045, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          context.currentTime + 0.04,
+        );
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.04);
+      };
+
+      if (context.state === "suspended") {
+        void context.resume().then(emit, () => undefined);
+      } else {
+        emit();
+      }
+    },
+    [enabled],
+  );
+}
 
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const playKeySound = useKeySound(settings.sound);
 
   useEffect(() => {
     setSettings(readSettings());
+    setSettingsReady(true);
   }, []);
 
   useEffect(() => {
@@ -82,7 +139,7 @@ export function WubiApp({ view }: { view: AppView }) {
             <span className="brand-mark">五</span>
             <span>
               <strong>五笔测试网站</strong>
-              <small>WUBI 86 / LOCAL LAB</small>
+              <small>八六版 · 离线练习</small>
             </span>
           </Link>
           <nav className="main-nav" aria-label="主导航">
@@ -93,29 +150,40 @@ export function WubiApp({ view }: { view: AppView }) {
                 className={view === item.view ? "nav-item active" : "nav-item"}
                 aria-current={view === item.view ? "page" : undefined}
               >
-                <span aria-hidden="true">{item.shortcut}</span>
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="local-badge"><i /> 数据仅存本机</div>
+          <div className="local-badge"><i /> 练习记录只留在这里</div>
         </div>
       </header>
 
       <main className="page-wrap">
-        {view === "typing" && <TypingView settings={settings} />}
-        {view === "challenge" && <ChallengeView />}
+        {view === "typing" && (
+          <TypingView
+            settings={settings}
+            settingsReady={settingsReady}
+            playKeySound={playKeySound}
+          />
+        )}
+        {view === "challenge" && (
+          <ChallengeView playKeySound={playKeySound} />
+        )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
         {view === "settings" && (
-          <SettingsView settings={settings} onChange={setSettings} />
+          <SettingsView
+            settings={settings}
+            onChange={setSettings}
+            playKeySound={playKeySound}
+          />
         )}
       </main>
 
       <footer className="site-footer">
-        <span>五笔测试网站 · 专注 86 版五笔训练</span>
+        <span>慢慢练，手会记住。</span>
         <span>
-          码表来源：Rime 五笔方案（LGPL-3.0） · 所有练习记录只保存在当前浏览器
+          86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
         </span>
       </footer>
     </div>
@@ -124,8 +192,12 @@ export function WubiApp({ view }: { view: AppView }) {
 
 function TypingView({
   settings,
+  settingsReady,
+  playKeySound,
 }: {
   settings: UserSettings;
+  settingsReady: boolean;
+  playKeySound: KeySoundPlayer;
 }) {
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
@@ -138,6 +210,7 @@ function TypingView({
     topic: "all",
     status: "all",
   });
+  const [focusMode, setFocusMode] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [commonOpen, setCommonOpen] = useState(false);
@@ -166,7 +239,6 @@ function TypingView({
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
-  const audioContextRef = useRef<AudioContext | null>(null);
   const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
   const [codeHintsError, setCodeHintsError] = useState("");
 
@@ -203,6 +275,23 @@ function TypingView({
       length: settings.preferredLength,
     }));
   }, [settings.preferredLength]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (focusMode) root.dataset.focusMode = "true";
+    else delete root.dataset.focusMode;
+
+    const exitFocusMode = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape" && focusMode && !pickerOpen && !customOpen) {
+        setFocusMode(false);
+      }
+    };
+    document.addEventListener("keydown", exitFocusMode);
+    return () => {
+      document.removeEventListener("keydown", exitFocusMode);
+      delete root.dataset.focusMode;
+    };
+  }, [customOpen, focusMode, pickerOpen]);
 
   useEffect(() => {
     if (!settings.showCodeHints) {
@@ -244,7 +333,6 @@ function TypingView({
       if (compositionCommitTimer.current !== null) {
         window.clearTimeout(compositionCommitTimer.current);
       }
-      void audioContextRef.current?.close();
     },
     [],
   );
@@ -382,15 +470,31 @@ function TypingView({
   }, [chooseArticle, filtered]);
 
   useEffect(() => {
-    if (articlesLoading || !availableArticles.length || article) return;
+    if (
+      !settingsReady ||
+      articlesLoading ||
+      !availableArticles.length ||
+      article
+    ) {
+      return;
+    }
     const currentId = readLocal<string | null>(STORAGE.current, null);
-    chooseArticle(
-      availableArticles.find((item) => item.id === currentId) ||
-        articles.find((item) => item.length === "short") ||
-        availableArticles[0],
-      false,
+    const initialArticle = selectInitialArticle(
+      availableArticles,
+      articles,
+      currentId,
+      settings.preferredLength,
     );
-  }, [article, articles, articlesLoading, availableArticles, chooseArticle]);
+    if (initialArticle) chooseArticle(initialArticle, false);
+  }, [
+    article,
+    articles,
+    articlesLoading,
+    availableArticles,
+    chooseArticle,
+    settings.preferredLength,
+    settingsReady,
+  ]);
 
   useEffect(() => {
     if (!startedAt || completed) return;
@@ -541,30 +645,6 @@ function TypingView({
     setTyped(committed);
   };
 
-  const playKeySound = () => {
-    if (!settings.sound) return;
-    const AudioContextClass =
-      window.AudioContext ||
-      (
-        window as typeof window & {
-          webkitAudioContext?: typeof AudioContext;
-        }
-      ).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context =
-      audioContextRef.current ?? (audioContextRef.current = new AudioContextClass());
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = 520;
-    gain.gain.setValueAtTime(0.025, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.025);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.025);
-  };
-
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completed) return;
     if (
@@ -653,19 +733,19 @@ function TypingView({
     <>
       <section className="hero-row">
         <div>
-          <span className="eyebrow">WUBI 86 / 文章测速</span>
-          <h1>一字一键，<em>练到手比眼快。</em></h1>
-          <p>切换到系统五笔后直接输入。计时、速度、击键和错字都在本机完成。</p>
+          <span className="eyebrow">今天也写几行</span>
+          <h1>让手指先于思考，<em>落下正确的字。</em></h1>
+          <p>切到五笔输入法就可以开始。速度、击键和错字都安静地记在这台电脑里。</p>
         </div>
         <div className="hero-actions">
           <button className="button secondary common-entry" onClick={openCommonPractice}>
             常用字练习
           </button>
           <button className="button secondary" onClick={() => setCustomOpen(true)}>
-            ＋ 粘贴自定义文本
+            粘贴自己的文字
           </button>
           <button className="button primary" onClick={randomArticle}>
-            随机换一篇 ↗
+            换一篇练练
           </button>
         </div>
       </section>
@@ -687,6 +767,26 @@ function TypingView({
 
       <section className="workspace-grid">
         <article className="typing-card">
+          <div className="practice-commandbar" aria-label="练习控制">
+            <div className="practice-mode">
+              <span className="practice-mode-mark">五</span>
+              <span>86 版</span>
+              <span>全文跟打</span>
+              <span>{lengthLabels[article.length]}</span>
+              {settings.showCodeHints && <span>编码提示开启</span>}
+            </div>
+            <div className="practice-actions">
+              <button onClick={() => setPickerOpen(true)}>选文章</button>
+              <button onClick={randomArticle}>随机</button>
+              <button
+                className={focusMode ? "active" : ""}
+                onClick={() => setFocusMode((value) => !value)}
+                aria-pressed={focusMode}
+              >
+                {focusMode ? "退出专注" : "专注模式"}
+              </button>
+            </div>
+          </div>
           <div className="typing-toolbar">
             <div>
               <div className="article-kicker">
@@ -696,7 +796,8 @@ function TypingView({
               </div>
               <h2>{article.title}</h2>
             </div>
-            <div className="toolbar-actions">
+            <div className="article-progress">
+              <strong>{progressPercent}%</strong>
               {isCommonPracticeArticle(article) ? (
                 <>
                   <button
@@ -757,10 +858,11 @@ function TypingView({
             })}
           </div>
           <div
+            key={article.id}
             ref={articleTextRef}
             className={`article-text ${
               isCommonPracticeArticle(article) ? "common-character-text" : ""
-            }`}
+            } article-swap`}
             style={{ fontSize: `${settings.fontSize}px` }}
             onClick={() => inputRef.current?.focus()}
             aria-live="off"
@@ -849,28 +951,58 @@ function TypingView({
             aria-label="跟打输入区"
             spellCheck={false}
           />
-          <div className="typing-footer">
-            <span>第 {Math.min(typed.length + 1, targetText.length)} / {targetText.length} 字</span>
-            <span>
-              {settings.showCodeHints
-                ? codeHintsError ||
-                  `当前编码：${
-                    codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
-                    "暂无"
-                  }`
-                : "输入第一个字符后开始计时 · 已禁用粘贴"}
+          <div className={`typing-footer${settings.showCodeHints ? " with-code-hint" : ""}`}>
+            <span className="typing-position">
+              第 {Math.min(typed.length + 1, targetText.length)} / {targetText.length} 字
             </span>
+            {settings.showCodeHints ? (
+              <div
+                className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
+                aria-live="polite"
+                aria-label={`当前字 ${targetText[typed.length] || "无"}，最短编码 ${
+                  codeHintsError ||
+                  codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                  "暂无"
+                }`}
+              >
+                <strong className="code-hint-character" aria-hidden="true">
+                  {targetText[typed.length] || "完"}
+                </strong>
+                <span className="code-hint-copy">
+                  <small>{codeHintsError ? "编码提示" : "当前字 · 最短编码"}</small>
+                  <b>
+                    {codeHintsError ||
+                      codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                      "暂无"}
+                  </b>
+                </span>
+              </div>
+            ) : (
+              <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
+            )}
           </div>
           {completed && (
             <div className="completion-panel">
-              <span className="completion-icon">成</span>
-              <div>
-                <strong>完成本次练习</strong>
-                <p>速度 {speed} 字/分，准确率 {accuracy.toFixed(1)}%，成绩已保存在本机。</p>
+              <div className="completion-copy">
+                <span className="completion-icon">成</span>
+                <div>
+                  <span>本次成绩已存入本机</span>
+                  <strong>完成本次练习</strong>
+                </div>
               </div>
-              <button className="button primary" onClick={settings.autoNext ? randomArticle : () => chooseArticle(article)}>
-                {settings.autoNext ? "下一篇" : "再练一次"}
-              </button>
+              <div className="completion-results" aria-label="本次练习成绩">
+                <span><small>速度</small><strong>{speed}</strong><i>字/分</i></span>
+                <span><small>击键</small><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span>
+                <span><small>码长</small><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span>
+                <span><small>准确率</small><strong>{accuracy.toFixed(1)}</strong><i>%</i></span>
+                <span><small>回退</small><strong>{errorCount}</strong><i>处</i></span>
+              </div>
+              <div className="completion-next">
+                <p>练习记录只保存在当前浏览器。</p>
+                <button className="button primary" onClick={settings.autoNext ? randomArticle : () => chooseArticle(article)}>
+                  {settings.autoNext ? "下一篇" : "再练一次"}
+                </button>
+              </div>
             </div>
           )}
         </article>
@@ -943,12 +1075,15 @@ function TypingView({
               const record = progressMap.get(item.id);
               return (
                 <button key={item.id} onClick={() => chooseArticle(item)}>
-                  <span>
+                  <span className="article-card-copy">
+                    <small>{item.topic}</small>
                     <strong>{item.title}</strong>
-                    <small>{lengthLabels[item.length]} · {item.topic} · {item.wordCount} 字</small>
+                    <span>{lengthLabels[item.length]} · {item.wordCount} 字</span>
                   </span>
-                  <span className="article-record">
-                    {record ? `最佳 ${record.bestSpeed} 字/分 · ${record.attempts} 次` : "未练习"}
+                  <span className={record ? "article-record practiced" : "article-record"}>
+                    <small>{record ? "个人最佳" : "练习状态"}</small>
+                    <strong>{record ? `${record.bestSpeed} 字/分` : "未练习"}</strong>
+                    <i>{record ? `${record.attempts} 次记录` : "从这篇开始"}</i>
                   </span>
                 </button>
               );
@@ -1052,7 +1187,11 @@ function Metric({
   );
 }
 
-function ChallengeView() {
+function ChallengeView({
+  playKeySound,
+}: {
+  playKeySound: KeySoundPlayer;
+}) {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -1272,7 +1411,12 @@ function ChallengeView() {
                 <span>正确 {correct}</span>
                 {timed && <span>剩余 {remaining}s</span>}
               </div>
-              <div className="question-character">{question?.[0]}</div>
+              <div
+                key={question?.[0]}
+                className="question-character question-swap"
+              >
+                {question?.[0]}
+              </div>
               <div className="code-slots">
                 {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
@@ -1287,6 +1431,9 @@ function ChallengeView() {
                 maxLength={question?.[1].length ?? 4}
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
+                  if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    playKeySound();
+                  }
                   if (event.key === "Enter" && feedback === "idle") submit();
                   if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
@@ -1414,7 +1561,7 @@ function LookupView() {
 
   return (
     <section className="subpage lookup-page">
-      <div className="subpage-heading centered">
+      <div className="subpage-heading lookup-heading">
         <span className="eyebrow">离线收录 13 万余条编码</span>
         <h1>86 版五笔查码</h1>
         <p>输入汉字、词组或 1–4 位编码，结果完全来自本地码表。</p>
@@ -1580,9 +1727,11 @@ function HistoryView() {
 function SettingsView({
   settings,
   onChange,
+  playKeySound,
 }: {
   settings: UserSettings;
   onChange: (settings: UserSettings) => void;
+  playKeySound: KeySoundPlayer;
 }) {
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
     onChange({ ...settings, [key]: value });
@@ -1623,7 +1772,15 @@ function SettingsView({
         <div className="settings-card">
           <div className="settings-card-title"><span>辅</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
           <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
-          <Toggle label="按键声音" note="输入时播放轻提示音，默认关闭" checked={settings.sound} onChange={(value) => update("sound", value)} />
+          <Toggle
+            label="按键声音"
+            note="文章测速和字码挑战输入时播放轻提示音"
+            checked={settings.sound}
+            onChange={(value) => {
+              update("sound", value);
+              if (value) playKeySound({ force: true });
+            }}
+          />
         </div>
         <div className="settings-card license-card">
           <div className="settings-card-title"><span>i</span><div><h2>离线与版权</h2><p>数据来源清楚可核对</p></div></div>

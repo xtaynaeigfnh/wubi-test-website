@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  ArticleLength,
   ArticleMetadata,
   ArticleProgress,
   CommonCharacterData,
@@ -92,6 +93,29 @@ export function readSettings(): UserSettings {
         ? partial.autoNext
         : defaultSettings.autoNext,
   };
+}
+
+export function selectInitialArticle(
+  availableArticles: PracticeArticle[],
+  builtInArticles: PracticeArticle[],
+  currentId: string | null,
+  preferredLength: ArticleLength | "all",
+): PracticeArticle | null {
+  const matchesPreference = (article: PracticeArticle) =>
+    preferredLength === "all" || article.length === preferredLength;
+  const current = availableArticles.find(
+    (article) => article.id === currentId && matchesPreference(article),
+  );
+  if (current) return current;
+
+  const fallbackLength =
+    preferredLength === "all" ? "short" : preferredLength;
+  return (
+    builtInArticles.find((article) => article.length === fallbackLength) ||
+    availableArticles.find(matchesPreference) ||
+    availableArticles[0] ||
+    null
+  );
 }
 
 export function writeLocal<T>(key: string, value: T): boolean {
