@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
+const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
+const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
@@ -126,4 +128,28 @@ test("common-character scores stay out of the 200-article completion progress", 
   );
   assert.match(component, /文章完成度/);
   assert.match(component, /\/ 200/);
+});
+
+test("one root-level audio player exposes accessible manual controls", async () => {
+  const [music, layout, styles] = await Promise.all([
+    readFile(musicPath, "utf8"),
+    readFile(layoutPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(layout, /<MusicProvider>\{children\}<\/MusicProvider>/);
+  assert.equal((music.match(/<audio/g) ?? []).length, 1);
+  assert.match(music, /preload="metadata"/);
+  assert.doesNotMatch(music, /\bautoPlay\b|\bautoplay\b/);
+  assert.match(music, /aria-label="上一首"/);
+  assert.match(music, /aria-label="下一首"/);
+  assert.match(music, /aria-label="播放进度"/);
+  assert.match(music, /aria-label="背景音乐音量"/);
+  assert.match(music, /aria-expanded=\{expanded\}/);
+  assert.match(styles, /\.music-dock\s*\{/);
+  assert.match(styles, /\.music-ruler\s*\{/);
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
+  );
 });

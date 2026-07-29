@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "tracks": [
+    {
+      "id": "one-night-in-france",
+      "title": "One Night In France",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/one-night-in-france.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 194,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/one-night-in-france-lofi-nostalgic-chill/"
+    },
+    {
+      "id": "when-time-called-me-darling",
+      "title": "When Time Called Me Darling",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/when-time-called-me-darling.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 215,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/when-time-called-me-darling-lofi-relaxing-chill/"
+    },
+    {
+      "id": "shimmer",
+      "title": "Shimmer",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/shimmer.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 180,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/shimmer-lofi-chill/"
+    },
+    {
+      "id": "ode-to-forgetting",
+      "title": "Ode To Forgetting",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/ode-to-forgetting.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 184,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ode-to-forgetting-lofi-chill-relax/"
+    },
+    {
+      "id": "wave-maker",
+      "title": "Wave Maker",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/wave-maker.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 185,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wave-maker-lofi-dreamy-retro/"
+    }
+  ]
+}
