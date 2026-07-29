@@ -786,9 +786,13 @@ function TypingView({
                   ref={state === "current" ? currentCharacterRef : undefined}
                   className={`${state}${
                     isCommonPracticeArticle(article) &&
-                    targetIndex > 0 &&
-                    Math.floor(targetIndex / 10) % 5 === 0
-                      ? " common-group-row"
+                    (targetIndex + 1) % 10 === 0
+                      ? " common-decade-end"
+                      : ""
+                  }${
+                    isCommonPracticeArticle(article) &&
+                    (targetIndex + 1) % 50 === 0
+                      ? " common-section-end"
                       : ""
                   }`}
                   key={`${visibleIndex}-${character}`}
