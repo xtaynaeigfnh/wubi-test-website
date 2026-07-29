@@ -174,3 +174,28 @@ test("challenge dictionary contains simplified Chinese and excludes traditional 
   );
   assert.ok(rows.every(([, code]) => /^[a-y]{1,4}$/.test(code)));
 });
+
+test("common-character data contains the verified first 1500 frequency ranks", async () => {
+  const [data, wubiRows] = await Promise.all([
+    readJson("common-characters.json"),
+    readJson("wubi86.json"),
+  ]);
+  const characters = Array.from(data.characters);
+  const codedCharacters = new Set(
+    wubiRows
+      .filter(([text]) => Array.from(text).length === 1)
+      .map(([text]) => text),
+  );
+
+  assert.equal(data.version, 1);
+  assert.match(data.source.name, /现代汉语研究语料库/);
+  assert.equal(characters.length, 1500);
+  assert.equal(new Set(characters).size, 1500);
+  assert.equal(characters.slice(0, 20).join(""), "的一了是不我人有在这国大个中他和你来上要");
+  assert.equal(characters[99], "制");
+  assert.equal(characters[499], "士");
+  assert.equal(characters[999], "纷");
+  assert.equal(characters[1499], "诊");
+  assert.ok(characters.every((character) => /^\p{Script=Han}$/u.test(character)));
+  assert.ok(characters.every((character) => codedCharacters.has(character)));
+});

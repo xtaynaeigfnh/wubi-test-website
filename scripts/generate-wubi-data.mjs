@@ -5,6 +5,12 @@ import OpenCC from "opencc-js";
 const source = path.resolve("third_party/rime-wubi/wubi86.dict.yaml");
 const destination = path.resolve("public/data/wubi86.json");
 const challengeDestination = path.resolve("public/data/wubi86-challenge.json");
+const commonCharacterSource = path.resolve(
+  "third_party/mrccorpus/common-characters-1500.txt",
+);
+const commonCharacterDestination = path.resolve(
+  "public/data/common-characters.json",
+);
 const raw = await readFile(source, "utf8");
 const body = raw.slice(raw.indexOf("\n...\n") + 5);
 const seen = new Set();
@@ -32,5 +38,47 @@ const challengeRows = rows.filter(
     simplifiedTexts[index] === text && normalizedJapaneseTexts[index] === text,
 );
 await writeFile(challengeDestination, JSON.stringify(challengeRows));
+
+const commonCharacterRaw = (await readFile(commonCharacterSource, "utf8")).trim();
+const commonCharacters = Array.from(commonCharacterRaw);
+const wubiSingleCharacters = new Set(
+  rows
+    .filter(([text]) => Array.from(text).length === 1)
+    .map(([text]) => text),
+);
+const invalidCommonCharacters = commonCharacters.filter(
+  (character) =>
+    !/^\p{Script=Han}$/u.test(character) ||
+    toSimplified(character) !== character ||
+    !wubiSingleCharacters.has(character),
+);
+
+if (commonCharacters.length !== 1500) {
+  throw new Error(
+    `Common-character source must contain exactly 1500 characters, received ${commonCharacters.length}.`,
+  );
+}
+if (new Set(commonCharacters).size !== commonCharacters.length) {
+  throw new Error("Common-character source contains duplicate characters.");
+}
+if (invalidCommonCharacters.length) {
+  throw new Error(
+    `Common-character source contains invalid or uncoded characters: ${invalidCommonCharacters.join("")}`,
+  );
+}
+
+await writeFile(
+  commonCharacterDestination,
+  JSON.stringify({
+    version: 1,
+    source: {
+      name: "北京语言大学“现代汉语研究语料库”汉字频率表",
+      url: "https://faculty.blcu.edu.cn/xinghb/zh_CN/article/167473/content/1016.htm",
+      retrievedAt: "2026-07-29",
+    },
+    characters: commonCharacterRaw,
+  }),
+);
 console.log(`Generated ${rows.length} Wubi 86 dictionary rows.`);
 console.log(`Generated ${challengeRows.length} simplified Chinese challenge rows.`);
+console.log(`Generated ${commonCharacters.length} ranked common characters.`);
