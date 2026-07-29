@@ -68,17 +68,18 @@ test("key sound is shared by typing, challenge, and the settings preview", async
   );
 });
 
-test("code hint pairs the current character with a prominent shortest code card", async () => {
+test("code hint pairs the current character with a compact toolbar code card", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
+  assert.match(component, /className="article-toolbar-actions"/);
   assert.match(component, /className="code-hint-character"/);
-  assert.match(component, /当前字 · 最短编码/);
+  assert.match(component, /当前字 · 编码/);
   assert.match(component, /codeHints\.get\(targetText\[typed\.length\]/);
   assert.match(component, /aria-live="polite"/);
-  assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*58px/s);
-  assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 36px\/1/s);
-  assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 25px\/1\.15/s);
+  assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*36px/s);
+  assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 23px\/1/s);
+  assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 17px\/1\.05/s);
 });

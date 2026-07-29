@@ -574,6 +574,17 @@ a {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.article-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.article-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .article-kicker {
   display: flex;
   flex-wrap: wrap;
@@ -773,56 +784,50 @@ a {
   font: 9px/1.4 var(--font-data);
 }
 
-.typing-footer.with-code-hint {
-  min-height: 82px;
-  padding: 10px 14px 10px 24px;
-}
-
 .typing-position {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }
 
 .code-hint-card {
-  min-width: 220px;
-  margin-left: auto;
+  min-width: 136px;
   display: grid;
-  grid-template-columns: 58px minmax(142px, 1fr);
+  grid-template-columns: 36px minmax(92px, 1fr);
   overflow: hidden;
   color: var(--text-primary);
   border: 1px solid color-mix(in srgb, var(--accent-vermilion) 48%, var(--border-default));
-  border-radius: var(--radius-medium);
-  background: var(--bg-paper);
-  box-shadow: 0 8px 22px rgba(32, 38, 34, 0.08);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
 }
 
 .code-hint-character {
-  min-height: 58px;
+  min-height: 40px;
   display: grid;
   place-items: center;
   color: #fff;
   background: var(--accent-vermilion-fill);
-  font: 500 36px/1 var(--font-display);
+  font: 500 23px/1 var(--font-display);
 }
 
 .code-hint-copy {
-  padding: 8px 13px 7px;
+  padding: 5px 8px 4px;
   display: grid;
   align-content: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .code-hint-copy small {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 650;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .code-hint-copy b {
   color: var(--accent-bamboo);
-  font: 760 25px/1.15 var(--font-data);
-  letter-spacing: 0.13em;
+  font: 760 17px/1.05 var(--font-data);
+  letter-spacing: 0.1em;
 }
 
 .code-hint-card.has-error {
@@ -834,9 +839,8 @@ a {
 }
 
 .code-hint-card.has-error .code-hint-copy b {
-  max-width: 240px;
   color: var(--state-error);
-  font: 650 11px/1.4 var(--font-body);
+  font: 650 9px/1.2 var(--font-body);
   letter-spacing: 0;
 }
 
@@ -2309,6 +2313,15 @@ select,
 
   .typing-toolbar {
     min-height: 72px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .article-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
   }
 
   .practice-commandbar {
@@ -2362,26 +2375,18 @@ select,
     gap: 4px;
   }
 
-  .typing-footer.with-code-hint {
-    min-height: auto;
-    padding: 12px 14px;
-    gap: 10px;
-  }
-
   .code-hint-card {
-    width: 100%;
-    min-width: 0;
-    margin-left: 0;
-    grid-template-columns: 54px minmax(0, 1fr);
+    min-width: 128px;
+    grid-template-columns: 34px minmax(86px, 1fr);
   }
 
   .code-hint-character {
-    min-height: 54px;
-    font-size: 33px;
+    min-height: 38px;
+    font-size: 21px;
   }
 
   .code-hint-copy b {
-    font-size: 23px;
+    font-size: 16px;
   }
 
   .completion-panel {

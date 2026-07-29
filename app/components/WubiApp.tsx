@@ -717,7 +717,7 @@ function TypingView({
             </div>
           </div>
           <div className="typing-toolbar">
-            <div>
+            <div className="article-heading">
               <div className="article-kicker">
                 <span>{lengthLabels[article.length]}</span>
                 <span>{article.topic}</span>
@@ -725,9 +725,35 @@ function TypingView({
               </div>
               <h2>{article.title}</h2>
             </div>
-            <div className="article-progress">
-              <strong>{progressPercent}%</strong>
-              <button onClick={() => chooseArticle(article)}>重新开始</button>
+            <div className="article-toolbar-actions">
+              {settings.showCodeHints && (
+                <div
+                  className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
+                  aria-live="polite"
+                  aria-label={`当前字 ${targetText[typed.length] || "无"}，最短编码 ${
+                    codeHintsError ||
+                    codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                    "暂无"
+                  }`}
+                >
+                  <strong className="code-hint-character" aria-hidden="true">
+                    {targetText[typed.length] || "完"}
+                  </strong>
+                  <span className="code-hint-copy">
+                    <small>{codeHintsError ? "编码提示" : "当前字 · 编码"}</small>
+                    <b>
+                      {codeHintsError
+                        ? "加载失败"
+                        : codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                          "暂无"}
+                    </b>
+                  </span>
+                </div>
+              )}
+              <div className="article-progress">
+                <strong>{progressPercent}%</strong>
+                <button onClick={() => chooseArticle(article)}>重新开始</button>
+              </div>
             </div>
           </div>
           <div
@@ -845,35 +871,11 @@ function TypingView({
             aria-label="跟打输入区"
             spellCheck={false}
           />
-          <div className={`typing-footer${settings.showCodeHints ? " with-code-hint" : ""}`}>
+          <div className="typing-footer">
             <span className="typing-position">
               第 {Math.min(typed.length + 1, targetText.length)} / {targetText.length} 字
             </span>
-            {settings.showCodeHints ? (
-              <div
-                className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
-                aria-live="polite"
-                aria-label={`当前字 ${targetText[typed.length] || "无"}，最短编码 ${
-                  codeHintsError ||
-                  codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
-                  "暂无"
-                }`}
-              >
-                <strong className="code-hint-character" aria-hidden="true">
-                  {targetText[typed.length] || "完"}
-                </strong>
-                <span className="code-hint-copy">
-                  <small>{codeHintsError ? "编码提示" : "当前字 · 最短编码"}</small>
-                  <b>
-                    {codeHintsError ||
-                      codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
-                      "暂无"}
-                  </b>
-                </span>
-              </div>
-            ) : (
-              <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
-            )}
+            <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
           </div>
           {completed && (
             <div className="completion-panel">
