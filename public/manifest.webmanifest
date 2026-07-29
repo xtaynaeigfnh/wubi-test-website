@@ -1,0 +1,31 @@
+{
+  "name": "五笔测试网站",
+  "short_name": "五笔练习",
+  "description": "86 版五笔文章测速、错题复练、字根专项和离线查码工具。",
+  "lang": "zh-CN",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#eeece6",
+  "theme_color": "#202622",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "开始文章测速",
+      "url": "./",
+      "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "今日训练",
+      "url": "./training/",
+      "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

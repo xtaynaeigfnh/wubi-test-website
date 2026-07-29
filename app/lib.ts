@@ -4,9 +4,13 @@ import type {
   ArticleLength,
   ArticleMetadata,
   ArticleProgress,
+  BackupPayload,
+  DailyGoal,
+  DailyProgress,
   ErrorStat,
   PracticeArticle,
   SessionResult,
+  TrendPoint,
   UserSettings,
   WubiEntry,
 } from "./types";
@@ -19,7 +23,10 @@ export const STORAGE = {
   customTexts: "wubi-test:custom-texts:v1",
   recent: "wubi-test:recent-articles:v1",
   current: "wubi-test:current-article:v1",
+  dailyGoal: "wubi-test:daily-goal:v1",
 } as const;
+
+export const STORAGE_KEYS = Object.values(STORAGE);
 
 export const defaultSettings: UserSettings = {
   fontSize: 30,
@@ -28,6 +35,12 @@ export const defaultSettings: UserSettings = {
   sound: false,
   theme: "system",
   autoNext: false,
+};
+
+export const defaultDailyGoal: DailyGoal = {
+  targetChars: 500,
+  targetMinutes: 15,
+  targetRounds: 2,
 };
 
 let articlesPromise: Promise<PracticeArticle[]> | null = null;
@@ -86,6 +99,30 @@ export function readSettings(): UserSettings {
       typeof partial.autoNext === "boolean"
         ? partial.autoNext
         : defaultSettings.autoNext,
+  };
+}
+
+export function readDailyGoal(): DailyGoal {
+  const value = readLocal<Partial<DailyGoal>>(STORAGE.dailyGoal, {});
+  return {
+    targetChars:
+      typeof value.targetChars === "number" &&
+      value.targetChars >= 100 &&
+      value.targetChars <= 10000
+        ? value.targetChars
+        : defaultDailyGoal.targetChars,
+    targetMinutes:
+      typeof value.targetMinutes === "number" &&
+      value.targetMinutes >= 5 &&
+      value.targetMinutes <= 180
+        ? value.targetMinutes
+        : defaultDailyGoal.targetMinutes,
+    targetRounds:
+      typeof value.targetRounds === "number" &&
+      value.targetRounds >= 1 &&
+      value.targetRounds <= 20
+        ? value.targetRounds
+        : defaultDailyGoal.targetRounds,
   };
 }
 
@@ -319,10 +356,229 @@ export function addError(text: string, code?: string) {
   if (existing) {
     existing.count += 1;
     existing.lastSeen = new Date().toISOString();
+    existing.mastery = Math.max(0, (existing.mastery ?? 0) - 1);
   } else {
-    errors.push({ text, code, count: 1, lastSeen: new Date().toISOString() });
+    errors.push({
+      text,
+      code,
+      count: 1,
+      lastSeen: new Date().toISOString(),
+      mastery: 0,
+    });
   }
   writeLocal(STORAGE.errors, errors.sort((a, b) => b.count - a.count).slice(0, 300));
+}
+
+export function updateErrorMastery(
+  text: string,
+  code: string,
+  correct: boolean,
+): ErrorStat[] {
+  const errors = readLocalArray<ErrorStat>(STORAGE.errors);
+  const existing = errors.find((row) => row.text === text);
+  if (!existing) return errors;
+  existing.code = code;
+  if (correct) {
+    existing.mastery = Math.min(5, (existing.mastery ?? 0) + 1);
+    existing.lastCorrect = new Date().toISOString();
+  } else {
+    existing.count += 1;
+    existing.mastery = Math.max(0, (existing.mastery ?? 0) - 1);
+    existing.lastSeen = new Date().toISOString();
+  }
+  const next = errors.sort(
+    (a, b) =>
+      b.count - (b.mastery ?? 0) - (a.count - (a.mastery ?? 0)),
+  );
+  writeLocal(STORAGE.errors, next);
+  return next;
+}
+
+export function buildReviewPool(
+  errors: ErrorStat[],
+  entries: WubiEntry[],
+): WubiEntry[] {
+  const preferred = new Map(
+    preferShortestWubiCodes(entries).map((entry) => [entry[0], entry]),
+  );
+  return errors
+    .map((error) => {
+      const entry = preferred.get(error.text);
+      if (entry) return entry;
+      if (error.code) return [error.text, error.code.toLowerCase(), 0] as WubiEntry;
+      return null;
+    })
+    .filter((entry): entry is WubiEntry => Boolean(entry))
+    .sort((a, b) => {
+      const aError = errors.find((row) => row.text === a[0]);
+      const bError = errors.find((row) => row.text === b[0]);
+      return (
+        (bError?.count ?? 0) -
+        (bError?.mastery ?? 0) -
+        ((aError?.count ?? 0) - (aError?.mastery ?? 0))
+      );
+    });
+}
+
+export function buildRootPool(
+  entries: WubiEntry[],
+  keys: string,
+  limit = 500,
+): WubiEntry[] {
+  const keySet = new Set(keys.toLowerCase());
+  return preferShortestWubiCodes(entries)
+    .filter(
+      ([text, code, weight]) =>
+        Array.from(text).length === 1 &&
+        code.length <= 4 &&
+        keySet.has(code[0]) &&
+        weight >= 100000,
+    )
+    .sort((a, b) => b[2] - a[2])
+    .slice(0, limit);
+}
+
+export function localDateKey(value: string | number | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function calculateDailyProgress(
+  sessions: SessionResult[],
+  now = new Date(),
+): DailyProgress {
+  const date = localDateKey(now);
+  const today = sessions.filter((session) => localDateKey(session.date) === date);
+  return {
+    date,
+    chars: today
+      .filter((session) => session.type === "article")
+      .reduce((sum, session) => sum + session.correctChars, 0),
+    minutes: today.reduce(
+      (sum, session) => sum + session.durationSeconds / 60,
+      0,
+    ),
+    rounds: today.length,
+    articleSessions: today.filter((session) => session.type === "article").length,
+    trainingSessions: today.filter((session) => session.type !== "article").length,
+  };
+}
+
+export function calculateStreak(
+  sessions: SessionResult[],
+  now = new Date(),
+): number {
+  const dates = new Set(sessions.map((session) => localDateKey(session.date)));
+  const cursor = new Date(now);
+  cursor.setHours(12, 0, 0, 0);
+  if (!dates.has(localDateKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  let streak = 0;
+  while (dates.has(localDateKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+export function buildTrendSeries(
+  sessions: SessionResult[],
+  range: 7 | 30 | "all",
+  now = new Date(),
+): TrendPoint[] {
+  const articleSessions = sessions.filter(
+    (session) => session.type === "article",
+  );
+  const oldest = articleSessions.reduce<Date | null>((result, session) => {
+    const date = new Date(session.date);
+    return !result || date < result ? date : result;
+  }, null);
+  const dayCount =
+    range === "all"
+      ? Math.min(
+          365,
+          Math.max(
+            1,
+            oldest
+              ? Math.floor(
+                  (new Date(localDateKey(now)).getTime() -
+                    new Date(localDateKey(oldest)).getTime()) /
+                    86400000,
+                ) + 1
+              : 1,
+          ),
+        )
+      : range;
+  return Array.from({ length: dayCount }, (_, offset) => {
+    const date = new Date(now);
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() - (dayCount - offset - 1));
+    const key = localDateKey(date);
+    const rows = articleSessions.filter(
+      (session) => localDateKey(session.date) === key,
+    );
+    const weightedChars = rows.reduce(
+      (sum, session) => sum + session.correctChars,
+      0,
+    );
+    const weightedMinutes = rows.reduce(
+      (sum, session) => sum + session.durationSeconds / 60,
+      0,
+    );
+    return {
+      date: key,
+      label: `${date.getMonth() + 1}/${date.getDate()}`,
+      sessions: rows.length,
+      chars: weightedChars,
+      minutes: weightedMinutes,
+      speed: weightedMinutes > 0 ? Math.round(weightedChars / weightedMinutes) : 0,
+      accuracy: rows.length
+        ? rows.reduce((sum, session) => sum + session.accuracy, 0) / rows.length
+        : 0,
+    };
+  });
+}
+
+export function createBackupPayload(
+  data: Record<string, unknown>,
+  now = new Date(),
+): BackupPayload {
+  const selected = Object.fromEntries(
+    STORAGE_KEYS.filter((key) => key in data).map((key) => [key, data[key]]),
+  );
+  return {
+    format: "wubi-test-backup",
+    version: 2,
+    exportedAt: now.toISOString(),
+    data: selected,
+  };
+}
+
+export function parseBackupPayload(value: unknown): BackupPayload {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("备份文件格式不正确");
+  }
+  const payload = value as Partial<BackupPayload>;
+  if (
+    payload.format !== "wubi-test-backup" ||
+    payload.version !== 2 ||
+    !payload.data ||
+    typeof payload.data !== "object" ||
+    Array.isArray(payload.data)
+  ) {
+    throw new Error("这不是受支持的五笔测试网站备份");
+  }
+  const unknownKeys = Object.keys(payload.data).filter(
+    (key) => !STORAGE_KEYS.includes(key as (typeof STORAGE_KEYS)[number]),
+  );
+  if (unknownKeys.length) {
+    throw new Error("备份包含无法识别的数据项");
+  }
+  return payload as BackupPayload;
 }
 
 export function formatDuration(totalSeconds: number) {

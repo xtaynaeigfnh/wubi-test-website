@@ -1,5 +1,11 @@
 export type ArticleLength = "short" | "medium" | "long" | "water";
-export type AppView = "typing" | "challenge" | "lookup" | "history" | "settings";
+export type AppView =
+  | "typing"
+  | "training"
+  | "challenge"
+  | "lookup"
+  | "history"
+  | "settings";
 
 export interface PracticeArticle {
   id: string;
@@ -9,6 +15,7 @@ export interface PracticeArticle {
   wordCount: number;
   version: number;
   text: string;
+  favorite?: boolean;
 }
 
 export type ArticleMetadata = Omit<PracticeArticle, "text">;
@@ -23,7 +30,7 @@ export type WubiEntry = [text: string, code: string, weight: number];
 
 export interface SessionResult {
   id: string;
-  type: "article" | "challenge";
+  type: "article" | "challenge" | "review" | "roots";
   articleId?: string;
   title: string;
   date: string;
@@ -43,6 +50,8 @@ export interface ErrorStat {
   code?: string;
   count: number;
   lastSeen: string;
+  mastery?: number;
+  lastCorrect?: string;
 }
 
 export interface ArticleProgress {
@@ -61,4 +70,36 @@ export interface UserSettings {
   sound: boolean;
   theme: "light" | "dark" | "system";
   autoNext: boolean;
+}
+
+export interface DailyGoal {
+  targetChars: number;
+  targetMinutes: number;
+  targetRounds: number;
+}
+
+export interface DailyProgress {
+  date: string;
+  chars: number;
+  minutes: number;
+  rounds: number;
+  articleSessions: number;
+  trainingSessions: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  label: string;
+  sessions: number;
+  chars: number;
+  minutes: number;
+  speed: number;
+  accuracy: number;
+}
+
+export interface BackupPayload {
+  format: "wubi-test-backup";
+  version: 2;
+  exportedAt: string;
+  data: Record<string, unknown>;
 }

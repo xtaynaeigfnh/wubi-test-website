@@ -46,10 +46,16 @@ import type {
   UserSettings,
   WubiEntry,
 } from "../types";
+import { downloadShareCard } from "../share-card";
+import { DataManagement } from "./DataManagement";
+import { PwaControl } from "./PwaControl";
+import { TrainingCenter } from "./TrainingCenter";
+import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 
 const navItems: Array<{ view: AppView; href: string; label: string }> = [
   { view: "typing", href: "/", label: "文章测速" },
+  { view: "training", href: "/training", label: "今日训练" },
   { view: "challenge", href: "/challenge", label: "字码挑战" },
   { view: "lookup", href: "/lookup", label: "五笔查码" },
   { view: "history", href: "/history", label: "本地成绩" },
@@ -160,6 +166,9 @@ export function WubiApp({ view }: { view: AppView }) {
             playKeySound={playKeySound}
           />
         )}
+        {view === "training" && (
+          <TrainingCenter playKeySound={playKeySound} />
+        )}
         {view === "challenge" && (
           <ChallengeView playKeySound={playKeySound} />
         )}
@@ -219,6 +228,7 @@ function TypingView({
   const [correctAttemptCount, setCorrectAttemptCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
@@ -383,6 +393,7 @@ function TypingView({
       setCorrectAttemptCount(0);
       setErrorCount(0);
       setCompleted(false);
+      setLastSession(null);
       composing.current = false;
       recorded.current = false;
       committedValue.current = "";
@@ -530,7 +541,7 @@ function TypingView({
       .map((index) => targetText[index])
       .filter(Boolean);
     errorChars.forEach((character) => addError(character));
-    saveSession({
+    const session: SessionResult = {
       id: crypto.randomUUID(),
       type: "article",
       articleId: article.id.startsWith("custom-") ? undefined : article.id,
@@ -545,7 +556,9 @@ function TypingView({
       accuracy,
       errors: errorPositions.current.size,
       errorChars,
-    });
+    };
+    saveSession(session);
+    setLastSession(session);
   }, [
     article,
     accuracy,
@@ -894,6 +907,13 @@ function TypingView({
               </div>
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
+                <button
+                  className="button secondary"
+                  disabled={!lastSession}
+                  onClick={() => lastSession && downloadShareCard(lastSession)}
+                >
+                  下载成绩卡
+                </button>
                 <button className="button primary" onClick={settings.autoNext ? randomArticle : () => chooseArticle(article)}>
                   {settings.autoNext ? "下一篇" : "再练一次"}
                 </button>
@@ -1053,6 +1073,7 @@ function ChallengeView({
   const [remaining, setRemaining] = useState(60);
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
   const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
+  const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const startedAtRef = useRef(0);
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
@@ -1116,7 +1137,7 @@ function ChallengeView({
         (Date.now() - startedAtRef.current) / 1000,
       );
       if (answered > 0) {
-        saveSession({
+        const session: SessionResult = {
           id: crypto.randomUUID(),
           type: "challenge",
           title: `${mode === "char" ? "单字" : "词组"}挑战${timed ? " · 60 秒" : ""}`,
@@ -1132,7 +1153,9 @@ function ChallengeView({
           codeLength: 0,
           accuracy: calculateAccuracy(correctAnswers, answered),
           errors: answered - correctAnswers,
-        });
+        };
+        saveSession(session);
+        setLastSession(session);
       }
       if (nextTimerRef.current) {
         window.clearTimeout(nextTimerRef.current);
@@ -1179,6 +1202,7 @@ function ChallengeView({
     setRemaining(60);
     setMistakes([]);
     setFinishedReason("");
+    setLastSession(null);
     nextQuestion();
   };
 
@@ -1245,6 +1269,14 @@ function ChallengeView({
                 </div>
               )}
               <p>看到汉字后输入最短可用五笔编码，按回车提交。答错后会停留显示正确编码。</p>
+              {lastSession && (
+                <button
+                  className="button secondary"
+                  onClick={() => downloadShareCard(lastSession)}
+                >
+                  下载本轮成绩卡
+                </button>
+              )}
               <button className="button primary" disabled={loading || !pool.length} onClick={start}>
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
@@ -1467,7 +1499,9 @@ function HistoryView() {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
-  const [type, setType] = useState<"all" | "article" | "challenge">("all");
+  const [type, setType] = useState<
+    "all" | "article" | "challenge" | "training"
+  >("all");
 
   const refresh = () => {
     setSessions(getSessions());
@@ -1476,7 +1510,13 @@ function HistoryView() {
   };
   useEffect(refresh, []);
 
-  const filtered = sessions.filter((session) => type === "all" || session.type === type);
+  const filtered = sessions.filter(
+    (session) =>
+      type === "all" ||
+      session.type === type ||
+      (type === "training" &&
+        (session.type === "review" || session.type === "roots")),
+  );
   const articleSessions = sessions.filter((session) => session.type === "article");
   const totalChars = articleSessions.reduce((sum, session) => sum + session.correctChars, 0);
   const bestSpeed = articleSessions.reduce((best, session) => Math.max(best, session.speed), 0);
@@ -1503,24 +1543,31 @@ function HistoryView() {
         <button className="button danger" onClick={clearAll}>清除全部记录</button>
       </div>
       <div className="summary-grid">
-        <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章与字码挑战" />
+        <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
         <SummaryCard label="最高速度" value={`${bestSpeed}`} unit="字/分" note="文章测速个人最佳" accent />
         <SummaryCard label="累计字数" value={totalChars.toLocaleString("zh-CN")} note="正确完成字符" />
         <SummaryCard label="平均准确率" value={averageAccuracy.toFixed(1)} unit="%" note="仅统计文章测速" />
       </div>
+      <TrendPanel sessions={sessions} />
       <div className="history-grid">
         <div className="history-panel">
           <div className="panel-title">
             <h2>最近练习</h2>
             <div className="segmented small history-filter" aria-label="练习类型筛选">
-              {(["all", "article", "challenge"] as const).map((value) => (
+              {(["all", "article", "challenge", "training"] as const).map((value) => (
                 <button
                   key={value}
                   className={type === value ? "active" : ""}
                   aria-pressed={type === value}
                   onClick={() => setType(value)}
                 >
-                  {value === "all" ? "全部" : value === "article" ? "文章" : "字码"}
+                  {value === "all"
+                    ? "全部"
+                    : value === "article"
+                      ? "文章"
+                      : value === "challenge"
+                        ? "字码"
+                        : "专项"}
                 </button>
               ))}
             </div>
@@ -1529,8 +1576,20 @@ function HistoryView() {
             <div className="table-head"><span>练习</span><span>速度</span><span>准确率</span><span>时间</span></div>
             {filtered.slice(0, 12).map((session) => (
               <div className="table-row" key={session.id}>
-                <span><strong>{session.title}</strong><small>{new Date(session.date).toLocaleString("zh-CN")}</small></span>
-                <span>{session.speed || "—"}<small>{session.type === "challenge" ? "题/分" : "字/分"}</small></span>
+                <span>
+                  <strong>{session.title}</strong>
+                  <small>{new Date(session.date).toLocaleString("zh-CN")}</small>
+                  <button
+                    className="session-share"
+                    onClick={() => downloadShareCard(session)}
+                  >
+                    下载成绩卡
+                  </button>
+                </span>
+                <span>
+                  {session.speed || "—"}
+                  <small>{session.type === "article" ? "字/分" : "题/分"}</small>
+                </span>
                 <span>{session.accuracy.toFixed(1)}<small>%</small></span>
                 <span>{formatDuration(session.durationSeconds)}</span>
               </div>
@@ -1633,6 +1692,8 @@ function SettingsView({
           <a href="https://github.com/rime/rime-wubi" target="_blank" rel="noreferrer">查看 Rime 五笔方案 ↗</a>
         </div>
       </div>
+      <DataManagement />
+      <PwaControl />
     </section>
   );
 }
