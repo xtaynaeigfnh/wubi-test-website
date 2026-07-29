@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
+const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
+const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
@@ -81,4 +83,56 @@ test("code hint pairs the current character with a prominent shortest code card"
   assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*58px/s);
   assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 36px\/1/s);
   assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 25px\/1\.15/s);
+});
+
+test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, />\s*常用字练习\s*</);
+  assert.match(component, /选择常用字范围/);
+  assert.match(component, /commonCharacterPresets\.map/);
+  assert.match(component, />\s*\{commonLoading \? "载入中…" : "乱序"\}\s*</);
+  assert.match(component, /isCommonPracticeArticle\(article\)/);
+  assert.match(component, /STORAGE\.currentGenerated/);
+  assert.match(styles, /\.common-range-grid\s*\{/);
+  assert.match(styles, /\.common-range-grid button:last-child\s*\{/);
+  assert.match(styles, /\.article-progress \.shuffle-action\s*\{/);
+});
+
+test("common-character scores stay out of the 200-article completion progress", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(
+    component,
+    /article\.kind \|\| article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
+  );
+  assert.match(component, /文章完成度/);
+  assert.match(component, /\/ 200/);
+});
+
+test("one root-level audio player exposes accessible manual controls", async () => {
+  const [music, layout, styles] = await Promise.all([
+    readFile(musicPath, "utf8"),
+    readFile(layoutPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(layout, /<MusicProvider>\{children\}<\/MusicProvider>/);
+  assert.equal((music.match(/<audio/g) ?? []).length, 1);
+  assert.match(music, /preload="metadata"/);
+  assert.doesNotMatch(music, /\bautoPlay\b|\bautoplay\b/);
+  assert.match(music, /aria-label="上一首"/);
+  assert.match(music, /aria-label="下一首"/);
+  assert.match(music, /aria-label="播放进度"/);
+  assert.match(music, /aria-label="背景音乐音量"/);
+  assert.match(music, /aria-expanded=\{expanded\}/);
+  assert.match(styles, /\.music-dock\s*\{/);
+  assert.match(styles, /\.music-ruler\s*\{/);
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
+  );
 });

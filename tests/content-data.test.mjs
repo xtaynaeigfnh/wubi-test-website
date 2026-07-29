@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 
 const readJson = async (name) =>
   JSON.parse(await readFile(new URL(`../public/data/${name}`, import.meta.url), "utf8"));
@@ -173,4 +173,57 @@ test("challenge dictionary contains simplified Chinese and excludes traditional 
     false,
   );
   assert.ok(rows.every(([, code]) => /^[a-y]{1,4}$/.test(code)));
+});
+
+test("common-character data contains the verified first 1500 frequency ranks", async () => {
+  const [data, wubiRows] = await Promise.all([
+    readJson("common-characters.json"),
+    readJson("wubi86.json"),
+  ]);
+  const characters = Array.from(data.characters);
+  const codedCharacters = new Set(
+    wubiRows
+      .filter(([text]) => Array.from(text).length === 1)
+      .map(([text]) => text),
+  );
+
+  assert.equal(data.version, 1);
+  assert.match(data.source.name, /现代汉语研究语料库/);
+  assert.equal(characters.length, 1500);
+  assert.equal(new Set(characters).size, 1500);
+  assert.equal(characters.slice(0, 20).join(""), "的一了是不我人有在这国大个中他和你来上要");
+  assert.equal(characters[99], "制");
+  assert.equal(characters[499], "士");
+  assert.equal(characters[999], "纷");
+  assert.equal(characters[1499], "诊");
+  assert.ok(characters.every((character) => /^\p{Script=Han}$/u.test(character)));
+  assert.ok(characters.every((character) => codedCharacters.has(character)));
+});
+
+test("music catalog maps five licensed entries to bundled audio files", async () => {
+  const catalog = await readJson("music-catalog.json");
+  assert.equal(catalog.version, 1);
+  assert.equal(catalog.tracks.length, 5);
+  assert.equal(
+    new Set(catalog.tracks.map((track) => track.id)).size,
+    catalog.tracks.length,
+  );
+
+  for (const track of catalog.tracks) {
+    assert.ok(track.id);
+    assert.ok(track.title);
+    assert.equal(track.artist, "HoliznaCC0");
+    assert.equal(track.license, "CC0 1.0 Universal");
+    assert.match(track.sourceUrl, /^https:\/\/freemusicarchive\.org\//);
+    assert.ok(track.durationSeconds > 0);
+    assert.ok(Array.isArray(track.sources) && track.sources.length > 0);
+
+    for (const source of track.sources) {
+      assert.match(source.src, /^\/audio\/tracks\/[^/]+$/);
+      assert.ok(["audio/mpeg", "audio/ogg", "audio/mp4"].includes(source.type));
+      const audioUrl = new URL(`../public${source.src}`, import.meta.url);
+      await access(audioUrl);
+      assert.ok((await stat(audioUrl)).size > 1_000_000);
+    }
+  }
 });
