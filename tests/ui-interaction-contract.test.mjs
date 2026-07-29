@@ -86,3 +86,31 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 15px\/1\.05/s);
   assert.match(styles, /\.article-toolbar-actions\s*\{[^}]*gap:\s*28px/s);
 });
+
+test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, />\s*常用字练习\s*</);
+  assert.match(component, /选择常用字范围/);
+  assert.match(component, /commonCharacterPresets\.map/);
+  assert.match(component, />\s*\{commonLoading \? "载入中…" : "乱序"\}\s*</);
+  assert.match(component, /isCommonPracticeArticle\(article\)/);
+  assert.match(component, /STORAGE\.currentGenerated/);
+  assert.match(styles, /\.common-range-grid\s*\{/);
+  assert.match(styles, /\.common-range-grid button:last-child\s*\{/);
+  assert.match(styles, /\.toolbar-actions \.shuffle-action\s*\{/);
+});
+
+test("common-character scores stay out of the 200-article completion progress", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(
+    component,
+    /article\.kind \|\| article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
+  );
+  assert.match(component, /文章完成度/);
+  assert.match(component, /\/ 200/);
+});

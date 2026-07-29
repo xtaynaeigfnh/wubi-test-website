@@ -1,6 +1,9 @@
 # 五笔测试网站
 
-一个面向 86 版五笔熟练用户的本地打字练习网站，包含 200 篇离线文章、文章测速、今日训练、错题复练、五码根专项、字码挑战、离线查码、本地成绩和练习设置。
+一个面向 86 版五笔熟练用户的本地打字练习网站，包含 200 篇离线文章、前 1500 常用字分段练习、文章测速、今日训练、错题复练、五码根专项、字码挑战、离线查码、本地成绩和练习设置。
+
+常用字练习提供前 100、前 500、中 500、后 500 和前 1500 五个范围。
+默认按字频顺序练习，也可以在练习工具栏中点击“乱序”重新排列。
 
 ## 功能概览
 
@@ -186,7 +189,7 @@ npm run lint
 npx tsc --noEmit
 ```
 
-重新生成 200 篇练习文章和 86 版五笔码表：
+重新生成 200 篇练习文章、常用字表和 86 版五笔码表：
 
 ```bash
 npm run data:generate
@@ -194,11 +197,13 @@ npm run data:generate
 
 ## 第三方数据
 
-86 版五笔码表来自 [rime/rime-wubi](https://github.com/rime/rime-wubi)。
+练习文章、常用字表与 86 版五笔码表均已打包在项目中，网站运行时不连接外部服务。
+所有练习记录只保存在当前浏览器。
 
-分发本项目时请保留以下内容：
+86 版五笔码表来自 [rime/rime-wubi](https://github.com/rime/rime-wubi)，完整许可证、作者信息和原始码表位于 `third_party/rime-wubi`。
 
-- `THIRD_PARTY_NOTICES.md`
-- `third_party/rime-wubi/LICENSE`
-- `third_party/rime-wubi/AUTHORS`
-- `third_party/rime-wubi/wubi86.dict.yaml`
+常用字排名来自北京语言大学公开的“现代汉语研究语料库”汉字频率表，来源与提取信息位于
+`third_party/mrccorpus`。
+
+分发本项目时请保留 `THIRD_PARTY_NOTICES.md`、`third_party/rime-wubi` 与
+`third_party/mrccorpus` 中的来源、许可证和提取说明。

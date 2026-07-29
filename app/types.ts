@@ -6,6 +6,12 @@ export type AppView =
   | "lookup"
   | "history"
   | "settings";
+export type CommonCharacterPreset =
+  | "first-100"
+  | "first-500"
+  | "middle-500"
+  | "last-500"
+  | "first-1500";
 
 export interface PracticeArticle {
   id: string;
@@ -16,9 +22,26 @@ export interface PracticeArticle {
   version: number;
   text: string;
   favorite?: boolean;
+  kind?: "custom" | "common";
 }
 
 export type ArticleMetadata = Omit<PracticeArticle, "text">;
+
+export interface CommonCharacterData {
+  version: 1;
+  source: {
+    name: string;
+    url: string;
+    retrievedAt: string;
+  };
+  characters: string;
+}
+
+export interface CommonPracticeArticle extends PracticeArticle {
+  kind: "common";
+  preset: CommonCharacterPreset;
+  shuffled: boolean;
+}
 
 export interface ArticleFilter {
   length: ArticleLength | "all";
