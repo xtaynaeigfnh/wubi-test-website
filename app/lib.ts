@@ -3,6 +3,9 @@
 import type {
   ArticleMetadata,
   ArticleProgress,
+  CommonCharacterData,
+  CommonCharacterPreset,
+  CommonPracticeArticle,
   ErrorStat,
   PracticeArticle,
   SessionResult,
@@ -18,6 +21,7 @@ export const STORAGE = {
   customTexts: "wubi-test:custom-texts:v1",
   recent: "wubi-test:recent-articles:v1",
   current: "wubi-test:current-article:v1",
+  currentGenerated: "wubi-test:current-generated-practice:v1",
 } as const;
 
 export const defaultSettings: UserSettings = {
@@ -33,6 +37,7 @@ let articlesPromise: Promise<PracticeArticle[]> | null = null;
 let articleMetadataPromise: Promise<ArticleMetadata[]> | null = null;
 let wubiPromise: Promise<WubiEntry[]> | null = null;
 let wubiChallengePromise: Promise<WubiEntry[]> | null = null;
+let commonCharactersPromise: Promise<CommonCharacterData> | null = null;
 
 export function readLocal<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -170,6 +175,144 @@ export async function loadWubi(): Promise<WubiEntry[]> {
     throw error;
   });
   return wubiPromise;
+}
+
+export async function loadCommonCharacters(): Promise<CommonCharacterData> {
+  commonCharactersPromise ??= fetchJson<CommonCharacterData>(
+    "/data/common-characters.json",
+    "常用字表",
+  ).catch((error) => {
+    commonCharactersPromise = null;
+    throw error;
+  });
+  return commonCharactersPromise;
+}
+
+export const commonCharacterPresets: ReadonlyArray<{
+  id: CommonCharacterPreset;
+  label: string;
+  description: string;
+  start: number;
+  end: number;
+}> = [
+  {
+    id: "first-100",
+    label: "前100",
+    description: "第 1–100 字",
+    start: 0,
+    end: 100,
+  },
+  {
+    id: "first-500",
+    label: "前500",
+    description: "第 1–500 字",
+    start: 0,
+    end: 500,
+  },
+  {
+    id: "middle-500",
+    label: "中500",
+    description: "第 501–1000 字",
+    start: 500,
+    end: 1000,
+  },
+  {
+    id: "last-500",
+    label: "后500",
+    description: "第 1001–1500 字",
+    start: 1000,
+    end: 1500,
+  },
+  {
+    id: "first-1500",
+    label: "前1500",
+    description: "第 1–1500 字",
+    start: 0,
+    end: 1500,
+  },
+];
+
+export function getCommonCharacterSlice(
+  data: CommonCharacterData,
+  preset: CommonCharacterPreset,
+): string[] {
+  const range = commonCharacterPresets.find((item) => item.id === preset);
+  if (!range) return [];
+  return Array.from(data.characters).slice(range.start, range.end);
+}
+
+export function shuffleCharacters(
+  characters: readonly string[],
+  random: () => number = Math.random,
+): string[] {
+  const shuffled = [...characters];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [
+      shuffled[swapIndex],
+      shuffled[index],
+    ];
+  }
+  return shuffled;
+}
+
+export function formatCommonCharacterText(characters: readonly string[]): string {
+  const lines: string[] = [];
+  for (let index = 0; index < characters.length; index += 10) {
+    lines.push(characters.slice(index, index + 10).join(""));
+  }
+  return lines
+    .map((line, index) => (index > 0 && index % 5 === 0 ? `\n${line}` : line))
+    .join("\n");
+}
+
+export function buildCommonPracticeArticle(
+  data: CommonCharacterData,
+  preset: CommonCharacterPreset,
+  shuffled = false,
+  random: () => number = Math.random,
+): CommonPracticeArticle {
+  const range = commonCharacterPresets.find((item) => item.id === preset);
+  if (!range) throw new Error(`未知的常用字范围：${preset}`);
+  const orderedCharacters = getCommonCharacterSlice(data, preset);
+  const characters = shuffled
+    ? shuffleCharacters(orderedCharacters, random)
+    : orderedCharacters;
+  const count = characters.length;
+  return {
+    id: `common-${preset}`,
+    title: `常用单字${range.label}${shuffled ? " · 乱序" : ""}`,
+    length: count <= 180 ? "short" : count <= 600 ? "medium" : "long",
+    topic: "常用字",
+    wordCount: count,
+    version: data.version,
+    text: formatCommonCharacterText(characters),
+    kind: "common",
+    preset,
+    shuffled,
+  };
+}
+
+export function isCommonPracticeArticle(
+  value: unknown,
+): value is CommonPracticeArticle {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const article = value as Partial<CommonPracticeArticle>;
+  const presets = new Set(commonCharacterPresets.map((item) => item.id));
+  return (
+    article.kind === "common" &&
+    typeof article.id === "string" &&
+    article.id === `common-${article.preset}` &&
+    typeof article.preset === "string" &&
+    presets.has(article.preset as CommonCharacterPreset) &&
+    typeof article.title === "string" &&
+    typeof article.text === "string" &&
+    typeof article.wordCount === "number" &&
+    article.wordCount > 0 &&
+    article.wordCount <= 1500 &&
+    article.text.replace(/\s/g, "").length === article.wordCount &&
+    typeof article.shuffled === "boolean"
+  );
 }
 
 export function preferShortestWubiCodes(entries: WubiEntry[]): WubiEntry[] {

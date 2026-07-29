@@ -21,3 +21,15 @@ The simplified-only challenge dictionary in
 - Project: [nk2028/opencc-js](https://github.com/nk2028/opencc-js)
 - Version: 1.4.1
 - License: MIT AND Apache-2.0
+
+## “现代汉语研究语料库”汉字频率表
+
+The common-character practice list is derived from the publicly downloadable
+“现代汉语研究语料库”汉字频率表 published by Xing Hongbing at Beijing
+Language and Culture University.
+
+- Source: https://faculty.blcu.edu.cn/xinghb/zh_CN/article/167473/content/1016.htm
+- Retrieved: 2026-07-29
+
+Only the ordered first 1,500 characters needed by the offline practice feature
+are included. See `third_party/mrccorpus/README.md` for provenance details.

@@ -14,9 +14,11 @@ import {
 import Link from "next/link";
 import {
   addError,
+  buildCommonPracticeArticle,
   buildChallengePool,
   calculateAccuracy,
   canCompleteTyping,
+  commonCharacterPresets,
   countCommittedAttempts,
   defaultSettings,
   formatDuration,
@@ -24,6 +26,7 @@ import {
   getSessions,
   lengthLabels,
   loadArticles,
+  loadCommonCharacters,
   loadWubi,
   loadWubiChallenge,
   preferShortestWubiCodes,
@@ -31,6 +34,7 @@ import {
   readLocalArray,
   readSettings,
   saveSession,
+  isCommonPracticeArticle,
   shouldDeferInputCommit,
   STORAGE,
   writeLocal,
@@ -39,6 +43,8 @@ import type {
   AppView,
   ArticleFilter,
   ArticleProgress,
+  CommonCharacterData,
+  CommonCharacterPreset,
   ErrorStat,
   PracticeArticle,
   SessionResult,
@@ -134,6 +140,10 @@ function TypingView({
   });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  const [commonOpen, setCommonOpen] = useState(false);
+  const [commonData, setCommonData] = useState<CommonCharacterData | null>(null);
+  const [commonLoading, setCommonLoading] = useState(false);
+  const [commonError, setCommonError] = useState("");
   const [customTitle, setCustomTitle] = useState("我的自定义练习");
   const [customText, setCustomText] = useState("");
   const [inputValue, setInputValue] = useState("");
@@ -283,8 +293,16 @@ function TypingView({
       }
       setArticle(next);
       writeLocal(STORAGE.current, next.id);
-      const recent = readLocalArray<string>(STORAGE.recent);
-      writeLocal(STORAGE.recent, [next.id, ...recent.filter((id) => id !== next.id)].slice(0, 10));
+      if (next.kind === "common") {
+        writeLocal(STORAGE.currentGenerated, next);
+      } else {
+        writeLocal(STORAGE.currentGenerated, null);
+        const recent = readLocalArray<string>(STORAGE.recent);
+        writeLocal(
+          STORAGE.recent,
+          [next.id, ...recent.filter((id) => id !== next.id)].slice(0, 10),
+        );
+      }
       setInputValue("");
       setTyped("");
       setStartedAt(null);
@@ -308,6 +326,52 @@ function TypingView({
     },
     [],
   );
+
+  const fetchCommonCharacterData = useCallback(async () => {
+    setCommonLoading(true);
+    setCommonError("");
+    try {
+      const data = await loadCommonCharacters();
+      setCommonData(data);
+      return data;
+    } catch (error: unknown) {
+      setCommonError(
+        error instanceof Error ? error.message : "常用字表加载失败",
+      );
+      return null;
+    } finally {
+      setCommonLoading(false);
+    }
+  }, []);
+
+  const openCommonPractice = () => {
+    setCommonOpen(true);
+    if (!commonData && !commonLoading) void fetchCommonCharacterData();
+  };
+
+  const startCommonPractice = (
+    preset: CommonCharacterPreset,
+    shuffled = false,
+  ) => {
+    if (!commonData) return;
+    chooseArticle(buildCommonPracticeArticle(commonData, preset, shuffled));
+    setCommonOpen(false);
+  };
+
+  const shuffleCurrentCommonPractice = async () => {
+    if (!isCommonPracticeArticle(article)) return;
+    const data = commonData ?? (await fetchCommonCharacterData());
+    if (!data) return;
+    chooseArticle(buildCommonPracticeArticle(data, article.preset, true));
+  };
+
+  useEffect(() => {
+    const currentId = readLocal<string | null>(STORAGE.current, null);
+    const generated = readLocal<unknown>(STORAGE.currentGenerated, null);
+    if (currentId && isCommonPracticeArticle(generated) && generated.id === currentId) {
+      chooseArticle(generated, false);
+    }
+  }, [chooseArticle]);
 
   const randomArticle = useCallback(() => {
     if (!filtered.length) return;
@@ -429,7 +493,10 @@ function TypingView({
     saveSession({
       id: crypto.randomUUID(),
       type: "article",
-      articleId: article.id.startsWith("custom-") ? undefined : article.id,
+      articleId:
+        article.kind || article.id.startsWith("custom-")
+          ? undefined
+          : article.id,
       title: article.title,
       date: new Date().toISOString(),
       durationSeconds: finalSeconds,
@@ -532,6 +599,7 @@ function TypingView({
       wordCount: clean.replace(/\s/g, "").length,
       version: 1,
       text: clean,
+      kind: "custom",
     };
     const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
     const nextCustomTexts = [
@@ -590,6 +658,9 @@ function TypingView({
           <p>切换到系统五笔后直接输入。计时、速度、击键和错字都在本机完成。</p>
         </div>
         <div className="hero-actions">
+          <button className="button secondary common-entry" onClick={openCommonPractice}>
+            常用字练习
+          </button>
           <button className="button secondary" onClick={() => setCustomOpen(true)}>
             ＋ 粘贴自定义文本
           </button>
@@ -626,7 +697,29 @@ function TypingView({
               <h2>{article.title}</h2>
             </div>
             <div className="toolbar-actions">
-              <button onClick={() => setPickerOpen(true)}>选文章</button>
+              {isCommonPracticeArticle(article) ? (
+                <>
+                  <button
+                    className="common-toolbar-action range-action"
+                    aria-label="更换常用字练习范围"
+                    title="更换常用字练习范围"
+                    onClick={openCommonPractice}
+                  >
+                    更换范围
+                  </button>
+                  <button
+                    className="common-toolbar-action shuffle-action"
+                    disabled={commonLoading}
+                    aria-label="打乱当前范围并从头开始"
+                    title="打乱当前范围并从头开始"
+                    onClick={() => void shuffleCurrentCommonPractice()}
+                  >
+                    {commonLoading ? "载入中…" : "乱序"}
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setPickerOpen(true)}>选文章</button>
+              )}
               <button onClick={() => chooseArticle(article)}>重新开始</button>
             </div>
           </div>
@@ -665,7 +758,9 @@ function TypingView({
           </div>
           <div
             ref={articleTextRef}
-            className="article-text"
+            className={`article-text ${
+              isCommonPracticeArticle(article) ? "common-character-text" : ""
+            }`}
             style={{ fontSize: `${settings.fontSize}px` }}
             onClick={() => inputRef.current?.focus()}
             aria-live="off"
@@ -689,7 +784,13 @@ function TypingView({
               return (
                 <span
                   ref={state === "current" ? currentCharacterRef : undefined}
-                  className={state}
+                  className={`${state}${
+                    isCommonPracticeArticle(article) &&
+                    targetIndex > 0 &&
+                    Math.floor(targetIndex / 10) % 5 === 0
+                      ? " common-group-row"
+                      : ""
+                  }`}
                   key={`${visibleIndex}-${character}`}
                 >
                   {character}
@@ -849,6 +950,56 @@ function TypingView({
               );
             })}
             {!filtered.length && <div className="empty-state">当前筛选条件下没有文章。</div>}
+          </div>
+        </Modal>
+      )}
+
+      {commonOpen && (
+        <Modal title="选择常用字范围" onClose={() => setCommonOpen(false)}>
+          <div className="common-practice-picker">
+            <div className="common-practice-intro">
+              <span aria-hidden="true">1500</span>
+              <div>
+                <strong>按字频分段练习</strong>
+                <p>默认按常用程度依次练习。进入练习后可随时点击“乱序”。</p>
+              </div>
+            </div>
+            {commonError ? (
+              <ErrorState
+                title="常用字表没有加载成功"
+                message={commonError}
+                onRetry={() => void fetchCommonCharacterData()}
+              />
+            ) : (
+              <div
+                className="common-range-grid"
+                aria-busy={commonLoading}
+                aria-label="常用字范围"
+              >
+                {commonCharacterPresets.map((range, index) => (
+                  <button
+                    key={range.id}
+                    data-modal-autofocus={
+                      index === 0 && commonData && !commonLoading
+                        ? true
+                        : undefined
+                    }
+                    disabled={commonLoading || !commonData}
+                    onClick={() => startCommonPractice(range.id)}
+                  >
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{range.label}</strong>
+                    <small>{range.description}</small>
+                    <i aria-hidden="true">→</i>
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="common-source-note">
+              {commonLoading
+                ? "正在读取离线字频表…"
+                : "字频来源：北京语言大学“现代汉语研究语料库”"}
+            </p>
           </div>
         </Modal>
       )}
