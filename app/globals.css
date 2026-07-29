@@ -830,50 +830,11 @@ a {
 }
 
 .article-text.common-character-text {
-  padding-block: 32px 40px;
-  line-height: 1.9;
-  letter-spacing: 0.075em;
   white-space: normal;
 }
 
 .common-character-text > .paragraph-break {
   display: none;
-}
-
-.common-character-text > span:not(.paragraph-break) {
-  display: inline-block;
-  min-width: 1em;
-  line-height: 1.55;
-  text-align: center;
-  vertical-align: baseline;
-}
-
-.common-character-text > .common-decade-end {
-  position: relative;
-  margin-inline-end: 0.58em;
-}
-
-.common-character-text > .common-decade-end::after {
-  content: "";
-  width: 3px;
-  height: 3px;
-  position: absolute;
-  inset: 50% -0.34em auto auto;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--text-secondary) 48%, transparent);
-  transform: translateY(-50%);
-}
-
-.common-character-text > .common-section-end {
-  margin-inline-end: 1.12em;
-}
-
-.common-character-text > .common-section-end::after {
-  width: 0.64em;
-  height: 1px;
-  inset-inline-end: -0.84em;
-  border-radius: 0;
-  background: color-mix(in srgb, var(--accent-bamboo) 48%, transparent);
 }
 
 .typing-input {
@@ -3311,12 +3272,6 @@ select,
     min-height: 300px;
     padding: 26px 20px;
     font-size: 24px !important;
-  }
-
-  .article-text.common-character-text {
-    padding-block: 22px 30px;
-    line-height: 1.82;
-    letter-spacing: 0.055em;
   }
 
   .typing-input {

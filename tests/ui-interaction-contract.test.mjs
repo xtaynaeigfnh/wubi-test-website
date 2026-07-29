@@ -104,6 +104,19 @@ test("typing offers ordered common-character ranges with explicit reshuffling", 
   assert.match(styles, /\.toolbar-actions \.shuffle-action\s*\{/);
 });
 
+test("common-character practice inherits the article reading rhythm", async () => {
+  const styles = await readFile(stylesPath, "utf8");
+  const commonTextRule =
+    styles.match(/\.article-text\.common-character-text\s*\{([^}]*)\}/)?.[1] ??
+    "";
+
+  assert.match(commonTextRule, /white-space:\s*normal/);
+  assert.doesNotMatch(commonTextRule, /line-height|letter-spacing|padding/);
+  assert.doesNotMatch(styles, /\.common-character-text > \.common-decade-end/);
+  assert.doesNotMatch(styles, /\.common-character-text > \.common-section-end/);
+  assert.doesNotMatch(styles, /\.common-character-text > span:not/);
+});
+
 test("common-character scores stay out of the 200-article completion progress", async () => {
   const component = await readFile(componentPath, "utf8");
 
