@@ -101,6 +101,38 @@ test("review and root pools reuse preferred Wubi codes", () => {
   assert.deepEqual(buildRootPool(entries, "asdfg"), [["横", "amw", 200000]]);
 });
 
+test("review pool rejects invalid backup codes and deduplicates repeated text", () => {
+  const review = buildReviewPool(
+    [
+      { text: "测", count: 3, mastery: 1, lastSeen: "2026-07-29" },
+      {
+        text: "测",
+        code: "IMJ",
+        count: 2,
+        mastery: 0,
+        lastSeen: "2026-07-29",
+      },
+      {
+        text: "坏",
+        code: "../x",
+        count: 99,
+        mastery: 0,
+        lastSeen: "2026-07-29",
+      },
+      {
+        text: "五个字符无效",
+        code: "abcd",
+        count: 99,
+        mastery: 0,
+        lastSeen: "2026-07-29",
+      },
+    ],
+    [["测", "im", 150000]],
+  );
+
+  assert.deepEqual(review, [["测", "im", 150000]]);
+});
+
 test("backup format only accepts known versioned storage keys", () => {
   const payload = createBackupPayload(
     {
@@ -136,6 +168,9 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.equal(manifest.start_url, ".");
   assert.match(worker, /\/training\//);
   assert.match(worker, /\/data\/wubi86\.json/);
+  assert.match(worker, /\/data\/common-characters\.json/);
+  assert.match(worker, /\/data\/music-catalog\.json/);
+  assert.match(worker, /Promise\.allSettled\(audioAssets/);
   assert.match(worker, /shellAssets/);
   assert.match(worker, /_next/);
   assert.match(worker, /request\.mode === "navigate"/);

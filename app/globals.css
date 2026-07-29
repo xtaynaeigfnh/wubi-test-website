@@ -3784,7 +3784,6 @@ select,
   .article-text {
     min-height: 300px;
     padding: 26px 20px;
-    font-size: 24px !important;
   }
 
   .typing-input {
@@ -4031,10 +4030,6 @@ select,
   .typing-toolbar {
     align-items: start;
     flex-direction: column;
-  }
-
-  .article-restart {
-    margin-left: auto;
   }
 
   .article-restart {

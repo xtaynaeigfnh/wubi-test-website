@@ -446,8 +446,83 @@ export function calculateAccuracy(
   return attempts > 0 ? (correctAttempts / attempts) * 100 : 100;
 }
 
+export function calculateTypingMetrics({
+  typed,
+  target,
+  durationSeconds,
+  keyCount,
+  letterKeys,
+  attemptCount,
+  correctAttemptCount,
+}: {
+  typed: string;
+  target: string;
+  durationSeconds: number;
+  keyCount: number;
+  letterKeys: number;
+  attemptCount: number;
+  correctAttemptCount: number;
+}) {
+  let correctChars = 0;
+  for (let index = 0; index < typed.length; index += 1) {
+    if (typed[index] === target[index]) correctChars += 1;
+  }
+  return {
+    correctChars,
+    attemptedChars: Math.max(target.length, attemptCount),
+    speed:
+      durationSeconds > 0
+        ? Math.round(correctChars / (durationSeconds / 60))
+        : 0,
+    kps: durationSeconds > 0 ? keyCount / durationSeconds : 0,
+    codeLength: correctChars > 0 ? letterKeys / correctChars : 0,
+    accuracy: calculateAccuracy(correctAttemptCount, attemptCount),
+  };
+}
+
+export function calculateRemainingSeconds(
+  deadline: number,
+  now = Date.now(),
+): number {
+  return Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
 export function canCompleteTyping(typed: string, target: string): boolean {
   return target.length > 0 && typed.length >= target.length;
+}
+
+export function normalizeCustomText(value: string): string {
+  return value
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .trim()
+    .slice(0, 5000);
+}
+
+export function buildCustomArticle(
+  id: string,
+  title: string,
+  text: string,
+  version = 1,
+): PracticeArticle | null {
+  const clean = normalizeCustomText(text);
+  if (clean.length < 10) return null;
+  return {
+    id,
+    title:
+      normalizeCustomText(title).replace(/\s+/g, " ").slice(0, 80) ||
+      "我的自定义练习",
+    length:
+      clean.length < 200
+        ? "short"
+        : clean.length < 700
+          ? "medium"
+          : "long",
+    topic: "自定义",
+    wordCount: clean.replace(/\s/g, "").length,
+    version,
+    text: clean,
+    kind: "custom",
+  };
 }
 
 export async function loadWubiChallenge(): Promise<WubiEntry[]> {
@@ -545,23 +620,29 @@ export function buildReviewPool(
   const preferred = new Map(
     preferShortestWubiCodes(entries).map((entry) => [entry[0], entry]),
   );
-  return errors
-    .map((error) => {
-      const entry = preferred.get(error.text);
-      if (entry) return entry;
-      if (error.code) return [error.text, error.code.toLowerCase(), 0] as WubiEntry;
-      return null;
-    })
-    .filter((entry): entry is WubiEntry => Boolean(entry))
-    .sort((a, b) => {
-      const aError = errors.find((row) => row.text === a[0]);
-      const bError = errors.find((row) => row.text === b[0]);
-      return (
-        (bError?.count ?? 0) -
-        (bError?.mastery ?? 0) -
-        ((aError?.count ?? 0) - (aError?.mastery ?? 0))
-      );
+  const ranked = new Map<string, { entry: WubiEntry; score: number }>();
+  for (const error of errors) {
+    const normalizedCode = error.code?.trim().toLowerCase();
+    const textLength = Array.from(error.text).length;
+    const fallbackEntry =
+      normalizedCode &&
+      /^[a-y]{1,4}$/.test(normalizedCode) &&
+      textLength >= 1 &&
+      textLength <= 4
+        ? ([error.text, normalizedCode, 0] as WubiEntry)
+        : null;
+    const entry = preferred.get(error.text) ?? fallbackEntry;
+    if (!entry) continue;
+    const score = Math.max(1, error.count - (error.mastery ?? 0));
+    const existing = ranked.get(error.text);
+    ranked.set(error.text, {
+      entry,
+      score: score + (existing?.score ?? 0),
     });
+  }
+  return Array.from(ranked.values())
+    .sort((a, b) => b.score - a.score)
+    .map(({ entry }) => entry);
 }
 
 export function buildRootPool(

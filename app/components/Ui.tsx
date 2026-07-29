@@ -1,31 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  type ReactNode,
-} from "react";
-
-export function Metric({
-  label,
-  value,
-  unit,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={accent ? "metric accent" : "metric"}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{unit}</small>
-    </div>
-  );
-}
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 export function SummaryCard({
   label,
