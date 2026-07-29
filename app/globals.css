@@ -582,7 +582,7 @@ a {
 .article-toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 28px;
 }
 
 .article-kicker {
@@ -612,19 +612,12 @@ a {
   font-weight: 600;
 }
 
-.article-progress {
+.article-restart {
   display: flex;
   align-items: center;
-  gap: 14px;
 }
 
-.article-progress > strong {
-  color: var(--accent-bamboo);
-  font: 700 17px/1 var(--font-data);
-  letter-spacing: -0.04em;
-}
-
-.article-progress button {
+.article-restart button {
   min-height: 44px;
   padding: 0 12px;
   color: var(--text-secondary);
@@ -2321,7 +2314,7 @@ select,
   .article-toolbar-actions {
     width: 100%;
     justify-content: space-between;
-    gap: 10px;
+    gap: 16px;
   }
 
   .practice-commandbar {
@@ -2527,12 +2520,11 @@ select,
     flex-direction: column;
   }
 
-  .article-progress {
-    width: 100%;
-    justify-content: space-between;
+  .article-restart {
+    margin-left: auto;
   }
 
-  .article-progress button {
+  .article-restart button {
     min-width: 120px;
   }
 

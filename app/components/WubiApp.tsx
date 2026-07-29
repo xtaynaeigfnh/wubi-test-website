@@ -750,8 +750,7 @@ function TypingView({
                   </span>
                 </div>
               )}
-              <div className="article-progress">
-                <strong>{progressPercent}%</strong>
+              <div className="article-restart">
                 <button onClick={() => chooseArticle(article)}>重新开始</button>
               </div>
             </div>
