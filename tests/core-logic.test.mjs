@@ -15,6 +15,12 @@ import {
   shuffleCharacters,
   shouldDeferInputCommit,
 } from "../app/lib.ts";
+import {
+  getAdjacentTrackIndex,
+  parseMusicCatalog,
+  parseMusicPreferences,
+  withBasePath,
+} from "../app/music.ts";
 
 test("typing accuracy keeps corrected mistakes in the denominator", () => {
   const target = "中国";
@@ -185,5 +191,98 @@ test("common-character shuffle preserves the full set and practice metadata", ()
   assert.equal(
     isCommonPracticeArticle({ ...shuffled, wordCount: 99 }),
     false,
+  );
+});
+
+const validMusicTrack = {
+  id: "quiet-keys",
+  title: "Quiet Keys",
+  artist: "Test Artist",
+  sources: [
+    {
+      src: "/audio/tracks/quiet-keys.mp3",
+      type: "audio/mpeg",
+    },
+  ],
+  durationSeconds: 180,
+  license: "CC0 1.0 Universal",
+  sourceUrl: "https://example.com/quiet-keys",
+};
+
+test("music catalog accepts local tracks and skips invalid entries", () => {
+  const result = parseMusicCatalog({
+    version: 1,
+    tracks: [
+      validMusicTrack,
+      {
+        ...validMusicTrack,
+        id: "remote",
+        sources: [
+          { src: "https://example.com/a.mp3", type: "audio/mpeg" },
+        ],
+      },
+      {
+        ...validMusicTrack,
+        id: "traversal",
+        sources: [
+          { src: "/audio/tracks/../secret.mp3", type: "audio/mpeg" },
+        ],
+      },
+      {
+        ...validMusicTrack,
+        id: "unsupported",
+        sources: [{ src: "/audio/tracks/a.wav", type: "audio/wav" }],
+      },
+      validMusicTrack,
+    ],
+  });
+
+  assert.equal(result.catalog.tracks.length, 1);
+  assert.equal(result.catalog.tracks[0].id, "quiet-keys");
+  assert.equal(result.invalidTrackCount, 4);
+});
+
+test("music catalog rejects unsupported versions and empty catalogs", () => {
+  assert.throws(
+    () => parseMusicCatalog({ version: 2, tracks: [validMusicTrack] }),
+    /版本不受支持/,
+  );
+  assert.throws(
+    () =>
+      parseMusicCatalog({
+        version: 1,
+        tracks: [{ ...validMusicTrack, title: "" }],
+      }),
+    /没有可播放/,
+  );
+});
+
+test("music preferences recover safely when the catalog changes", () => {
+  const tracks = [
+    validMusicTrack,
+    { ...validMusicTrack, id: "second-track" },
+  ];
+
+  assert.deepEqual(
+    parseMusicPreferences(
+      { trackId: "removed-track", volume: 2, muted: true },
+      tracks,
+    ),
+    { trackId: "quiet-keys", volume: 1, muted: true },
+  );
+  assert.deepEqual(parseMusicPreferences("broken", tracks), {
+    trackId: "quiet-keys",
+    volume: 0.35,
+    muted: false,
+  });
+});
+
+test("music navigation wraps and assets preserve the deployment base path", () => {
+  assert.equal(getAdjacentTrackIndex(5, 4, 1), 0);
+  assert.equal(getAdjacentTrackIndex(5, 0, -1), 4);
+  assert.equal(getAdjacentTrackIndex(0, 0, 1), -1);
+  assert.equal(
+    withBasePath("/audio/tracks/test.mp3", "/wubi-test-website"),
+    "/wubi-test-website/audio/tracks/test.mp3",
   );
 });

@@ -126,3 +126,31 @@ export interface BackupPayload {
   exportedAt: string;
   data: Record<string, unknown>;
 }
+
+export type AudioMimeType = "audio/mpeg" | "audio/ogg" | "audio/mp4";
+
+export interface AudioSource {
+  src: string;
+  type: AudioMimeType;
+}
+
+export interface MusicTrack {
+  id: string;
+  title: string;
+  artist: string;
+  sources: AudioSource[];
+  durationSeconds: number;
+  license: string;
+  sourceUrl: string;
+}
+
+export interface MusicCatalog {
+  version: 1;
+  tracks: MusicTrack[];
+}
+
+export interface MusicPreferences {
+  trackId: string | null;
+  volume: number;
+  muted: boolean;
+}

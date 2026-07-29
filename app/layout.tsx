@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { MusicProvider } from "./components/MusicPlayer";
 import "./globals.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -28,7 +29,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <MusicProvider>{children}</MusicProvider>
+      </body>
     </html>
   );
 }

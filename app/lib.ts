@@ -28,6 +28,7 @@ export const STORAGE = {
   current: "wubi-test:current-article:v1",
   dailyGoal: "wubi-test:daily-goal:v1",
   currentGenerated: "wubi-test:current-generated-practice:v1",
+  music: "wubi-test:music:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
