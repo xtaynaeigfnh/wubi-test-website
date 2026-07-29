@@ -38,7 +38,9 @@ are included. See `third_party/mrccorpus/README.md` for provenance details.
 
 The offline background-music files in `public/audio/tracks` are authored by
 HoliznaCC0 and distributed under the CC0 1.0 Universal public-domain
-dedication. Each track page was checked before the audio was bundled.
+dedication. Each track page was checked before the audio was bundled. The
+downloaded 320 kbps MP3 files were transcoded to 128 kbps MP3 for offline web
+delivery without changing the track order or duration.
 
 - Album: https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/
 - Artist: HoliznaCC0
