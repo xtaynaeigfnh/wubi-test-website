@@ -49,6 +49,7 @@ export interface MusicPlayerContextValue {
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null);
+const MUSIC_DOCK_COLLAPSE_DELAY = 5500;
 
 export function useMusicPlayer(): MusicPlayerContextValue {
   const value = useContext(MusicPlayerContext);
@@ -330,18 +331,77 @@ function MusicDock() {
     setMuted,
   } = useMusicPlayer();
   const [expanded, setExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [activityTick, setActivityTick] = useState(0);
   const tracks = catalog?.tracks ?? [];
   const unavailable = isLoading || !currentTrack;
   const statusText = isLoading
     ? "正在整理离线曲库…"
     : error || notice || `${tracks.length} 首离线 Lo-fi，数据仍只存本机`;
 
+  useEffect(() => {
+    if (muted) setMuted(false);
+  }, [muted, setMuted]);
+
+  const keepDockOpen = useCallback(() => {
+    setActivityTick((value) => value + 1);
+  }, []);
+
+  const revealDock = useCallback(() => {
+    setCollapsed(false);
+    keepDockOpen();
+  }, [keepDockOpen]);
+
+  const collapseDock = useCallback(() => {
+    setExpanded(false);
+    setCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    if (expanded || collapsed) return;
+    const timer = window.setTimeout(
+      () => setCollapsed(true),
+      MUSIC_DOCK_COLLAPSE_DELAY,
+    );
+    return () => window.clearTimeout(timer);
+  }, [activityTick, collapsed, expanded]);
+
   return (
     <aside
-      className={expanded ? "music-dock is-expanded" : "music-dock"}
+      className={[
+        "music-dock",
+        expanded ? "is-expanded" : "",
+        collapsed ? "is-collapsed" : "",
+        isPlaying ? "is-playing" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label="背景音乐播放器"
+      onClickCapture={collapsed ? undefined : keepDockOpen}
+      onFocusCapture={collapsed ? undefined : keepDockOpen}
+      onPointerEnter={collapsed ? undefined : keepDockOpen}
     >
-      {expanded && (
+      {collapsed && (
+        <button
+          type="button"
+          className="music-dock-peek"
+          aria-label="展开专注电台控制栏"
+          title="展开专注电台"
+          onClick={revealDock}
+        >
+          <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            <strong>专注电台</strong>
+            <small>{currentTrack?.title ?? "离线曲库"}</small>
+          </span>
+          <b aria-hidden="true">⌃</b>
+        </button>
+      )}
+      {expanded && !collapsed && (
         <div className="music-library" id="music-library">
           <div className="music-library-heading">
             <div>
@@ -399,7 +459,7 @@ function MusicDock() {
         </div>
       )}
 
-      <div className="music-dock-bar">
+      <div className="music-dock-bar" hidden={collapsed}>
         <div className="music-station">
           <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
             <i />
@@ -424,7 +484,11 @@ function MusicDock() {
           </button>
           <button
             type="button"
-            className="music-play-button"
+            className={
+              isPlaying
+                ? "music-play-button is-playing"
+                : "music-play-button"
+            }
             aria-label={isPlaying ? "暂停背景音乐" : "播放背景音乐"}
             title={isPlaying ? "暂停" : "播放"}
             disabled={unavailable}
@@ -451,10 +515,27 @@ function MusicDock() {
                 ).padStart(2, "0")}`
               : "-- / --"}
           </span>
-          <div>
+          <div
+            key={currentTrack?.id ?? "unavailable"}
+            className="music-track-copy"
+          >
             <strong>{currentTrack?.title ?? "音乐目录不可用"}</strong>
             <small>{currentTrack?.artist ?? "请检查目录文件"}</small>
           </div>
+          <button
+            type="button"
+            className="music-library-toggle"
+            aria-label={expanded ? "收起曲目列表" : "展开曲目列表"}
+            aria-expanded={expanded}
+            aria-controls="music-library"
+            onClick={() => {
+              setCollapsed(false);
+              setExpanded((value) => !value);
+            }}
+          >
+            {expanded ? "收起" : "曲目"}
+            <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span>
+          </button>
         </div>
 
         <div className="music-ruler" aria-label="曲目刻度">
@@ -489,15 +570,6 @@ function MusicDock() {
         </label>
 
         <div className="music-volume">
-          <button
-            type="button"
-            aria-label={muted ? "取消静音" : "静音"}
-            title={muted ? "取消静音" : "静音"}
-            disabled={unavailable}
-            onClick={() => setMuted(!muted)}
-          >
-            {muted || volume === 0 ? "×" : "♪"}
-          </button>
           <label>
             <span className="sr-only">背景音乐音量</span>
             <input
@@ -515,14 +587,12 @@ function MusicDock() {
 
         <button
           type="button"
-          className="music-expand"
-          aria-label={expanded ? "收起曲目列表" : "展开曲目列表"}
-          aria-expanded={expanded}
-          aria-controls="music-library"
-          onClick={() => setExpanded((value) => !value)}
+          className="music-collapse"
+          aria-label="收起专注电台控制栏"
+          title="收起播放器"
+          onClick={collapseDock}
         >
-          {expanded ? "收起" : "曲目"}
-          <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span>
+          ⌄
         </button>
       </div>
     </aside>

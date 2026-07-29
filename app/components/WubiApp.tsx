@@ -838,7 +838,11 @@ function TypingView({
                 </div>
               )}
               <div className="article-restart">
-                <div className="toolbar-actions">
+                <div
+                  className="toolbar-actions"
+                  role="group"
+                  aria-label="当前练习操作"
+                >
                   {isCommonPracticeArticle(article) ? (
                     <>
                       <button
@@ -862,7 +866,12 @@ function TypingView({
                   ) : (
                     <button onClick={() => setPickerOpen(true)}>选文章</button>
                   )}
-                  <button onClick={() => chooseArticle(article)}>重新开始</button>
+                  <button
+                    className="restart-action"
+                    onClick={() => chooseArticle(article)}
+                  >
+                    重新开始
+                  </button>
                 </div>
               </div>
             </div>
