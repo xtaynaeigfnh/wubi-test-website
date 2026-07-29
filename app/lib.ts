@@ -22,6 +22,7 @@ export const STORAGE = {
   recent: "wubi-test:recent-articles:v1",
   current: "wubi-test:current-article:v1",
   currentGenerated: "wubi-test:current-generated-practice:v1",
+  music: "wubi-test:music:v1",
 } as const;
 
 export const defaultSettings: UserSettings = {

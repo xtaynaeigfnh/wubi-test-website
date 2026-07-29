@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MusicProvider } from "./components/MusicPlayer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <MusicProvider>{children}</MusicProvider>
+      </body>
     </html>
   );
 }
