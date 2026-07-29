@@ -1633,7 +1633,7 @@ function LookupView() {
       {!query && (
         <div className="lookup-empty">
           <div className="keyboard-visual">
-            {"QWERTYUIOPASDFGHJKLXCVBN".split("").map((key) => (
+            {"QWERTYUIOPASDFGHJKLXCVBNM".split("").map((key) => (
               <span key={key}>{key}</span>
             ))}
           </div>

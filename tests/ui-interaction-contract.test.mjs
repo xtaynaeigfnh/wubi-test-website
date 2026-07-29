@@ -96,8 +96,8 @@ test("code hint pairs the current character with a compact toolbar code card", a
 test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
   const component = await readFile(componentPath, "utf8");
 
-  assert.match(component, /QWERTYUIOPASDFGHJKLXCVBN/);
-  assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBN/);
+  assert.match(component, /QWERTYUIOPASDFGHJKLXCVBNM/);
+  assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBNM/);
 });
 
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
