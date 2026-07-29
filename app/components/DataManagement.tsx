@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  buildCustomArticle,
   createBackupPayload,
   parseBackupPayload,
   readLocal,
@@ -39,7 +40,7 @@ function BackupManager() {
     link.href = URL.createObjectURL(blob);
     link.download = `五笔测试网站备份-${payload.exportedAt.slice(0, 10)}.json`;
     link.click();
-    window.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     setMessage("备份文件已导出。");
   };
 
@@ -143,8 +144,11 @@ function CustomTextManager() {
   };
 
   const saveEdit = () => {
-    const clean = text.trim().slice(0, 5000);
-    if (clean.length < 10) {
+    const current = items.find((item) => item.id === editingId);
+    const updated = current
+      ? buildCustomArticle(current.id, title, text, current.version + 1)
+      : null;
+    if (!current || !updated) {
       setMessage("正文至少需要 10 个字符。");
       return;
     }
@@ -152,17 +156,8 @@ function CustomTextManager() {
       items.map((item) =>
         item.id === editingId
           ? {
-              ...item,
-              title: title.trim() || "我的自定义练习",
-              text: clean,
-              wordCount: clean.replace(/\s/g, "").length,
-              length:
-                clean.length < 200
-                  ? "short"
-                  : clean.length < 700
-                    ? "medium"
-                    : "long",
-              version: item.version + 1,
+              ...updated,
+              favorite: item.favorite,
             }
           : item,
       ),
@@ -177,22 +172,11 @@ function CustomTextManager() {
     const imported = (
       await Promise.all(
         selected.map(async (file, index): Promise<PracticeArticle | null> => {
-          const clean = (await file.text()).trim().slice(0, 5000);
-          if (clean.length < 10) return null;
-          return {
-            id: `custom-${Date.now()}-${index}`,
-            title: file.name.replace(/\.txt$/i, "") || "导入的文章",
-            text: clean,
-            wordCount: clean.replace(/\s/g, "").length,
-            length:
-              clean.length < 200
-                ? "short"
-                : clean.length < 700
-                  ? "medium"
-                  : "long",
-            topic: "自定义",
-            version: 1,
-          };
+          return buildCustomArticle(
+            `custom-${Date.now()}-${index}`,
+            file.name.replace(/\.txt$/i, "") || "导入的文章",
+            await file.text(),
+          );
         }),
       )
     ).filter((item): item is PracticeArticle => Boolean(item));

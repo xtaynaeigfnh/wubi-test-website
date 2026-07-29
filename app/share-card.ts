@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDuration } from "./lib";
 import type { SessionResult } from "./types";
 
 export function downloadShareCard(session: SessionResult) {
@@ -40,7 +41,7 @@ export function downloadShareCard(session: SessionResult) {
     ["速度", session.speed.toString(), session.type === "article" ? "字/分" : "题/分"],
     ["准确率", session.accuracy.toFixed(1), "%"],
     ["正确", session.correctChars.toString(), "字/题"],
-    ["用时", formatCardDuration(session.durationSeconds), ""],
+    ["用时", formatDuration(session.durationSeconds), ""],
   ];
   metrics.forEach(([label, value, unit], index) => {
     const x = 72 + index * 270;
@@ -75,10 +76,4 @@ export function downloadShareCard(session: SessionResult) {
   link.href = canvas.toDataURL("image/png");
   link.click();
   return true;
-}
-
-function formatCardDuration(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }

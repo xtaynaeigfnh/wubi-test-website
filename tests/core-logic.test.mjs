@@ -4,7 +4,10 @@ import test from "node:test";
 import {
   buildCommonPracticeArticle,
   buildChallengePool,
+  buildCustomArticle,
   calculateAccuracy,
+  calculateRemainingSeconds,
+  calculateTypingMetrics,
   canCompleteTyping,
   countCommittedAttempts,
   formatCommonCharacterText,
@@ -51,6 +54,56 @@ test("typing completes at full length even when answers contain mistakes", () =>
   assert.equal(canCompleteTyping("中错", "中国"), true);
   assert.equal(canCompleteTyping("中", "中国"), false);
   assert.equal(canCompleteTyping("", ""), false);
+});
+
+test("typing result metrics only credit characters that actually match", () => {
+  assert.deepEqual(
+    calculateTypingMetrics({
+      typed: "中错",
+      target: "中国",
+      durationSeconds: 2,
+      keyCount: 6,
+      letterKeys: 4,
+      attemptCount: 2,
+      correctAttemptCount: 1,
+    }),
+    {
+      correctChars: 1,
+      attemptedChars: 2,
+      speed: 30,
+      kps: 3,
+      codeLength: 4,
+      accuracy: 50,
+    },
+  );
+});
+
+test("challenge countdown derives from its wall-clock deadline", () => {
+  const deadline = 160_000;
+  assert.equal(calculateRemainingSeconds(deadline, 100_000), 60);
+  assert.equal(calculateRemainingSeconds(deadline, 100_250), 60);
+  assert.equal(calculateRemainingSeconds(deadline, 159_100), 1);
+  assert.equal(calculateRemainingSeconds(deadline, 170_000), 0);
+});
+
+test("custom articles share one normalized construction path", () => {
+  const article = buildCustomArticle(
+    "custom-1",
+    "  标题\u0000  带空格  ",
+    "\u0000  这是至少十个字符的自定义正文。  ",
+  );
+
+  assert.deepEqual(article, {
+    id: "custom-1",
+    title: "标题 带空格",
+    length: "short",
+    topic: "自定义",
+    wordCount: 15,
+    version: 1,
+    text: "这是至少十个字符的自定义正文。",
+    kind: "custom",
+  });
+  assert.equal(buildCustomArticle("custom-2", "", "太短"), null);
 });
 
 test("initial article follows the preferred length without losing compatible progress", () => {

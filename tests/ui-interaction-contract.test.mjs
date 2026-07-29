@@ -27,6 +27,7 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(component, /aria-pressed=\{type === value\}/);
   assert.match(styles, /\.history-filter\s*\{[^}]*gap:\s*6px/s);
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
+  assert.match(component, />\s*清除成绩与错题\s*</);
 });
 
 test("typing omits the filtered article count and resets timing on restart", async () => {
@@ -35,6 +36,9 @@ test("typing omits the filtered article count and resets timing on restart", asy
   assert.doesNotMatch(component, /篇符合条件/);
   assert.doesNotMatch(component, /本次练习出现过错字，无法提交成绩/);
   assert.match(component, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
+  assert.match(component, /autoComplete="off"/);
+  assert.match(component, /autoCorrect="off"/);
+  assert.match(component, /autoCapitalize="none"/);
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
@@ -89,6 +93,13 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(styles, /\.article-toolbar-actions\s*\{[^}]*gap:\s*28px/s);
 });
 
+test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /QWERTYUIOPASDFGHJKLXCVBN/);
+  assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBN/);
+});
+
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
@@ -124,7 +135,7 @@ test("common-character scores stay out of the 200-article completion progress", 
 
   assert.match(
     component,
-    /article\.kind \|\| article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
+    /article\.kind === "custom" \|\|[\s\S]*article\.kind === "common" \|\|[\s\S]*article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
   );
   assert.match(component, /文章完成度/);
   assert.match(component, /\/ 200/);

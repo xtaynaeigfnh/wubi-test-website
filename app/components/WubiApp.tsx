@@ -16,7 +16,10 @@ import {
   addError,
   buildCommonPracticeArticle,
   buildChallengePool,
+  buildCustomArticle,
   calculateAccuracy,
+  calculateRemainingSeconds,
+  calculateTypingMetrics,
   canCompleteTyping,
   commonCharacterPresets,
   countCommittedAttempts,
@@ -132,10 +135,11 @@ export function WubiApp({ view }: { view: AppView }) {
   }, []);
 
   useEffect(() => {
+    if (!settingsReady) return;
     const root = document.documentElement;
     root.dataset.theme = settings.theme;
     writeLocal(STORAGE.settings, settings);
-  }, [settings]);
+  }, [settings, settingsReady]);
 
   return (
     <div className="app-shell">
@@ -537,19 +541,21 @@ function TypingView({
     });
   }, [visibleText]);
 
-  const correctChars = useMemo(() => {
-    if (!article) return 0;
-    let count = 0;
-    for (let index = 0; index < typed.length; index += 1) {
-      if (typed[index] === targetText[index]) count += 1;
-    }
-    return count;
-  }, [article, targetText, typed]);
   const seconds = completed ? elapsed : elapsed || 0;
-  const speed = seconds > 0 ? Math.round(correctChars / (seconds / 60)) : 0;
-  const kps = seconds > 0 ? keyCount / seconds : 0;
-  const codeLength = correctChars > 0 ? letterKeys / correctChars : 0;
-  const accuracy = calculateAccuracy(correctAttemptCount, attemptCount);
+  const {
+    speed,
+    kps,
+    codeLength,
+    accuracy,
+  } = calculateTypingMetrics({
+    typed,
+    target: targetText,
+    durationSeconds: seconds,
+    keyCount,
+    letterKeys,
+    attemptCount,
+    correctAttemptCount,
+  });
   const progressRatio = Math.min(1, typed.length / Math.max(1, targetText.length));
   const progressPercent = Math.round(progressRatio * 100);
 
@@ -605,22 +611,28 @@ function TypingView({
       .map((index) => targetText[index])
       .filter(Boolean);
     errorChars.forEach((character) => addError(character));
+    const finalMetrics = calculateTypingMetrics({
+      typed,
+      target: targetText,
+      durationSeconds: finalSeconds,
+      keyCount,
+      letterKeys,
+      attemptCount,
+      correctAttemptCount,
+    });
     const session: SessionResult = {
       id: crypto.randomUUID(),
       type: "article",
       articleId:
-        article.kind || article.id.startsWith("custom-")
+        article.kind === "custom" ||
+        article.kind === "common" ||
+        article.id.startsWith("custom-")
           ? undefined
           : article.id,
       title: article.title,
       date: new Date().toISOString(),
       durationSeconds: finalSeconds,
-      correctChars: targetText.length,
-      attemptedChars: Math.max(targetText.length, attemptCount),
-      speed: finalSeconds > 0 ? Math.round(targetText.length / (finalSeconds / 60)) : 0,
-      kps: finalSeconds > 0 ? keyCount / finalSeconds : 0,
-      codeLength: targetText.length ? letterKeys / targetText.length : 0,
-      accuracy,
+      ...finalMetrics,
       errors: errorPositions.current.size,
       errorChars,
     };
@@ -628,9 +640,9 @@ function TypingView({
     setLastSession(session);
   }, [
     article,
-    accuracy,
     attemptCount,
     completed,
+    correctAttemptCount,
     keyCount,
     letterKeys,
     startedAt,
@@ -679,21 +691,12 @@ function TypingView({
   };
 
   const useCustomText = () => {
-    const clean = customText
-      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
-      .trim()
-      .slice(0, 5000);
-    if (clean.length < 10) return;
-    const custom: PracticeArticle = {
-      id: `custom-${Date.now()}`,
-      title: customTitle.trim() || "我的自定义练习",
-      length: clean.length < 200 ? "short" : clean.length < 700 ? "medium" : "long",
-      topic: "自定义",
-      wordCount: clean.replace(/\s/g, "").length,
-      version: 1,
-      text: clean,
-      kind: "custom",
-    };
+    const custom = buildCustomArticle(
+      `custom-${Date.now()}`,
+      customTitle,
+      customText,
+    );
+    if (!custom) return;
     const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
     const nextCustomTexts = [
       custom,
@@ -989,6 +992,9 @@ function TypingView({
             disabled={completed}
             placeholder={completed ? "本次练习已完成" : "点击这里，切换到五笔输入法后开始输入…"}
             aria-label="跟打输入区"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
             spellCheck={false}
           />
           <div className="typing-footer">
@@ -1235,6 +1241,7 @@ function ChallengeView({
   const startedAtRef = useRef(0);
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
+  const deadlineRef = useRef(0);
   const seenQuestionsRef = useRef(new Set<string>());
   const submitLockRef = useRef(false);
 
@@ -1290,10 +1297,13 @@ function ChallengeView({
     ) => {
       if (recordedRef.current) return;
       recordedRef.current = true;
-      const durationSeconds = Math.max(
+      const elapsedSeconds = Math.max(
         0,
         (Date.now() - startedAtRef.current) / 1000,
       );
+      const durationSeconds = timed
+        ? Math.min(60, elapsedSeconds)
+        : elapsedSeconds;
       if (answered > 0) {
         const session: SessionResult = {
           id: crypto.randomUUID(),
@@ -1327,10 +1337,11 @@ function ChallengeView({
 
   useEffect(() => {
     if (!started || !timed) return;
-    const timer = window.setInterval(
-      () => setRemaining((value) => Math.max(0, value - 1)),
-      1000,
-    );
+    const updateRemaining = () => {
+      setRemaining(calculateRemainingSeconds(deadlineRef.current));
+    };
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 250);
     return () => window.clearInterval(timer);
   }, [started, timed]);
 
@@ -1354,6 +1365,7 @@ function ChallengeView({
     recordedRef.current = false;
     seenQuestionsRef.current.clear();
     startedAtRef.current = Date.now();
+    deadlineRef.current = startedAtRef.current + 60_000;
     setStarted(true);
     setIndex(0);
     setCorrect(0);
@@ -1621,7 +1633,9 @@ function LookupView() {
       {!query && (
         <div className="lookup-empty">
           <div className="keyboard-visual">
-            {"QWERTYUIOPASDFGHJKL".split("").map((key) => <span key={key}>{key}</span>)}
+            {"QWERTYUIOPASDFGHJKLXCVBN".split("").map((key) => (
+              <span key={key}>{key}</span>
+            ))}
           </div>
           <h2>查一个字，也可以反查一组编码</h2>
           <p>输入中文会匹配汉字与词组；输入英文字母会精确反查编码。</p>
@@ -1681,8 +1695,11 @@ function HistoryView() {
   const averageAccuracy = articleSessions.length
     ? articleSessions.reduce((sum, session) => sum + session.accuracy, 0) / articleSessions.length
     : 0;
+  const completedArticleCount = progress.filter(
+    (item) => item.completed,
+  ).length;
 
-  const clearAll = () => {
+  const clearResults = () => {
     if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
@@ -1698,7 +1715,9 @@ function HistoryView() {
           <h1>本地成绩</h1>
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
-        <button className="button danger" onClick={clearAll}>清除全部记录</button>
+        <button className="button danger" onClick={clearResults}>
+          清除成绩与错题
+        </button>
       </div>
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
@@ -1769,15 +1788,19 @@ function HistoryView() {
           </div>
           <div className="completion-stat">
             <span>文章完成度</span>
-            <strong>{progress.filter((item) => item.completed).length} / 200</strong>
+            <strong>{completedArticleCount} / 200</strong>
             <i
               role="progressbar"
               aria-label="文章完成度"
               aria-valuemin={0}
               aria-valuemax={200}
-              aria-valuenow={progress.filter((item) => item.completed).length}
+              aria-valuenow={completedArticleCount}
             >
-              <b style={{ width: `${Math.min(100, progress.length / 2)}%` }} />
+              <b
+                style={{
+                  width: `${Math.min(100, completedArticleCount / 2)}%`,
+                }}
+              />
             </i>
           </div>
         </aside>
