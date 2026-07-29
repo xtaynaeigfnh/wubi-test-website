@@ -52,3 +52,37 @@ test("typing progress fills the five correct Wubi root zones continuously", asyn
   assert.doesNotMatch(component, /className="progress-track"/);
   assert.match(styles, /transition:\s*width 120ms linear/);
 });
+
+test("key sound is shared by typing, challenge, and the settings preview", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /function useKeySound\(enabled: boolean\)/);
+  assert.match(component, /context\.state === "suspended"/);
+  assert.match(component, /context\.resume\(\)\.then\(emit/);
+  assert.match(component, /<TypingView[\s\S]*playKeySound=\{playKeySound\}/);
+  assert.match(component, /<ChallengeView playKeySound=\{playKeySound\}/);
+  assert.match(component, /if \(value\) playKeySound\(\{ force: true \}\)/);
+  assert.match(
+    component,
+    /文章测速和字码挑战输入时播放轻提示音/,
+  );
+});
+
+test("code hint pairs the current character with a compact toolbar code card", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /className="article-toolbar-actions"/);
+  assert.match(component, /className="article-restart"/);
+  assert.doesNotMatch(component, /<strong>\{progressPercent\}%<\/strong>/);
+  assert.match(component, /className="code-hint-character"/);
+  assert.match(component, /当前字 · 编码/);
+  assert.match(component, /codeHints\.get\(targetText\[typed\.length\]/);
+  assert.match(component, /aria-live="polite"/);
+  assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*30px/s);
+  assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 19px\/1/s);
+  assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 15px\/1\.05/s);
+  assert.match(styles, /\.article-toolbar-actions\s*\{[^}]*gap:\s*28px/s);
+});

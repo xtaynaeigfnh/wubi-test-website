@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  ArticleLength,
   ArticleMetadata,
   ArticleProgress,
   ErrorStat,
@@ -86,6 +87,29 @@ export function readSettings(): UserSettings {
         ? partial.autoNext
         : defaultSettings.autoNext,
   };
+}
+
+export function selectInitialArticle(
+  availableArticles: PracticeArticle[],
+  builtInArticles: PracticeArticle[],
+  currentId: string | null,
+  preferredLength: ArticleLength | "all",
+): PracticeArticle | null {
+  const matchesPreference = (article: PracticeArticle) =>
+    preferredLength === "all" || article.length === preferredLength;
+  const current = availableArticles.find(
+    (article) => article.id === currentId && matchesPreference(article),
+  );
+  if (current) return current;
+
+  const fallbackLength =
+    preferredLength === "all" ? "short" : preferredLength;
+  return (
+    builtInArticles.find((article) => article.length === fallbackLength) ||
+    availableArticles.find(matchesPreference) ||
+    availableArticles[0] ||
+    null
+  );
 }
 
 export function writeLocal<T>(key: string, value: T): boolean {
@@ -201,6 +225,13 @@ export function buildChallengePool(
   return preferShortestWubiCodes(eligible)
     .sort((a, b) => b[2] - a[2])
     .slice(0, limit);
+}
+
+export function shouldDeferInputCommit(
+  compositionSessionActive: boolean,
+  nativeEventIsComposing: boolean,
+): boolean {
+  return compositionSessionActive || nativeEventIsComposing;
 }
 
 export function countCommittedAttempts(
