@@ -39,7 +39,7 @@ test("server-renders the finished Chinese product shell", async () => {
 });
 
 test("all planned routes render successfully", async () => {
-  for (const pathname of ["/challenge", "/lookup", "/history", "/settings"]) {
+  for (const pathname of ["/training", "/challenge", "/lookup", "/history", "/settings"]) {
     const response = await render(pathname);
     assert.equal(response.status, 200, pathname);
     const html = await response.text();
