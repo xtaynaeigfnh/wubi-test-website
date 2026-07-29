@@ -2,14 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildCommonPracticeArticle,
   buildChallengePool,
   calculateAccuracy,
   canCompleteTyping,
   countCommittedAttempts,
+  formatCommonCharacterText,
+  getCommonCharacterSlice,
+  isCommonPracticeArticle,
   preferShortestWubiCodes,
+  shuffleCharacters,
   selectInitialArticle,
   shouldDeferInputCommit,
 } from "../app/lib.ts";
+import {
+  getAdjacentTrackIndex,
+  parseMusicCatalog,
+  parseMusicPreferences,
+  withBasePath,
+} from "../app/music.ts";
 
 test("typing accuracy keeps corrected mistakes in the denominator", () => {
   const target = "中国";
@@ -113,4 +124,165 @@ test("challenge filters eligible codes before choosing the shortest one", () => 
   ], "char");
 
   assert.deepEqual(pool, [["睚", "hffg", 100000]]);
+});
+
+test("common-character presets use exact non-overlapping frequency ranges", () => {
+  const characters = Array.from({ length: 1500 }, (_, index) =>
+    String.fromCodePoint(0x4e00 + index),
+  ).join("");
+  const data = {
+    version: 1,
+    source: { name: "test", url: "https://example.com", retrievedAt: "2026-07-29" },
+    characters,
+  };
+
+  const first100 = getCommonCharacterSlice(data, "first-100");
+  const first500 = getCommonCharacterSlice(data, "first-500");
+  const middle500 = getCommonCharacterSlice(data, "middle-500");
+  const last500 = getCommonCharacterSlice(data, "last-500");
+  const first1500 = getCommonCharacterSlice(data, "first-1500");
+
+  assert.equal(first100.length, 100);
+  assert.deepEqual(first100, first500.slice(0, 100));
+  assert.equal(first500.length, 500);
+  assert.equal(middle500.length, 500);
+  assert.equal(last500.length, 500);
+  assert.deepEqual(
+    [...first500, ...middle500, ...last500],
+    first1500,
+  );
+});
+
+test("common-character formatting adds presentation-only groups", () => {
+  const characters = Array.from("的一了是不我人有在这国大个中他和你来上要们年为会就地到说出家子发儿生么业也经着得时作以工对多好那学可行");
+  const text = formatCommonCharacterText(characters);
+
+  assert.equal(text.replace(/\s/g, ""), characters.join(""));
+  assert.equal(text.split("\n")[0].length, 10);
+  assert.match(text, /\n\n/);
+});
+
+test("common-character shuffle preserves the full set and practice metadata", () => {
+  const data = {
+    version: 1,
+    source: { name: "test", url: "https://example.com", retrievedAt: "2026-07-29" },
+    characters: Array.from({ length: 1500 }, (_, index) =>
+      String.fromCodePoint(0x4e00 + index),
+    ).join(""),
+  };
+  const ordered = buildCommonPracticeArticle(data, "first-100");
+  const shuffled = buildCommonPracticeArticle(
+    data,
+    "first-100",
+    true,
+    () => 0,
+  );
+
+  assert.equal(ordered.wordCount, 100);
+  assert.equal(ordered.shuffled, false);
+  assert.equal(shuffled.shuffled, true);
+  assert.notEqual(shuffled.text, ordered.text);
+  assert.deepEqual(
+    [...shuffleCharacters(getCommonCharacterSlice(data, "first-100"), () => 0)].sort(),
+    [...getCommonCharacterSlice(data, "first-100")].sort(),
+  );
+  assert.equal(isCommonPracticeArticle(ordered), true);
+  assert.equal(isCommonPracticeArticle(shuffled), true);
+  assert.equal(
+    isCommonPracticeArticle({ ...shuffled, wordCount: 99 }),
+    false,
+  );
+});
+
+const validMusicTrack = {
+  id: "quiet-keys",
+  title: "Quiet Keys",
+  artist: "Test Artist",
+  sources: [
+    {
+      src: "/audio/tracks/quiet-keys.mp3",
+      type: "audio/mpeg",
+    },
+  ],
+  durationSeconds: 180,
+  license: "CC0 1.0 Universal",
+  sourceUrl: "https://example.com/quiet-keys",
+};
+
+test("music catalog accepts local tracks and skips invalid entries", () => {
+  const result = parseMusicCatalog({
+    version: 1,
+    tracks: [
+      validMusicTrack,
+      {
+        ...validMusicTrack,
+        id: "remote",
+        sources: [
+          { src: "https://example.com/a.mp3", type: "audio/mpeg" },
+        ],
+      },
+      {
+        ...validMusicTrack,
+        id: "traversal",
+        sources: [
+          { src: "/audio/tracks/../secret.mp3", type: "audio/mpeg" },
+        ],
+      },
+      {
+        ...validMusicTrack,
+        id: "unsupported",
+        sources: [{ src: "/audio/tracks/a.wav", type: "audio/wav" }],
+      },
+      validMusicTrack,
+    ],
+  });
+
+  assert.equal(result.catalog.tracks.length, 1);
+  assert.equal(result.catalog.tracks[0].id, "quiet-keys");
+  assert.equal(result.invalidTrackCount, 4);
+});
+
+test("music catalog rejects unsupported versions and empty catalogs", () => {
+  assert.throws(
+    () => parseMusicCatalog({ version: 2, tracks: [validMusicTrack] }),
+    /版本不受支持/,
+  );
+  assert.throws(
+    () =>
+      parseMusicCatalog({
+        version: 1,
+        tracks: [{ ...validMusicTrack, title: "" }],
+      }),
+    /没有可播放/,
+  );
+});
+
+test("music preferences recover safely when the catalog changes", () => {
+  const tracks = [
+    validMusicTrack,
+    { ...validMusicTrack, id: "second-track" },
+  ];
+
+  assert.deepEqual(
+    parseMusicPreferences(
+      { trackId: "removed-track", volume: 2, muted: true },
+      tracks,
+    ),
+    { trackId: "quiet-keys", volume: 1, muted: true },
+  );
+  assert.deepEqual(parseMusicPreferences("broken", tracks), {
+    trackId: "quiet-keys",
+    volume: 0.35,
+    muted: false,
+  });
+});
+
+test("music navigation wraps and assets preserve the deployment base path", () => {
+  assert.equal(getAdjacentTrackIndex(5, 4, 1), 0);
+  assert.equal(getAdjacentTrackIndex(5, 0, -1), 4);
+  assert.equal(getAdjacentTrackIndex(0, 0, 1), -1);
+  assert.equal(
+    withBasePath("/audio/tracks/test.mp3", "/wubi-test-website"),
+    "/wubi-test-website/audio/tracks/test.mp3",
+  );
 });
