@@ -79,7 +79,7 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(component, /当前字 · 编码/);
   assert.match(component, /codeHints\.get\(targetText\[typed\.length\]/);
   assert.match(component, /aria-live="polite"/);
-  assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*36px/s);
-  assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 23px\/1/s);
-  assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 17px\/1\.05/s);
+  assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*30px/s);
+  assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 19px\/1/s);
+  assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 15px\/1\.05/s);
 });

@@ -790,27 +790,27 @@ a {
 }
 
 .code-hint-card {
-  min-width: 136px;
+  min-width: 112px;
   display: grid;
-  grid-template-columns: 36px minmax(92px, 1fr);
+  grid-template-columns: 30px minmax(74px, 1fr);
   overflow: hidden;
   color: var(--text-primary);
-  border: 1px solid color-mix(in srgb, var(--accent-vermilion) 48%, var(--border-default));
+  border: 1px solid color-mix(in srgb, var(--accent-vermilion) 34%, var(--border-default));
   border-radius: var(--radius-small);
   background: var(--bg-raised);
 }
 
 .code-hint-character {
-  min-height: 40px;
+  min-height: 34px;
   display: grid;
   place-items: center;
   color: #fff;
   background: var(--accent-vermilion-fill);
-  font: 500 23px/1 var(--font-display);
+  font: 500 19px/1 var(--font-display);
 }
 
 .code-hint-copy {
-  padding: 5px 8px 4px;
+  padding: 4px 6px 3px;
   display: grid;
   align-content: center;
   gap: 1px;
@@ -826,8 +826,8 @@ a {
 
 .code-hint-copy b {
   color: var(--accent-bamboo);
-  font: 760 17px/1.05 var(--font-data);
-  letter-spacing: 0.1em;
+  font: 760 15px/1.05 var(--font-data);
+  letter-spacing: 0.08em;
 }
 
 .code-hint-card.has-error {
@@ -2376,17 +2376,17 @@ select,
   }
 
   .code-hint-card {
-    min-width: 128px;
-    grid-template-columns: 34px minmax(86px, 1fr);
+    min-width: 108px;
+    grid-template-columns: 28px minmax(72px, 1fr);
   }
 
   .code-hint-character {
-    min-height: 38px;
-    font-size: 21px;
+    min-height: 32px;
+    font-size: 18px;
   }
 
   .code-hint-copy b {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .completion-panel {
