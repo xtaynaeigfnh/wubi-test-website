@@ -75,6 +75,8 @@ test("typing omits the filtered article count and resets timing on restart", asy
   assert.match(component, /autoComplete="off"/);
   assert.match(component, /autoCorrect="off"/);
   assert.match(component, /autoCapitalize="none"/);
+  assert.match(component, /label="理论最小码长"/);
+  assert.match(component, /theoreticalCodeLength\.toFixed\(2\)/);
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {

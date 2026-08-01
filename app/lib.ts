@@ -449,6 +449,83 @@ export function preferShortestWubiCodes(entries: WubiEntry[]): WubiEntry[] {
   return Array.from(preferred.values());
 }
 
+interface MinimumCodeCandidate {
+  characters: string[];
+  codeLength: number;
+}
+
+export type MinimumCodeLengthIndex = Map<string, MinimumCodeCandidate[]>;
+
+const hanCharacterPattern = /^\p{Script=Han}$/u;
+
+export function buildMinimumCodeLengthIndex(
+  entries: WubiEntry[],
+): MinimumCodeLengthIndex {
+  const index: MinimumCodeLengthIndex = new Map();
+  for (const [text, code] of preferShortestWubiCodes(entries)) {
+    const characters = Array.from(text);
+    if (
+      characters.length === 0 ||
+      code.length === 0 ||
+      characters.some((character) => !hanCharacterPattern.test(character))
+    ) {
+      continue;
+    }
+    const first = characters[0];
+    const candidates = index.get(first) ?? [];
+    candidates.push({ characters, codeLength: code.length });
+    index.set(first, candidates);
+  }
+  return index;
+}
+
+export function calculateTheoreticalMinimumCodeLength(
+  text: string,
+  index: MinimumCodeLengthIndex,
+): number | null {
+  const characters = Array.from(text);
+  const hanCharacterCount = characters.filter((character) =>
+    hanCharacterPattern.test(character),
+  ).length;
+  if (hanCharacterCount === 0) return null;
+
+  const minimumKeys = Array<number>(characters.length + 1).fill(
+    Number.POSITIVE_INFINITY,
+  );
+  minimumKeys[0] = 0;
+
+  for (let position = 0; position < characters.length; position += 1) {
+    const currentKeys = minimumKeys[position];
+    if (!Number.isFinite(currentKeys)) continue;
+
+    const currentCharacter = characters[position];
+    if (!hanCharacterPattern.test(currentCharacter)) {
+      minimumKeys[position + 1] = Math.min(
+        minimumKeys[position + 1],
+        currentKeys,
+      );
+      continue;
+    }
+
+    for (const candidate of index.get(currentCharacter) ?? []) {
+      if (
+        candidate.characters.every(
+          (character, offset) => characters[position + offset] === character,
+        )
+      ) {
+        const nextPosition = position + candidate.characters.length;
+        minimumKeys[nextPosition] = Math.min(
+          minimumKeys[nextPosition],
+          currentKeys + candidate.codeLength,
+        );
+      }
+    }
+  }
+
+  const totalKeys = minimumKeys[characters.length];
+  return Number.isFinite(totalKeys) ? totalKeys / hanCharacterCount : null;
+}
+
 export function buildChallengePool(
   entries: WubiEntry[],
   mode: "char" | "phrase",

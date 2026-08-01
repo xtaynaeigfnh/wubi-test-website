@@ -4,9 +4,11 @@ import test from "node:test";
 import {
   buildCommonPracticeArticle,
   buildChallengePool,
+  buildMinimumCodeLengthIndex,
   buildCustomArticle,
   calculateAccuracy,
   calculateRemainingSeconds,
+  calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
   commonCharacterPresets,
@@ -77,6 +79,35 @@ test("typing result metrics only credit characters that actually match", () => {
       accuracy: 50,
     },
   );
+});
+
+test("theoretical minimum code length chooses the cheapest phrase segmentation", () => {
+  const index = buildMinimumCodeLengthIndex([
+    ["中", "k", 100],
+    ["国", "lgyi", 100],
+    ["人", "wwww", 100],
+    ["民", "nnnn", 100],
+    ["中国", "kh", 100],
+    ["中国人民", "klww", 100],
+  ]);
+
+  assert.equal(calculateTheoreticalMinimumCodeLength("中国人民", index), 1);
+  assert.equal(
+    calculateTheoreticalMinimumCodeLength("中国，人民！", index),
+    2.5,
+  );
+});
+
+test("theoretical minimum code length ignores non-Han text and reports gaps", () => {
+  const index = buildMinimumCodeLengthIndex([
+    ["中", "k", 100],
+    ["国", "l", 100],
+    ["中国", "kh", 100],
+  ]);
+
+  assert.equal(calculateTheoreticalMinimumCodeLength("A中1国。", index), 1);
+  assert.equal(calculateTheoreticalMinimumCodeLength("ABC 123", index), null);
+  assert.equal(calculateTheoreticalMinimumCodeLength("中缺", index), null);
 });
 
 test("challenge countdown derives from its wall-clock deadline", () => {

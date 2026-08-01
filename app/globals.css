@@ -452,7 +452,7 @@ a {
 
 .metric-strip {
   display: grid;
-  grid-template-columns: minmax(168px, 1.35fr) repeat(5, minmax(112px, 1fr));
+  grid-template-columns: minmax(168px, 1.35fr) repeat(6, minmax(112px, 1fr));
   margin-bottom: 20px;
   overflow: hidden;
   border-block: 1px solid var(--border-default);
@@ -3725,6 +3725,14 @@ select,
     border-bottom: 1px solid var(--border-subtle);
   }
 
+  .metric:nth-child(n + 4):nth-child(-n + 6) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .metric:last-child {
+    grid-column: 1 / -1;
+  }
+
   .workspace-grid,
   .challenge-layout,
   .history-grid,
@@ -3970,8 +3978,12 @@ select,
     border-right: 0;
   }
 
-  .metric:nth-child(-n + 4) {
+  .metric:nth-child(-n + 6) {
     border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .metric:last-child {
+    grid-column: 1 / -1;
   }
 
   .typing-toolbar {
