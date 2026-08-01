@@ -33,8 +33,18 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(component, />\s*清除成绩与错题\s*</);
   assert.match(component, /className="session-practice"/);
+  assert.match(component, /className="session-speed"/);
+  assert.match(component, /className="session-accuracy"/);
   assert.match(component, /className="session-share"/);
   assert.match(component, />\s*操作\s*</);
+  assert.match(
+    styles,
+    /\.session-speed,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
+  );
+  assert.match(
+    styles,
+    /\.session-speed small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
+  );
   assert.match(styles, /\.session-share\s*\{[^}]*justify-self:\s*end/s);
   assert.match(
     styles,
@@ -188,6 +198,11 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-dock\s*\{/);
   assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
   assert.match(styles, /\.music-dock-peek\s*\{/);
+  assert.match(music, /className="music-peek-icon"/);
+  assert.match(
+    styles,
+    /\.music-dock-peek\s*\{[^}]*width:\s*56px[^}]*height:\s*56px[^}]*border-radius:\s*50%/s,
+  );
   assert.match(styles, /\.music-library-toggle\s*\{/);
   assert.match(styles, /@keyframes music-brush-line/);
   assert.match(styles, /@keyframes music-ink-reveal/);
