@@ -25,9 +25,21 @@ test("history filters are visually separate and expose pressed state", async () 
 
   assert.match(component, /className="segmented small history-filter"/);
   assert.match(component, /aria-pressed=\{type === value\}/);
-  assert.match(styles, /\.history-filter\s*\{[^}]*gap:\s*6px/s);
+  assert.match(styles, /\.segmented\.small\.history-filter\s*\{[^}]*gap:\s*6px/s);
+  assert.match(
+    styles,
+    /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+  );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(component, />\s*清除成绩与错题\s*</);
+  assert.match(component, /className="session-practice"/);
+  assert.match(component, /className="session-share"/);
+  assert.match(component, />\s*操作\s*</);
+  assert.match(styles, /\.session-share\s*\{[^}]*justify-self:\s*end/s);
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice action"/s,
+  );
 });
 
 test("typing omits the filtered article count and resets timing on restart", async () => {

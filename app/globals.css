@@ -1544,8 +1544,9 @@ select,
   background: var(--accent-bamboo-fill);
 }
 
-.history-filter {
-  width: min(220px, 100%);
+.segmented.small.history-filter {
+  width: min(320px, 100%);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   padding: 0;
   border: 0;
@@ -1553,7 +1554,7 @@ select,
 }
 
 .history-filter button {
-  min-width: 58px;
+  min-width: 0;
   border: 1px solid var(--border-default);
   background: var(--bg-raised);
 }
@@ -1841,10 +1842,13 @@ select,
 
 .table-head,
 .table-row {
-  min-height: 58px;
-  padding: 0 20px;
+  min-height: 70px;
+  padding: 10px 20px;
   display: grid;
-  grid-template-columns: minmax(220px, 1.8fr) repeat(3, 0.7fr);
+  grid-template-columns:
+    minmax(240px, 1.8fr)
+    repeat(3, minmax(72px, 0.62fr))
+    minmax(88px, auto);
   align-items: center;
   gap: 14px;
   border-bottom: 1px solid var(--border-default);
@@ -1853,14 +1857,22 @@ select,
 
 .table-head {
   min-height: 38px;
+  padding-block: 0;
   color: var(--text-secondary);
   background: var(--bg-key);
   font-size: 10px;
 }
 
-.table-row > span:first-child {
+.session-practice {
+  min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 4px;
+}
+
+.session-practice strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-row small {
@@ -3373,15 +3385,32 @@ select,
 }
 
 .session-share {
-  margin-top: 6px;
-  padding: 0;
-  display: block;
+  min-height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  justify-self: end;
   color: var(--accent-bamboo);
-  border: 0;
-  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
+  white-space: nowrap;
+  transition: color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-press);
+}
+
+.session-share:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-bamboo);
+  transform: translateY(-1px);
+}
+
+.session-share span {
+  font: 800 13px/1 var(--font-data);
 }
 
 .data-management {
@@ -4141,7 +4170,7 @@ select,
     gap: 12px;
   }
 
-  .history-filter {
+  .segmented.small.history-filter {
     width: 100%;
   }
 
@@ -5403,6 +5432,44 @@ textarea {
   .settings-card:nth-child(n) {
     grid-column: span 6;
   }
+
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .table-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "practice practice action"
+      "speed accuracy duration";
+    gap: 12px 10px;
+  }
+
+  .session-practice {
+    grid-area: practice;
+  }
+
+  .session-speed {
+    grid-area: speed;
+  }
+
+  .session-accuracy {
+    grid-area: accuracy;
+  }
+
+  .session-duration {
+    display: block;
+    grid-area: duration;
+  }
+
+  .session-share {
+    grid-area: action;
+    align-self: start;
+  }
 }
 
 @media (max-width: 620px) {
@@ -5418,6 +5485,25 @@ textarea {
   .page-wrap,
   .site-footer {
     width: 100%;
+  }
+
+  .panel-title:has(.history-filter) {
+    padding: 14px 16px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .history-filter {
+    width: 100%;
+  }
+
+  .history-filter button {
+    min-height: 40px;
+  }
+
+  .table-row {
+    padding: 14px 16px;
   }
 
   .site-header {
