@@ -339,10 +339,6 @@ function MusicDock() {
     ? "正在整理离线曲库…"
     : error || notice || `${tracks.length} 首离线 Lo-fi，数据仍只存本机`;
 
-  useEffect(() => {
-    if (muted) setMuted(false);
-  }, [muted, setMuted]);
-
   const keepDockOpen = useCallback(() => {
     setActivityTick((value) => value + 1);
   }, []);
@@ -566,6 +562,15 @@ function MusicDock() {
         </label>
 
         <div className="music-volume">
+          <button
+            type="button"
+            aria-label={muted ? "取消背景音乐静音" : "静音背景音乐"}
+            aria-pressed={muted}
+            disabled={unavailable}
+            onClick={() => setMuted(!muted)}
+          >
+            {muted ? "静" : "声"}
+          </button>
           <label>
             <span className="sr-only">背景音乐音量</span>
             <input

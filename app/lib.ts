@@ -553,21 +553,27 @@ export function countCommittedAttempts(
   next: string,
   target: string,
 ): { attempts: number; correct: number } {
+  const previousCharacters = Array.from(previous);
+  const nextCharacters = Array.from(next);
+  const targetCharacters = Array.from(target);
   let commonPrefix = 0;
-  const sharedLength = Math.min(previous.length, next.length);
+  const sharedLength = Math.min(
+    previousCharacters.length,
+    nextCharacters.length,
+  );
   while (
     commonPrefix < sharedLength &&
-    previous[commonPrefix] === next[commonPrefix]
+    previousCharacters[commonPrefix] === nextCharacters[commonPrefix]
   ) {
     commonPrefix += 1;
   }
 
   let correct = 0;
-  for (let index = commonPrefix; index < next.length; index += 1) {
-    if (next[index] === target[index]) correct += 1;
+  for (let index = commonPrefix; index < nextCharacters.length; index += 1) {
+    if (nextCharacters[index] === targetCharacters[index]) correct += 1;
   }
   return {
-    attempts: Math.max(0, next.length - commonPrefix),
+    attempts: Math.max(0, nextCharacters.length - commonPrefix),
     correct,
   };
 }
@@ -596,13 +602,15 @@ export function calculateTypingMetrics({
   attemptCount: number;
   correctAttemptCount: number;
 }) {
+  const typedCharacters = Array.from(typed);
+  const targetCharacters = Array.from(target);
   let correctChars = 0;
-  for (let index = 0; index < typed.length; index += 1) {
-    if (typed[index] === target[index]) correctChars += 1;
+  for (let index = 0; index < typedCharacters.length; index += 1) {
+    if (typedCharacters[index] === targetCharacters[index]) correctChars += 1;
   }
   return {
     correctChars,
-    attemptedChars: Math.max(target.length, attemptCount),
+    attemptedChars: Math.max(targetCharacters.length, attemptCount),
     speed:
       durationSeconds > 0
         ? Math.round(correctChars / (durationSeconds / 60))
@@ -621,14 +629,15 @@ export function calculateRemainingSeconds(
 }
 
 export function canCompleteTyping(typed: string, target: string): boolean {
-  return target.length > 0 && typed.length >= target.length;
+  const targetLength = Array.from(target).length;
+  return targetLength > 0 && Array.from(typed).length >= targetLength;
 }
 
 export function normalizeCustomText(value: string): string {
-  return value
+  const normalized = value
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
-    .trim()
-    .slice(0, 5000);
+    .trim();
+  return Array.from(normalized).slice(0, 5000).join("");
 }
 
 export function buildCustomArticle(
@@ -638,20 +647,24 @@ export function buildCustomArticle(
   version = 1,
 ): PracticeArticle | null {
   const clean = normalizeCustomText(text);
-  if (clean.length < 10) return null;
+  const characterCount = Array.from(clean).length;
+  const cleanTitle = Array.from(
+    normalizeCustomText(title).replace(/\s+/g, " "),
+  )
+    .slice(0, 80)
+    .join("");
+  if (characterCount < 10) return null;
   return {
     id,
-    title:
-      normalizeCustomText(title).replace(/\s+/g, " ").slice(0, 80) ||
-      "我的自定义练习",
+    title: cleanTitle || "我的自定义练习",
     length:
-      clean.length < 200
+      characterCount < 200
         ? "short"
-        : clean.length < 700
+        : characterCount < 700
           ? "medium"
           : "long",
     topic: "自定义",
-    wordCount: clean.replace(/\s/g, "").length,
+    wordCount: Array.from(clean.replace(/\s/g, "")).length,
     version,
     text: clean,
     kind: "custom",
@@ -916,6 +929,232 @@ export function createBackupPayload(
   };
 }
 
+const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isBoundedString(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && Array.from(value).length <= maxLength;
+}
+
+function isFiniteRange(value: unknown, min: number, max: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= min &&
+    value <= max
+  );
+}
+
+function isDateString(value: unknown): value is string {
+  return (
+    isBoundedString(value, 40) &&
+    value.length > 0 &&
+    Number.isFinite(Date.parse(value))
+  );
+}
+
+function isPracticeArticle(value: unknown): value is PracticeArticle {
+  if (!isRecord(value)) return false;
+  return (
+    isBoundedString(value.id, 160) &&
+    value.id.length > 0 &&
+    isBoundedString(value.title, 80) &&
+    value.title.length > 0 &&
+    ["short", "medium", "long", "water"].includes(String(value.length)) &&
+    isBoundedString(value.topic, 80) &&
+    isFiniteRange(value.wordCount, 0, 5000) &&
+    Number.isInteger(value.wordCount) &&
+    isFiniteRange(value.version, 1, 100000) &&
+    Number.isInteger(value.version) &&
+    isBoundedString(value.text, 5000) &&
+    (value.favorite === undefined || typeof value.favorite === "boolean") &&
+    (value.kind === undefined || value.kind === "custom" || value.kind === "common")
+  );
+}
+
+function isSessionResult(value: unknown): value is SessionResult {
+  if (!isRecord(value)) return false;
+  const numericFields = [
+    "durationSeconds",
+    "correctChars",
+    "attemptedChars",
+    "speed",
+    "kps",
+    "codeLength",
+    "errors",
+  ];
+  return (
+    isBoundedString(value.id, 160) &&
+    value.id.length > 0 &&
+    ["article", "challenge", "review", "roots"].includes(String(value.type)) &&
+    (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
+    isBoundedString(value.title, 200) &&
+    isDateString(value.date) &&
+    numericFields.every((field) => isFiniteRange(value[field], 0, 1_000_000_000)) &&
+    isFiniteRange(value.accuracy, 0, 100) &&
+    (value.errorChars === undefined ||
+      (Array.isArray(value.errorChars) &&
+        value.errorChars.length <= 5000 &&
+        value.errorChars.every((item) => isBoundedString(item, 8))))
+  );
+}
+
+function isErrorStat(value: unknown): value is ErrorStat {
+  return (
+    isRecord(value) &&
+    isBoundedString(value.text, 20) &&
+    value.text.length > 0 &&
+    (value.code === undefined ||
+      (isBoundedString(value.code, 4) && /^[a-y]{1,4}$/i.test(value.code))) &&
+    isFiniteRange(value.count, 0, 1_000_000) &&
+    Number.isInteger(value.count) &&
+    isDateString(value.lastSeen) &&
+    (value.mastery === undefined ||
+      (isFiniteRange(value.mastery, 0, 5) && Number.isInteger(value.mastery))) &&
+    (value.lastCorrect === undefined || isDateString(value.lastCorrect))
+  );
+}
+
+function isArticleProgress(value: unknown): value is ArticleProgress {
+  return (
+    isRecord(value) &&
+    isBoundedString(value.articleId, 160) &&
+    value.articleId.length > 0 &&
+    isFiniteRange(value.attempts, 0, 1_000_000) &&
+    Number.isInteger(value.attempts) &&
+    isFiniteRange(value.bestSpeed, 0, 1_000_000) &&
+    typeof value.completed === "boolean" &&
+    isDateString(value.lastPracticed) &&
+    isFiniteRange(value.errors, 0, 1_000_000) &&
+    Number.isInteger(value.errors)
+  );
+}
+
+function validateArray(
+  value: unknown,
+  maximum: number,
+  validator: (item: unknown) => boolean,
+): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length <= maximum &&
+    value.every(validator)
+  );
+}
+
+function isSettings(value: unknown): value is UserSettings {
+  return (
+    isRecord(value) &&
+    isFiniteRange(value.fontSize, 22, 42) &&
+    ["all", "short", "medium", "long", "water"].includes(
+      String(value.preferredLength),
+    ) &&
+    typeof value.showCodeHints === "boolean" &&
+    typeof value.sound === "boolean" &&
+    ["light", "dark", "system"].includes(String(value.theme)) &&
+    typeof value.autoNext === "boolean"
+  );
+}
+
+function normalizeBackupSettings(value: unknown): UserSettings | null {
+  if (!isRecord(value)) return null;
+  const keys = new Set(Object.keys(value));
+  const knownKeys = new Set(Object.keys(defaultSettings));
+  if ([...keys].some((key) => !knownKeys.has(key))) return null;
+  if (
+    (keys.has("fontSize") && !isFiniteRange(value.fontSize, 22, 42)) ||
+    (keys.has("preferredLength") &&
+      !["all", "short", "medium", "long", "water"].includes(
+        String(value.preferredLength),
+      )) ||
+    (keys.has("showCodeHints") && typeof value.showCodeHints !== "boolean") ||
+    (keys.has("sound") && typeof value.sound !== "boolean") ||
+    (keys.has("theme") &&
+      !["light", "dark", "system"].includes(String(value.theme))) ||
+    (keys.has("autoNext") && typeof value.autoNext !== "boolean")
+  ) {
+    return null;
+  }
+  return { ...defaultSettings, ...value } as UserSettings;
+}
+
+function isDailyGoal(value: unknown): value is DailyGoal {
+  return (
+    isRecord(value) &&
+    isFiniteRange(value.targetChars, 100, 10000) &&
+    isFiniteRange(value.targetMinutes, 5, 180) &&
+    isFiniteRange(value.targetRounds, 1, 20) &&
+    Number.isInteger(value.targetChars) &&
+    Number.isInteger(value.targetMinutes) &&
+    Number.isInteger(value.targetRounds)
+  );
+}
+
+function normalizeBackupDailyGoal(value: unknown): DailyGoal | null {
+  if (!isRecord(value)) return null;
+  const keys = new Set(Object.keys(value));
+  const knownKeys = new Set(Object.keys(defaultDailyGoal));
+  if ([...keys].some((key) => !knownKeys.has(key))) return null;
+  if (
+    (keys.has("targetChars") &&
+      (!isFiniteRange(value.targetChars, 100, 10000) ||
+        !Number.isInteger(value.targetChars))) ||
+    (keys.has("targetMinutes") &&
+      (!isFiniteRange(value.targetMinutes, 5, 180) ||
+        !Number.isInteger(value.targetMinutes))) ||
+    (keys.has("targetRounds") &&
+      (!isFiniteRange(value.targetRounds, 1, 20) ||
+        !Number.isInteger(value.targetRounds)))
+  ) {
+    return null;
+  }
+  return { ...defaultDailyGoal, ...value } as DailyGoal;
+}
+
+function isMusicPreferences(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    (value.trackId === null || isBoundedString(value.trackId, 160)) &&
+    isFiniteRange(value.volume, 0, 1) &&
+    typeof value.muted === "boolean"
+  );
+}
+
+function isValidBackupValue(key: string, value: unknown): boolean {
+  if (value === null) return true;
+  switch (key) {
+    case STORAGE.settings:
+      return isSettings(value);
+    case STORAGE.sessions:
+      return validateArray(value, 500, isSessionResult);
+    case STORAGE.errors:
+      return validateArray(value, 300, isErrorStat);
+    case STORAGE.progress:
+      return validateArray(value, 500, isArticleProgress);
+    case STORAGE.customTexts:
+      return validateArray(value, 20, isPracticeArticle);
+    case STORAGE.recent:
+      return validateArray(
+        value,
+        100,
+        (item) => isBoundedString(item, 160) && item.length > 0,
+      );
+    case STORAGE.current:
+      return isBoundedString(value, 160);
+    case STORAGE.dailyGoal:
+      return isDailyGoal(value);
+    case STORAGE.currentGenerated:
+      return isPracticeArticle(value);
+    case STORAGE.music:
+      return isMusicPreferences(value);
+    default:
+      return false;
+  }
+}
+
 export function parseBackupPayload(value: unknown): BackupPayload {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("备份文件格式不正确");
@@ -936,7 +1175,63 @@ export function parseBackupPayload(value: unknown): BackupPayload {
   if (unknownKeys.length) {
     throw new Error("备份包含无法识别的数据项");
   }
-  return payload as BackupPayload;
+  if (!isDateString(payload.exportedAt)) {
+    throw new Error("备份导出时间无效");
+  }
+  const normalizedData = { ...payload.data };
+  if (STORAGE.settings in normalizedData && normalizedData[STORAGE.settings] !== null) {
+    const settings = normalizeBackupSettings(normalizedData[STORAGE.settings]);
+    if (!settings) {
+      throw new Error(`备份中的数据项格式不正确：${STORAGE.settings}`);
+    }
+    normalizedData[STORAGE.settings] = settings;
+  }
+  if (STORAGE.dailyGoal in normalizedData && normalizedData[STORAGE.dailyGoal] !== null) {
+    const dailyGoal = normalizeBackupDailyGoal(normalizedData[STORAGE.dailyGoal]);
+    if (!dailyGoal) {
+      throw new Error(`备份中的数据项格式不正确：${STORAGE.dailyGoal}`);
+    }
+    normalizedData[STORAGE.dailyGoal] = dailyGoal;
+  }
+  if (JSON.stringify(normalizedData).length > MAX_BACKUP_BYTES) {
+    throw new Error("备份文件过大，无法安全恢复");
+  }
+  const invalidKey = Object.entries(normalizedData).find(
+    ([key, item]) => !isValidBackupValue(key, item),
+  )?.[0];
+  if (invalidKey) {
+    throw new Error(`备份中的数据项格式不正确：${invalidKey}`);
+  }
+  return { ...payload, data: normalizedData } as BackupPayload;
+}
+
+export function restoreBackupPayload(payload: BackupPayload): void {
+  if (typeof window === "undefined") {
+    throw new Error("只能在浏览器中恢复备份");
+  }
+  const validated = parseBackupPayload(payload);
+  const previous = new Map(
+    STORAGE_KEYS.map((key) => [key, window.localStorage.getItem(key)]),
+  );
+  try {
+    for (const key of STORAGE_KEYS) {
+      if (key in validated.data) {
+        window.localStorage.setItem(key, JSON.stringify(validated.data[key]));
+      }
+    }
+  } catch {
+    try {
+      for (const key of STORAGE_KEYS) {
+        window.localStorage.removeItem(key);
+      }
+      for (const [key, oldValue] of previous) {
+        if (oldValue !== null) window.localStorage.setItem(key, oldValue);
+      }
+    } catch {
+      throw new Error("恢复失败，且未能完整回滚；请立即刷新页面并重新导入备份");
+    }
+    throw new Error("本机存储空间不足，恢复未生效");
+  }
 }
 
 export function formatDuration(totalSeconds: number) {

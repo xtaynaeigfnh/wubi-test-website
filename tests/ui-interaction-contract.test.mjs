@@ -66,13 +66,14 @@ test("history filters are visually separate and expose pressed state", async () 
   );
 });
 
-test("typing omits the filtered article count and resets timing on restart", async () => {
+test("typing exposes every filtered article and resets timing on restart", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.doesNotMatch(component, /篇符合条件/);
+  assert.match(component, /共 \{filtered\.length\} 篇符合当前筛选条件/);
+  assert.doesNotMatch(component, /filtered\.slice\(0, 60\)/);
   assert.doesNotMatch(component, /本次练习出现过错字，无法提交成绩/);
   assert.match(component, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
   assert.match(component, /autoComplete="off"/);
@@ -151,7 +152,7 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.doesNotMatch(component, /<strong>\{progressPercent\}%<\/strong>/);
   assert.match(component, /className="code-hint-character"/);
   assert.match(component, /当前字 · 编码/);
-  assert.match(component, /codeHints\.get\(targetText\[typed\.length\]/);
+  assert.match(component, /targetCharacters\[typedCharacters\.length\]/);
   assert.match(component, /aria-live="polite"/);
   assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*30px/s);
   assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 19px\/1/s);
@@ -226,7 +227,7 @@ test("one root-level audio player exposes accessible manual controls", async () 
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(layout, /<MusicProvider>\{children\}<\/MusicProvider>/);
+  assert.match(layout, /<PwaProvider>[\s\S]*<MusicProvider>\{children\}<\/MusicProvider>/);
   assert.equal((music.match(/<audio/g) ?? []).length, 1);
   assert.match(music, /preload="metadata"/);
   assert.doesNotMatch(music, /\bautoPlay\b|\bautoplay\b/);
@@ -234,7 +235,8 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(music, /aria-label="下一首"/);
   assert.match(music, /aria-label="播放进度"/);
   assert.match(music, /aria-label="背景音乐音量"/);
-  assert.doesNotMatch(music, /aria-label=\{muted \? "取消静音" : "静音"\}/);
+  assert.match(music, /aria-label=\{muted \? "取消背景音乐静音" : "静音背景音乐"\}/);
+  assert.doesNotMatch(music, /if \(muted\) setMuted\(false\)/);
   assert.match(music, /aria-expanded=\{expanded\}/);
   assert.match(music, /MUSIC_DOCK_COLLAPSE_DELAY = 5500/);
   assert.match(music, /aria-label="展开专注电台控制栏"/);

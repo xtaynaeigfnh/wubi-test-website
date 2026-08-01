@@ -366,7 +366,13 @@ function TypingView({
     else delete root.dataset.focusMode;
 
     const exitFocusMode = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape" && focusMode && !pickerOpen && !customOpen) {
+      if (
+        event.key === "Escape" &&
+        focusMode &&
+        !pickerOpen &&
+        !customOpen &&
+        !commonOpen
+      ) {
         setFocusMode(false);
       }
     };
@@ -375,7 +381,7 @@ function TypingView({
       document.removeEventListener("keydown", exitFocusMode);
       delete root.dataset.focusMode;
     };
-  }, [customOpen, focusMode, pickerOpen]);
+  }, [commonOpen, customOpen, focusMode, pickerOpen]);
 
   useEffect(() => {
     if (!settings.showCodeHints) {
@@ -597,6 +603,8 @@ function TypingView({
     () => visibleText.replace(/[\r\n]/g, ""),
     [visibleText],
   );
+  const targetCharacters = useMemo(() => Array.from(targetText), [targetText]);
+  const typedCharacters = useMemo(() => Array.from(typed), [typed]);
   const theoreticalCodeLength = useMemo(
     () =>
       minimumCodeIndex
@@ -633,7 +641,10 @@ function TypingView({
     attemptCount,
     correctAttemptCount,
   });
-  const progressRatio = Math.min(1, typed.length / Math.max(1, targetText.length));
+  const progressRatio = Math.min(
+    1,
+    typedCharacters.length / Math.max(1, targetCharacters.length),
+  );
   const progressPercent = Math.round(progressRatio * 100);
 
   useEffect(() => {
@@ -657,19 +668,22 @@ function TypingView({
         viewport.clientHeight * 0.28,
     );
     viewport.scrollTo({ top: nextTop, behavior: "smooth" });
-  }, [article?.id, typed.length]);
+  }, [article?.id, typedCharacters.length]);
 
   useEffect(() => {
     if (!article || !typed) return;
     let changed = false;
-    for (let index = 0; index < typed.length; index += 1) {
-      if (typed[index] !== targetText[index] && !errorPositions.current.has(index)) {
+    for (let index = 0; index < typedCharacters.length; index += 1) {
+      if (
+        typedCharacters[index] !== targetCharacters[index] &&
+        !errorPositions.current.has(index)
+      ) {
         errorPositions.current.add(index);
         changed = true;
       }
     }
     if (changed) setErrorCount(errorPositions.current.size);
-  }, [article, targetText, typed]);
+  }, [article, targetCharacters, typed, typedCharacters]);
 
   useEffect(() => {
     if (
@@ -685,7 +699,7 @@ function TypingView({
     if (recorded.current) return;
     recorded.current = true;
     const errorChars = Array.from(errorPositions.current)
-      .map((index) => targetText[index])
+      .map((index) => targetCharacters[index])
       .filter(Boolean);
     errorChars.forEach((character) => addError(character));
     const finalMetrics = calculateTypingMetrics({
@@ -724,13 +738,14 @@ function TypingView({
     letterKeys,
     startedAt,
     targetText,
+    targetCharacters,
     typed,
   ]);
 
   const commitTypedValue = (nextValue: string) => {
-    const committed = nextValue
-      .replace(/[\r\n]/g, "")
-      .slice(0, targetText.length);
+    const committed = Array.from(nextValue.replace(/[\r\n]/g, ""))
+      .slice(0, targetCharacters.length)
+      .join("");
     const previous = committedValue.current;
     if (committed === previous) {
       setInputValue(committed);
@@ -898,21 +913,25 @@ function TypingView({
                 <div
                   className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
                   aria-live="polite"
-                  aria-label={`当前字 ${targetText[typed.length] || "无"}，最短编码 ${
+                  aria-label={`当前字 ${targetCharacters[typedCharacters.length] || "无"}，最短编码 ${
                     codeHintsError ||
-                    codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                    codeHints
+                      .get(targetCharacters[typedCharacters.length] || "")
+                      ?.toUpperCase() ||
                     "暂无"
                   }`}
                 >
                   <strong className="code-hint-character" aria-hidden="true">
-                    {targetText[typed.length] || "完"}
+                    {targetCharacters[typedCharacters.length] || "完"}
                   </strong>
                   <span className="code-hint-copy">
                     <small>{codeHintsError ? "编码提示" : "当前字 · 编码"}</small>
                     <b>
                       {codeHintsError
                         ? "加载失败"
-                        : codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
+                        : codeHints
+                            .get(targetCharacters[typedCharacters.length] || "")
+                            ?.toUpperCase() ||
                           "暂无"}
                     </b>
                   </span>
@@ -1009,11 +1028,11 @@ function TypingView({
                 );
               }
               const state =
-                targetIndex >= typed.length
-                  ? targetIndex === typed.length
+                targetIndex >= typedCharacters.length
+                  ? targetIndex === typedCharacters.length
                     ? "current"
                     : "pending"
-                  : typed[targetIndex] === character
+                  : typedCharacters[targetIndex] === character
                     ? "correct"
                     : "wrong";
               return (
@@ -1089,7 +1108,8 @@ function TypingView({
           />
           <div className="typing-footer">
             <span className="typing-position">
-              第 {Math.min(typed.length + 1, targetText.length)} / {targetText.length} 字
+              第 {Math.min(typedCharacters.length + 1, targetCharacters.length)} /{" "}
+              {targetCharacters.length} 字
             </span>
             <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
           </div>
@@ -1190,7 +1210,10 @@ function TypingView({
       {pickerOpen && (
         <Modal title="选择练习文章" onClose={() => setPickerOpen(false)}>
           <div className="article-list">
-            {filtered.slice(0, 60).map((item) => {
+            <div className="article-list-summary" role="status">
+              共 {filtered.length} 篇符合当前筛选条件
+            </div>
+            {filtered.map((item) => {
               const record = progressMap.get(item.id);
               return (
                 <button key={item.id} onClick={() => chooseArticle(item)}>
@@ -1591,10 +1614,13 @@ function ChallengeView({
               <div
                 key={question?.[0]}
                 className="question-character question-swap"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
               >
                 {question?.[0]}
               </div>
-              <div className="code-slots">
+              <div className="code-slots" aria-hidden="true">
                 {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
                     {input[slot]?.toUpperCase() || "·"}
@@ -1615,7 +1641,7 @@ function ChallengeView({
                   if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
                 placeholder="输入编码后回车"
-                aria-label="五笔编码"
+                aria-label={`请输入“${question?.[0] ?? "当前题目"}”的五码编码`}
                 aria-invalid={feedback === "wrong"}
                 readOnly={feedback !== "idle"}
               />
@@ -1808,7 +1834,7 @@ function HistoryView() {
   const refresh = () => {
     setSessions(getSessions());
     setProgress(getProgress());
-    setErrors(readLocal(STORAGE.errors, []));
+    setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
   };
   useEffect(refresh, []);
 
