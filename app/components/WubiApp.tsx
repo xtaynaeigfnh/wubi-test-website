@@ -1806,6 +1806,7 @@ function HistoryView() {
             <div className="table-head">
               <span>练习</span>
               <span>速度</span>
+              <span>码长</span>
               <span>准确率</span>
               <span>时间</span>
               <span>操作</span>
@@ -1819,6 +1820,16 @@ function HistoryView() {
                 <span className="session-speed">
                   {session.speed || "—"}
                   <small>{session.type === "article" ? "字/分" : "题/分"}</small>
+                </span>
+                <span className="session-code-length">
+                  {Number.isFinite(session.codeLength) && session.codeLength > 0 ? (
+                    <>
+                      {session.codeLength.toFixed(2)}
+                      <small>键/字</small>
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </span>
                 <span className="session-accuracy">
                   {session.accuracy.toFixed(1)}<small>%</small>

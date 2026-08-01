@@ -1839,7 +1839,7 @@ select,
   display: grid;
   grid-template-columns:
     minmax(240px, 1.8fr)
-    repeat(3, minmax(72px, 0.62fr))
+    repeat(4, minmax(72px, 0.62fr))
     minmax(88px, auto);
   align-items: center;
   gap: 14px;
@@ -1874,6 +1874,7 @@ select,
 }
 
 .session-speed,
+.session-code-length,
 .session-accuracy {
   display: inline-flex;
   align-items: baseline;
@@ -1882,6 +1883,7 @@ select,
 }
 
 .session-speed small,
+.session-code-length small,
 .session-accuracy small {
   display: inline;
 }
@@ -5427,10 +5429,10 @@ textarea {
   }
 
   .table-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-areas:
-      "practice practice action"
-      "speed accuracy duration";
+      "practice practice practice action"
+      "speed code-length accuracy duration";
     gap: 12px 10px;
   }
 
@@ -5440,6 +5442,10 @@ textarea {
 
   .session-speed {
     grid-area: speed;
+  }
+
+  .session-code-length {
+    grid-area: code-length;
   }
 
   .session-accuracy {
@@ -5489,6 +5495,11 @@ textarea {
 
   .table-row {
     padding: 14px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "practice action"
+      "speed code-length"
+      "accuracy duration";
   }
 
   .site-header {

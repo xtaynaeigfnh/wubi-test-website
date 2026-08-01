@@ -40,21 +40,29 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(component, />\s*清除成绩与错题\s*</);
   assert.match(component, /className="session-practice"/);
   assert.match(component, /className="session-speed"/);
+  assert.match(component, /className="session-code-length"/);
   assert.match(component, /className="session-accuracy"/);
   assert.match(component, /className="session-share"/);
   assert.match(component, />\s*操作\s*</);
+  assert.match(component, />\s*速度\s*<\/span>\s*<span>码长<\/span>\s*<span>准确率\s*</);
+  assert.match(component, /session\.codeLength\.toFixed\(2\)/);
+  assert.match(component, /<small>键\/字<\/small>/);
   assert.match(
     styles,
-    /\.session-speed,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
+    /\.session-speed,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
   );
   assert.match(
     styles,
-    /\.session-speed small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
+    /\.session-speed small,\s*\.session-code-length small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
   );
   assert.match(styles, /\.session-share\s*\{[^}]*justify-self:\s*end/s);
   assert.match(
     styles,
-    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice action"/s,
+    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice practice action"\s*"speed code-length accuracy duration"/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*grid-template-areas:\s*"practice action"\s*"speed code-length"\s*"accuracy duration"/s,
   );
 });
 
