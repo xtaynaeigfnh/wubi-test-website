@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-86 版五笔打字练习网站，支持离线使用。提供文章测速、常用字练习、错题复练、五码根专项、字码挑战、离线查码和离线 Lo-fi 音乐播放。
+86 版五笔打字练习网站，支持离线使用。提供文章测速、常用字练习、错题复练、五码根专项、字码挑战、离线查码和离线 Lo-fi 音乐播放。文章测速会对比实际码长与当前码表下的理论下限。
 
 ## Key Commands
 
@@ -30,11 +30,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `settings/page.tsx` → 设置与数据管理
 
 **核心逻辑**:
-- `app/lib.ts` — 所有客户端核心逻辑：localStorage 读写、文章加载、五笔码表查询、成绩统计、错题管理、备份恢复。所有状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage。
+- `app/lib.ts` — 客户端共享逻辑：localStorage 读写、文章与码表加载、成绩统计、错题管理、备份恢复，以及基于单字和词组最优分段的理论最小码长计算。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage。
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐等）
 - `app/music.ts` — 音乐目录解析与播放逻辑
 - `app/components/WubiApp.tsx` — 主应用组件，根据 `view` prop 渲染不同页面
+- `app/components/TrainingCenter.tsx` — 今日训练、智能推荐、错题复练和字根专项
 - `app/components/Ui.tsx` — 打字练习核心 UI 组件
+- `app/share-card.ts` — 本地成绩卡 PNG 生成
 
 **数据**:
 - `public/data/` — 静态 JSON：文章、五笔码表（wubi86.json）、常用字表、音乐目录
@@ -54,6 +56,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 使用 `@/*` 路径别名
 - 测试文件统一命名 `*.test.mjs`，使用 `node:test` + `node:assert/strict`
 - 测试名称描述可观察行为，不描述实现细节
+- 统计逻辑改动优先补充 `tests/core-logic.test.mjs`；界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
 
 ## Commit Style
 

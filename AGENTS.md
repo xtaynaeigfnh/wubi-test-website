@@ -3,6 +3,8 @@
 ## 项目结构与模块组织
 
 - `app/` 存放 Next.js 路由、共享 TypeScript 模块和 React 组件。路由入口放在 `app/<route>/page.tsx`，可复用界面组件放在 `app/components/`。
+- `app/components/WubiApp.tsx` 负责文章测速、字码挑战、查码、成绩和设置界面；`app/components/TrainingCenter.tsx` 负责常用字、错题和字根训练。
+- `app/lib.ts` 集中处理浏览器本地数据、练习统计、备份恢复与理论最小码长计算；共享类型位于 `app/types.ts`。
 - `tests/` 存放 Node 测试套件，测试文件统一命名为 `*.test.mjs`。
 - `public/` 存放 PWA 清单、Service Worker、生成的 JSON 数据、图标和离线音频。
 - `scripts/` 用于生成文章及五笔数据。原始数据和许可证位于 `third_party/`；重新分发时必须保留来源与授权信息。
@@ -26,7 +28,7 @@
 
 ## 测试规范
 
-测试使用 `node:test` 和 `node:assert/strict`。测试名称应描述可观察行为，而非内部实现。根据改动范围，将用例加入最相关的套件：核心逻辑、内容数据、界面契约、v0.2 功能或渲染 HTML。修改生成数据时，必须同时提交重新生成的文件，并通过完整的 `npm test` 流程。
+测试使用 `node:test` 和 `node:assert/strict`。测试名称应描述可观察行为，而非内部实现。根据改动范围，将用例加入最相关的套件：`core-logic`、`content-data`、`ui-interaction-contract`、`v02-features` 或 `rendered-html`。码长等统计逻辑需覆盖边界情况；修改界面结构或响应式布局时，同步更新界面契约测试。修改生成数据时，必须同时提交重新生成的文件，并通过完整的 `npm test` 流程。
 
 ## 提交与拉取请求规范
 
