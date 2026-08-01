@@ -1479,7 +1479,6 @@ function ChallengeView({
         <div className={`challenge-card${started && feedback === "wrong" ? " has-error" : ""}`}>
           {!started ? (
             <div className="challenge-start">
-              <span className="giant-code">86</span>
               <h2>
                 {index
                   ? finishedReason === "timeout"

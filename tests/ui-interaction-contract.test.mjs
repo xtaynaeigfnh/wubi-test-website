@@ -8,9 +8,15 @@ const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
 
   assert.match(component, /feedback === "wrong"\) advanceQuestion\(\)/);
+  assert.doesNotMatch(component, /className="giant-code"/);
+  assert.doesNotMatch(styles, /\.giant-code\s*\{/);
+  assert.match(styles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
   assert.match(component, /你的输入/);
   assert.match(component, /正确编码/);
   assert.match(component, /下一题（回车）/);

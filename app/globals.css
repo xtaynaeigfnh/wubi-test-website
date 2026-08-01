@@ -1304,14 +1304,6 @@ select,
   text-align: center;
 }
 
-.giant-code {
-  display: block;
-  margin-bottom: 10px;
-  color: color-mix(in srgb, var(--accent-vermilion) 72%, var(--text-primary));
-  font: 500 88px/1 var(--font-display);
-  letter-spacing: -0.04em;
-}
-
 .challenge-start h2 {
   margin: 0 0 10px;
   font-family: var(--font-display);
@@ -5067,10 +5059,6 @@ textarea {
   color: var(--accent-vermilion);
   font: 800 86px/1 var(--font-data);
   letter-spacing: -0.12em;
-}
-
-.giant-code {
-  display: none;
 }
 
 .challenge-start h2,
