@@ -62,13 +62,18 @@ import { TrainingCenter } from "./TrainingCenter";
 import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 
-const navItems: Array<{ view: AppView; href: string; label: string }> = [
-  { view: "typing", href: "/", label: "文章测速" },
-  { view: "training", href: "/training", label: "今日训练" },
-  { view: "challenge", href: "/challenge", label: "字码挑战" },
-  { view: "lookup", href: "/lookup", label: "五笔查码" },
-  { view: "history", href: "/history", label: "本地成绩" },
-  { view: "settings", href: "/settings", label: "设置" },
+const navItems: Array<{
+  view: AppView;
+  href: string;
+  label: string;
+  coordinate: string;
+}> = [
+  { view: "typing", href: "/", label: "文章测速", coordinate: "QW" },
+  { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
+  { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
+  { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
+  { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
+  { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
@@ -141,15 +146,37 @@ export function WubiApp({ view }: { view: AppView }) {
     writeLocal(STORAGE.settings, settings);
   }, [settings, settingsReady]);
 
+  const themeLabels: Record<UserSettings["theme"], string> = {
+    system: "系统",
+    light: "浅色",
+    dark: "深色",
+  };
+  const nextTheme: Record<UserSettings["theme"], UserSettings["theme"]> = {
+    system: "light",
+    light: "dark",
+    dark: "system",
+  };
+  const cycleTheme = () =>
+    setSettings((current) => ({
+      ...current,
+      theme: nextTheme[current.theme],
+    }));
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-view={view}>
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
       <header className="site-header">
         <div className="header-inner">
           <Link href="/" className="brand" aria-label="五笔测试网站首页">
-            <span className="brand-mark">五</span>
+            <span className="brand-mark" aria-hidden="true">
+              <i>五</i>
+              <b>86</b>
+            </span>
             <span>
               <strong>五笔测试网站</strong>
-              <small>八六版 · 离线练习</small>
+              <small>WUBI 86 / LOCAL PRACTICE</small>
             </span>
           </Link>
           <nav className="main-nav" aria-label="主导航">
@@ -160,15 +187,33 @@ export function WubiApp({ view }: { view: AppView }) {
                 className={view === item.view ? "nav-item active" : "nav-item"}
                 aria-current={view === item.view ? "page" : undefined}
               >
-                {item.label}
+                <span aria-hidden="true">{item.coordinate}</span>
+                <strong>{item.label}</strong>
               </Link>
             ))}
           </nav>
-          <div className="local-badge"><i /> 练习记录只留在这里</div>
+          <div className="header-utilities">
+            <button
+              className="theme-switch"
+              type="button"
+              onClick={cycleTheme}
+              aria-label={`当前${themeLabels[settings.theme]}主题，点击切换为${themeLabels[nextTheme[settings.theme]]}主题`}
+              title={`主题：${themeLabels[settings.theme]}`}
+            >
+              <span aria-hidden="true">{
+                settings.theme === "dark" ? "◐" : settings.theme === "light" ? "◑" : "◒"
+              }</span>
+              <b>{themeLabels[settings.theme]}</b>
+            </button>
+            <div className="local-badge">
+              <i />
+              <span><b>LOCAL</b> 数据只存本机</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="page-wrap">
+      <main className="page-wrap" id="main-content">
         {view === "typing" && (
           <TypingView
             settings={settings}
@@ -194,7 +239,7 @@ export function WubiApp({ view }: { view: AppView }) {
       </main>
 
       <footer className="site-footer">
-        <span>慢慢练，手会记住。</span>
+        <span><b>86 / OFFLINE</b> 慢慢练，手会记住。</span>
         <span>
           86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
         </span>
@@ -838,7 +883,11 @@ function TypingView({
                 </div>
               )}
               <div className="article-restart">
-                <div className="toolbar-actions">
+                <div
+                  className="toolbar-actions"
+                  role="group"
+                  aria-label="当前练习操作"
+                >
                   {isCommonPracticeArticle(article) ? (
                     <>
                       <button
@@ -862,7 +911,12 @@ function TypingView({
                   ) : (
                     <button onClick={() => setPickerOpen(true)}>选文章</button>
                   )}
-                  <button onClick={() => chooseArticle(article)}>重新开始</button>
+                  <button
+                    className="restart-action"
+                    onClick={() => chooseArticle(article)}
+                  >
+                    重新开始
+                  </button>
                 </div>
               </div>
             </div>
@@ -1129,7 +1183,7 @@ function TypingView({
               <span aria-hidden="true">1500</span>
               <div>
                 <strong>按字频分段练习</strong>
-                <p>默认按常用程度依次练习。进入练习后可随时点击“乱序”。</p>
+                <p>前 500 常用字按字频分成 10 组，每组 50 字。进入后可随时点击“乱序”。</p>
               </div>
             </div>
             {commonError ? (

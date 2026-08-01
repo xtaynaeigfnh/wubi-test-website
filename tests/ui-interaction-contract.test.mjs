@@ -91,6 +91,15 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 19px\/1/s);
   assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 15px\/1\.05/s);
   assert.match(styles, /\.article-toolbar-actions\s*\{[^}]*gap:\s*28px/s);
+  assert.match(
+    styles,
+    /\.article-restart \.toolbar-actions\s*\{[^}]*gap:\s*12px/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 420px\)[\s\S]*\.article-restart \.toolbar-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
+  );
+  assert.match(component, /role="group"\s+aria-label="当前练习操作"/);
 });
 
 test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
@@ -109,6 +118,9 @@ test("typing offers ordered common-character ranges with explicit reshuffling", 
   assert.match(component, />\s*常用字练习\s*</);
   assert.match(component, /选择常用字范围/);
   assert.match(component, /commonCharacterPresets\.map/);
+  assert.match(component, /分成 10 组，每组 50 字/);
+  assert.match(component, /className="theme-switch"/);
+  assert.match(component, /点击切换为/);
   assert.match(component, />\s*\{commonLoading \? "载入中…" : "乱序"\}\s*</);
   assert.match(component, /isCommonPracticeArticle\(article\)/);
   assert.match(component, /STORAGE\.currentGenerated/);
@@ -156,8 +168,18 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(music, /aria-label="下一首"/);
   assert.match(music, /aria-label="播放进度"/);
   assert.match(music, /aria-label="背景音乐音量"/);
+  assert.doesNotMatch(music, /aria-label=\{muted \? "取消静音" : "静音"\}/);
   assert.match(music, /aria-expanded=\{expanded\}/);
+  assert.match(music, /MUSIC_DOCK_COLLAPSE_DELAY = 5500/);
+  assert.match(music, /aria-label="展开专注电台控制栏"/);
+  assert.match(music, /aria-label="收起专注电台控制栏"/);
   assert.match(styles, /\.music-dock\s*\{/);
+  assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
+  assert.match(styles, /\.music-dock-peek\s*\{/);
+  assert.match(styles, /\.music-library-toggle\s*\{/);
+  assert.match(styles, /@keyframes music-brush-line/);
+  assert.match(styles, /@keyframes music-ink-reveal/);
+  assert.match(styles, /@keyframes music-seal-breathe/);
   assert.match(styles, /\.music-ruler\s*\{/);
   assert.match(
     styles,

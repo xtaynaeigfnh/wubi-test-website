@@ -147,6 +147,30 @@ test("all articles reject recycled generator phrases and internal repetition", a
   }
 });
 
+test("sentences are not recycled across different articles", async () => {
+  const groups = ["short", "medium", "long", "water"];
+  const articles = (
+    await Promise.all(groups.map((name) => readJson(`articles-${name}.json`)))
+  ).flat();
+  const owners = new Map();
+
+  for (const { id, text } of articles) {
+    const sentences = text
+      .split(/[。！？]/)
+      .map((sentence) => sentence.replace(/\s/g, ""))
+      .filter((sentence) => sentence.length >= 8);
+    for (const sentence of sentences) {
+      const previous = owners.get(sentence);
+      assert.equal(
+        previous,
+        undefined,
+        `${id} recycles a sentence from ${previous}: ${sentence}`,
+      );
+      owners.set(sentence, id);
+    }
+  }
+});
+
 test("Wubi dictionary contains core words and no invalid codes", async () => {
   const rows = await readJson("wubi86.json");
   assert.ok(rows.length > 100000);

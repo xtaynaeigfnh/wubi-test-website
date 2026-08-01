@@ -7,8 +7,16 @@ export type AppView =
   | "history"
   | "settings";
 export type CommonCharacterPreset =
-  | "first-100"
-  | "first-500"
+  | "first-050"
+  | "051-100"
+  | "101-150"
+  | "151-200"
+  | "201-250"
+  | "251-300"
+  | "301-350"
+  | "351-400"
+  | "401-450"
+  | "451-500"
   | "middle-500"
   | "last-500"
   | "first-1500";

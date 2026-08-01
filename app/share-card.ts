@@ -10,31 +10,31 @@ export function downloadShareCard(session: SessionResult) {
   const context = canvas.getContext("2d");
   if (!context) return false;
 
-  context.fillStyle = "#eeece6";
+  context.fillStyle = "#e7edf0";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#202622";
+  context.fillStyle = "#09171a";
   context.fillRect(0, 0, canvas.width, 82);
-  context.fillStyle = "#aa382c";
+  context.fillStyle = "#ff765c";
   context.fillRect(0, 82, canvas.width, 5);
 
-  context.fillStyle = "#faf9f5";
-  context.font = '600 30px "Kaiti SC", "STKaiti", serif';
+  context.fillStyle = "#f8faf9";
+  context.font = '700 30px "Songti SC", "STSong", serif';
   context.fillText("五笔测试网站", 72, 52);
   context.textAlign = "right";
   context.font = '20px "PingFang SC", sans-serif';
-  context.fillStyle = "rgba(250,249,245,.72)";
-  context.fillText("八六版 · 本地练习", 1128, 51);
+  context.fillStyle = "rgba(248,250,249,.76)";
+  context.fillText("WUBI 86 / LOCAL PRACTICE", 1128, 51);
   context.textAlign = "left";
 
-  context.fillStyle = "#60675f";
+  context.fillStyle = "#53696f";
   context.font = '18px "PingFang SC", sans-serif';
   context.fillText(
     session.type === "article" ? "文章测速成绩" : "专项训练成绩",
     72,
     150,
   );
-  context.fillStyle = "#202622";
-  context.font = '600 46px "Kaiti SC", "STKaiti", serif';
+  context.fillStyle = "#14292e";
+  context.font = '700 46px "Songti SC", "STSong", serif';
   context.fillText(session.title.slice(0, 22), 72, 210);
 
   const metrics = [
@@ -45,21 +45,21 @@ export function downloadShareCard(session: SessionResult) {
   ];
   metrics.forEach(([label, value, unit], index) => {
     const x = 72 + index * 270;
-    context.fillStyle = index === 0 ? "#315f50" : "#202622";
+    context.fillStyle = index === 0 ? "#086b66" : "#14292e";
     context.font = '700 62px "SFMono-Regular", monospace';
     context.fillText(value, x, 358);
     context.font = '16px "PingFang SC", sans-serif';
-    context.fillStyle = "#60675f";
+    context.fillStyle = "#53696f";
     context.fillText(`${label}${unit ? ` · ${unit}` : ""}`, x, 398);
   });
 
-  context.strokeStyle = "#d2cec4";
+  context.strokeStyle = "#b9c9cd";
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(72, 452);
   context.lineTo(1128, 452);
   context.stroke();
-  context.fillStyle = "#60675f";
+  context.fillStyle = "#53696f";
   context.font = '20px "Songti SC", "STSong", serif';
   context.fillText("慢慢练，手会记住。", 72, 518);
   context.textAlign = "right";
