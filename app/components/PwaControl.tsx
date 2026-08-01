@@ -1,14 +1,29 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export function PwaControl() {
+interface PwaContextValue {
+  promptEvent: InstallPromptEvent | null;
+  setPromptEvent: (event: InstallPromptEvent | null) => void;
+  status: string;
+  setStatus: (status: string) => void;
+}
+
+const PwaContext = createContext<PwaContextValue | null>(null);
+
+export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
   const [status, setStatus] = useState("正在准备离线缓存…");
 
@@ -18,6 +33,7 @@ export function PwaControl() {
       setStatus("当前浏览器不支持离线安装。");
       return;
     }
+
     navigator.serviceWorker
       .register(`${basePath}/sw.js`, { scope: `${basePath || ""}/` })
       .then(() => navigator.serviceWorker.ready)
@@ -31,6 +47,18 @@ export function PwaControl() {
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
+
+  const value = useMemo(
+    () => ({ promptEvent, setPromptEvent, status, setStatus }),
+    [promptEvent, status],
+  );
+  return <PwaContext.Provider value={value}>{children}</PwaContext.Provider>;
+}
+
+export function PwaControl() {
+  const context = useContext(PwaContext);
+  if (!context) throw new Error("PwaControl 必须在 PwaProvider 中使用");
+  const { promptEvent, setPromptEvent, status, setStatus } = context;
 
   const install = async () => {
     if (!promptEvent) return;

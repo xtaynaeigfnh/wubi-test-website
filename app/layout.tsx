@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { MusicProvider } from "./components/MusicPlayer";
+import { PwaProvider } from "./components/PwaControl";
 import "./globals.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -30,7 +31,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        <MusicProvider>{children}</MusicProvider>
+        <PwaProvider>
+          <MusicProvider>{children}</MusicProvider>
+        </PwaProvider>
       </body>
     </html>
   );

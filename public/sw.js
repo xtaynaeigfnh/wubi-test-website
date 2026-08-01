@@ -1,4 +1,4 @@
-const CACHE_NAME = "wubi-test-v03";
+const CACHE_NAME = "wubi-test-v04";
 const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${scopePath}${path}`;
 const PRECACHE = [
@@ -16,9 +16,7 @@ const PRECACHE = [
   "/data/articles-long.json",
   "/data/articles-water.json",
   "/data/common-characters.json",
-  "/data/music-catalog.json",
-  "/data/wubi86.json",
-  "/data/wubi86-challenge.json"
+  "/data/music-catalog.json"
 ].map(withBase);
 
 async function installOfflineBundle() {
@@ -35,13 +33,6 @@ async function installOfflineBundle() {
   }
   if (shellAssets.size) await cache.addAll(Array.from(shellAssets));
 
-  const musicCatalogResponse = await cache.match(withBase("/data/music-catalog.json"));
-  if (!musicCatalogResponse) return;
-  const musicCatalog = await musicCatalogResponse.json();
-  const audioAssets = (musicCatalog.tracks ?? []).flatMap((track) =>
-    (track.sources ?? []).map((source) => withBase(source.src))
-  );
-  await Promise.allSettled(audioAssets.map((path) => cache.add(path)));
 }
 
 self.addEventListener("install", (event) => {
@@ -69,13 +60,22 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
+    const networkResponse = fetch(request).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response;
+    });
+    event.waitUntil(
+      networkResponse
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
+          if (!response.ok) return;
+          return caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, response.clone()));
         })
+        .catch(() => undefined)
+    );
+    event.respondWith(
+      networkResponse
         .catch(async () => {
           return (
             (await caches.match(request)) ||
@@ -90,16 +90,51 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.pathname.startsWith(withBase("/data/"))) {
+    const networkResponse = fetch(request).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response;
+    });
+    event.waitUntil(
+      networkResponse
+        .then((response) => {
+          if (!response.ok) return;
+          return caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, response.clone()));
+        })
+        .catch(() => undefined)
+    );
+    event.respondWith(
+      networkResponse
+        .catch(async () => {
+          return (
+            (await caches.match(request)) ||
+            new Response("离线数据尚未缓存。", {
+              status: 503,
+              headers: { "Content-Type": "text/plain; charset=utf-8" }
+            })
+          );
+        })
+    );
+    return;
+  }
+
+  const networkResponse = fetch(request);
+  event.waitUntil(
+    networkResponse
+      .then((response) => {
+        if (!response.ok) return;
+        return caches
+          .open(CACHE_NAME)
+          .then((cache) => cache.put(request, response.clone()));
+      })
+      .catch(() => undefined)
+  );
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      });
+      return networkResponse;
     })
   );
 });

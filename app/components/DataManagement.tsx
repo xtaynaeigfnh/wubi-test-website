@@ -8,6 +8,7 @@ import {
   parseBackupPayload,
   readLocal,
   readLocalArray,
+  restoreBackupPayload,
   STORAGE,
   STORAGE_KEYS,
   writeLocal,
@@ -47,6 +48,9 @@ function BackupManager() {
   const inspectFile = async (file: File | undefined) => {
     if (!file) return;
     try {
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error("备份文件过大，无法安全读取");
+      }
       const payload = parseBackupPayload(JSON.parse(await file.text()));
       setPending(payload);
       setMessage("");
@@ -60,11 +64,13 @@ function BackupManager() {
 
   const restore = () => {
     if (!pending) return;
-    for (const key of STORAGE_KEYS) {
-      if (key in pending.data) writeLocal(key, pending.data[key]);
+    try {
+      restoreBackupPayload(pending);
+      setMessage("恢复完成，正在重新载入页面。");
+      window.setTimeout(() => window.location.reload(), 250);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "恢复失败，本机数据未改变");
     }
-    setMessage("恢复完成，正在重新载入页面。");
-    window.setTimeout(() => window.location.reload(), 250);
   };
 
   const arrayLength = (value: unknown) => (Array.isArray(value) ? value.length : 0);
@@ -225,7 +231,7 @@ function CustomTextManager() {
                 <textarea value={text} onChange={(event) => setText(event.target.value)} />
               </label>
               <div>
-                <span>{text.trim().length} / 5000 字</span>
+                <span>{Array.from(text.trim()).length} / 5000 字</span>
                 <button className="button secondary" onClick={() => setEditingId("")}>
                   取消
                 </button>

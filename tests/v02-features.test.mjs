@@ -10,6 +10,7 @@ import {
   calculateStreak,
   createBackupPayload,
   parseBackupPayload,
+  restoreBackupPayload,
   STORAGE,
 } from "../app/lib.ts";
 
@@ -137,7 +138,14 @@ test("backup format only accepts known versioned storage keys", () => {
   const payload = createBackupPayload(
     {
       [STORAGE.sessions]: [session()],
-      [STORAGE.settings]: { theme: "dark" },
+      [STORAGE.settings]: {
+        fontSize: 30,
+        preferredLength: "all",
+        showCodeHints: false,
+        sound: false,
+        theme: "dark",
+        autoNext: false,
+      },
       unrelated: "discard me",
     },
     new Date("2026-07-29T12:00:00+08:00"),
@@ -147,7 +155,7 @@ test("backup format only accepts known versioned storage keys", () => {
     STORAGE.sessions,
     STORAGE.settings,
   ].sort());
-  assert.equal(parseBackupPayload(payload), payload);
+  assert.deepEqual(parseBackupPayload(payload), payload);
   assert.throws(
     () =>
       parseBackupPayload({
@@ -156,6 +164,87 @@ test("backup format only accepts known versioned storage keys", () => {
       }),
     /无法识别/,
   );
+  assert.throws(
+    () =>
+      parseBackupPayload({
+        ...payload,
+        data: { [STORAGE.errors]: { text: "不是数组" } },
+      }),
+    /格式不正确/,
+  );
+  assert.throws(
+    () =>
+      parseBackupPayload({
+        ...payload,
+        data: {
+          [STORAGE.customTexts]: Array.from({ length: 21 }, (_, index) => ({
+            id: `custom-${index}`,
+            title: "测试",
+            length: "short",
+            topic: "自定义",
+            wordCount: 10,
+            version: 1,
+            text: "这是至少十个字符的自定义正文。",
+            kind: "custom",
+          })),
+        },
+      }),
+    /格式不正确/,
+  );
+  assert.deepEqual(
+    parseBackupPayload({
+      ...payload,
+      data: { [STORAGE.settings]: { theme: "dark" } },
+    }).data[STORAGE.settings],
+    {
+      fontSize: 30,
+      preferredLength: "all",
+      showCodeHints: false,
+      sound: false,
+      theme: "dark",
+      autoNext: false,
+    },
+  );
+});
+
+test("backup restore rolls back every key after a storage failure", () => {
+  const originalSettings = JSON.stringify({ theme: "light" });
+  const originalErrors = JSON.stringify([]);
+  const values = new Map([
+    [STORAGE.settings, originalSettings],
+    [STORAGE.errors, originalErrors],
+  ]);
+  let failOnce = true;
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => {
+      if (key === STORAGE.errors && failOnce) {
+        failOnce = false;
+        throw new Error("quota");
+      }
+      values.set(key, value);
+    },
+  };
+  globalThis.window = { localStorage };
+  try {
+    const payload = createBackupPayload({
+      [STORAGE.settings]: {
+        fontSize: 32,
+        preferredLength: "all",
+        showCodeHints: false,
+        sound: false,
+        theme: "dark",
+        autoNext: false,
+      },
+      [STORAGE.errors]: [],
+    });
+    assert.throws(() => restoreBackupPayload(payload), /恢复未生效/);
+    assert.equal(values.get(STORAGE.settings), originalSettings);
+    assert.equal(values.get(STORAGE.errors), originalErrors);
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 test("PWA files declare offline routes and data caches", async () => {
@@ -167,13 +256,15 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.start_url, ".");
   assert.match(worker, /\/training\//);
-  assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/common-characters\.json/);
   assert.match(worker, /\/data\/music-catalog\.json/);
-  assert.match(worker, /Promise\.allSettled\(audioAssets/);
+  assert.doesNotMatch(worker, /audioAssets/);
   assert.match(worker, /shellAssets/);
   assert.match(worker, /_next/);
   assert.match(worker, /request\.mode === "navigate"/);
+  assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
+  assert.match(worker, /event\.waitUntil/);
+  assert.doesNotMatch(worker.match(/const PRECACHE = \[[\s\S]*?\]\.map/)?.[0] ?? "", /wubi86/);
 });
 
 test("all nine v0.2 feature surfaces stay wired into the product", async () => {

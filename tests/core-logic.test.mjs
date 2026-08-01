@@ -81,6 +81,34 @@ test("typing result metrics only credit characters that actually match", () => {
   );
 });
 
+test("typing logic counts non-BMP characters as single characters", () => {
+  assert.deepEqual(countCommittedAttempts("", "😀𠀀", "😀𠀀"), {
+    attempts: 2,
+    correct: 2,
+  });
+  assert.deepEqual(
+    calculateTypingMetrics({
+      typed: "😀错",
+      target: "😀𠀀",
+      durationSeconds: 2,
+      keyCount: 2,
+      letterKeys: 0,
+      attemptCount: 2,
+      correctAttemptCount: 1,
+    }),
+    {
+      correctChars: 1,
+      attemptedChars: 2,
+      speed: 30,
+      kps: 1,
+      codeLength: 0,
+      accuracy: 50,
+    },
+  );
+  assert.equal(canCompleteTyping("😀", "😀𠀀"), false);
+  assert.equal(canCompleteTyping("😀𠀀", "😀𠀀"), true);
+});
+
 test("theoretical minimum code length chooses the cheapest phrase segmentation", () => {
   const index = buildMinimumCodeLengthIndex([
     ["中", "k", 100],
