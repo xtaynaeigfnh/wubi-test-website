@@ -389,16 +389,12 @@ function MusicDock() {
           title="展开专注电台"
           onClick={revealDock}
         >
-          <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
-            <i />
-            <i />
-            <i />
+          <span className="music-peek-icon" aria-hidden="true">
+            ♫
           </span>
-          <span>
-            <strong>专注电台</strong>
-            <small>{currentTrack?.title ?? "离线曲库"}</small>
+          <span className="music-peek-chevron" aria-hidden="true">
+            ⌃
           </span>
-          <b aria-hidden="true">⌃</b>
         </button>
       )}
       {expanded && !collapsed && (

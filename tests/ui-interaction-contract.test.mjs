@@ -8,9 +8,15 @@ const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
 
   assert.match(component, /feedback === "wrong"\) advanceQuestion\(\)/);
+  assert.doesNotMatch(component, /className="giant-code"/);
+  assert.doesNotMatch(styles, /\.giant-code\s*\{/);
+  assert.match(styles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
   assert.match(component, /你的输入/);
   assert.match(component, /正确编码/);
   assert.match(component, /下一题（回车）/);
@@ -25,9 +31,39 @@ test("history filters are visually separate and expose pressed state", async () 
 
   assert.match(component, /className="segmented small history-filter"/);
   assert.match(component, /aria-pressed=\{type === value\}/);
-  assert.match(styles, /\.history-filter\s*\{[^}]*gap:\s*6px/s);
+  assert.match(styles, /\.segmented\.small\.history-filter\s*\{[^}]*gap:\s*6px/s);
+  assert.match(
+    styles,
+    /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+  );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(component, />\s*清除成绩与错题\s*</);
+  assert.match(component, /className="session-practice"/);
+  assert.match(component, /className="session-speed"/);
+  assert.match(component, /className="session-code-length"/);
+  assert.match(component, /className="session-accuracy"/);
+  assert.match(component, /className="session-share"/);
+  assert.match(component, />\s*操作\s*</);
+  assert.match(component, />\s*速度\s*<\/span>\s*<span>码长<\/span>\s*<span>准确率\s*</);
+  assert.match(component, /session\.codeLength\.toFixed\(2\)/);
+  assert.match(component, /<small>键\/字<\/small>/);
+  assert.match(
+    styles,
+    /\.session-speed,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
+  );
+  assert.match(
+    styles,
+    /\.session-speed small,\s*\.session-code-length small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
+  );
+  assert.match(styles, /\.session-share\s*\{[^}]*justify-self:\s*end/s);
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice practice action"\s*"speed code-length accuracy duration"/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*grid-template-areas:\s*"practice action"\s*"speed code-length"\s*"accuracy duration"/s,
+  );
 });
 
 test("typing omits the filtered article count and resets timing on restart", async () => {
@@ -176,6 +212,11 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-dock\s*\{/);
   assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
   assert.match(styles, /\.music-dock-peek\s*\{/);
+  assert.match(music, /className="music-peek-icon"/);
+  assert.match(
+    styles,
+    /\.music-dock-peek\s*\{[^}]*width:\s*56px[^}]*height:\s*56px[^}]*border-radius:\s*50%/s,
+  );
   assert.match(styles, /\.music-library-toggle\s*\{/);
   assert.match(styles, /@keyframes music-brush-line/);
   assert.match(styles, /@keyframes music-ink-reveal/);

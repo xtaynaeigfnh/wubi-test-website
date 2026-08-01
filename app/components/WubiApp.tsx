@@ -1479,7 +1479,6 @@ function ChallengeView({
         <div className={`challenge-card${started && feedback === "wrong" ? " has-error" : ""}`}>
           {!started ? (
             <div className="challenge-start">
-              <span className="giant-code">86</span>
               <h2>
                 {index
                   ? finishedReason === "timeout"
@@ -1804,25 +1803,48 @@ function HistoryView() {
             </div>
           </div>
           <div className="session-table">
-            <div className="table-head"><span>练习</span><span>速度</span><span>准确率</span><span>时间</span></div>
+            <div className="table-head">
+              <span>练习</span>
+              <span>速度</span>
+              <span>码长</span>
+              <span>准确率</span>
+              <span>时间</span>
+              <span>操作</span>
+            </div>
             {filtered.slice(0, 12).map((session) => (
               <div className="table-row" key={session.id}>
-                <span>
+                <span className="session-practice">
                   <strong>{session.title}</strong>
                   <small>{new Date(session.date).toLocaleString("zh-CN")}</small>
-                  <button
-                    className="session-share"
-                    onClick={() => downloadShareCard(session)}
-                  >
-                    下载成绩卡
-                  </button>
                 </span>
-                <span>
+                <span className="session-speed">
                   {session.speed || "—"}
                   <small>{session.type === "article" ? "字/分" : "题/分"}</small>
                 </span>
-                <span>{session.accuracy.toFixed(1)}<small>%</small></span>
-                <span>{formatDuration(session.durationSeconds)}</span>
+                <span className="session-code-length">
+                  {Number.isFinite(session.codeLength) && session.codeLength > 0 ? (
+                    <>
+                      {session.codeLength.toFixed(2)}
+                      <small>键/字</small>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+                <span className="session-accuracy">
+                  {session.accuracy.toFixed(1)}<small>%</small>
+                </span>
+                <span className="session-duration">
+                  {formatDuration(session.durationSeconds)}
+                </span>
+                <button
+                  className="session-share"
+                  aria-label={`下载“${session.title}”成绩卡`}
+                  onClick={() => downloadShareCard(session)}
+                >
+                  <span aria-hidden="true">↓</span>
+                  成绩卡
+                </button>
               </div>
             ))}
             {!filtered.length && <div className="empty-state">完成一次练习后，成绩会出现在这里。</div>}
