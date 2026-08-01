@@ -1111,6 +1111,13 @@ a {
   letter-spacing: -0.05em;
 }
 
+.completion-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
 .completion-next {
   align-items: stretch;
   flex-direction: column;

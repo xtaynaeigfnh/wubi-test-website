@@ -97,6 +97,14 @@ test("typing omits the filtered article count and resets timing on restart", asy
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.metric-strip\s*\{[^}]*grid-template-columns:\s*repeat\(2, 1fr\)/s,
   );
+  assert.match(
+    component,
+    /className="completion-value"><strong>\{speed\}<\/strong><i>字\/分<\/i>/,
+  );
+  assert.match(
+    styles,
+    /\.completion-value\s*\{[^}]*display:\s*inline-flex;[^}]*white-space:\s*nowrap;/s,
+  );
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {

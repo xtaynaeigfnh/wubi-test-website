@@ -1103,11 +1103,11 @@ function TypingView({
                 </div>
               </div>
               <div className="completion-results" aria-label="本次练习成绩">
-                <span><small>速度</small><strong>{speed}</strong><i>字/分</i></span>
-                <span><small>击键</small><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span>
-                <span><small>码长</small><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span>
-                <span><small>准确率</small><strong>{accuracy.toFixed(1)}</strong><i>%</i></span>
-                <span><small>回退</small><strong>{errorCount}</strong><i>处</i></span>
+                <span><small>速度</small><span className="completion-value"><strong>{speed}</strong><i>字/分</i></span></span>
+                <span><small>击键</small><span className="completion-value"><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span></span>
+                <span><small>码长</small><span className="completion-value"><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span></span>
+                <span><small>准确率</small><span className="completion-value"><strong>{accuracy.toFixed(1)}</strong><i>%</i></span></span>
+                <span><small>回退</small><span className="completion-value"><strong>{errorCount}</strong><i>处</i></span></span>
               </div>
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
