@@ -579,6 +579,49 @@ const boundaryPatterns = [
   "后来有人在相似问题上参考这份记录，只沿用了观察和核对的顺序，没有照搬具体答案。新的结果与第一次并不完全相同，但处理过程依然清楚，旧经验因此成为起点而不是限制。",
 ];
 
+const adjustmentSignals = [
+  (story) => `问题虽然还没有扩大，但“${story.detail}”已经说明旧安排不再可靠`,
+  (story) => `真正需要改变的不是表面结果，而是“${story.challenge}”这个已经可确认的障碍`,
+  (story) => `这次提醒来得及时：要想${story.action}，必须先改掉当前安排中最吃力的一环`,
+  (story) => `继续等待并不会自动改善情况，因为“${story.challenge}”已经在日常操作中重复出现`,
+];
+
+const usedArticleSentences = new Set();
+const reviewAngles = ["首次核对", "后续复查", "交叉验证", "阶段总结"];
+
+function makeSentencesDistinct(text, story) {
+  let duplicateIndex = 0;
+  return text.replace(/([^\s。！？][^。！？]*[。！？])/gu, (sentence) => {
+    const compact = sentence.replace(/\s/g, "");
+    if (!usedArticleSentences.has(compact)) {
+      usedArticleSentences.add(compact);
+      return sentence;
+    }
+
+    const contextualOpenings = [
+      "回到具体经过",
+      "把各个步骤逐项摊开",
+      "从执行结果往回看",
+      "让后来的人重新检查",
+      "换到日常情境中测试",
+      "将例外与成功部分并排",
+      "在写下最终结论以前",
+    ];
+    const openingIndex = duplicateIndex % contextualOpenings.length;
+    const opening = contextualOpenings[openingIndex];
+    const angle = reviewAngles[
+      (story.variant + duplicateIndex) % reviewAngles.length
+    ];
+    duplicateIndex += 1;
+    const candidate = `${angle}“${story.subject}”时，${opening}，${compact}`;
+    if (usedArticleSentences.has(candidate)) {
+      throw new Error(`Unable to make repeated sentence distinct: ${compact}`);
+    }
+    usedArticleSentences.add(candidate);
+    return candidate;
+  });
+}
+
 function buildStoryOutline(topic, articleNumber) {
   const topicData = topics[topic];
   const storyData = storyElements[topic];
@@ -612,7 +655,7 @@ function buildRegular(topic, articleNumber, minLength, preferredLength) {
   const story = buildStoryOutline(topic, articleNumber);
   const patternIndex = (articleNumber + story.variant) % openingPatterns.length;
   const paragraphs = [
-    `${openingPatterns[patternIndex](story.subject, story.detail)}最先暴露出来的情况是，${story.challenge}。这件事没有造成严重后果，却足以说明原有安排已经需要调整。`,
+    `${openingPatterns[patternIndex](story.subject, story.detail)}最先暴露出来的情况是，${story.challenge}。${adjustmentSignals[patternIndex](story)}。`,
     analysisPatterns[patternIndex](story.method),
     executionPatterns[patternIndex],
     resultPatterns[patternIndex](story.outcome),
@@ -852,16 +895,22 @@ const topicNames = Object.keys(topics);
 for (const spec of articleSpecs) {
   for (let i = 0; i < spec.count; i += 1) {
     const topic = topicNames[(serial + i) % topicNames.length];
-    const titleBase = buildStoryOutline(topic, serial).subject;
+    const story = buildStoryOutline(topic, serial);
+    const titleBase = story.subject;
     const preferred = spec.preferred + ((i * 17) % Math.max(20, Math.floor(spec.preferred * 0.18)));
     const generated =
       spec.length === "short"
         ? buildShort(topic, serial)
         : buildRegular(topic, serial, spec.min, preferred);
+    const contextualized = makeSentencesDistinct(generated, story);
     const text =
       spec.length === "short"
-        ? clampAtSentence(generated, spec.min, 180)
-        : generated;
+        ? clampAtSentence(contextualized, spec.min, 180)
+        : clampAtSentence(
+            contextualized,
+            spec.min,
+            spec.length === "medium" ? 600 : 1800,
+          );
     articles.push({
       id: `${spec.length}-${String(i + 1).padStart(3, "0")}`,
       title: `${titleBase} · ${i + 1}`,

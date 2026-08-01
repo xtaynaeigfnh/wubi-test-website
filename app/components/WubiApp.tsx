@@ -146,6 +146,22 @@ export function WubiApp({ view }: { view: AppView }) {
     writeLocal(STORAGE.settings, settings);
   }, [settings, settingsReady]);
 
+  const themeLabels: Record<UserSettings["theme"], string> = {
+    system: "系统",
+    light: "浅色",
+    dark: "深色",
+  };
+  const nextTheme: Record<UserSettings["theme"], UserSettings["theme"]> = {
+    system: "light",
+    light: "dark",
+    dark: "system",
+  };
+  const cycleTheme = () =>
+    setSettings((current) => ({
+      ...current,
+      theme: nextTheme[current.theme],
+    }));
+
   return (
     <div className="app-shell" data-view={view}>
       <a className="skip-link" href="#main-content">
@@ -176,9 +192,23 @@ export function WubiApp({ view }: { view: AppView }) {
               </Link>
             ))}
           </nav>
-          <div className="local-badge">
-            <i />
-            <span><b>LOCAL</b> 数据只存本机</span>
+          <div className="header-utilities">
+            <button
+              className="theme-switch"
+              type="button"
+              onClick={cycleTheme}
+              aria-label={`当前${themeLabels[settings.theme]}主题，点击切换为${themeLabels[nextTheme[settings.theme]]}主题`}
+              title={`主题：${themeLabels[settings.theme]}`}
+            >
+              <span aria-hidden="true">{
+                settings.theme === "dark" ? "◐" : settings.theme === "light" ? "◑" : "◒"
+              }</span>
+              <b>{themeLabels[settings.theme]}</b>
+            </button>
+            <div className="local-badge">
+              <i />
+              <span><b>LOCAL</b> 数据只存本机</span>
+            </div>
           </div>
         </div>
       </header>
@@ -1153,7 +1183,7 @@ function TypingView({
               <span aria-hidden="true">1500</span>
               <div>
                 <strong>按字频分段练习</strong>
-                <p>默认按常用程度依次练习。进入练习后可随时点击“乱序”。</p>
+                <p>前 500 常用字按字频分成 10 组，每组 50 字。进入后可随时点击“乱序”。</p>
               </div>
             </div>
             {commonError ? (

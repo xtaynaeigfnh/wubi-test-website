@@ -9,6 +9,7 @@ import {
   calculateRemainingSeconds,
   calculateTypingMetrics,
   canCompleteTyping,
+  commonCharacterPresets,
   countCommittedAttempts,
   formatCommonCharacterText,
   getCommonCharacterSlice,
@@ -189,15 +190,18 @@ test("common-character presets use exact non-overlapping frequency ranges", () =
     characters,
   };
 
-  const first100 = getCommonCharacterSlice(data, "first-100");
-  const first500 = getCommonCharacterSlice(data, "first-500");
+  const first500Groups = commonCharacterPresets
+    .slice(0, 10)
+    .map(({ id }) => getCommonCharacterSlice(data, id));
   const middle500 = getCommonCharacterSlice(data, "middle-500");
   const last500 = getCommonCharacterSlice(data, "last-500");
   const first1500 = getCommonCharacterSlice(data, "first-1500");
 
-  assert.equal(first100.length, 100);
-  assert.deepEqual(first100, first500.slice(0, 100));
+  assert.equal(first500Groups.length, 10);
+  assert.ok(first500Groups.every((group) => group.length === 50));
+  const first500 = first500Groups.flat();
   assert.equal(first500.length, 500);
+  assert.equal(new Set(first500).size, 500);
   assert.equal(middle500.length, 500);
   assert.equal(last500.length, 500);
   assert.deepEqual(
@@ -223,21 +227,21 @@ test("common-character shuffle preserves the full set and practice metadata", ()
       String.fromCodePoint(0x4e00 + index),
     ).join(""),
   };
-  const ordered = buildCommonPracticeArticle(data, "first-100");
+  const ordered = buildCommonPracticeArticle(data, "first-050");
   const shuffled = buildCommonPracticeArticle(
     data,
-    "first-100",
+    "first-050",
     true,
     () => 0,
   );
 
-  assert.equal(ordered.wordCount, 100);
+  assert.equal(ordered.wordCount, 50);
   assert.equal(ordered.shuffled, false);
   assert.equal(shuffled.shuffled, true);
   assert.notEqual(shuffled.text, ordered.text);
   assert.deepEqual(
-    [...shuffleCharacters(getCommonCharacterSlice(data, "first-100"), () => 0)].sort(),
-    [...getCommonCharacterSlice(data, "first-100")].sort(),
+    [...shuffleCharacters(getCommonCharacterSlice(data, "first-050"), () => 0)].sort(),
+    [...getCommonCharacterSlice(data, "first-050")].sort(),
   );
   assert.equal(isCommonPracticeArticle(ordered), true);
   assert.equal(isCommonPracticeArticle(shuffled), true);

@@ -118,6 +118,9 @@ test("typing offers ordered common-character ranges with explicit reshuffling", 
   assert.match(component, />\s*常用字练习\s*</);
   assert.match(component, /选择常用字范围/);
   assert.match(component, /commonCharacterPresets\.map/);
+  assert.match(component, /分成 10 组，每组 50 字/);
+  assert.match(component, /className="theme-switch"/);
+  assert.match(component, /点击切换为/);
   assert.match(component, />\s*\{commonLoading \? "载入中…" : "乱序"\}\s*</);
   assert.match(component, /isCommonPracticeArticle\(article\)/);
   assert.match(component, /STORAGE\.currentGenerated/);
