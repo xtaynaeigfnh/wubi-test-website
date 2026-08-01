@@ -67,7 +67,10 @@ test("history filters are visually separate and expose pressed state", async () 
 });
 
 test("typing omits the filtered article count and resets timing on restart", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
 
   assert.doesNotMatch(component, /篇符合条件/);
   assert.doesNotMatch(component, /本次练习出现过错字，无法提交成绩/);
@@ -77,6 +80,14 @@ test("typing omits the filtered article count and resets timing on restart", asy
   assert.match(component, /autoCapitalize="none"/);
   assert.match(component, /label="理论最小码长"/);
   assert.match(component, /theoreticalCodeLength\.toFixed\(2\)/);
+  assert.match(
+    component,
+    /className="completion-value"><strong>\{speed\}<\/strong><i>字\/分<\/i>/,
+  );
+  assert.match(
+    styles,
+    /\.completion-value\s*\{[^}]*display:\s*inline-flex;[^}]*white-space:\s*nowrap;/s,
+  );
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
