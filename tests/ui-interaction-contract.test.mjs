@@ -67,7 +67,10 @@ test("history filters are visually separate and expose pressed state", async () 
 });
 
 test("typing omits the filtered article count and resets timing on restart", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
 
   assert.doesNotMatch(component, /篇符合条件/);
   assert.doesNotMatch(component, /本次练习出现过错字，无法提交成绩/);
@@ -75,8 +78,25 @@ test("typing omits the filtered article count and resets timing on restart", asy
   assert.match(component, /autoComplete="off"/);
   assert.match(component, /autoCorrect="off"/);
   assert.match(component, /autoCapitalize="none"/);
-  assert.match(component, /label="理论最小码长"/);
-  assert.match(component, /theoreticalCodeLength\.toFixed\(2\)/);
+  assert.match(component, /<CodeLengthMetric/);
+  assert.doesNotMatch(component, /<Metric\s+label="理论最小码长"/);
+  assert.match(component, /theoreticalValue=\{theoreticalCodeLength\}/);
+  assert.match(component, /theoreticalValue\.toFixed\(2\)/);
+  assert.match(component, />理论下限<\/span>/);
+  assert.match(component, /error\s*\?\s*"暂不可用"/);
+  assert.match(component, /theoreticalValue === null[\s\S]*\? "—"/);
+  assert.match(
+    styles,
+    /\.metric-strip\s*\{[^}]*grid-template-columns:\s*minmax\(168px, 1\.35fr\) repeat\(5,/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 1120px\)[\s\S]*\.metric-strip\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.metric-strip\s*\{[^}]*grid-template-columns:\s*repeat\(2, 1fr\)/s,
+  );
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
