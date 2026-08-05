@@ -71,6 +71,23 @@ test("article bodies are complete, unique, and inside their length bands", async
   }
 });
 
+test("article prose keeps punctuation balanced and drops generator artifacts", async () => {
+  const articles = (
+    await Promise.all(
+      ["short", "medium", "long", "water"].map((name) => readJson(`articles-${name}.json`)),
+    )
+  ).flat();
+
+  for (const { id, text } of articles) {
+    assert.equal((text.match(/“/gu) || []).length, (text.match(/”/gu) || []).length, `${id} has unbalanced Chinese quotes`);
+    assert.equal(/【\d+】/u.test(text), false, `${id} contains an internal deduplication marker`);
+    assert.equal(/[，。！？；：][，。！？；：]/u.test(text), false, `${id} contains adjacent punctuation`);
+    assert.equal(/[。！？][，；：]|[，；：][。！？]/u.test(text), false, `${id} contains punctuation in the wrong order`);
+    assert.equal(/而是把[^。！？]*依据。[^。！？]*他们没有回避/u.test(text), false, `${id} contains a reordered clause artifact`);
+    assert.equal(/不再应当|已经应当|一时难以判断/u.test(text), false, `${id} contains a mechanical rewrite artifact`);
+  }
+});
+
 test("chat articles advance meaning instead of padding repeated phrases", async () => {
   const articles = await readJson("articles-water.json");
   const knownPadding = [
