@@ -478,7 +478,7 @@ const storyElements = {
       "电子设备不断弹出提醒，完整阅读时间被切成碎片",
       "读完故事急着寻找标准解释，自己的疑问没有被保留下来",
       "阅读目标只按页数计算，是否理解反而没有得到关注",
-      "旧书中的观点与今天经验不同，读者一时难以判断",
+      "旧书里的观点与今天的经验不同，读者一时分不清哪些是时代差异，哪些是事实变化",
       "同时开始几本书以后，每一本都停留在开头部分",
       "读的时候觉得都懂了，合上书却发现什么都记不住",
       "译本的表达生硬或不准确，读者无法判断是原作问题还是翻译问题",
@@ -506,7 +506,7 @@ const storyElements = {
       "短短二十分钟保持完整，阅读体验比断续一小时更充实",
       "自己的问题没有被权威答案覆盖，讨论因此更有方向",
       "页数不再是唯一成绩，理解和疑问都能被具体记录",
-      "不同年代的观点得到较公平的理解，也不必被全盘接受",
+      "不同年代的观点得到了更公平的理解，也不必被全盘接受",
       "阅读选择减少以后，每本书都更容易进入稳定节奏",
       "合上书后能够说出主要内容，阅读不再是翻过就算",
       "好的译本让文字流畅自然，读者能够专注于内容本身",
@@ -661,11 +661,11 @@ for (const topic of Object.keys(topics)) {
 }
 
 const openingPatterns = [
-  (subject, detail) => `那天，${detail}。围绕${subject}，一个值得认真处理的问题随之出现。`,
-  (subject, detail) => `${detail}。围绕${subject}，人们很快发现实际情况比最初设想更具体。`,
-  (subject, detail) => `事情从${subject}开始。${detail}，一个平时容易忽略的细节首先引起了注意。`,
-  (subject, detail) => `重新审视${subject}时，${detail}。这成为后续判断的重要线索。`,
-  (subject, detail) => `${subject}这件事，起初没有人觉得需要专门讨论。直到${detail}，大家才意识到问题已经积累了一段时间。`,
+  (subject, detail) => `那天，${detail}。围绕${subject}，大家很快意识到，这不是一次偶然的小插曲。`,
+  (subject, detail) => `${detail}。围绕${subject}，人们很快发现问题并不像最初想的那样简单。`,
+  (subject, detail) => `事情从${subject}开始。${detail}，问题也因此第一次显出轮廓。`,
+  (subject, detail) => `重新审视${subject}时，${detail}，也为后续判断提供了一个具体线索。`,
+  (subject, detail) => `起初，${subject}并没有引起足够注意。直到${detail}，大家才意识到问题已经积累了一段时间。`,
   (subject, detail) => `关于${subject}，${detail}。在场的人各有自己的解释，但没有人能立刻说清根本原因。`,
 ];
 
@@ -831,87 +831,91 @@ const topicBoundaryPatterns = {
   ],
 };
 
+const longEvidencePatterns = [
+  (story) => `为了确认这次调整不是偶然，参与者没有只看某一天的结果，而是在不同时间再观察“${story.subject}”。他们把时间、环境和实际反应一并写下，等到条件变化后再回头比较。如果前提不同，也不把原来的结论直接套用。`,
+  (story) => `在“${story.subject}”这个问题上试过一轮后，最先变化的未必是表面结果。参与者先看哪些步骤真的被执行，再判断这套安排是否值得保留。中途出现偏差时，他们也先检查流程有没有留下额外负担，而不是急着归咎于个人。`,
+  (story) => `条件再次变化时，大家没有照搬“${story.subject}”上次的安排，而是先问清楚当时缺少了什么。原来的目标没有变，具体步骤则按实际情况调整。这样的弹性让做法能够适应普通的一天，而不只适用于理想状态。`,
+  (story) => `记录“${story.subject}”时，还保留了一次不够顺利的尝试。它没有推翻后来的判断，却提醒参与者给意外留出位置，也不要把一次成功写成固定答案。没有被采用的做法同样值得记下，因为它说明了什么条件下容易失效。`,
+  (story) => `复盘“${story.subject}”时，参与者把已经确认的事实和仍待核实的猜测分开。这样即使结果再次波动，也能看出是条件改变，还是做法本身需要调整。记录不急着给出漂亮结论，却让下一次核对有了明确起点。`,
+  (story) => `换一个时间段再看“${story.subject}”，参与者也没有把原来的标准完全照搬。先保留能被验证的部分，暂时搁置还没有证据支持的判断。经验可以提供方向，但具体安排仍然要听从当时的条件。`,
+];
+
 const adjustmentSignals = [
-  (story) => `问题虽然还没有扩大，但”${story.detail}”已经说明旧安排不再可靠`,
-  (story) => `真正需要改变的不是表面结果，而是”${story.detail}”这个已经可确认的信号`,
-  (story) => `这次提醒来得及时：要想${story.action}，必须先处理”${story.detail}”这类情况`,
-  (story) => `继续等待并不会自动改善情况，因为”${story.detail}”已经在日常操作中重复出现`,
-  (story) => `”${story.detail}”这个信号说明，再不对”${story.subject}”做出调整，问题只会继续积累`,
-  (story) => `面对”${story.detail}”，维持现状的代价已经超过了改变”${story.subject}”的成本`,
+  (story) => `问题虽然还没有扩大，但“${story.detail}”已经说明旧安排不再可靠`,
+  (story) => `真正需要改变的不是表面结果，而是“${story.challenge}”这个已经可确认的障碍`,
+  (story) => `这次提醒来得及时：要想${story.action}，必须先改掉当前安排中最吃力的一环`,
+  (story) => `继续等待并不会自动改善情况，因为“${story.challenge}”已经在日常操作中重复出现`,
+  (story) => `把问题拆开看，“${story.detail}”已经说明原来的安排不够可靠`,
+  (story) => `面对“${story.detail}”，维持现状的代价已经超过了改变“${story.subject}”的成本`,
 ];
 
 const usedArticleSentences = new Set();
 
-const synonymPairs = [
-  ["大家", "参与者"],
-  ["大家", "在场的人"],
-  ["参与者", "大家"],
-  ["决定", "选择"],
-  ["选择", "决定"],
-  ["发现", "察觉"],
-  ["察觉", "发现"],
-  ["开始", "着手"],
-  ["问题", "情况"],
-  ["情况", "问题"],
-  ["方法", "做法"],
-  ["做法", "方法"],
-  ["结果", "效果"],
-  ["效果", "结果"],
-  ["过程", "经历"],
-  ["经历", "过程"],
-  ["记录", "记载"],
-  ["记载", "记录"],
-  ["变化", "调整"],
-  ["调整", "变化"],
-  ["确认", "核实"],
-  ["核实", "确认"],
-  ["讨论", "商量"],
-  ["商量", "讨论"],
-  ["执行", "实施"],
-  ["实施", "执行"],
-  ["观察", "留意"],
-  ["留意", "观察"],
-  ["保留", "保存"],
-  ["保存", "保留"],
-  ["检查", "核对"],
-  ["核对", "检查"],
-  ["需要", "应当"],
-  ["应当", "需要"],
-  ["能够", "可以"],
-  ["可以", "能够"],
-  ["已经", "早已"],
-  ["重要", "关键"],
-  ["关键", "重要"],
-  ["注意", "留心"],
-  ["留心", "注意"],
+const distinctSentenceOpenings = [
+  () => "记录显示，",
+  () => "后续观察发现，",
+  () => "复盘时可以看到，",
+  () => "把结果与原先对照，",
+  () => "再看执行细节，",
+  () => "从这次尝试来看，",
+  () => "实际使用一段时间后，",
+  () => "进一步核对时，",
+  () => "回到具体经过，",
+  (story) => `围绕“${story.subject}”，`,
+  (story) => `在“${story.subject}”的记录里，`,
+  (story) => `就“${story.subject}”这个例子而言，`,
+  () => "实际执行时，",
+  () => "从后续记录看，",
+  () => "复盘时，",
+  () => "把前后的情况放在一起看，",
+  () => "再回到具体细节，",
 ];
 
-function applySynonymSwap(sentence) {
-  for (const [a, b] of synonymPairs) {
-    if (sentence.includes(a)) {
-      const candidate = sentence.replace(a, b);
-      if (!usedArticleSentences.has(candidate)) {
-        return candidate;
-      }
-    }
-  }
-  return null;
-}
-
-function tryClauseReorder(sentence) {
-  const match = sentence.match(/^(.+?)([，。])(.+)$/);
-  if (match && match[2] === "，") {
-    const candidate = `${match[3]}${match[2]}${match[1]}`;
-    if (!usedArticleSentences.has(candidate)) {
-      return candidate;
-    }
-  }
-  return null;
-}
-
-let sentenceDedupCounter = 0;
+const distinctSentenceSuffixes = [
+  "这次也把前提一并记下",
+  "后续观察仍然围绕当时的条件展开",
+  "相关判断暂时只作为线索保留",
+  "记录没有把它写成固定答案",
+  "之后还要结合实际情况继续核对",
+  "这一步的适用范围也被单独注明",
+  "各项变化仍需放回原来的条件中理解",
+  "这部分经验只适用于当时的情境",
+  "后来的复查也保留了调整空间",
+  "其中仍有部分因素需要继续观察",
+  "这次记录也把不确定之处留了下来",
+  "是否能长期坚持，还要看后续表现",
+  "这个细节没有被后面的结论遮住",
+  "执行者也顺手记下了当时的限制",
+  "由此可以看出前提并不是多余的",
+  "下一次遇到类似情况仍需重新判断",
+  "结果好转并不等于所有条件都相同",
+  "后续比较也没有跳过这一步",
+  "参与者因此没有急着扩大结论",
+  "这让问题留下了继续观察的余地",
+  "记录同时保留了有效和无效的部分",
+  "具体做法仍要随情况变化调整",
+  "这次尝试的边界也因此更清楚",
+  "判断依据没有只靠最后的结果",
+  "这一点在复查时再次得到确认",
+  "原来的疑问也因此有了落脚处",
+  "这份记录没有省略中途的迟疑",
+  "是否适合照搬还要结合实际情况判断",
+  "后来的选择仍需根据当时的目标调整",
+  "这段经历没有提供一个放之四海而皆准的答案",
+  "具体条件仍然比漂亮结论更重要",
+  "后续行动仍需看能否真正执行",
+  "这个判断暂时停在证据能够支持的范围内",
+  "参与者没有把偶然变化当成稳定规律",
+  "当时没有解决的部分也被明确标出",
+  "这让后来者知道还需要核对什么",
+  "记录中的迟疑同样构成了经验的一部分",
+  "下一轮尝试仍然可以从这里继续",
+  "它提醒人们先区分事实和解释",
+  "这次调整没有取消对例外情况的关注",
+];
 
 function makeSentencesDistinct(text, story) {
+  let duplicateIndex = 0;
   return text.replace(/([^\s。！？][^。！？]*[。！？])/gu, (sentence) => {
     const compact = sentence.replace(/\s/g, "");
     if (!usedArticleSentences.has(compact)) {
@@ -919,42 +923,32 @@ function makeSentencesDistinct(text, story) {
       return sentence;
     }
 
-    // Try synonym swap first
-    const synonymResult = applySynonymSwap(compact);
-    if (synonymResult) {
-      usedArticleSentences.add(synonymResult);
-      return synonymResult;
-    }
-
-    // Try clause reordering
-    const reorderResult = tryClauseReorder(compact);
-    if (reorderResult) {
-      usedArticleSentences.add(reorderResult);
-      return reorderResult;
-    }
-
-    // Try multiple synonym swaps in sequence
-    for (const [a, b] of synonymPairs) {
-      if (compact.includes(a)) {
-        const partiallySwapped = compact.replace(a, b);
-        const furtherSwapped = applySynonymSwap(partiallySwapped);
-        if (furtherSwapped && !usedArticleSentences.has(furtherSwapped)) {
-          usedArticleSentences.add(furtherSwapped);
-          return furtherSwapped;
-        }
-        if (!usedArticleSentences.has(partiallySwapped)) {
-          usedArticleSentences.add(partiallySwapped);
-          return partiallySwapped;
+    if (compact.endsWith("。")) {
+      for (let offset = 0; offset < distinctSentenceSuffixes.length; offset += 1) {
+        const punctuation = compact.at(-1);
+        const candidate = `${compact.slice(0, -1)}，${distinctSentenceSuffixes[
+          (duplicateIndex + offset) % distinctSentenceSuffixes.length
+        ]}${punctuation}`;
+        if (!usedArticleSentences.has(candidate)) {
+          duplicateIndex += offset + 1;
+          usedArticleSentences.add(candidate);
+          return candidate;
         }
       }
     }
 
-    // Last resort: use counter to ensure uniqueness
-    sentenceDedupCounter += 1;
-    const tag = `【${sentenceDedupCounter}】`;
-    const candidate = compact.replace(/[。！？]$/, `${tag}$&`);
-    usedArticleSentences.add(candidate);
-    return candidate;
+    for (let offset = 0; offset < distinctSentenceOpenings.length; offset += 1) {
+      const opening = distinctSentenceOpenings[
+        (duplicateIndex + offset) % distinctSentenceOpenings.length
+      ](story);
+      const candidate = `${opening}${compact}`;
+      if (!usedArticleSentences.has(candidate)) {
+        duplicateIndex += offset + 1;
+        usedArticleSentences.add(candidate);
+        return candidate;
+      }
+    }
+    throw new Error(`Unable to make repeated sentence distinct: ${compact}`);
   });
 }
 
@@ -966,6 +960,7 @@ function buildStoryOutline(topic, articleNumber) {
     topicData.scenarioNames.length;
 
   return {
+    scenarioIndex,
     subject: topicData.scenarioNames[scenarioIndex],
     detail: topicData.observations[scenarioIndex],
     challenge: storyData.challenges[scenarioIndex],
@@ -991,32 +986,40 @@ function buildRegular(topic, articleNumber, minLength, preferredLength) {
   const story = buildStoryOutline(topic, articleNumber);
   const patternIndex = (articleNumber + story.variant) % openingPatterns.length;
   const structureVariant = articleNumber % 3;
+  const isLongArticle = minLength >= 1000;
 
   const openingPara = `${openingPatterns[patternIndex](story.subject, story.detail)}最先暴露出来的情况是，${story.challenge}。${adjustmentSignals[patternIndex](story)}。`;
   const analysisPara = analysisPatterns[patternIndex](story.method);
   const executionPara = topicExecutionPatterns[topic][patternIndex % topicExecutionPatterns[topic].length];
   const resultPara = resultPatterns[patternIndex](story.outcome);
-  const boundaryTransition = `为了确认经验没有被过度概括，参与者又寻找了一个不符合预期的例子。它没有推翻已有结果，却帮助说明方法的适用边界。限制条件也被写进记录，避免后来的人只看见成功部分。`;
-  const boundaryParas = [
-    topicBoundaryPatterns[topic][patternIndex % topicBoundaryPatterns[topic].length],
-    topicBoundaryPatterns[topic][(patternIndex + 1) % topicBoundaryPatterns[topic].length],
-    topicBoundaryPatterns[topic][(patternIndex + 2) % topicBoundaryPatterns[topic].length],
-  ];
-  const closingPara = `${closingPatterns[patternIndex](story.lesson)}这个认识和已经记录的处理过程，共同构成了这次经历最有价值的部分。`;
+  const reflectionVariants = topicReflections[topic];
+  const boundaryVariants = topicBoundaryPatterns[topic];
+  const reflectionIndex = story.scenarioIndex % reflectionVariants.length;
+  const boundaryIndex = (story.scenarioIndex + patternIndex) % boundaryVariants.length;
+  const longTail = isLongArticle
+    ? [
+        longEvidencePatterns[patternIndex % longEvidencePatterns.length](story),
+        longEvidencePatterns[(patternIndex + 2) % longEvidencePatterns.length](story),
+        longEvidencePatterns[(patternIndex + 4) % longEvidencePatterns.length](story),
+        reflectionVariants[reflectionIndex],
+        boundaryVariants[boundaryIndex],
+        boundaryVariants[(boundaryIndex + 1) % boundaryVariants.length],
+      ]
+    : [];
+  const closingPara = `${closingPatterns[patternIndex](story.lesson)}对“${story.subject}”来说，这个结论仍要放回具体条件中理解。`;
 
+  let coreParagraphs;
   let paragraphs;
   if (structureVariant === 0) {
-    // Standard: opening → analysis → execution → result → reflection → boundary → closing
-    paragraphs = [openingPara, analysisPara, executionPara, resultPara, ...topicReflections[topic], boundaryTransition, ...boundaryParas, closingPara];
+    coreParagraphs = [openingPara, analysisPara, executionPara, resultPara];
   } else if (structureVariant === 1) {
-    // Variant B: opening → execution → challenge detail → analysis → result → reflection → boundary → closing
-    const challengeDetail = `执行过程中，参与者发现${story.subject}的实际操作比预想的复杂。他们没有回避，而是把它当作调整方案的依据。`;
-    paragraphs = [openingPara, executionPara, challengeDetail, analysisPara, resultPara, ...topicReflections[topic], boundaryTransition, ...boundaryParas, closingPara];
+    const challengeDetail = `执行过程中，参与者发现，处理“${story.subject}”比预想的复杂。他们没有回避，而是把这次经历当作调整方案的依据。`;
+    coreParagraphs = [openingPara, executionPara, challengeDetail, analysisPara, resultPara];
   } else {
-    // Variant C: opening → result preview → analysis → execution → reflection → boundary → closing
     const resultPreview = `一段时间以后，${story.outcome}。回头看，这个结果并非一蹴而就。`;
-    paragraphs = [openingPara, resultPreview, analysisPara, executionPara, ...topicReflections[topic], boundaryTransition, ...boundaryParas, closingPara];
+    coreParagraphs = [openingPara, resultPreview, analysisPara, executionPara, resultPara];
   }
+  paragraphs = [...coreParagraphs, ...longTail, closingPara];
 
   let text = "";
   for (const paragraph of paragraphs) {
@@ -1024,7 +1027,9 @@ function buildRegular(topic, articleNumber, minLength, preferredLength) {
     text += `${text ? "\n\n" : ""}${paragraph}`;
   }
   if (text.replace(/\s/g, "").length < minLength) {
-    throw new Error(`${topic} article ${articleNumber} did not reach ${minLength} characters`);
+    throw new Error(
+      `${topic} article ${articleNumber} did not reach ${minLength} characters (got ${text.replace(/\s/g, "").length})`,
+    );
   }
   return text.trim();
 }
@@ -1039,7 +1044,40 @@ function clampAtSentence(text, minLength, maxLength) {
     window.lastIndexOf("？"),
   );
   const end = punctuation + 1 >= minLength ? punctuation + 1 : maxLength;
-  return compact.slice(0, end).replace(/[^。！？]$/, "$&。");
+  let nonWhitespace = 0;
+  let originalEnd = text.length;
+  for (let index = 0; index < text.length; index += 1) {
+    if (/\s/u.test(text[index])) continue;
+    nonWhitespace += 1;
+    if (nonWhitespace === end) {
+      originalEnd = index + 1;
+      break;
+    }
+  }
+  const clipped = text.slice(0, originalEnd).trimEnd();
+  return /[。！？](?:”|」)?$/u.test(clipped) ? clipped : `${clipped}。`;
+}
+
+function normalizeGeneratedPunctuation(text) {
+  return text
+    .replace(/([。！？])[，；：]+/gu, "$1")
+    .replace(/[，；：]+([。！？])/gu, "$1")
+    .replace(/([，；：])\1+/gu, "$1")
+    .replace(/([。！？])\1+/gu, "$1");
+}
+
+function assertGeneratedTextQuality(id, text) {
+  const leftQuotes = (text.match(/“/gu) || []).length;
+  const rightQuotes = (text.match(/”/gu) || []).length;
+  if (leftQuotes !== rightQuotes) {
+    throw new Error(`${id} contains unbalanced Chinese quotation marks`);
+  }
+  if (/【\d+】/u.test(text)) {
+    throw new Error(`${id} contains an internal deduplication marker`);
+  }
+  if (/[，。！？；：][，。！？；：]/u.test(text)) {
+    throw new Error(`${id} contains adjacent punctuation`);
+  }
 }
 
 const chatArticles = [
@@ -1254,14 +1292,16 @@ for (const spec of articleSpecs) {
         ? buildShort(topic, serial)
         : buildRegular(topic, serial, spec.min, preferred);
     const contextualized = makeSentencesDistinct(generated, story);
-    const text =
+    const text = normalizeGeneratedPunctuation(
       spec.length === "short"
         ? clampAtSentence(contextualized, spec.min, 180)
         : clampAtSentence(
             contextualized,
             spec.min,
             spec.length === "medium" ? 600 : 1800,
-          );
+          ),
+    );
+    assertGeneratedTextQuality(`${spec.length}-${String(i + 1).padStart(3, "0")}`, text);
     articles.push({
       id: `${spec.length}-${String(i + 1).padStart(3, "0")}`,
       title: `${titleBase} · ${i + 1}`,
@@ -1276,7 +1316,8 @@ for (const spec of articleSpecs) {
 }
 
 for (let i = 0; i < 20; i += 1) {
-  const text = buildChat(i + 1);
+  const text = normalizeGeneratedPunctuation(buildChat(i + 1));
+  assertGeneratedTextQuality(`water-${String(i + 1).padStart(3, "0")}`, text);
   articles.push({
     id: `water-${String(i + 1).padStart(3, "0")}`,
     title: chatArticles[i].title,
