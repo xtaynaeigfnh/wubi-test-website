@@ -29,6 +29,7 @@ import {
   formatDuration,
   getProgress,
   getSessions,
+  isWubiLetterKey,
   lengthLabels,
   loadArticles,
   loadCommonCharacters,
@@ -776,7 +777,9 @@ function TypingView({
       setKeyCount((value) => value + 1);
       playKeySound();
     }
-    if (/^[a-y]$/i.test(event.key)) setLetterKeys((value) => value + 1);
+    if (isWubiLetterKey(event.key, event.code)) {
+      setLetterKeys((value) => value + 1);
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
       event.preventDefault();
     }

@@ -79,6 +79,7 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(component, /autoComplete="off"/);
   assert.match(component, /autoCorrect="off"/);
   assert.match(component, /autoCapitalize="none"/);
+  assert.match(component, /isWubiLetterKey\(event\.key, event\.code\)/);
   assert.match(component, /<CodeLengthMetric/);
   assert.doesNotMatch(component, /<Metric\s+label="理论最小码长"/);
   assert.match(component, /theoreticalValue=\{theoreticalCodeLength\}/);
