@@ -16,6 +16,7 @@ import {
   formatCommonCharacterText,
   getCommonCharacterSlice,
   isCommonPracticeArticle,
+  isWubiLetterKey,
   preferShortestWubiCodes,
   selectInitialArticle,
   shuffleCharacters,
@@ -212,6 +213,16 @@ test("IME pre-edit buffers are deferred and a repeated final value is not counte
   assert.deepEqual(firstCommit, { attempts: 1, correct: 1 });
   assert.deepEqual(repeatedCommit, { attempts: 0, correct: 0 });
   assert.deepEqual(secondCommit, { attempts: 1, correct: 1 });
+});
+
+test("Wubi letter detection falls back to physical keys for Windows IME events", () => {
+  assert.equal(isWubiLetterKey("a"), true);
+  assert.equal(isWubiLetterKey("Y"), true);
+  assert.equal(isWubiLetterKey("z", "KeyZ"), false);
+  assert.equal(isWubiLetterKey("Process", "KeyA"), true);
+  assert.equal(isWubiLetterKey("Unidentified", "KeyY"), true);
+  assert.equal(isWubiLetterKey("Process", "KeyZ"), false);
+  assert.equal(isWubiLetterKey("Process"), false);
 });
 
 test("shortest Wubi code wins and equal lengths prefer higher weight", () => {

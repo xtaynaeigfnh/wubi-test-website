@@ -548,6 +548,14 @@ export function shouldDeferInputCommit(
   return compositionSessionActive || nativeEventIsComposing;
 }
 
+export function isWubiLetterKey(key: string, code = ""): boolean {
+  if (/^[a-y]$/i.test(key)) return true;
+  return (
+    (key === "Process" || key === "Unidentified") &&
+    /^Key[A-Y]$/.test(code)
+  );
+}
+
 export function countCommittedAttempts(
   previous: string,
   next: string,
