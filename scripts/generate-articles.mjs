@@ -14,6 +14,10 @@ const topics = {
       "逐渐拥挤的房间",
       "拖到周末的小问题",
       "只靠记忆的生活清单",
+      "冰箱里过期的食物",
+      "深夜还亮着的灯",
+      "总在响的洗衣机",
+      "堆在门口的快递盒",
     ],
     observations: [
       "鞋柜旁放着昨晚准备好的布袋，门口却仍有人来回寻找车卡",
@@ -24,6 +28,10 @@ const topics = {
       "新增的收纳盒贴着整齐标签，过道却被暂时存放的纸箱占住",
       "水槽边的小漏水起初并不显眼，几天后柜门已经出现潮气",
       "采购前每个人都相信自己记得清单，回家后才发现重复买了用品",
+      "冰箱深处的蔬菜已经发黄，新买的食材却只能放在门口",
+      "睡前说好只看十分钟手机，抬头时已经过了凌晨",
+      "洗衣机几乎每天都在运转，晾衣架上却永远挂着衣服",
+      "门口的快递盒越堆越高，拆开后才发现有几件早已不需要",
     ],
     subjects: ["清晨的厨房", "周末的菜市场", "阳台上的绿植", "雨后的街道", "晚饭后的散步", "整理房间", "社区小店", "一杯热茶"],
     actions: ["让熟悉的日子显出新的层次", "提醒人们留意身边微小的变化", "把匆忙的脚步慢慢安顿下来", "给普通的一天添上一点秩序", "让人与人之间的照应变得自然"],
@@ -39,6 +47,10 @@ const topics = {
       "临交付才出现的标准",
       "新同事的第一周",
       "结论藏在后面的文档",
+      "跨时区协作的消息延迟",
+      "无人认领的共享文件夹",
+      "反复修改的同一份方案",
+      "邮件里丢失的附件",
     ],
     observations: [
       "共享目录里并排放着三个最终版，修改时间只相差几分钟",
@@ -49,6 +61,10 @@ const topics = {
       "演示当天双方第一次逐项核对，才发现对完成的定义并不相同",
       "资料链接一次发来二十多个，新人甚至不知道应先打开哪一份",
       "读者翻到文档末尾才看见决定，前面几页全是已经结束的争论",
+      "上午发出的消息要等到对方上班才能回复，一天的协作被切成两段",
+      "共享目录里有许多文件夹名称相近，没人能说清哪些仍在使用",
+      "方案已经修改到第五版，前三版的批注仍然留在文档里",
+      "邮件正文写着请查附件，打开后却什么都没有",
     ],
     subjects: ["一次项目复盘", "安静的工作上午", "跨部门协作", "会议前的准备", "共享文档的整理", "新同事入职", "任务优先级", "下班前的检查"],
     actions: ["让复杂任务重新变得清晰", "帮助团队减少重复沟通", "使每个人都能看见下一步行动", "把零散信息收拢成可靠结论", "为后续协作留下明确依据"],
@@ -64,6 +80,10 @@ const topics = {
       "偶尔断开的网络",
       "后台运行的无用功能",
       "无法确认的重复文件",
+      "密码太多记不住",
+      "越来越慢的浏览器",
+      "无法卸载的预装软件",
+      "突然消失的蓝牙连接",
     ],
     observations: [
       "任务管理器里的硬盘占用持续满格，内存却仍留有充足空间",
@@ -74,6 +94,10 @@ const topics = {
       "连接中断总在短时间后自行恢复，过去没有留下任何故障记录",
       "风扇在空闲时仍高速运转，启动列表里排列着多个陌生服务",
       "磁盘里出现许多名称相近的目录，文件大小和修改日期各不相同",
+      "不同网站的密码设置规则各异，找回密码的流程比注册还复杂",
+      "浏览器启动越来越慢，打开的标签页和扩展程序数量已经无法管理",
+      "预装软件占据存储空间，常规卸载方式对它们不起作用",
+      "蓝牙耳机昨天还能正常连接，今天却反复提示配对失败",
     ],
     subjects: ["旧电脑的升级", "桌面设备的整理", "一次系统更新", "键盘手感的变化", "本地数据备份", "智能设备联动", "软件设置迁移", "网络连接排查"],
     actions: ["让工具重新服务于真实需求", "减少不必要的等待和打断", "把便利建立在可控和可靠之上", "提醒使用者关注数据边界", "使日常操作保持轻快稳定"],
@@ -89,6 +113,10 @@ const topics = {
       "没有信号时的车票",
       "错开人流去看风景",
       "天气改变路线以后",
+      "导航带进的小路",
+      "景点关门的那天",
+      "行李超重的回程",
+      "拍不到的风景",
     ],
     observations: [
       "目的地照片里阳光明亮，最新开放通知却写着部分路段湿滑",
@@ -99,6 +127,10 @@ const topics = {
       "车站入口网络突然变弱，手机里的票据页面一直无法刷新",
       "热门观景台排着长队，不远处的步道却几乎没有游客",
       "远处雷声逐渐清楚，原定山路已经不适合继续前进",
+      "导航把队伍引向一条乡间小路，路面状况和预期完全不同",
+      "到了景点门口才发现当天闭馆，公告上的日期没有提前查看",
+      "回程行李比出发时重了许多，机场柜台的超重费用让人意外",
+      "眼前的景色确实漂亮，但手机和相机都无法还原现场的层次",
     ],
     subjects: ["沿河步道", "山间清晨", "海边小城", "秋日公园", "夜行列车", "林间小路", "南方雨季", "北方初雪"],
     actions: ["让旅途拥有可以回想的细节", "把陌生风景慢慢变成具体经验", "提醒行人尊重天气和道路", "使短暂的停留留下清楚印象", "让视线从目的地回到沿途"],
@@ -114,6 +146,10 @@ const topics = {
       "页数之外的阅读进度",
       "旧书里的旧观点",
       "同时停在开头的几本书",
+      "读完就忘的尴尬",
+      "翻译不好的版本",
+      "被腰封骗进去的书",
+      "读不下去该不该放弃",
     ],
     observations: [
       "词典页面开了许多标签，原文上一段讲了什么却已经记不清",
@@ -124,6 +160,10 @@ const topics = {
       "当天页数已经达到目标，复述内容时却只剩几个孤立概念",
       "多年以前写下的判断与今天不同，页边日期提醒着阅读者的变化",
       "床头同时摆着几本新书，每一本都只留下最初几页的折痕",
+      "刚读完一本书，合上后却说不出它讲了什么",
+      "同一本书的不同译本差异很大，选错版本会让阅读变得痛苦",
+      "被推荐语吸引买回来的书，读了几章才发现并非自己需要的内容",
+      "一本书读到中间已经失去兴趣，但放弃又觉得前面的时间白费了",
     ],
     subjects: ["重读一本旧书", "安静的图书馆", "书页上的批注", "一篇短篇小说", "睡前阅读", "纸质书与电子书", "被折起的一页", "故事中的留白"],
     actions: ["让读者重新理解曾经忽略的句子", "把个人经验带进文字的空隙", "使模糊感受获得可以表达的形状", "提醒人们答案不必总是立刻出现", "让思考在合上书后继续延伸"],
@@ -139,6 +179,10 @@ const topics = {
       "无人辨认的旧照片",
       "节庆中的传统与新内容",
       "找不到出处的历史文章",
+      "被拆掉的老戏台",
+      "合并后的地名",
+      "失传的手艺",
+      "修了一半的古道",
     ],
     observations: [
       "展柜标签写着器物年代，旁边的孩子却不知道它过去如何使用",
@@ -149,6 +193,10 @@ const topics = {
       "照片背面没有文字，画面中的店铺和人物也已无人能够确认",
       "活动舞台加入许多新节目，介绍中没有区分近年设计与旧有习俗",
       "文章脚注指向另一篇网络文章，继续追查后仍然没有原始材料",
+      "老戏台已经被拆除改建，留下的只有几张模糊的照片和老人的回忆",
+      "两个相邻村镇合并以后，原来的地名只出现在行政区划资料中",
+      "最后一位会这门手艺的老人已经年迈，年轻人没有接班的意愿",
+      "古道修缮工程进行到一半就停了，新旧石板混在一起看不出原貌",
     ],
     subjects: ["老街的门牌", "地方博物馆", "古桥的修缮", "传统节气", "旧照片中的城市", "手工技艺", "乡音与地名", "家族口述故事"],
     actions: ["让过去与今天建立可理解的联系", "把宏大叙述还原为具体生活", "提醒参观者珍惜可靠的记录", "使地方记忆得到耐心保存", "让传统在新的使用方式中继续存在"],
@@ -164,6 +212,10 @@ const topics = {
       "惊人数字背后的样本",
       "日常经验为何看似冲突",
       "证据改变以后的答案",
+      "被误读的统计图表",
+      "实验室里重复不了的结果",
+      "相关性陷阱",
+      "被夸大的风险",
     ],
     observations: [
       "一次记录呈现出明显变化，环境温度和观察时间却没有同时写下",
@@ -174,6 +226,10 @@ const topics = {
       "标题突出一个很大的百分比，正文没有说明总共观察了多少对象",
       "两个人依据亲身经历争论，后来才发现他们说的是不同季节",
       "新研究修正了适用范围，旧说法仍以绝对口吻在网络流传",
+      "图表的纵轴从非零值开始，微小差异被视觉放大成显著变化",
+      "原始论文的实验结果无法被其他团队重复，结论的可靠性受到质疑",
+      "两组数据走势相同，报道便暗示其中一组导致了另一组",
+      "新闻把罕见副作用描述成普遍风险，读者无法判断真实概率",
     ],
     subjects: ["睡眠与记忆", "天气预报的形成", "植物的向光性", "城市中的鸟类", "声音的传播", "饮水与体温", "地图投影", "日常材料的循环"],
     actions: ["帮助读者区分现象与推测", "把抽象概念放回日常观察", "提醒人们重视条件和范围", "让复杂过程变得可以追踪", "使结论保持准确而不过度延伸"],
@@ -192,6 +248,10 @@ const storyElements = {
       "物品数量没有变化，能够活动和休息的空间却越来越少",
       "忙碌时容易忽略小问题，等到真正影响生活才开始集中补救",
       "过去依靠记忆维持的顺序不再可靠，遗漏也因此频繁发生",
+      "购物时没有核对冰箱存量，新鲜食材买回来却发现旧的还没用完",
+      "睡前习惯用手机放松，不知不觉就推迟了入睡时间",
+      "洗衣服的频率很高，但分类、晾晒和收叠的步骤没有跟上",
+      "网购下单很快，拆快递和处理包装的环节却被一再推迟",
     ],
     methods: [
       "先记录一周中最容易被打断的时刻，再只调整其中一个环节",
@@ -202,6 +262,10 @@ const storyElements = {
       "用十分钟完成一次小整理，而不是等到周末进行彻底翻动",
       "先处理会继续扩大的问题，其余事项按照轻重依次安排",
       "让家人共同试用新的摆放方法，再根据真实使用情况调整",
+      "采购前先拍照记录冰箱现状，按照已有食材倒推需要买什么",
+      "给手机设置定时锁屏，把睡前流程改成固定的几个简单动作",
+      "把洗衣分成脏衣收集、洗涤、晾晒、收叠四个独立环节，各自安排时间",
+      "收到快递当天完成拆包，设置一个专门存放包装材料的位置",
     ],
     outcomes: [
       "早晨不再需要反复寻找东西，原本紧绷的出门过程从容了许多",
@@ -212,6 +276,10 @@ const storyElements = {
       "过去消耗耐心的细节减少后，人们终于有余力关注彼此",
       "新的做法保留了弹性，因此比一次性的严格计划更容易坚持",
       "问题得到解决的同时，一套下次仍能使用的顺序也被保留下来",
+      "食物浪费明显减少，冰箱里的东西也能在保质期内用完",
+      "入睡时间提前了半小时，早晨醒来时精神比之前好",
+      "洗衣不再占据整块时间，晾衣架上也不会同时挂满好几天的衣服",
+      "门口恢复了整洁，退货和丢弃包装也不再拖延",
     ],
     lessons: [
       "秩序不是把生活塞进固定表格，而是减少无意义的犹豫和寻找",
@@ -222,6 +290,10 @@ const storyElements = {
       "生活中的改进不需要宏大目标，只需要下一次更容易做到",
       "共同空间的规则只有被所有使用者理解，才会真正有效",
       "衡量方法好不好，要看普通忙碌的一天能否照常执行",
+      "减少浪费的前提是知道家里有什么，而不是凭感觉补货",
+      "睡前习惯决定了第二天的起点，放松方式也需要边界",
+      "家务拆成小步骤比攒到一起做更容易坚持",
+      "及时处理包装和退货，比囤积后再清理省力得多",
     ],
   },
   职场办公: {
@@ -234,6 +306,10 @@ const storyElements = {
       "临近交付才发现验收标准不一致，已经完成的内容不得不返工",
       "新同事收到大量背景材料，却不知道应该从哪一项开始",
       "为了显得完整，文档保留了过多过程信息，真正的结论被淹没",
+      "两地同事的工作时间只有部分重叠，问题往往要隔一天才能推进",
+      "项目结束后文件散落在各处，接手者无法判断哪些是最终版本",
+      "每次修改都留下批注和修订标记，文档变得越来越难以阅读",
+      "发送前没有检查附件，对方收到空白邮件还以为是系统故障",
     ],
     methods: [
       "先确认唯一有效版本，再把来源、修改时间和负责人写在文档开头",
@@ -244,6 +320,10 @@ const storyElements = {
       "在动手前共同写下交付标准，用小样尽早验证理解是否一致",
       "为新人安排第一个能够独立完成的小任务，并指定可求助的人",
       "把摘要放在最前面，过程记录则保留在需要时可以追溯的位置",
+      "把需要对方确认的问题集中列出，在重叠工作时间内统一处理",
+      "项目结束时指定一个人负责归档，并写明目录结构和版本规则",
+      "定稿前清除所有旧批注，用变更日志替代逐条修订痕迹",
+      "养成发送前检查附件的习惯，重要内容用两封邮件分开发送",
     ],
     outcomes: [
       "交接者不再依靠猜测，很快找到了可以继续工作的起点",
@@ -254,6 +334,10 @@ const storyElements = {
       "交付前的检查变得简单，双方都能依据同一标准判断结果",
       "新同事很快完成第一次贡献，也逐渐理解了项目全貌",
       "文档篇幅缩短以后，读者反而更容易找到可靠信息",
+      "跨时区的沟通不再反复等待，关键问题能在当天得到回应",
+      "新成员能够快速找到有效文件，不再在旧版本中浪费时间",
+      "定稿文档干净整洁，读者能够专注于内容而非批注",
+      "邮件沟通的误会减少，重要信息能够完整传递",
     ],
     lessons: [
       "协作的价值不在消息数量，而在信息能否推动下一步行动",
@@ -264,6 +348,10 @@ const storyElements = {
       "可靠交付依赖共同认可的标准，不能只依赖个人经验",
       "好的流程会帮助新人提出正确问题，而不是要求他记住所有背景",
       "简洁并不等于遗漏，前提是结论、依据和行动都能被找到",
+      "跨时区协作的关键是减少往返次数，把信息一次说完整",
+      "项目归档不是额外工作，而是让下一次接手更加顺利",
+      "文档的可读性和内容同样重要，混乱的格式会掩盖好的结论",
+      "小习惯能够避免大麻烦，发送前多看一眼就能省去后续解释",
     ],
   },
   科技数码: {
@@ -276,6 +364,10 @@ const storyElements = {
       "网络偶尔中断，但故障时间和连接方式从未被完整记录",
       "为了追求更多功能，后台服务长期占用资源并制造干扰",
       "旧文件和重复副本散落各处，用户无法判断哪些内容可以安全删除",
+      "每个账号都要求不同格式的密码，重复使用又担心安全问题",
+      "扩展程序和标签页不断积累，浏览器响应变得越来越迟钝",
+      "厂商预装的软件无法通过常规方式移除，占用空间且偶尔弹出广告",
+      "蓝牙设备间歇性断连，重置和重新配对的步骤每次都不同",
     ],
     methods: [
       "先查看资源占用和错误记录，用可重复测试定位问题来源",
@@ -286,6 +378,10 @@ const storyElements = {
       "分别测试路由器、网线和终端设备，记录每次变化带来的结果",
       "关闭没有实际用途的自启动项目，观察性能后再决定是否卸载",
       "按照日期和项目整理目录，核对内容以后再处理重复文件",
+      "使用密码管理工具集中保存，只记住一个主密码",
+      "定期清理不用的扩展，把暂时不看的标签页保存到书签",
+      "查找系统自带的卸载工具或命令行方式移除预装软件",
+      "分别更新设备固件和驱动，排除信号干扰后再尝试配对",
     ],
     outcomes: [
       "问题被定位到具体环节，预算没有浪费在无关升级上",
@@ -296,6 +392,10 @@ const storyElements = {
       "零散故障形成了可比较的记录，排查范围逐步缩小",
       "系统响应恢复稳定，风扇也不再因为无用进程持续高速运转",
       "目录清楚以后，备份范围和剩余空间都变得容易判断",
+      "登录不同账号不再需要反复尝试，密码安全也得到了保障",
+      "浏览器启动速度恢复，日常操作不再被无关进程拖慢",
+      "系统存储空间释放，不再被不需要的软件打扰",
+      "蓝牙连接恢复稳定，设备切换不再需要手动重连",
     ],
     lessons: [
       "技术问题应先测量再购买，直觉只能帮助提出假设",
@@ -306,6 +406,10 @@ const storyElements = {
       "一次只改变一个条件，才能知道故障究竟因何消失",
       "工具应该服务真实任务，不必让所有可能功能长期运行",
       "删除之前先确认副本和用途，比依赖事后恢复更加可靠",
+      "密码管理不是记忆力竞赛，工具辅助比重复使用更安全",
+      "浏览器的负担来自积累，定期清理比升级硬件更有效",
+      "预装软件不等于必要软件，移除它们是合理的选择",
+      "无线连接的问题往往出在兼容性，逐一排查比重置更可靠",
     ],
   },
   自然旅行: {
@@ -318,6 +422,10 @@ const storyElements = {
       "现场信号不稳定，依赖网络的票据和路线一时无法打开",
       "游客集中在同一时段，原本安静的地点变得拥挤",
       "天气突然变化，原定的户外活动已经不再安全",
+      "导航选择的近路实际上是未铺装的土路，车辆通行困难",
+      "出发前只看了景点介绍，没有核实开放时间和临时闭馆通知",
+      "旅行中购买的纪念品和特产不断增加，行李空间很快不够用",
+      "现场的光线、层次和氛围很难用照片完整呈现",
     ],
     methods: [
       "出发前同时查看预报、开放通知和近期现场信息",
@@ -328,6 +436,10 @@ const storyElements = {
       "提前保存车票、地址和紧急联系人，准备纸质备用信息",
       "调整抵达时间并寻找替代观察点，避开人流最密集的区域",
       "设置室内备选方案，遇到雷雨和封路时及时停止前进",
+      "出发前在地图上确认道路类型，不确定的路段提前联系当地人",
+      "查看景点的官方公告和近期游客评价，核实开放状态",
+      "预留行李空间给回程购物，或者安排邮寄方式",
+      "放下设备用眼睛感受，同时用文字记录当时的印象",
     ],
     outcomes: [
       "途中遇到降温时，准备好的衣物和路线调整发挥了作用",
@@ -338,6 +450,10 @@ const storyElements = {
       "网络中断没有影响入场和返程，必要信息随时可以找到",
       "错峰以后观察更从容，也减少了对当地环境的打扰",
       "计划虽然改变，同行者仍安全完成了一次有内容的旅行",
+      "队伍没有在烂路上耽误太久，及时调头找到了更好的路线",
+      "行程调整后去了附近的替代地点，意外收获同样值得记录",
+      "回程没有因为行李超重而手忙脚乱，购物清单也更有节制",
+      "文字记录比照片更能唤起回忆，日后翻看时细节依然清楚",
     ],
     lessons: [
       "路线的价值不只由距离决定，还取决于同行者和现场条件",
@@ -348,6 +464,10 @@ const storyElements = {
       "尊重天气和管理要求，是欣赏风景不可分割的一部分",
       "合适的节奏能让人看见沿途，而不是只完成地点清单",
       "一次顺利出行的标准，是所有人都能安全并从容地回来",
+      "导航工具不等于路况信息，出发前的实地确认仍然重要",
+      "行程安排要考虑意外因素，闭馆和停运并不罕见",
+      "行李规划应包括回程，去时的空间要留给返程的收获",
+      "最好的风景有时只适合用眼睛记住，不必每张都变成照片",
     ],
   },
   阅读随笔: {
@@ -358,8 +478,12 @@ const storyElements = {
       "电子设备不断弹出提醒，完整阅读时间被切成碎片",
       "读完故事急着寻找标准解释，自己的疑问没有被保留下来",
       "阅读目标只按页数计算，是否理解反而没有得到关注",
-      "旧书中的观点与今天经验不同，读者一时难以判断",
+      "旧书里的观点与今天的经验不同，读者一时分不清哪些是时代差异，哪些是事实变化",
       "同时开始几本书以后，每一本都停留在开头部分",
+      "读的时候觉得都懂了，合上书却发现什么都记不住",
+      "译本的表达生硬或不准确，读者无法判断是原作问题还是翻译问题",
+      "宣传语夸大了书的内容，实际阅读体验与期望相差很远",
+      "继续读下去感到痛苦，但放弃又觉得浪费了已经投入的时间",
     ],
     methods: [
       "先读完一个完整小节，只标记真正影响理解的概念",
@@ -370,6 +494,10 @@ const storyElements = {
       "用几句话复述刚读内容，发现空白后再回到原文",
       "比较作者所处背景与当下条件，区分事实、判断和时代限制",
       "为不同书确定用途和时段，暂时放下没有明确需要的一本",
+      "读完一个章节后合上书，用自己的话复述核心观点",
+      "购买前先查阅不同译本的评价，或者试读几页比较",
+      "不被推荐语左右，先看目录和前言判断是否符合自己的需求",
+      "给一本书设定一个合理的试读量，超过后仍无兴趣就果断放下",
     ],
     outcomes: [
       "查询次数减少以后，段落之间的关系反而变得清楚",
@@ -378,8 +506,12 @@ const storyElements = {
       "短短二十分钟保持完整，阅读体验比断续一小时更充实",
       "自己的问题没有被权威答案覆盖，讨论因此更有方向",
       "页数不再是唯一成绩，理解和疑问都能被具体记录",
-      "不同年代的观点得到较公平的理解，也不必被全盘接受",
+      "不同年代的观点得到了更公平的理解，也不必被全盘接受",
       "阅读选择减少以后，每本书都更容易进入稳定节奏",
+      "合上书后能够说出主要内容，阅读不再是翻过就算",
+      "好的译本让文字流畅自然，读者能够专注于内容本身",
+      "买回来的书更符合预期，书架上不再堆满读不下去的书",
+      "放下不合适的书以后，阅读重新变成一件愉快的事",
     ],
     lessons: [
       "阅读不是把文字快速搬进记忆，而是建立前后联系",
@@ -390,6 +522,10 @@ const storyElements = {
       "适合的阅读速度由内容和目的决定，不必服从统一数字",
       "重读的意义在于比较变化，而不是寻找永远不变的答案",
       "放下一本书有时是选择，日后需要时仍可以重新开始",
+      "能复述才是真正读懂，输入和输出之间的差距需要正视",
+      "翻译质量决定了阅读体验，选对版本比选对书更重要",
+      "宣传语是营销工具，判断一本书是否适合自己需要独立思考",
+      "阅读时间有限，把它花在真正有共鸣的书上才是尊重自己",
     ],
   },
   历史文化: {
@@ -402,6 +538,10 @@ const storyElements = {
       "旧照片缺少拍摄地点与人物信息，年代越久越难辨认",
       "节庆活动为了吸引游客增加新内容，原有习俗的边界变得模糊",
       "网络文章相互引用，却找不到最初资料和可靠出处",
+      "承载集体记忆的建筑被拆除后，相关的历史细节也随人散去",
+      "行政区划调整后，原来的地名在日常使用中逐渐消失",
+      "技艺传承人年事已高，完整的制作过程尚未被系统记录",
+      "修缮资金不足导致工程中断，新旧材料混杂破坏了整体风貌",
     ],
     methods: [
       "从器物的使用者和使用场景入手，补充能够核实的生活细节",
@@ -412,6 +552,10 @@ const storyElements = {
       "邀请家人辨认影像，在照片背面写下时间、地点和不确定信息",
       "区分历史沿袭与近年改编，说明两者各自出现的背景",
       "沿引用链返回原始文献，无法确认的内容明确标注存疑",
+      "趁当事人仍在世时录制影像和口述，保留建筑的使用故事",
+      "在新地图和文件中同时标注旧地名，让两种称呼并行使用",
+      "完整拍摄制作工序，请传承人讲解每一步的选择依据",
+      "查阅历史图纸和旧照片，明确原貌后再制定分期修缮方案",
     ],
     outcomes: [
       "参观者不只记住器物名称，也看见了普通人的生活方式",
@@ -422,6 +566,10 @@ const storyElements = {
       "无名影像恢复了部分背景，仍无法确认之处也被诚实保留",
       "活动介绍更加清楚，游客能够理解传统也会随时代变化",
       "错误信息停止继续扩散，可靠材料获得了明确出处",
+      "建筑虽然不在了，使用者的故事却被保留下来",
+      "旧地名在新的语境中仍然可以被找到和理解",
+      "技艺的关键步骤被完整记录，即使传承中断也能被后人参考",
+      "古道修缮有了明确的阶段目标，每一期完工后都能呈现完整面貌",
     ],
     lessons: [
       "历史记录的价值来自证据和语境，不来自故事听起来多么完整",
@@ -432,6 +580,10 @@ const storyElements = {
       "不确定信息同样应该记录，猜测不能被悄悄写成事实",
       "传统从来不是静止标本，变化过程本身也需要被解释",
       "引用可靠来源，是尊重过去也是保护今天的读者",
+      "建筑可以拆除，但记忆不应随之消失，记录要赶在遗忘之前",
+      "地名承载着历史信息，保留旧称是尊重地方身份的一种方式",
+      "技艺的消失比建筑的拆除更不可逆，抢救性记录刻不容缓",
+      "修缮需要充足准备，资金和方案不到位时暂停比草率施工更负责",
     ],
   },
   通俗科普: {
@@ -444,6 +596,10 @@ const storyElements = {
       "新闻标题突出惊人数字，却没有提供样本大小和研究方法",
       "日常经验与科学结论看似冲突，实际讨论的条件并不相同",
       "新的证据出现以后，旧说法仍被当作绝对答案传播",
+      "图表坐标轴被截断后，趋势看起来比实际情况更剧烈",
+      "实验室条件下的结果无法在真实环境中重现",
+      "两组数据共同变化并不能证明因果关系",
+      "罕见事件被描述成普遍风险，公众无法判断真实发生概率",
     ],
     methods: [
       "先写清观察发生的时间、环境和对象，再讨论可能原因",
@@ -454,6 +610,10 @@ const storyElements = {
       "回到原始研究核对样本、对照和实际效应大小",
       "拆开双方使用的概念，比较温度、时间和对象等具体条件",
       "根据证据强弱更新判断，同时保留尚未解决的问题",
+      "检查图表坐标轴起点和刻度，判断视觉差异是否真实",
+      "尝试在不同条件下重复实验，确认结果是否稳定",
+      "寻找能够区分因果和巧合的额外证据，不急于下结论",
+      "回到原始数据核对绝对数字和相对比例，判断风险的真实大小",
     ],
     outcomes: [
       "现象和推测被分开记录，讨论不再急着寻找唯一答案",
@@ -464,6 +624,10 @@ const storyElements = {
       "夸张标题失去吸引力，真正有意义的信息被保留下来",
       "表面矛盾消失以后，双方发现各自在不同条件下都可能成立",
       "结论变得更谨慎，却也因此更可靠、更便于继续验证",
+      "图表的真实含义被还原，读者不再被视觉效果误导",
+      "不可重复的结果被标记为待验证，避免过早写入教科书",
+      "相关性被重新定义为线索而非证据，后续研究有了更准确的方向",
+      "读者能够区分罕见风险和普遍风险，不再被标题吓到或麻痹",
     ],
     lessons: [
       "科普不是把复杂问题说成一句口号，而是让推理过程可以检查",
@@ -474,6 +638,10 @@ const storyElements = {
       "可靠结论允许被质疑，也会在新证据出现时调整",
       "日常观察是提出问题的起点，不能自动代替系统验证",
       "承认未知不是削弱科学，而是为下一步研究留下准确位置",
+      "图表的呈现方式影响判断，读图时要注意坐标轴和比例",
+      "可重复性是科学的基本要求，单次实验不能替代系统验证",
+      "相关性只是起点，因果关系需要更多证据来建立",
+      "风险的大小取决于概率和条件，不能只看后果的严重性",
     ],
   },
 };
@@ -492,39 +660,104 @@ for (const topic of Object.keys(topics)) {
   }
 }
 
+const topicActors = {
+  日常生活: ["家人", "当事人", "使用者"],
+  职场办公: ["团队", "同事", "项目成员"],
+  科技数码: ["使用者", "维护者", "同事"],
+  自然旅行: ["同行者", "领队", "出行者"],
+  阅读随笔: ["读者", "书友", "阅读者"],
+  历史文化: ["整理者", "讲述者", "研究者"],
+  通俗科普: ["观察者", "研究者", "科普者"],
+};
+
 const openingPatterns = [
-  (subject, detail) => `那天，${detail}。围绕${subject}，一个值得认真处理的问题随之出现。`,
-  (subject, detail) => `${detail}。围绕${subject}，人们很快发现实际情况比最初设想更具体。`,
-  (subject, detail) => `事情从${subject}开始。${detail}，一个平时容易忽略的细节首先引起了注意。`,
-  (subject, detail) => `重新审视${subject}时，${detail}。这成为后续判断的重要线索。`,
+  (story) => `${story.detail}。这个细节使“${story.subject}”第一次显出需要处理的部分。`,
+  (story) => `关于“${story.subject}”，最先引起注意的是${story.detail}。这个细节让${story.actor}有了具体的观察起点。`,
+  (story) => `事情从“${story.subject}”开始：${story.detail}。${story.actor}由此能够具体描述原本模糊的不便。`,
+  (story) => `重新看待“${story.subject}”时，${story.detail}。${story.actor}决定先弄清变化发生在哪里。`,
+  (story) => `起初，“${story.subject}”只是日常中的一个小插曲；直到${story.detail}，原有安排的缺口才显露出来。`,
+  (story) => `${story.detail}。围绕“${story.subject}”出现了几种解释，${story.actor}先把能确认的事实单独列出。`,
+  (story) => `“${story.subject}”并非突然成为问题。${story.detail}，只是这一次终于有人停下来查看原因。`,
+  (story) => `从${story.detail}这个现象出发，${story.actor}重新检查“${story.subject}”。此前被忽略的线索也开始围绕“${story.subject}”连在一起。`,
+  (story) => `当“${story.subject}”再次出现时，${story.detail}。这回，${story.actor}没有把它当作偶然情况略过。`,
+  (story) => `${story.actor}原本只想处理“${story.subject}”的表面不便。${story.detail}。这个现象让${story.actor}把注意力转向更早的环节。`,
+  (story) => `一项普通记录改变了对“${story.subject}”的看法：${story.detail}。接下来，${story.actor}围绕这个明确对象继续讨论。`,
+  (story) => `谈到“${story.subject}”，${story.actor}先回到现场。${story.detail}，比笼统的印象更能说明问题。`,
 ];
 
 const closingPatterns = [
-  (lesson) => `这次经历留下的提醒很朴素：${lesson}。`,
-  (lesson) => `回头再看，真正值得保留的不是漂亮结论，而是一个可以继续使用的认识：${lesson}。`,
-  (lesson) => `事情告一段落以后，参与者把经验写成一句话：${lesson}。`,
-  (lesson) => `最终形成的共识并不复杂——${lesson}。`,
+  (story) => `“${story.subject}”留下的经验很直接：${story.lesson}。`,
+  (story) => `回头再看“${story.subject}”，最值得保留的认识是：${story.lesson}。`,
+  (story) => `${story.actor}最后用一句话概括这次处理：${story.lesson}。`,
+  (story) => `围绕“${story.subject}”形成的结论并不复杂——${story.lesson}。`,
+  (story) => `写下“${story.subject}”的复盘时，${story.actor}只保留了一条经验：${story.lesson}。`,
+  (story) => `后来再有人提起“${story.subject}”，得到的回答是：${story.lesson}。`,
+  (story) => `这次改变没有提供万能方案，却让${story.actor}确认：${story.lesson}。`,
+  (story) => `“${story.subject}”告一段落后，真正能用于下一次行动的是：${story.lesson}。`,
+  (story) => `${story.actor}没有把结果说得更漂亮，只把“${story.subject}”的启示写清楚：${story.lesson}。`,
+  (story) => `从“${story.subject}”得到的提醒可以落在一句话上：${story.lesson}。`,
+  (story) => `处理过程结束以后，${story.actor}仍愿意保留这个判断：${story.lesson}。`,
+  (story) => `如果要为“${story.subject}”留下一个注脚，那就是：${story.lesson}。`,
+];
+
+const issuePatterns = [
+  (story) => `首先需要面对的是${story.challenge}。`,
+  (story) => `继续追问后，${story.challenge}。`,
+  (story) => `真正妨碍“${story.subject}”改善的是，${story.challenge}。`,
+  (story) => `${story.actor}把困难说得很具体：${story.challenge}。`,
+  (story) => `现象背后的阻力逐渐清楚——${story.challenge}。`,
+  (story) => `把经过按顺序排开，可以看到${story.challenge}。`,
+  (story) => `需要优先处理的并非表面不便，而是${story.challenge}。`,
+  (story) => `“${story.subject}”迟迟没有改善，是因为${story.challenge}。`,
+  (story) => `${story.actor}核对现场后确认，${story.challenge}。`,
+  (story) => `原有做法的问题落在一件具体事情上：${story.challenge}。`,
+  (story) => `几次相同情况放在一起比较后，${story.challenge}。`,
+  (story) => `这次复查给出的关键线索是，${story.challenge}。`,
 ];
 
 const analysisPatterns = [
-  (method) => `起初，有人希望一次解决所有问题，也有人主张先维持现状。讨论持续了一阵，大家才把注意力放回实际经过：哪些变化能够确认，哪些判断只是凭印象得出。为了缩小范围，他们决定${method}，并约定记录每一步带来的影响。`,
-  (method) => `面对不同意见，参与者没有立即投票选择方案，而是先列出已经确认的事实和仍待核实的猜测。比较成本与影响以后，大家同意${method}。这项尝试范围有限，即使结果不理想，也能及时退回原来的安排。`,
-  (method) => `最初的讨论很容易滑向个人偏好。有人提醒，争论哪种办法听起来更好并不能解决问题，必须观察真实变化。于是大家把目标写清楚，选择${method}，同时约好不在执行中随意增加新的要求。`,
-  (method) => `为了避免凭一次印象作决定，参与者先按时间顺序还原经过，再找出最可能影响结果的环节。最终采用的第一步是${method}。其他建议没有被否定，只是暂时放到记录之外，等待新的证据。`,
+  (story) => `${story.actor}先把“${story.subject}”的经过按时间排开，区分观察和猜测。核对影响范围以后，第一步是${story.method}。`,
+  (story) => `方案形成前，${story.actor}比较了不同做法的成本，也重新确认“${story.subject}”的行动目标。最终的具体做法是${story.method}，让改变可以小范围验证。`,
+  (story) => `围绕“${story.subject}”的讨论一度偏向个人习惯。目标写清楚以后，具体做法是${story.method}，暂时不增加无关要求。`,
+  (story) => `为了避免由一次印象作决定，${story.actor}先还原“${story.subject}”的前后步骤。由此确定的切入点是${story.method}。`,
+  (story) => `${story.actor}逐项比较“${story.subject}”可能采用的办法，尤其留意执行前提和返工成本。权衡之后，处理方式是${story.method}。`,
+  (story) => `意见不一致时，${story.actor}把争论缩小到一个可验证步骤。大家先按以下办法尝试：${story.method}。效果不足时再调整范围。`,
+  (story) => `“${story.subject}”没有被一次性重做。${story.actor}从最容易验证的环节出发，具体安排是${story.method}，并留下可以撤回的余地。`,
+  (story) => `处理顺序先于工具选择。${story.actor}确认当前目标后，采用的做法是${story.method}。其余建议等实际反馈出现再讨论。`,
+  (story) => `${story.actor}把“${story.subject}”拆成可观察的几个环节，具体做法是${story.method}。这样即使结果波动，也能找到需要调整的位置。`,
+  (story) => `直接扩大方案可能掩盖真正原因，因此${story.actor}围绕“${story.subject}”继续核对。确认重点后，具体做法是${story.method}。`,
+  (story) => `围绕“${story.subject}”的讨论没有追求听起来最完整的答案。最终选择的办法是${story.method}，只检验它能否支持当前目标。`,
+  (story) => `在“${story.subject}”上，${story.actor}先约定判断标准，再按照以下方式推进：${story.method}。方案能否保留，要看真实变化而非最初期待。`,
 ];
 
-const executionPatterns = [
-  "真正开始执行以后，过程并非一次顺利。有人担心改变原有习惯会增加负担，也有人在最初几次操作中忘记新的顺序。参与者没有把这些情况当成失败，而是暂停下来检查步骤，把不必要的要求删掉，只保留能够直接回应问题的部分。",
-  "第一次尝试没有立刻带来明显变化，一度让人怀疑方向是否正确。大家重新核对记录，发现部分步骤执行时间不同，结果自然无法直接比较。统一条件以后，他们又观察了几次，没有为了尽快得出答案而挑选最漂亮的数据。",
-  "实施过程中出现了原计划没有考虑的小阻力。参与者没有继续硬推，而是询问实际操作者哪些步骤最难完成，并据此缩短流程。调整后的办法不再追求面面俱到，却能在普通忙碌的一天照常执行。",
-  "行动开始后，新的问题很快暴露出来：有些要求写得清楚，实际操作时却需要额外判断。大家把这些判断补进说明，并删除不能解释用途的步骤。方案因此稍有变化，但处理目标始终没有偏离。",
+const executionProgressPatterns = [
+  (story) => `${story.actor}先把“${story.subject}”限制在最小可行范围。完成一轮后，只检查步骤是否顺手以及主要困难是否减轻。`,
+  (story) => `实际推进“${story.subject}”时，${story.actor}把每次改动控制在一项。前后差异因此容易辨认，出现偏差也能迅速撤回。`,
+  (story) => `${story.actor}为“${story.subject}”安排了一个短周期试行。过程中只保留必要动作，临时增加的要求统一留到复查时再决定。`,
+  (story) => `“${story.subject}”开始执行后，${story.actor}先观察最常发生的场景。遇到例外便单独注明，不让少数情况拖乱整套安排。`,
+  (story) => `第一轮操作没有追求把“${story.subject}”一次做完。${story.actor}先验证关键步骤，再根据真实负担决定是否扩大范围。`,
+  (story) => `${story.actor}把“${story.subject}”放进普通一天的节奏中试用。忙碌时仍能完成的步骤得到保留，其余内容继续简化。`,
+  (story) => `处理“${story.subject}”时，${story.actor}同时记下顺利和受阻的部分。复查依据来自实际经过，不依赖事后的模糊印象。`,
+  (story) => `“${story.subject}”的执行顺序经过一次微调。${story.actor}把最费力的动作提前处理，后续环节因而更容易衔接。`,
+  (story) => `${story.actor}没有为“${story.subject}”增加复杂工具，只调整现有步骤。做法越容易理解，其他人越可能继续采用。`,
+  (story) => `试行“${story.subject}”期间，${story.actor}给不同情况留下少量弹性。目标保持清楚，具体动作则允许随现场改变。`,
+  (story) => `${story.actor}先在熟悉环境中检验“${story.subject}”，随后再换一个时间复查。两次表现放在一起，比单次感受更可靠。`,
+  (story) => `围绕“${story.subject}”的操作没有额外增加考核。${story.actor}只关心方案能否被完成，以及完成后是否减少原来的负担。`,
 ];
 
 const resultPatterns = [
-  (outcome) => `几天后的结果逐渐清楚：${outcome}。更重要的是，参与者能够说明变化发生在哪个环节，而不是只凭总体感受判断。这个结果让大家知道哪些步骤值得保留，也看见哪些要求只会制造新的负担。`,
-  (outcome) => `连续记录一段时间后，${outcome}。大家没有把一次成功当作最终证明，而是又检查了不同日期的情况。结果虽然仍有波动，主要方向已经稳定，原先最担心的问题也没有转移到别处。`,
-  (outcome) => `复查时可以确认，${outcome}。除了直接结果，处理过程也变得容易追踪；后来加入的人能够看懂此前做过什么，不必从头猜测。有限的尝试由此转化成了可以复用的经验。`,
-  (outcome) => `变化没有以戏剧性的方式出现，但几次核对都显示，${outcome}。参与者因此保留有效步骤，同时取消了没有贡献的附加要求。新的安排更短，也比最初设想更容易坚持。`,
+  (story) => `几天后再看“${story.subject}”，${story.outcome}。${story.actor}能够指出变化发生的环节，也据此删掉了只会增加负担的步骤。`,
+  (story) => `连续观察一段时间后，${story.outcome}。${story.actor}又比较了不同日期的表现，确认主要方向并非一次偶然波动。`,
+  (story) => `复查“${story.subject}”时可以确认，${story.outcome}。处理过程也更容易追踪，后来接手的人能够看懂此前做过什么。`,
+  (story) => `改变并未以戏剧性的方式出现，不过几次核对都显示，${story.outcome}。${story.actor}保留有效步骤，取消了没有贡献的附加要求。`,
+  (story) => `经过一段时间的实际使用，${story.outcome}。与最初目标对照后，${story.actor}确认核心困难已经缓解。`,
+  (story) => `回头检查“${story.subject}”，${story.outcome}。${story.actor}把改善和原始情况逐项对照，没有把暂时变化误写成稳定结果。`,
+  (story) => `“${story.subject}”进入复核阶段后，${story.outcome}。结果仍有细微起伏，但不再妨碍${story.actor}判断哪些做法真正有效。`,
+  (story) => `新的安排运行了一段时间，${story.outcome}。${story.actor}随后检查代价是否转移到别处，确认改善并非以新的麻烦为交换。`,
+  (story) => `从前后两次情况比较，${story.outcome}。这让${story.actor}知道应当继续哪一步，也知道哪些内容可以停止。`,
+  (story) => `“${story.subject}”的反馈逐渐稳定：${story.outcome}。${story.actor}仍保留少量观察空间，以便条件改变时及时修正。`,
+  (story) => `实际结果比预想更具体，${story.outcome}。${story.actor}据此缩短流程，并把有效部分留给下一次使用。`,
+  (story) => `再次回到“${story.subject}”的最初目标，${story.outcome}。前后差异说明这次处理已经触及真正的问题。`,
 ];
 
 const topicReflections = {
@@ -572,11 +805,148 @@ const topicReflections = {
   ],
 };
 
-const boundaryPatterns = [
-  "最终记录没有把这次结果包装成唯一答案。它说明了当时有哪些条件、采取了哪些步骤，以及哪些变化能够被确认；换到不同环境时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
-  "参与者还约定隔一段时间重新检查。如果效果消失，首先查看人员、环境和目标是否变化，再判断方法本身是否失效。这样的复查让经验保持开放，也避免一次成功被夸大成永久规则。",
-  "整理结论时，支持原判断和不符合预期的材料都被保留下来。读者可以看到判断依据，也能理解其中仍有哪些空白。信息看似没有那么整齐，却比只展示顺利部分更加可靠。",
-  "后来有人在相似问题上参考这份记录，只沿用了观察和核对的顺序，没有照搬具体答案。新的结果与第一次并不完全相同，但处理过程依然清楚，旧经验因此成为起点而不是限制。",
+const topicBoundaryPatterns = {
+  日常生活: [
+    "最终记录没有把这次整理包装成唯一方案。它说明了当时有哪些物品、采取了哪些步骤，以及哪些变化能够被确认；换到不同户型或家庭成员结构时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "参与者还约定每个月重新检查一次。如果旧习惯回来，首先查看物品数量、使用频率和家庭成员是否变化，再判断方法本身是否失效。这样的复查让经验保持开放，也避免一次整理被夸大成永久规则。",
+    "整理结论时，哪些改动有效和哪些尝试失败都被记录下来。家人可以看到判断依据，也能理解其中仍有哪些需要配合的地方。信息看似没有那么整齐，却比只展示顺利部分更加可靠。",
+    "后来有邻居遇到类似问题来参考，只沿用了观察和核对的顺序，没有照搬具体的收纳位置。新的整理结果与第一次不同，但步骤依然清楚，旧经验只作为改善生活动线的起点。",
+  ],
+  职场办公: [
+    "最终记录没有把这次流程包装成唯一标准。它说明了当时有哪些协作条件、采取了哪些步骤，以及哪些效率提升能够被确认；换到不同团队规模或项目类型时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "参与者还约定每个迭代结束时重新检查。如果旧问题回来，首先查看人员、项目阶段和沟通工具是否变化，再判断流程本身是否失效。这样的复查让经验保持开放，也避免一次改进被夸大成永久规则。",
+    "整理结论时，有效做法和不合适的尝试都被保留下来。团队成员可以看到判断依据，也能理解其中仍有哪些环节需要磨合。信息看似没有那么整齐，却比只展示顺利部分更加可靠。",
+    "后来其他团队遇到类似问题来参考，只沿用了核对和记录的顺序，没有照搬具体模板。新的协作结果虽然不同，处理依据仍然清楚，旧流程因此成为参考而不是限制。",
+  ],
+  科技数码: [
+    "最终记录没有把这次配置包装成唯一方案。它说明了当时有哪些设备、采取了哪些步骤，以及哪些性能改善能够被确认；换到不同硬件或使用场景时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "参与者还约定每隔一段时间重新检查。如果问题再次出现，首先查看系统版本、软件更新和使用模式是否变化，再判断方法本身是否失效。这样的复查让经验保持开放，也避免一次优化被夸大成永久规则。",
+    "整理结论时，有效措施和没有贡献的操作都被记录下来。使用者可以看到判断依据，也能理解其中仍有哪些不确定因素。信息看似没有那么整齐，却比只展示顺利部分更加可靠。",
+    "后来有人在类似设备上参考这份记录，只沿用了排查和测试的顺序，没有照搬具体设置。硬件与用途改变了最终配置，旧记录仍可作为定位问题的起点。",
+  ],
+  自然旅行: [
+    "最终记录没有把这次路线包装成唯一推荐。它说明了当时有哪些天气和人员条件、采取了哪些调整，以及哪些体验能够被确认；换到不同季节或同行者时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "参与者还约定在下次出行前重新检查。如果某个地点发生变化，首先查看开放时间、路况和天气预报，再判断路线本身是否仍然适合。这样的复查让经验保持开放，也避免一次顺利出行被夸大成永久规则。",
+    "整理结论时，实际步行时间、补给情况和天气变化都被如实记录。同行者可以看到真实经历，也能理解其中仍有哪些不可控因素。信息看似没有那么整齐，却比只展示顺利部分更加可靠。",
+    "后来有朋友要去同一地区参考这份记录，只沿用了准备和观察的顺序，没有照搬具体行程安排。季节和同行者改变了路线选择，旧经验只帮助他们更快看清取舍。",
+  ],
+  阅读随笔: [
+    "最终记录没有把这次阅读方法包装成唯一标准。它说明了当时读的是什么类型的书、采取了哪些习惯，以及哪些理解提升能够被确认；换到不同题材或阅读目的时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "读者还约定每隔一段时间重新检查。如果注意力再次分散，首先查看阅读环境、书籍难度和个人状态是否变化，再判断方法本身是否失效。这样的复查让经验保持开放，也避免一次改善被夸大成永久规则。",
+    "整理结论时，有效的批注方式和没有帮助的尝试都被保留下来。读者可以看到判断依据，也能理解其中仍有哪些需要灵活处理的地方。信息看似没有那么整齐，却比只展示顺利部分更加可靠。",
+    "后来有书友遇到类似问题来参考，只沿用了观察和记录的顺序，没有照搬具体的阅读时间和批注方式。书籍与阅读目的不同，旧经验提供的是提问顺序，而不是统一答案。",
+  ],
+  历史文化: [
+    "最终记录没有把这次整理包装成唯一版本。它说明了当时有哪些材料、采取了哪些核对步骤，以及哪些事实能够被确认；换到不同地区或时段时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "整理者还约定在新材料出现时重新检查。如果某个说法被修正，首先查看证据来源、时间线和相关记载，再判断原有结论是否需要调整。这样的复查让经验保持开放，也避免一次整理被夸大成永久定论。",
+    "整理结论时，已经确认的事实和仍然存疑的部分都被分别标出。读者可以看到判断依据，也能理解其中仍有哪些空白。信息看似没有那么整齐，却比只展示确定部分更加可靠。",
+    "后来有研究者在同一主题上参考这份记录，只沿用了核对和标注的顺序，没有照搬具体结论。新的发现与第一次并不完全相同，但处理过程依然清楚，旧记录因此成为起点而不是限制。",
+  ],
+  通俗科普: [
+    "最终记录没有把这次结论包装成唯一答案。它说明了当时有哪些观测条件、采取了哪些分析步骤，以及哪些规律能够被确认；换到不同数据集或实验设置时，后来者需要重新核对这些前提，而不是只复制最后的做法。",
+    "参与者还约定在新数据出现时重新检查。如果原有规律不再成立，首先查看样本、测量工具和环境条件是否变化，再判断结论本身是否需要修正。这样的复查让经验保持开放，也避免一次发现被夸大成永久规律。",
+    "整理结论时，支持假设和不符合预期的数据都被保留下来。读者可以看到推理过程，也能理解其中仍有哪些未解的疑问。信息看似没有那么整齐，却比只展示有利证据更加可靠。",
+    "后来有研究者在相似问题上参考这份记录，只沿用了观察和验证的顺序，没有照搬具体数字。新的结果与第一次并不完全相同，但处理过程依然清楚，旧研究因此成为起点而不是限制。",
+  ],
+};
+
+const longEvidencePatterns = [
+  (story) => `为了验证“${story.subject}”的改善能否持续，${story.actor}选择几个不同时间重新查看。每轮只比较真正发生变化的环节，并把外部差异单独注明。多次对照比某一天的顺利表现更有说服力。`,
+  (story) => `“${story.subject}”第一次试行结束后，${story.actor}逐步核对哪些动作真正完成。偏差出现时，重点回到执行过程，而不是归咎于个人。这样的复查也让后续调整有了清楚依据。`,
+  (story) => `外部情况变化时，${story.actor}重新评估“${story.subject}”是否仍适合原来的步骤。核心目标保持不变，具体办法则按照现场限制小幅调整。方案因此能适应普通日子，而不限于理想状态。`,
+  (story) => `关于“${story.subject}”的材料也保留了一次不顺利的尝试。那次偏差提醒${story.actor}给意外留下位置。失败步骤说明了适用边界，也让后续选择更有针对性。`,
+  (story) => `复盘“${story.subject}”时，${story.actor}把事实和原因解释分别列出。结果即使向好，也要查看变化来自环境还是当前做法。两者分开以后，下一轮核对有了明确入口。`,
+  (story) => `换一个时间段考察“${story.subject}”，${story.actor}先验证核心步骤是否仍能执行。能够重现的部分继续保留，尚无依据的推测暂时搁置。经验提供方向，但不会取代当时的实际情况。`,
+  (story) => `${story.actor}还比较了处理“${story.subject}”前后的时间和成本。表面结果不是唯一标准，额外步骤是否增加负担也被纳入评价。真正有贡献的环节才进入长期安排。`,
+  (story) => `为了让别人能够接手“${story.subject}”，${story.actor}写清操作顺序和选择理由。后来者从原始现象开始复核，不必依赖口头印象猜测。交接过程也验证了做法是否足够清楚。`,
+  (story) => `“${story.subject}”的观察并未停在顺利的一天。忙碌或资源不足时，${story.actor}仍尝试执行主要步骤，由此找出真正费力的位置。调整后的安排更贴近日常节奏。`,
+  (story) => `${story.actor}为“${story.subject}”设置了一次反向检查：暂时撤回部分改动，再看原有现象是否回来。前后表现可以相互印证，帮助排除单纯巧合。撤回测试也避免长期保留无用步骤。`,
+  (story) => `评价“${story.subject}”时，${story.actor}同时查看支持和反对当前做法的材料。顺利部分支持继续试用，偏差则提示方案仍有边界。两类信息并列后，结论不必靠省略例外来显得整齐。`,
+  (story) => `下一轮围绕“${story.subject}”展开时，起点不再是重新争论，而是检查现有步骤的实际表现。${story.actor}根据反馈调整细节，把精力留给尚未解决的部分。这样积累下来的经验可以继续修正。`,
+];
+
+const additionalLongEvidencePatterns = [
+  (story) => `为了不让“${story.subject}”只停在一次顺利经验，${story.actor}又选择不同时段复查。每次都从原始现象开始，不用后来的结论替换当时记录。`,
+  (story) => `${story.actor}把“${story.subject}”的执行代价也列入评估。方法若需要长期额外提醒，即使短期有效，也必须继续简化。`,
+  (story) => `一次与预期不同的反馈被完整保留。它没有推翻“${story.subject}”已经显现的方向，却提醒${story.actor}查看方法的适用边界。`,
+  (story) => `记录还区分了行动之前已存在的条件和行动之后才出现的变化。这个顺序让“${story.subject}”的因果判断不会被时间先后混淆。`,
+  (story) => `当外部条件改变时，${story.actor}没有强行保持全部步骤。“${story.subject}”的核心目标仍然保留，具体操作则根据现场限制调整。`,
+  (story) => `后来接手记录的人只阅读文字，便能说清“${story.subject}”从什么现象开始、做过哪些变化、还有什么没有确认。`,
+  (story) => `复查过程没有只搜集支持当前方法的材料。${story.actor}同时记下偏差和失败，使“${story.subject}”的结论不需要靠省略例外才能成立。`,
+  (story) => `评估中另一项重要内容是${story.outcome}。这个变化能够对应到具体步骤，因此比笼统的满意或不满意更有用。`,
+  (story) => `团队还曾暂时撤回一项改动，观察原有问题是否重现。这种反向检查为“${story.subject}”的前后差异提供了另一份依据。`,
+  (story) => `实际使用中，最先暴露的是${story.challenge}。${story.actor}因此没有扩大方案，而是回到这个阻力上调整操作顺序。`,
+  (story) => `在忙碌或资源不足的日子里，${story.actor}仍尝试完成“${story.subject}”的核心步骤。只有在普通节奏中也能执行，它才值得长期保留。`,
+  (story) => `最后一轮没有再增加新工具，而是检查${story.method}是否真的完成。“${story.subject}”由此从方案描述回到了可观察的行动。`,
+];
+
+const longClosingReflections = [
+  (story) => `“${story.subject}”仍有一些细节需要观察。${story.actor}没有为文章补上过度完整的答案，而是明确哪些步骤已经验证、哪些部分仍可能改变。这样的留白使经验更接近真实使用。`,
+  (story) => `从“${story.subject}”延伸出去，真正可复用的是核对问题的顺序。${story.actor}保留事实、行动和反馈之间的联系，让后来者能够理解结论如何形成，也能在条件不同的时候重新判断。`,
+  (story) => `这份关于“${story.subject}”的复盘还写明了执行成本。某个办法即使有效，如果长期依赖额外提醒或大量维护，也不适合直接保留。${story.actor}因此把可持续性放进最后的评价。`,
+  (story) => `“${story.subject}”带来的改变并不依赖一次彻底重做。${story.actor}通过连续的小调整逐渐找到合适节奏，过程中允许试错，也允许已经采用的步骤再次被修改。`,
+  (story) => `后来者阅读“${story.subject}”的材料时，可以同时看到顺利结果和中途偏差。${story.actor}没有隐藏犹豫和撤回，这些内容反而说明方法的边界在哪里。`,
+  (story) => `围绕“${story.subject}”形成的经验只服务于下一次行动。${story.actor}不会把它包装成固定标准，而会先检查人员、环境和目标是否已经改变，再决定沿用多少。`,
+];
+
+const adjustmentSignals = [
+  (story) => `“${story.subject}”的旧安排已经值得重新检查`,
+  (story) => `${story.actor}已经找到“${story.subject}”当前的主要障碍`,
+  (story) => `要想${story.action}，需要先改动最吃力的环节`,
+  () => `同类困难反复出现，继续等待不会自动带来改善`,
+  (story) => `这轮核对让“${story.subject}”被忽略的缺口变得清楚`,
+  (story) => `维持现状的代价已经超过调整“${story.subject}”的成本`,
+  (story) => `${story.actor}已经为“${story.subject}”找到可验证的切入点`,
+  () => `目前的阻力说明这不是只靠提醒就能解决的事情`,
+  (story) => `“${story.subject}”需要改变的是操作顺序，而不是再增加要求`,
+  (story) => `${story.actor}已经能够区分偶然波动和持续出现的困难`,
+  (story) => `现场事实为“${story.subject}”下一步处理提供了可靠依据`,
+  (story) => `围绕“${story.subject}”的调整可以从一个小步骤开始`,
+];
+
+const challengeDetailPatterns = [
+  (story) => `真正执行“${story.subject}”时，纸面设想遇到了实际限制。${story.actor}因此把方案拆成更容易检查的小步骤。`,
+  (story) => `“${story.subject}”进入实施阶段后，困难比讨论时更具体。${story.actor}及时调整操作顺序，没有扩大改动范围。`,
+  (story) => `纸面方案无法覆盖“${story.subject}”的全部情况。${story.actor}保留已经有效的部分，再针对偏差作局部修订。`,
+  (story) => `处理“${story.subject}”的途中出现了新的限制。${story.actor}把原本过大的步骤拆小，逐项查看反馈。`,
+  (story) => `${story.actor}很快发现，“${story.subject}”的难点不只在是否愿意改变。接下来的修改转向真实操作中的阻力。`,
+  (story) => `“${story.subject}”并未完全按计划推进。${story.actor}回到现场事实，重新确定可以继续的部分。`,
+  (story) => `执行反馈使“${story.subject}”的边界更清楚。${story.actor}据此缩小范围，避免一次改动牵连无关部分。`,
+  (story) => `进入实际场景后，“${story.subject}”出现了计划之外的阻碍。${story.actor}保留目标，同时换用更容易完成的顺序。`,
+  (story) => `“${story.subject}”第一次试行并不顺利。${story.actor}把偏差作为修订依据，而不是当成个人失误。`,
+  (story) => `随着操作继续，${story.actor}看清了“${story.subject}”最费力的环节。笼统的改进要求由此变成具体任务。`,
+  (story) => `处理细节暴露出“${story.subject}”此前没有考虑的前提。${story.actor}补上一项检查，再观察后续表现。`,
+  (story) => `“${story.subject}”需要在真实节奏中接受检验。${story.actor}根据现场反馈收回了不必要的附加要求。`,
+];
+
+const resultPreviewPatterns = [
+  (story) => `一段时间以后，“${story.subject}”出现了第一批可比较的反馈。${story.actor}把这些变化作为后续复查的起点。`,
+  (story) => `“${story.subject}”很快进入第一轮回看。${story.actor}只确认方向，不把阶段表现当成最终结论。`,
+  (story) => `初步反馈说明“${story.subject}”已经可以被检验。接下来还要查看它在不同情况下是否稳定。`,
+  (story) => `经过几次实际使用，${story.actor}开始复核“${story.subject}”。检查重点是原有困难有没有转移到别处。`,
+  (story) => `“${story.subject}”的表面变化并不夸张，却已经提供了复查线索。${story.actor}决定再观察一个阶段。`,
+  (story) => `再次比较前后情况时，${story.actor}看到“${story.subject}”出现方向性差异。接下来需要分辨变化来自哪个环节。`,
+  (story) => `第一阶段结束后，围绕“${story.subject}”的讨论从意见转向实际反馈。${story.actor}据此安排下一轮核对。`,
+  (story) => `“${story.subject}”逐渐给出可观察的回应。后续安排以实际表现为依据，不再停留在最初设想。`,
+  (story) => `${story.actor}在复核时发现，“${story.subject}”已经出现方向性的改善。这个发现仍需放到日常环境中验证。`,
+  (story) => `原有问题没有一次消失，但“${story.subject}”的核心步骤已经能够运行。${story.actor}因此愿意继续试用。`,
+  (story) => `从阶段性表现看，“${story.subject}”已经有了可核对的变化。这比笼统地宣布成功更有用。`,
+  (story) => `实践给出的第一项反馈与“${story.subject}”直接相关。${story.actor}随后把它放回日常环境继续观察。`,
+];
+
+const shortDecisionPatterns = [
+  (story) => `${story.actor}随后确定了具体做法：${story.method}。`,
+  (story) => `针对这个情况，新的处理方式是${story.method}。`,
+  (story) => `下一步只保留一项安排：${story.method}。`,
+  (story) => `${story.actor}从最小改动开始：${story.method}。`,
+  (story) => `围绕“${story.subject}”，最终采用的办法是${story.method}。`,
+  (story) => `确认困难所在后，具体行动是${story.method}。`,
+  (story) => `比起继续争论，${story.actor}选择的办法是${story.method}。`,
+  (story) => `这次调整落在一个具体动作上：${story.method}。`,
+  (story) => `${story.actor}没有全面重做，只保留一项核心安排：${story.method}。`,
+  (story) => `方案很快缩小为一项行动：${story.method}。`,
+  (story) => `为了解决眼前的不便，第一步是${story.method}。`,
+  (story) => `${story.actor}把讨论转成行动，具体做法是${story.method}。`,
 ];
 
 function buildStoryOutline(topic, articleNumber) {
@@ -587,6 +957,8 @@ function buildStoryOutline(topic, articleNumber) {
     topicData.scenarioNames.length;
 
   return {
+    scenarioIndex,
+    actor: topicActors[topic][scenarioIndex % topicActors[topic].length],
     subject: topicData.scenarioNames[scenarioIndex],
     detail: topicData.observations[scenarioIndex],
     challenge: storyData.challenges[scenarioIndex],
@@ -598,31 +970,80 @@ function buildStoryOutline(topic, articleNumber) {
   };
 }
 
-function buildShort(topic, articleNumber) {
-  const story = buildStoryOutline(topic, articleNumber);
+function buildShort(topic, articleNumber, storyOverride) {
+  const story = storyOverride ?? buildStoryOutline(topic, articleNumber);
   const patternIndex = (articleNumber + story.variant) % openingPatterns.length;
   return [
-    openingPatterns[patternIndex](story.subject, story.detail),
-    `${story.challenge}，于是人们决定${story.method}。`,
-    `${story.outcome}。${closingPatterns[patternIndex](story.lesson)}`,
+    openingPatterns[patternIndex](story),
+    issuePatterns[(patternIndex + 3) % issuePatterns.length](story),
+    shortDecisionPatterns[(patternIndex + 6) % shortDecisionPatterns.length](story),
+    `${story.outcome}。`,
+    closingPatterns[(patternIndex + 9) % closingPatterns.length](story),
   ].join("");
 }
 
-function buildRegular(topic, articleNumber, minLength, preferredLength) {
-  const story = buildStoryOutline(topic, articleNumber);
+function buildRegular(topic, articleNumber, minLength, preferredLength, storyOverride) {
+  const story = storyOverride ?? buildStoryOutline(topic, articleNumber);
   const patternIndex = (articleNumber + story.variant) % openingPatterns.length;
-  const paragraphs = [
-    `${openingPatterns[patternIndex](story.subject, story.detail)}最先暴露出来的情况是，${story.challenge}。这件事没有造成严重后果，却足以说明原有安排已经需要调整。`,
-    analysisPatterns[patternIndex](story.method),
-    executionPatterns[patternIndex],
-    resultPatterns[patternIndex](story.outcome),
-    ...topicReflections[topic],
-    `为了确认经验没有被过度概括，参与者又寻找了一个不符合预期的例子。它没有推翻已有结果，却帮助说明方法的适用边界。限制条件也被写进记录，避免后来的人只看见成功部分。`,
-    boundaryPatterns[patternIndex],
-    boundaryPatterns[(patternIndex + 1) % boundaryPatterns.length],
-    boundaryPatterns[(patternIndex + 2) % boundaryPatterns.length],
-    `${closingPatterns[patternIndex](story.lesson)}这个认识和已经记录的处理过程，共同构成了这次经历最有价值的部分。`,
-  ];
+  const structureVariant = articleNumber % 6;
+  const isLongArticle = minLength >= 1000;
+
+  const openingPara = `${openingPatterns[patternIndex](story)}${issuePatterns[
+    (patternIndex + 3) % issuePatterns.length
+  ](story)}${adjustmentSignals[(patternIndex + 6) % adjustmentSignals.length](story)}。`;
+  const analysisPara = analysisPatterns[(patternIndex + 2) % analysisPatterns.length](story);
+  const executionPara = executionProgressPatterns[
+    (patternIndex + story.scenarioIndex) % executionProgressPatterns.length
+  ](story);
+  const resultPara = resultPatterns[(patternIndex + 4) % resultPatterns.length](story);
+  const reflectionVariants = topicReflections[topic];
+  const boundaryVariants = topicBoundaryPatterns[topic];
+  const reflectionIndex = story.scenarioIndex % reflectionVariants.length;
+  const boundaryIndex = (story.scenarioIndex + patternIndex) % boundaryVariants.length;
+  const evidencePatterns = story.additional
+    ? additionalLongEvidencePatterns
+    : longEvidencePatterns;
+  const longTail = isLongArticle
+    ? [
+        evidencePatterns[(patternIndex + 1) % evidencePatterns.length](story),
+        evidencePatterns[(patternIndex + 3) % evidencePatterns.length](story),
+        evidencePatterns[(patternIndex + 5) % evidencePatterns.length](story),
+        evidencePatterns[(patternIndex + 7) % evidencePatterns.length](story),
+        evidencePatterns[(patternIndex + 9) % evidencePatterns.length](story),
+        longClosingReflections[
+          (patternIndex + story.scenarioIndex) % longClosingReflections.length
+        ](story),
+        reflectionVariants[reflectionIndex],
+        boundaryVariants[boundaryIndex],
+        boundaryVariants[(boundaryIndex + 1) % boundaryVariants.length],
+      ]
+    : [];
+  const closingPara = closingPatterns[(patternIndex + 7) % closingPatterns.length](story);
+
+  let coreParagraphs;
+  let paragraphs;
+  if (structureVariant === 0) {
+    coreParagraphs = [openingPara, analysisPara, executionPara, resultPara];
+  } else if (structureVariant === 1) {
+    const challengeDetail = challengeDetailPatterns[patternIndex](story);
+    coreParagraphs = [openingPara, executionPara, challengeDetail, analysisPara, resultPara];
+  } else if (structureVariant === 2) {
+    const resultPreview = resultPreviewPatterns[patternIndex](story);
+    coreParagraphs = [openingPara, resultPreview, analysisPara, executionPara, resultPara];
+  } else if (structureVariant === 3) {
+    const challengeDetail = challengeDetailPatterns[
+      (patternIndex + 4) % challengeDetailPatterns.length
+    ](story);
+    coreParagraphs = [openingPara, analysisPara, challengeDetail, executionPara, resultPara];
+  } else if (structureVariant === 4) {
+    coreParagraphs = [openingPara, executionPara, analysisPara, resultPara];
+  } else {
+    const resultPreview = resultPreviewPatterns[
+      (patternIndex + 5) % resultPreviewPatterns.length
+    ](story);
+    coreParagraphs = [openingPara, resultPreview, executionPara, analysisPara, resultPara];
+  }
+  paragraphs = [...coreParagraphs, ...longTail, closingPara];
 
   let text = "";
   for (const paragraph of paragraphs) {
@@ -630,7 +1051,9 @@ function buildRegular(topic, articleNumber, minLength, preferredLength) {
     text += `${text ? "\n\n" : ""}${paragraph}`;
   }
   if (text.replace(/\s/g, "").length < minLength) {
-    throw new Error(`${topic} article ${articleNumber} did not reach ${minLength} characters`);
+    throw new Error(
+      `${topic} article ${articleNumber} did not reach ${minLength} characters (got ${text.replace(/\s/g, "").length})`,
+    );
   }
   return text.trim();
 }
@@ -645,7 +1068,40 @@ function clampAtSentence(text, minLength, maxLength) {
     window.lastIndexOf("？"),
   );
   const end = punctuation + 1 >= minLength ? punctuation + 1 : maxLength;
-  return compact.slice(0, end).replace(/[^。！？]$/, "$&。");
+  let nonWhitespace = 0;
+  let originalEnd = text.length;
+  for (let index = 0; index < text.length; index += 1) {
+    if (/\s/u.test(text[index])) continue;
+    nonWhitespace += 1;
+    if (nonWhitespace === end) {
+      originalEnd = index + 1;
+      break;
+    }
+  }
+  const clipped = text.slice(0, originalEnd).trimEnd();
+  return /[。！？](?:”|」)?$/u.test(clipped) ? clipped : `${clipped}。`;
+}
+
+function normalizeGeneratedPunctuation(text) {
+  return text
+    .replace(/([。！？])[，；：]+/gu, "$1")
+    .replace(/[，；：]+([。！？])/gu, "$1")
+    .replace(/([，；：])\1+/gu, "$1")
+    .replace(/([。！？])\1+/gu, "$1");
+}
+
+function assertGeneratedTextQuality(id, text) {
+  const leftQuotes = (text.match(/“/gu) || []).length;
+  const rightQuotes = (text.match(/”/gu) || []).length;
+  if (leftQuotes !== rightQuotes) {
+    throw new Error(`${id} contains unbalanced Chinese quotation marks`);
+  }
+  if (/【\d+】/u.test(text)) {
+    throw new Error(`${id} contains an internal deduplication marker`);
+  }
+  if (/[，。！？；：][，。！？；：]/u.test(text)) {
+    throw new Error(`${id} contains adjacent punctuation`);
+  }
 }
 
 const chatArticles = [
@@ -839,6 +1295,215 @@ function buildChat(articleNumber) {
   return `${chatArticles[index].text.trim()}\n\n${chatFollowUps[index]}`;
 }
 
+const parseAdditionalSeeds = (source) =>
+  source.trim().split("\n").map((line, index) => {
+    const [topic, title, detail, challenge, method, outcome] = line.split("|");
+    if (!topic || !title || !detail || !challenge || !method || !outcome) {
+      throw new Error(`Invalid additional article seed at line ${index + 1}`);
+    }
+    return {
+      topic,
+      title,
+      detail,
+      challenge,
+      method,
+      outcome,
+      lesson: `处理“${title}”时，有效的改变应当回应真实需要而不是追求表面整齐`,
+    };
+  });
+
+// These briefs are deliberately explicit rather than assembled by swapping a few
+// nouns. Every appended article starts from a different observable problem.
+const additionalShortSeeds = parseAdditionalSeeds(`
+日常生活|晒衣架上的风向|阳台转角长期背风，厚衣服总在内侧发潮|家人只按空位挂衣，没有留意日照和空气流动|先记录两天的光照和风向，再把厚薄衣物分区晾晒|同一批衣物能在晚饭前干透
+日常生活|冰箱门上的七天清单|每次清理都会找到已经忘记的开封调料|食物藏在深处，购买时又没有查看现有库存|在冰箱门上只记录七天内必须吃完的食物|一周后没有再丢掉开封食品
+日常生活|夜间回家的照明路线|玄关顶灯很亮，起夜时却会让人瞬间清醒|所有灯具只有全亮和全暗两种选择|从门口到卧室布置低位暖光，并保留楼梯处的安全亮度|晚归时既能看清路面又不会打扰家人
+日常生活|共用雨伞的归还位置|三把雨伞经常留在不同房间，真下雨时门口反而没有|湿伞需要晾干，固定位置又远离通风处|门边设待用篮，阳台设晾干架，干透后当天放回|连续几次降雨都能在出门前找到雨伞
+日常生活|早餐锅的余温|粥盛出后继续滚沸，孩子常因太烫来不及吃|停火时间只看时钟，没有把锅体蓄热算进去|提前五分钟停火并把锅移到冷炉灶上|早餐温度更适合，出门时间也不再拖延
+日常生活|门口快递的拆箱顺序|退货包裹、纸箱和新物品混在一起|拆箱后的验货、收纳和纸箱处理没有明确先后|每次只拆一件，先验货并留好标签，再决定纸箱去向|门口不再堆积无法判断状态的包裹
+职场办公|下班前的五分钟交接|晚班同事接手时只看到一串未读消息|事件状态、客户等待内容和下一步动作分散在聊天里|交班者固定写三行：已发生、待回复、需升级|晚班能在五分钟内找到当前重点
+职场办公|视频会议里的静默三秒|远程讨论时大家因网络延迟频繁抢话|发言人一停顿就被误以为已经说完|主持人约定发言后留三秒，有意见者先用手势示意|会议中的打断明显减少
+职场办公|打印机旁的故障卡|同一台打印机每周都有人重复报修|缺纸、卡纸和驱动问题都被简写成无法使用|在机身旁放置可擦写卡，记录现象、时间和已做操作|维修人员一次就找到了进纸传感器问题
+职场办公|新人手册的第一个链接|入职资料页面列着几十个文档入口|所有内容都标成必读，新人无法判断当天需要什么|首页只保留今天完成、本周了解和需要时查找三级|新同事半天内完成了账号和环境配置
+职场办公|客户回复的期限语句|邮件里常用尽快、稍后和有空时回复|双方对等待时间的理解完全不同|把模糊词改成明确日期，不确定时也先告知下次更新时点|客户不再因没有消息而重复追问
+职场办公|共享表格的锁定列|多人编辑时公式列偶尔被粘贴内容覆盖|表格看似正常，错误只在月底汇总时暴露|锁定计算列，开放输入列，并给异常结果加颜色提示|下一次误操作在当天就被发现
+科技数码|手机相册的时区偏差|旅行照片迁移后被排到前一天|两台设备的时区设置不同，修改文件名也无法修复拍摄时间|先备份原图，再按拍摄地批量校正时区元数据|整段行程重新按真实顺序排列
+科技数码|路由器的夜间重启|家里网络每天凌晨都会中断两分钟|自动维护时间与云端备份和夜班工作重叠|把重启调整到家中无人使用的时段，并记录断网日志|备份任务连续两周完整结束
+科技数码|蓝牙音箱的已连接假象|电脑显示音箱已连接，声音却仍从显示器播放|连接状态和系统输出设备是两个独立选项|在重新配对前先检查输出路由，删除失效的虚拟音频设备|音箱稳定播放，也没有破坏原有配对
+科技数码|旧平板的单一用途|闲置平板更新后反应迟缓，却仍能显示简单页面|同时安装通讯、视频和工具软件让设备不堪重负|清除多余应用，只保留菜谱和家庭日历两个固定入口|旧设备在厨房重新获得稳定用途
+科技数码|文件同步里的冲突副本|编辑后目录中出现两份内容不同的同名文档|急着删掉其中一份可能丢失离线时的修改|先复制两份原件，逐段合并差异，再检查同步客户端日志|修改全部保留，冲突原因也被找到
+科技数码|电子书阅读器的字体缓存|更换字体后部分章节仍显示旧字形|重复导入书籍只会制造更多副本|保留原文件，清理排版缓存并重建书籍索引|全书字体统一，批注位置也没有丢失
+自然旅行|潮汐表上的返程窗口|海边步道只在低潮时露出连接小路|行程只记录最佳拍照时间，没有预留退回安全区的时间|根据当日潮汐表倒推返程，设置比涨潮早四十分钟的折返点|同行者从容离开海滩，没有被潮水困住
+自然旅行|山路拐弯处的鸟鸣|导航建议的捷径穿过季节性繁殖区|地图上的虚线没有反映当地的临时管理|查看保护区公告，改走外围步道并降低说话音量|小队没有进入繁殖地，仍在远处听到了鸟鸣
+自然旅行|高原第一天的慢速行程|抵达后原定当天翻越一段长坡|时间表忽略了身体适应海拔的个体差异|取消长坡，只在住处附近短距离散步，持续观察状态|全员平稳度过首日，次日再根据体力调整
+自然旅行|博物馆闭馆日的街区观察|到达后才发现主馆因布展临时关闭|行程把一个室内地点当成唯一目标|向工作人员要一张街区建筑图，改为观察老店招牌和街廓|原本的空档变成一段有记录的城市漫步
+自然旅行|露营地的无灯之夜|营地熔灯被大灯照得如同白天|过强照明影响别人休息，也让眼睛无法适应黑暗|用低位红光处理近身事务，离开帐篷时再短暂开手电|营地更安静，大家也看见了更清楚的星空
+自然旅行|雨后栈道的木板颜色|同一段栈道有的木板变深，有的仍显干燥|只凭天气判断路面安全，忽略了遮阴和排水差异|降低速度，用登山杖轻触路面，在深色转弯处保持间距|队伍安全通过，也记下了易滑位置
+阅读随笔|诗集里的空白页|读者快速翻过章节间的留白，总觉得整本书过于零散|阅读节奏只由文字数量决定，没有把编排也视作表达|每组诗读完后停一分钟，记下前后意象的变化|原本松散的篇章显出了清楚的情绪转折
+阅读随笔|推理小说的嫌疑人表|读到中段时人物关系已经混淆|反复翻回前文会打断情节，凭印象又容易错认线索|只记人物首次出场的身份和一条可疑行动|后半程能连续阅读，也发现自己曾误判的细节
+阅读随笔|口述史里的方言词|访谈稿中一个方言词被编辑直接换成普通话|语义大致保留，说话人的语气和地方经验却消失了|对照录音恢复原词，在脚注中解释而不替换正文|访谈既能被理解，又保留了讲述者的声音
+阅读随笔|菜谱边缘的油渍|一本旧菜谱最脏的几页恰好是家中常做的菜|只看印刷内容无法知道家人实际如何调整份量|询问做饭的长辈，把实际配比和火候写在旁边|菜谱从出版物变成了可继续使用的家庭记录
+阅读随笔|科普书中的失效数字|十年前的能源数据被当成当前现状引用|书中的推理仍有价值，具体数字却可能已经变化|在页边标记数据年份，只对影响结论的数字查找新来源|读者区分了稳定原理和需要更新的事实
+历史文化|古桥石缝里的铁锭|修缮记录提到桥面更换，现场却留有不同年代的连接件|把所有铁锭当成原建构会掩盖后期维修层次|分别记录形制、锈蚀和所在石缝，再与历次修桥档案对照|几次修缮的顺序逐渐清晰
+历史文化|老剧场票根的座位图|一张票根上的排号与现在剧场完全不同|只根据票价无法判断当时观众的观看位置|查找同年广告和消防图，按入口、楼层和排号重建平面|票根上的信息还原了一次具体的观演经验
+历史文化|祖屋梁上的铅笔日期|木梁内侧写着一串比房契晚二十年的日期|一个日期可能对应建造、翻修或匠人留记|保留字迹现状，记录木料更换痕迹并访问老居民|证据指向一次屋顶加固而非初建年代
+历史文化|方志地图上的旧河道|旧地图上的河弯如今已成为一排街道|直接把现代路名套入旧图会造成位置偏差|选取方位稳定的庙宇和山体作控制点，再对齐河道|城市向外扩张的路径在两张图上衔接起来
+历史文化|旧校舍墙上的分班名单|粉刷层下露出一列手写姓名和课桌编号|名单不足以证明所有人同时在此就读|拍摄字迹层位，对照毕业照片、学籍册和当年教室编号|名单被确认为某个学期的座位记录
+通俗科普|窗边冷凝水的出现时刻|冬天早晨只有卧室窗角出现水珠|把水珠简单归因于窗户质量忽略了湿度和表面温度|连续记录室内湿度、外温和窗角温度，再调整通风|湿度降低后水珠减少，原因也更可解释
+通俗科普|气泡水中的气泡大小|刚开盖时气泡密集，放置后逐渐变少|只用手摇会同时改变温度和液体内部成核位置|用同温容器比较光滑杯壁和有纹理杯壁的气泡|杯壁细小缺口与气泡形成的关系被直观看见
+通俗科普|电梯起步时的身体错觉|电梯尚未移动时乘客偶尔感到身体前倾|视觉预期、肌肉准备和实际加速可能不同步|在确保安全的情况下比较看门缝和看轿厢内壁时的感受|感觉差异说明大脑会预先组织身体反应
+通俗科普|面包冷却后的变硬|刚出炉的面包柔软，冷却后却在密封袋里变硬|水分没有全部散失，淀粉结构的重排同样影响口感|比较室温、冷藏和冷冻后回温的同批面包|不同储存方式展示了淀粉老化与温度的关系
+通俗科普|城市鸟类的清晨合唱|天亮前后不同鸟种依次加入叫声|将音量最大的时刻当成所有鸟类同时活跃会掉过物种差异|在固定地点分时段录音，结合声纹和现场观察辨认|每种鸟的活跃时窗在录音中逐渐分开
+通俗科普|磁铁下落的铜管|小磁铁穿过铜管时比穿过纸筒慢得多|铜本身不是永磁体，现象不能用相吸简单解释|使用相同长度和直径的铜管、塑料管比较下落时间|变化磁场产生的涡流阻力通过速度差呈现出来
+`);
+
+const additionalMediumSeeds = parseAdditionalSeeds(`
+日常生活|厨房切菜板的干燥面|切菜板洗净后平放在台面，底部始终潮湿|只擦干上表面无法让两面均匀通风|增加立式收纳槽，洗后先沥水再竖放|木板两面都能完全干燥，异味也消失
+日常生活|洗手池下的慢漏|柜子里的纸巾偶尔发潮，却看不到明显水滴|漏水只在排水后出现，干燥时检查很容易遗漏|在各个接口包上干纸巾，分别放水并查看最先变湿的位置|松动的弯管垫圈被确认并更换
+日常生活|客厅植物的旋转周期|靠窗的枝叶越长越密，背光一侧逐渐稀疏|每天随手转动花盆会让方向和幅度无法追踪|每周固定旋转四分之一圈，同时拍摄四面生长状态|一个月后树冠形态更均衡
+日常生活|家庭药箱的开封日期|外包装有效期很长，开封后的眼药水却无法确认使用了多久|只记购买日期不能代替开封后使用期限|首次使用时直接在瓶身写日期，药箱每月只检查一次开封品|过期的开封药品能及时被识别
+日常生活|周末打扫的高处灰尘|桌面擦完后再清理书柜顶，灰尘又落回已清洁区域|打扫顺序按房间而非按高度，导致重复擦拭|先处理全屋高处和织物，待落尘后再清洁台面与地面|相同面积的打扫时间缩短了近三成
+职场办公|需求评审中的反例|功能说明列了正常流程，却没有说清信息不全时如何处理|团队对完整数据讨论很充分，对现实中的缺失情况却各自假设|每条规则补一个最小反例，并明确是拒绝、降级还是请求补充|开发前就发现了两处边界冲突
+职场办公|轮值表上的节假日|自动排班把公共假期当成普通工作日|不同地区成员的假期并不相同，一张统一日历会造成假象|排班前导入成员所在地假期，冲突时由本人确认交换|节前没有再出现临时找人替班
+职场办公|周报里的阻塞时长|任务连续两周写着进行中，实际上一直在等待外部回复|只报告状态不能显示等待已经消耗了多少时间|在阻塞项后标记开始日期、当前责任方和最晚升级时点|负责人在临界日前获得了决策支持
+职场办公|演示环境的假数据|演示账号里只有完美记录，页面在空值和超长文字下从未显示|客户看到的流畅流程无法代表真实数据的边界|准备空列表、部分失败、超长名称和重复操作四组演示数据|评审现场提前暴露了容错和布局问题
+职场办公|报销附件的缺口|一张发票在流程末端才被发现缺少付款证明|申请人看到提交成功，却不知道审核所需材料尚未齐全|在上传页按费用类型显示必需附件，提交前做本地清单检查|该类报销的退回次数明显下降
+科技数码|显示器色温的自动切换|修图时屏幕颜色在傍晚突然变暖|护眼模式按时间启用，与需要稳定色彩的工作冲突|为色彩工作建立独立显示配置，结束后再恢复日常模式|同一张图在整个处理过程中保持了一致颜色
+科技数码|键盘宏与输入法的冲突|设置的快捷键在中文输入时偶尔触发宏命令|软件只识别按键组合，没有判断当前输入状态|把宏改到不参与中文编码的功能键，并在三种输入状态下测试|连续输入不再被意外命令打断
+科技数码|智能插座的断电状态|停电恢复后加湿器自动重新启动|插座默认恢复上次状态，但某些设备无人时不应运行|把断电后默认状态改为关闭，并模拟断电检查所有连接设备|来电后只有冰箱等必需设备自动恢复
+科技数码|扫描文档的倾斜角度|同一批合同页面略微倾斜，文字识别错误集中在页边|盲目提高分辨率会增加文件体积，却不会矫正纸张方向|先用页边检测批量纠偏，再对小字区域做局部识别|识别错误大幅减少，文件体积也没有失控
+科技数码|网页书签的失效预警|一个资料文件夹里半数链接已无法打开|书签保存了入口，却没有保存当时需要的内容和来源信息|对关键资料保存标题、作者、日期和本地摘要，定期检查链接|即使原页下线，仍能知道资料的用途和出处
+自然旅行|城市步道的树荫路线|夏日地图推荐的最短路线几乎没有遮阴|距离模型没有把日照、饮水点和休息处纳入成本|在相近距离的道路中优先串联树荫、便利店和室内通道|步行时间稍长，但同行者的疲惫明显减轻
+自然旅行|火车换乘站的反向站台|两段车票显示同一站换乘，实际却要穿过地下通道|时刻表只给出发车间隔，没有反映携带行李的步行时间|查看站房平面图，选择靠近楼梯的车厢，并预留十五分钟|换乘过程没有奔跑，行李也始终在视线内
+自然旅行|湿地望远镜的共用时间|观鸟点只有一架望远镜，队员都想看水面远处的鸟群|长时间占用会让后面的人错过鸟群移动|每人先观察三十秒，发现特征后用地标帮下一人快速定位|所有人都看到了目标，还共同记下了迁飞方向
+自然旅行|小城集市的收摊时间|攻略写着市集全天开放，摊主却在中午后陆续离开|网络信息没有说明日期和季节，也不代表当地人的实际节奏|前一天询问住宿主人，早晨先去集市，下午再安排固定开放的地点|旅行者看到了完整市集，行程也没有空等
+自然旅行|秋日山谷的背阴小路|山脚天气晴朗，谷底背阴路面却留有隔夜薄冰|气温预报代表开阔地区，局部地形会造成完全不同的条件|到达背阴段前换上防滑配件，缩短步幅并取消一段急坡|小队安全离开谷底，没有用山脚经验冒险
+阅读随笔|两种译本的同一段对话|两本译作对人物语气的处理一个克制、一个激烈|只比较哪个词更准确会忽略整段节奏和人物关系|把对话前后各多读一页，标记称呼、停顿和反复意象|读者看到了译者选择如何改变人物距离
+阅读随笔|长篇小说的时间标记|故事在三个年代之间切换，章节标题却不总是给出日期|读者将叙述顺序误当成事件先后，因果关系因此混乱|只在确定的节点写下年份，不确定处保留问号而不强行补齐|时间线显出了叙事故意留下的空缺
+阅读随笔|论文摘要与图表之间|摘要宣称差异明显，图表中的分布却有大量重叠|单一平均值可以放大组间差异，也可能遮住个体波动|先读图例、坐标和样本数，再对照摘要里的结论语句|读者能区分统计差异和实际效果大小
+阅读随笔|旧杂志中的商品广告|一则家电广告把当年的新功能描述成生活必需|广告同时反映技术、消费期待和家庭角色，不能只当成产品说明|对照同期价格、新闻和读者来信，分开宣传语与实际普及程度|广告成为观察当时日常想象的一扇窗
+阅读随笔|工具书里的交叉索引|查找一个植物旧名时，正文页只指向另一个名称|不理解参见和亦称的区别会在索引间循环翻找|先读编辑说明，记下现行名、异名和分类变更的箭头|一组看似矛盾的名称被放回历史顺序
+历史文化|码头仓库的编号方向|仓门上的数字从河口向内陆递增，与现代道路门牌相反|若以今天的街道为起点，就会误判旧时物流方向|将仓库编号、老照片的船位和货物登记簿放在同一张图上|编号规则显示出码头从水面组织空间的方式
+历史文化|家谱边页的迁居备注|正页只记录人名，边页小字却写着一次跨省迁居|把旁注当成次要内容会切断家庭与地方历史的联系|核对字迹、纸张和后代口述，再查迁入地户籍记录|这条备注解释了两地同姓家庭的往来
+历史文化|庙会照片里的临时电线|老照片中摊位上方已有成排灯泡，但拍摄年代不明|一根电线可以反映基础设施，却不能单独确定照片时间|对照商户招牌、电杆形式和庙会管理档案|多个细节把照片范围缩小到三个可能年份
+历史文化|古籍印章的先后次序|同一页上叠着三枚藏书印，颜色深浅并不一致|印泥颜色会因材料和保存条件变化，不能直接代表时间|观察盖印覆盖关系、印面磨损和题跋中的收藏记录|古籍在几位藏家间的流转顺序得到重建
+历史文化|城墙砖上的倒置字样|一块城砖的窑口字样上下颠倒，周围砖块却方向一致|筑城时可能并不在意字样朝向，后期修补也可能重新使用旧砖|记录灰缝、磨损面和附近砖块尺寸，对照修城文书|倒置砖被判断为一次后期局部补筑的材料
+通俗科普|保温杯盖上的小孔|装热水后直接开盖需要更大力气，先按排气键则容易很多|密闭容器内的气体在温度变化后会造成压力差|比较不同水温和放置时间下的开盖感受，不在高温时强行拧开|小孔的安全作用与压力变化建立了联系
+通俗科普|铁勺在热汤里的温度|金属勺柄很快变烫，木勺同样位置仍能握住|只说金属更冷或更热没有区分导热速率和当前温度|用相同深度和时间浸泡不同材料勺柄，记录外露端变化|材料导热差异通过可观察的时间尺度呈现
+通俗科普|肥皂膜上的彩色条纹|同一片肥皂膜的颜色会随观察角度迅速改变|颜色并非来自固定颜料，而与薄膜厚度和光程差有关|在黑色背景前缓慢倾斜膜面，比较不同位置的颜色顺序|连续色带展示了光在两个表面反射后的干涉
+通俗科普|太阳落山时的扁圆轮廓|接近地平线的太阳看起来下缘被压扁|大气层中温度和密度变化会使不同高度的光发生不同程度折射|用固定焦距连续拍摄落日，只比较轮廓而不直视太阳|影像记录显示下缘的视位移动更明显
+通俗科普|湿衣服晾干时的降温|刚挂起的湿布表面比旁边干布更凉|水分蒸发需要能量，气流又同时影响蒸发速度|用两支相同温度计分别包住干湿布，在同一风速下记录|湿布一侧的温度曲线先下降再回升
+`);
+
+const additionalLongSeeds = parseAdditionalSeeds(`
+日常生活|搬家后的第一个纸箱|新家里所有纸箱都写着杂物，急用的工具和药品也在其中|按房间打包没有区分到家当天、三天内和长期才使用的物品|单独设置抵达箱，装入充电、清洁、基础食器和常用药，其余再按房间编号|搬进当晚不必翻找多个纸箱就能正常休息
+日常生活|老人手机上的紧急联系页|联系人很多，真需要求助时却很难迅速说清位置和情况|只设快捷拨号不能处理对方未接听、手机锁屏和医疗信息缺失|与家人一起设紧急卡，包含三个联系人、家庭地址、用药提示和明确求助步骤|一次演练中老人能独立找到页面并完成通话
+职场办公|项目取消后的知识回收|一个未上线项目被停止，半年的调研和试验记录面临一起归档|如果只保留最终结论，后来者无法理解哪些路线已经证伪及当时的决策条件|按可复用调研、已排除方案、可删除临时物和权限需移交四类整理，再写一页取消背景|新项目三个月后复用了调研方法，也没有重蹈旧方案
+职场办公|跨时区团队的决策窗口|亚洲团队下班后欧洲团队才提出关键问题，一轮确认需要整天|依赖即时会议会牺牲一方的休息，完全异步又容易把问题留得过于模糊|每天设一个重叠小时只处理需同步决策的问题，其余材料提前写清选项和截止时间|决策等待时间缩短，也没有再临时拉人深夜开会
+科技数码|家庭照片的二次数字化|早年扫描照片保存为低清文件，底片和相纸近年又出现变色|重新扫描可以提高质量，但也可能破坏原有日期、人物标注和家庭分类|先为原件编号，用无损格式重扫，再将旧文件的日期和说明迁移到新索引|新图像保留更多细节，旧版本和实体对应关系也仍可追溯
+科技数码|个人网站的无障碍键盘路径|鼠标操作看似顺畅，只用键盘时焦点却会跳过菜单或困在弹窗|只检查颜色对比度不能代表交互可达，自动工具也无法完整模拟真实操作顺序|关闭鼠标，从页首按次序完成导航、表单、弹窗和错误恢复，记录每个焦点|页面所有主要任务都能看见焦点并用标准按键完成
+自然旅行|无人岛行程的垃圾回带|一次短途登岛后队员发现岸边没有任何垃圾收集设施|只准备饮水和午餐容器忽略了湿垃圾、破损包装和意外泄漏如何隔离|出发前给每人配可密封回收袋，食物去掉多余包装，回程在码头统一称重检查|小队带回的废物与登岛前物资差额相符，沙滩没有留下新垃圾
+自然旅行|暴雪前的山屋撤离|山屋外仍只有小雪，上游气象站却已经连续上调风雪预警|眼前天气容易给人还能再等的假象，撤离路线随积雪增加会迅速失去安全余量|以最后一班接驳车和索道关闭时间倒推，达到预警级别就收拾必需物资提前下山|队员抵达山下后风雪才全面增强，撤离全程仍有充足能见度
+阅读随笔|一部断代史的三种年代|书中同时使用年号、干支和公元纪年，读者经常把相近事件排错顺序|每遇一个年份都立即换算会打断叙事，完全不换算又难以建立时间距离|只为转折事件建对照表，书页边使用统一符号指向，其余纪年保留原样|主要事件间的先后和间隔变得清楚，原文的历史语境也没有被抹平
+阅读随笔|自传中的可验证细节|作者对童年一场洪水的回忆非常生动，但日期与地方报纸记载相差一年|回忆中的情感真实和时间准确并非同一件事，不应用一处偏差否定整段经验|分开标记可外部核对的日期地点和只属于叙述者的感觉，再查同期日记与报纸|读者找到了两场相近洪水在记忆中叠合的可能，也保留了文学叙述的价值
+阅读随笔|一章未完成的田野笔记|作者在章末列出三个尚未找到证据的问题，没有给出圆满结论|读者习惯把不完整当成缺陷，却可能忽略研究如何坦白证据边界|把已观察、当事人解释和作者推测用三种符号标注，追踪后续章节是否回应|那些未完成的问题反而展示了知识从观察到判断的距离
+历史文化|海关档案里的异名港口|不同语言的船运记录使用几种音译指向同一处港口|如果只按现代地名搜索，大量货运、检疫和天气记录会被分散成无关材料|根据航程天数、附近地标和货物流向建立异名表，每个对应都保留确定程度|原本分散的档案被连成一条港口变迁线索，尚不确定的音译也没有被强行合并
+历史文化|传统戏台的声音路径|村中老戏台没有现代扩音设备，站在院落不同位置却都能听清唱腔|只用建筑形状解释会忽略观众、幕布、地面和周边房屋在演出时的影响|在无人和有观众两种状态下用固定声源分点测量，同时访问老演员对站位的选择|数据和口述共同显示台口、屋顶与院墙如何将声音送向观众区
+历史文化|老照片中被裁掉的人|一张家庭合影的右侧留有明显裁切痕迹，底片却已经不存在|裁切可能源于相框尺寸、人际变化或翻拍损失，不能把猜测当成家庭秘密|搜集同次拍摄的其他照片，记录相纸规格、背面笔迹和不同家庭成员的识别结果|另一张小尺寸照片证明右侧原有两人，但裁切原因仍被诚实地标为不详
+通俗科普|公园池塘的昼夜溶氧|池塘清晨偶尔出现鱼群靠近水面，午后却恢复活跃|只测一次水质会忽略水草光合作用、夜间呼吸和水温对溶氧的共同影响|在日出前、中午和日落后从固定深度取样，连续记录溶氧、水温和鱼群位置|多日曲线显示溶氧在日出前最低，管理者因此把增氧和巡查放到更合适的时段
+`);
+
+const additionalChatSeeds = parseAdditionalSeeds(`
+网络聊天|买菜群里的缺斤疑问|群友称回家称重发现青菜比摊位秤上少了一两|两台秤的精度、去袋方式和途中水分变化都没有核对|先用未开封的标准包装在两台秤上复测，再带完整记录与商户沟通|家用秤的电池问题被发现，商户也同意当场复秤
+网络聊天|小区群里的夜间异响|多位住户听到半夜有周期性低频声，消息里的方向却彼此矛盾|建筑反射和不同楼层窗户朝向会让听感位置失真|统一记录开始时间、持续长度和所在房间，不在群里点名猜测某户|物业将时间与地库排风任务对上，并调整了启动时段
+网络聊天|跑步群里的心率尖峰|一名群友发来截图，某段慢跑心率突然跳到极高数值|光学传感器松动、手腕摆动与真实身体反应需要区分|先确认当时是否有不适，再检查佩戴位置，若异常反复则停止训练并就医|设备调紧后尖峰没有重现，群友也保留了对身体信号的警惕
+网络聊天|家长群里的作业版本|两张截图对同一项作业给出了不同页码，群里开始相互转发|截图裁掉了发布时间和后续更正，无法判断哪张更新|只保留老师原消息链接，管理员在群公告标明最后更新时间|家长能查到唯一现行版本，旧截图也不再继续扩散
+网络聊天|宠物群里的拒食记录|猫主人说宠物突然不吃东西，群友列出了十几种可能|没有进食时长、饮水、排泄和精神状态，网络经验无法安全缩小范围|按时间线记录关键状态，不强行喂新食物，在已持续异常的情况下尽快联系兽医|检查发现了需要处理的口腔问题，没有因反复换粮延误
+网络聊天|租房群里的电费波动|合租者发现本月电费明显升高，有人立即怀疑空调使用|账单周期、阶梯电价、新设备和抄表日都可能影响比较|先对照两期电表起止数和天数，再记录高功率设备的实际运行时间|额外天数和一台忘记关闭的电暖器共同解释了波动
+网络聊天|模型群里的零件尺寸|新人按群文件里的图纸打印零件，组装时却差了两毫米|图片缩放、打印机校准和图纸版本都可能改变最终尺寸|上传原始矢量文件，标注版本和一条实尺检验线，打印后先测量再切割|新件与旧结构顺利匹配，群文件也补上了版本说明
+网络聊天|读书群里的透露边界|一名读者讨论中提前说出结局，其他人对什么算剧透产生争论|不同人的阅读进度和对情节信息的敏感程度并不一致|每周帖子标明可讨论章节，超出范围的内容使用折叠和清楚标题|讨论继续深入，还未读完的成员也能安全参与
+网络聊天|二手群里的瑕疵照片|卖家说物品只有轻微使用痕迹，买家收货后发现边角有裂纹|原照片的光线和角度没有展示边角，双方又没有约定瑕疵标准|保留开箱记录，用同角度补拍并按平台规则沟通，不在群里公布私人信息|双方按瑕疵影响协商了部分退款，群规也增加了拍摄清单
+网络聊天|志愿者群里的宠物寻回线索|一只走失狗的照片在多个社区群转发，线索时间和地点很快混在一起|旧目击消息不带时间持续扩散，会把志愿者引向已经失效的区域|用一张统一更新图只保留核实线索，每条标注时间、方向和核实人，旧图明确作废|志愿者根据最新移动方向在河边找到了走失宠物
+`);
+
+const additionalLessonPatterns = [
+  (seed) => `处理“${seed.title}”时，先把现象说准比急着扩大方案更重要`,
+  (seed) => `“${seed.title}”提醒人们，可执行的小步骤比听起来完美的答案更有价值`,
+  (seed) => `回看“${seed.title}”，真实反馈应该决定做法去留，而不是最初的偏好`,
+  (seed) => `“${seed.title}”留下的经验是，操作顺序清楚后才值得讨论要不要增加工具`,
+  (seed) => `从“${seed.title}”得到的判断只服务于当时条件，环境变化后应该再次核对`,
+  (seed) => `“${seed.title}”说明，有效方法不但要改善结果，也不能把负担转给其他环节`,
+  (seed) => `记录“${seed.title}”的意义不是留下标准答案，而是让别人能够看懂判断依据`,
+  (seed) => `“${seed.title}”告一段落后，被保留的是能在普通日子里继续执行的部分`,
+  (seed) => `围绕“${seed.title}”的复盘同时写下顺利与偏差，让经验保持可修正`,
+  (seed) => `“${seed.title}”并没有产生万能规则，它只证明一个具体改动在当前条件下有用`,
+  (seed) => `处理“${seed.title}”的过程显示，允许撤回的尝试更容易带来可靠反馈`,
+  (seed) => `“${seed.title}”最后只保留一条提醒：改善必须对应最初观察到的真实问题`,
+];
+
+function toAdditionalStory(seed, index) {
+  return {
+    ...seed,
+    additional: true,
+    lesson: additionalLessonPatterns[index % additionalLessonPatterns.length](seed),
+    actor: topicActors[seed.topic]?.[index % 3] ?? "群友",
+    action: `让“${seed.title}”从猜测变成可验证的行动`,
+    scenarioIndex: index,
+    variant: 10 + Math.floor(index / 12),
+  };
+}
+
+const additionalCoreFrames = [
+  (story) => [`${story.detail}。这个很具体的变化，让${story.actor}开始重新观察“${story.subject}”。`, `当时最难处理的是${story.challenge}。过去的习惯没有为这种情况留出余地。`, `他们没有全面重做，而是先${story.method}。这一步可以单独核对，也容易在不合适时撤回。`, `几次实际使用后，${story.outcome}。前后差异能够从记录中看出来。`, `${story.lesson}。这份经验保留了当时的条件，不被写成一条不变的规则。`],
+  (story) => [`“${story.subject}”原本不在计划里。${story.detail}，事情才有了值得核对的起点。`, `${story.actor}把事情按发生顺序重新排列，确认${story.challenge}。猜测和已知事实因此被分开。`, `第一轮只做一件事：${story.method}。其他建议先记在旁边，不与当前尝试混在一起。`, `后来的反馈是${story.outcome}。${story.actor}也查看了改善是否把负担转移给别的环节。`, `${story.lesson}。方法的价值不在于看起来完整，而在于它能否长期被正常使用。`],
+  (story) => [`${story.actor}首先注意到${story.detail}。“${story.subject}”不再只是一个模糊的不便。`, `进一步查看后，${story.challenge}。这说明单纯增加提醒不会自动解决问题。`, `与其增加更多规则，不如${story.method}。操作顺序变得容易观察。`, `试行结束时，${story.outcome}。这个结果与最初的困难能够直接对照。`, `${story.lesson}。如果条件变化，后来者仍需从现象开始重新判断。`],
+  (story) => [`记录“${story.subject}”时，第一条写下的是${story.detail}。这比一句笼统抱怨更容易追踪。`, `多次现象放在一起后，${story.actor}发现${story.challenge}。需要改变的位置由此清晰。`, `他们给当前问题设了一个短周期尝试：${story.method}。期间不随意叠加新要求。`, `周期结束后，${story.outcome}。有效的部分被保留，无关步骤则被取消。`, `${story.lesson}。一份可用的复盘应该让人看见选择依据，而不只是最后答案。`],
+  (story) => [`一次平常的检查显示，${story.detail}。${story.actor}因此把“${story.subject}”列入当天的处理事项。`, `真正的阻力不在表面，而是${story.challenge}。之前的做法一直没有触及这个环节。`, `新的安排很具体：${story.method}。${story.actor}同时记下执行所需的时间和条件。`, `复查时可以确认，${story.outcome}。结果虽然不夸张，却能够稳定重现。`, `${story.lesson}。小范围试行留下了可撤回的余地，也减少了无效投入。`],
+  (story) => [`谈到“${story.subject}”，${story.actor}没有从结论开始。当时可以确认的只有${story.detail}。`, `他们继续追问每一步发生了什么，最后找到${story.challenge}。这是旧方案一直遗漏的部分。`, `改动从${story.method}开始。先完成一轮，再根据结果决定是否继续。`, `实际情况逐渐稳定：${story.outcome}。当事人也能说清改善发生在哪一环。`, `${story.lesson}。这个结论只对当时条件负责，并不替其他情况预先作决定。`],
+  (story) => [`${story.detail}。对“${story.subject}”的原有判断，因这条新线索而发生了变化。`, `${story.actor}先排除无关因素，再确认${story.challenge}。这使讨论不再围绕个人偏好打转。`, `团队选择${story.method}。该动作不要求一次解决所有细节，但能验证最重要的假设。`, `后续记录里，${story.outcome}。与试行无关的变化则被单独标出。`, `${story.lesson}。区分已验证和待观察内容，使这份记录仍然可以继续修正。`],
+  (story) => [`现场最先呈现的是${story.detail}。这个细节为“${story.subject}”提供了一个不依赖印象的起点。`, `把几次记录放在一起，${story.actor}确认${story.challenge}。当前资源只适合先处理其中一段。`, `因此，第一步被定为${story.method}。每次只调整一个条件，使差异仍然可以辨认。`, `完成数次对照以后，${story.outcome}。${story.actor}不再需要靠回忆判断改动是否有效。`, `${story.lesson}。后续如果扩大范围，也会沿用相同的记录方式。`],
+  (story) => [`“${story.subject}”的讨论由一个可观察的情况开始：${story.detail}。其他猜测暂时没有写入结论。`, `查看实际流程后，${story.actor}指出${story.challenge}。这个阻力不能靠更快操作解决。`, `他们把方案缩成${story.method}。改动既不影响其他环节，也能够留下前后记录。`, `结果显示，${story.outcome}。这足以支持继续使用，但还不足以宣称所有情况都会相同。`, `${story.lesson}。把限制一同写下，比只展示顺利结果更有参考价值。`],
+  (story) => [`第一份关于“${story.subject}”的记录只有一句话：${story.detail}。${story.actor}后来补上了时间和环境。`, `信息补齐后，主要问题变得清楚，那就是${story.challenge}。原来的安排并没有覆盖这个前提。`, `接下来他们只${story.method}。结果出现前，没有为了让方案看起来丰富而增加附加步骤。`, `一段时间后，${story.outcome}。这个反馈对应了最初记录的具体现象。`, `${story.lesson}。如今再遇到类似情况，人们先核对前提，而不是直接复制步骤。`],
+  (story) => [`${story.actor}在复盘里写下${story.detail}。这一现象让“${story.subject}”成为一个可以被拆分的问题。`, `第二步不是寻找工具，而是确认${story.challenge}。处理顺序比工具选择更先确定。`, `实际尝试的内容是${story.method}。${story.actor}同时约定了什么情况下应该停止或调整。`, `几轮反馈后，${story.outcome}。结果不仅有方向，也有可检查的细节。`, `${story.lesson}。只有在日常节奏中仍能执行的做法，才有资格进入长期安排。`],
+  (story) => [`处理“${story.subject}”前，${story.actor}先重复查看了${story.detail}这个现象。它并非偶然出现。`, `影响结果的环节很快显现：${story.challenge}。如果跳过它，后面的优化都只会增加负担。`, `团队把第一轮行动定为${story.method}。执行时每个人使用相同的记录方式。`, `后来可以看到，${story.outcome}。他们还特意检查了一次没有达到预期的情况。`, `${story.lesson}。顺利与失败记录被放在一起，方法的边界才不会被遮住。`],
+];
+
+const additionalMediumEvidencePatterns = [
+  (story) => `第一轮记录后，${story.actor}又在另一个普通日子复查“${story.subject}”。只有能够重现的改善，才被继续保留。`,
+  (story) => `实际执行还暴露了${story.challenge}。这个偏差被视作调整“${story.subject}”的依据，而不是个人没有努力的证明。`,
+  (story) => `${story.actor}同时查看了新做法是否增加额外负担。“${story.subject}”的改善若需要不断督促，方法本身就还需要简化。`,
+  (story) => `为了便于别人理解，记录中写明了${story.method}。后来者可以从“${story.subject}”的原始现象出发，独立判断这一步是否合适。`,
+  (story) => `复盘没有把${story.outcome}写成永久状态。${story.actor}为“${story.subject}”保留了再次检查的时点，以便条件变化后及时修正。`,
+  (story) => `除了结果，他们还记录完成“${story.subject}”所需的时间和工具。真正可复用的经验，必须让人看到收益也看到代价。`,
+];
+
+function buildAdditionalArticle(seed, index, length) {
+  const story = toAdditionalStory(seed, index);
+  const core = additionalCoreFrames[index % additionalCoreFrames.length](story);
+  if (length === "short") return core.slice(0, 4).join("");
+  const evidencePatterns = length === "medium"
+    ? additionalMediumEvidencePatterns
+    : additionalLongEvidencePatterns;
+  const evidenceCount = length === "medium" ? 3 : evidencePatterns.length;
+  const evidence = Array.from({ length: evidenceCount }, (_, offset) =>
+    evidencePatterns[(index * 5 + offset) % evidencePatterns.length](story));
+  const paragraphs = [...core.slice(0, 4), ...evidence, core[4]];
+  if (length === "long") {
+    paragraphs.push(`“${story.subject}”仍会随环境改变，因此记录也保留了下一次复查的入口。`);
+  }
+  return paragraphs.join("\n\n");
+}
+
+function buildAdditionalChat(seed, index) {
+  const actor = index % 2 === 0 ? "群管理员" : "一位经验较多的群友";
+  const followUp = index % 3 === 0
+    ? "实际进展被补回原话题，没有另开一条失去上下文的消息。"
+    : index % 3 === 1
+      ? "为了便于后来者判断，最终记录同时保留了时间、条件和未确定部分。"
+      : "群里随后删除了已证伪的转发，让有效信息仍能被快速找到。";
+  return `${seed.detail}。消息出现后，群里很快有人给出经验，也有人提出完全相反的判断。${actor}没有让讨论停在立场上，而是请发布者补齐能够确认的细节。\n\n继续核对后，大家发现${seed.challenge}。这些缺口使先前的建议无法直接采用，也提醒群友不要把一次个人经验当成通用答案。\n\n讨论最后缩小到一个具体做法：${seed.method}。发布者按照这个顺序处理，其他人则暂时不再追加新的猜测。\n\n后续反馈显示，${seed.outcome}。${followUp}\n\n有人在几天后回看整段聊天，发现真正有用的消息都带着明确时间和可核对的条件。只表达态度或重复猜测的内容虽然热闹，却没有帮助当事人完成下一步。\n\n这次对话留下的不是一条适用所有人的结论，而是一种讨论顺序：先说清现象，再补足关键条件，最后根据可核对的结果更新判断。`;
+}
+
 const articleSpecs = [
   { length: "short", count: 80, min: 80, preferred: 118 },
   { length: "medium", count: 70, min: 300, preferred: 410 },
@@ -852,16 +1517,23 @@ const topicNames = Object.keys(topics);
 for (const spec of articleSpecs) {
   for (let i = 0; i < spec.count; i += 1) {
     const topic = topicNames[(serial + i) % topicNames.length];
-    const titleBase = buildStoryOutline(topic, serial).subject;
+    const story = buildStoryOutline(topic, serial);
+    const titleBase = story.subject;
     const preferred = spec.preferred + ((i * 17) % Math.max(20, Math.floor(spec.preferred * 0.18)));
     const generated =
       spec.length === "short"
         ? buildShort(topic, serial)
         : buildRegular(topic, serial, spec.min, preferred);
-    const text =
+    const text = normalizeGeneratedPunctuation(
       spec.length === "short"
         ? clampAtSentence(generated, spec.min, 180)
-        : generated;
+        : clampAtSentence(
+            generated,
+            spec.min,
+            spec.length === "medium" ? 600 : 1800,
+          ),
+    );
+    assertGeneratedTextQuality(`${spec.length}-${String(i + 1).padStart(3, "0")}`, text);
     articles.push({
       id: `${spec.length}-${String(i + 1).padStart(3, "0")}`,
       title: `${titleBase} · ${i + 1}`,
@@ -876,7 +1548,8 @@ for (const spec of articleSpecs) {
 }
 
 for (let i = 0; i < 20; i += 1) {
-  const text = buildChat(i + 1);
+  const text = normalizeGeneratedPunctuation(buildChat(i + 1));
+  assertGeneratedTextQuality(`water-${String(i + 1).padStart(3, "0")}`, text);
   articles.push({
     id: `water-${String(i + 1).padStart(3, "0")}`,
     title: chatArticles[i].title,
@@ -886,6 +1559,85 @@ for (let i = 0; i < 20; i += 1) {
     version: 2,
     text,
   });
+}
+
+const expectedAdditionalCounts = {
+  short: 40,
+  medium: 35,
+  long: 15,
+  water: 10,
+};
+const expectedAdditionalTopics = {
+  日常生活: 13,
+  职场办公: 13,
+  科技数码: 13,
+  自然旅行: 13,
+  阅读随笔: 13,
+  历史文化: 13,
+  通俗科普: 12,
+  网络聊天: 10,
+};
+
+for (const [length, seeds] of Object.entries({
+  short: additionalShortSeeds,
+  medium: additionalMediumSeeds,
+  long: additionalLongSeeds,
+})) {
+  if (seeds.length !== expectedAdditionalCounts[length]) {
+    throw new Error(`Expected ${expectedAdditionalCounts[length]} additional ${length} articles, got ${seeds.length}.`);
+  }
+  const start = { short: 81, medium: 71, long: 31 }[length];
+  const min = { short: 80, medium: 300, long: 1000 }[length];
+  const max = { short: 180, medium: 600, long: 1800 }[length];
+  seeds.forEach((seed, index) => {
+    const raw = buildAdditionalArticle(seed, index, length);
+    const text = normalizeGeneratedPunctuation(clampAtSentence(raw, min, max));
+    const id = `${length}-${String(start + index).padStart(3, "0")}`;
+    assertGeneratedTextQuality(id, text);
+    articles.push({
+      id,
+      title: seed.title,
+      length,
+      topic: seed.topic,
+      wordCount: text.replace(/\s/g, "").length,
+      version: 2,
+      text,
+    });
+  });
+}
+
+if (additionalChatSeeds.length !== expectedAdditionalCounts.water) {
+  throw new Error(`Expected ${expectedAdditionalCounts.water} additional water articles, got ${additionalChatSeeds.length}.`);
+}
+additionalChatSeeds.forEach((seed, index) => {
+  const id = `water-${String(21 + index).padStart(3, "0")}`;
+  const text = normalizeGeneratedPunctuation(
+    clampAtSentence(buildAdditionalChat(seed, index), 400, 900),
+  );
+  assertGeneratedTextQuality(id, text);
+  articles.push({
+    id,
+    title: seed.title,
+    length: "water",
+    topic: "网络聊天",
+    wordCount: text.replace(/\s/g, "").length,
+    version: 2,
+    text,
+  });
+});
+
+const additionalArticles = articles.slice(200);
+const additionalTopicCounts = Object.fromEntries(
+  Object.keys(expectedAdditionalTopics).map((topic) => [
+    topic,
+    additionalArticles.filter((article) => article.topic === topic).length,
+  ]),
+);
+if (JSON.stringify(additionalTopicCounts) !== JSON.stringify(expectedAdditionalTopics)) {
+  throw new Error(`Unexpected additional topic distribution: ${JSON.stringify(additionalTopicCounts)}`);
+}
+if (new Set(additionalArticles.map((article) => article.title)).size !== 100) {
+  throw new Error("Additional article titles must be unique.");
 }
 
 const groups = {

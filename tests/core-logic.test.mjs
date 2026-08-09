@@ -4,17 +4,29 @@ import test from "node:test";
 import {
   buildCommonPracticeArticle,
   buildChallengePool,
+  buildMinimumCodeLengthIndex,
+  buildCustomArticle,
   calculateAccuracy,
+  calculateRemainingSeconds,
+  calculateTheoreticalMinimumCodeLength,
+  calculateTypingMetrics,
   canCompleteTyping,
+  commonCharacterPresets,
   countCommittedAttempts,
   formatCommonCharacterText,
   getCommonCharacterSlice,
   isCommonPracticeArticle,
+  isWubiLetterKey,
   preferShortestWubiCodes,
-  shuffleCharacters,
   selectInitialArticle,
+  shuffleCharacters,
   shouldDeferInputCommit,
 } from "../app/lib.ts";
+import {
+  incrementKeyUsage,
+  normalizeKeyUsage,
+  summarizeKeyUsage,
+} from "../app/key-usage.ts";
 import {
   getAdjacentTrackIndex,
   parseMusicCatalog,
@@ -51,6 +63,113 @@ test("typing completes at full length even when answers contain mistakes", () =>
   assert.equal(canCompleteTyping("中错", "中国"), true);
   assert.equal(canCompleteTyping("中", "中国"), false);
   assert.equal(canCompleteTyping("", ""), false);
+});
+
+test("typing result metrics only credit characters that actually match", () => {
+  assert.deepEqual(
+    calculateTypingMetrics({
+      typed: "中错",
+      target: "中国",
+      durationSeconds: 2,
+      keyCount: 6,
+      letterKeys: 4,
+      attemptCount: 2,
+      correctAttemptCount: 1,
+    }),
+    {
+      correctChars: 1,
+      attemptedChars: 2,
+      speed: 30,
+      kps: 3,
+      codeLength: 4,
+      accuracy: 50,
+    },
+  );
+});
+
+test("typing logic counts non-BMP characters as single characters", () => {
+  assert.deepEqual(countCommittedAttempts("", "😀𠀀", "😀𠀀"), {
+    attempts: 2,
+    correct: 2,
+  });
+  assert.deepEqual(
+    calculateTypingMetrics({
+      typed: "😀错",
+      target: "😀𠀀",
+      durationSeconds: 2,
+      keyCount: 2,
+      letterKeys: 0,
+      attemptCount: 2,
+      correctAttemptCount: 1,
+    }),
+    {
+      correctChars: 1,
+      attemptedChars: 2,
+      speed: 30,
+      kps: 1,
+      codeLength: 0,
+      accuracy: 50,
+    },
+  );
+  assert.equal(canCompleteTyping("😀", "😀𠀀"), false);
+  assert.equal(canCompleteTyping("😀𠀀", "😀𠀀"), true);
+});
+
+test("theoretical minimum code length chooses the cheapest phrase segmentation", () => {
+  const index = buildMinimumCodeLengthIndex([
+    ["中", "k", 100],
+    ["国", "lgyi", 100],
+    ["人", "wwww", 100],
+    ["民", "nnnn", 100],
+    ["中国", "kh", 100],
+    ["中国人民", "klww", 100],
+  ]);
+
+  assert.equal(calculateTheoreticalMinimumCodeLength("中国人民", index), 1);
+  assert.equal(
+    calculateTheoreticalMinimumCodeLength("中国，人民！", index),
+    2.5,
+  );
+});
+
+test("theoretical minimum code length ignores non-Han text and reports gaps", () => {
+  const index = buildMinimumCodeLengthIndex([
+    ["中", "k", 100],
+    ["国", "l", 100],
+    ["中国", "kh", 100],
+  ]);
+
+  assert.equal(calculateTheoreticalMinimumCodeLength("A中1国。", index), 1);
+  assert.equal(calculateTheoreticalMinimumCodeLength("ABC 123", index), null);
+  assert.equal(calculateTheoreticalMinimumCodeLength("中缺", index), null);
+});
+
+test("challenge countdown derives from its wall-clock deadline", () => {
+  const deadline = 160_000;
+  assert.equal(calculateRemainingSeconds(deadline, 100_000), 60);
+  assert.equal(calculateRemainingSeconds(deadline, 100_250), 60);
+  assert.equal(calculateRemainingSeconds(deadline, 159_100), 1);
+  assert.equal(calculateRemainingSeconds(deadline, 170_000), 0);
+});
+
+test("custom articles share one normalized construction path", () => {
+  const article = buildCustomArticle(
+    "custom-1",
+    "  标题\u0000  带空格  ",
+    "\u0000  这是至少十个字符的自定义正文。  ",
+  );
+
+  assert.deepEqual(article, {
+    id: "custom-1",
+    title: "标题 带空格",
+    length: "short",
+    topic: "自定义",
+    wordCount: 15,
+    version: 1,
+    text: "这是至少十个字符的自定义正文。",
+    kind: "custom",
+  });
+  assert.equal(buildCustomArticle("custom-2", "", "太短"), null);
 });
 
 test("initial article follows the preferred length without losing compatible progress", () => {
@@ -101,6 +220,51 @@ test("IME pre-edit buffers are deferred and a repeated final value is not counte
   assert.deepEqual(secondCommit, { attempts: 1, correct: 1 });
 });
 
+test("Wubi letter detection falls back to physical keys for Windows IME events", () => {
+  assert.equal(isWubiLetterKey("a"), true);
+  assert.equal(isWubiLetterKey("Y"), true);
+  assert.equal(isWubiLetterKey("z", "KeyZ"), false);
+  assert.equal(isWubiLetterKey("Process", "KeyA"), true);
+  assert.equal(isWubiLetterKey("Unidentified", "KeyY"), true);
+  assert.equal(isWubiLetterKey("Process", "KeyZ"), false);
+  assert.equal(isWubiLetterKey("Process"), false);
+});
+
+test("keyboard usage summary groups physical keys by hand, row, finger, and Wubi zone", () => {
+  let usage = {};
+  for (const code of [
+    "KeyQ", "KeyQ", "KeyQ", "KeyQ",
+    "KeyA", "KeyA",
+    "KeyY", "KeyY", "KeyY",
+    "Space",
+  ]) {
+    usage = incrementKeyUsage(usage, code);
+  }
+  assert.equal(incrementKeyUsage(usage, "MediaPlayPause"), usage);
+
+  const summary = summarizeKeyUsage(usage);
+  assert.equal(summary.total, 10);
+  assert.deepEqual(summary.mostUsed, { label: "Q", count: 4 });
+  assert.deepEqual(summary.hands.map(({ label, count }) => [label, count]), [
+    ["左手", 6],
+    ["右手", 3],
+  ]);
+  assert.deepEqual(summary.rows.map(({ label, count }) => [label, count]), [
+    ["数字排", 0],
+    ["上排", 7],
+    ["中排", 2],
+    ["下排", 0],
+  ]);
+  assert.deepEqual(summary.zones.map(({ name, count }) => [name, count]), [
+    ["撇区", 4],
+    ["捺区", 3],
+    ["横区", 2],
+    ["竖区", 0],
+    ["折区", 0],
+  ]);
+  assert.deepEqual(normalizeKeyUsage({ KeyQ: 3, Unknown: 9, KeyW: -1 }), { KeyQ: 3 });
+});
+
 test("shortest Wubi code wins and equal lengths prefer higher weight", () => {
   const preferred = preferShortestWubiCodes([
     ["测", "imj", 100],
@@ -136,15 +300,18 @@ test("common-character presets use exact non-overlapping frequency ranges", () =
     characters,
   };
 
-  const first100 = getCommonCharacterSlice(data, "first-100");
-  const first500 = getCommonCharacterSlice(data, "first-500");
+  const first500Groups = commonCharacterPresets
+    .slice(0, 10)
+    .map(({ id }) => getCommonCharacterSlice(data, id));
   const middle500 = getCommonCharacterSlice(data, "middle-500");
   const last500 = getCommonCharacterSlice(data, "last-500");
   const first1500 = getCommonCharacterSlice(data, "first-1500");
 
-  assert.equal(first100.length, 100);
-  assert.deepEqual(first100, first500.slice(0, 100));
+  assert.equal(first500Groups.length, 10);
+  assert.ok(first500Groups.every((group) => group.length === 50));
+  const first500 = first500Groups.flat();
   assert.equal(first500.length, 500);
+  assert.equal(new Set(first500).size, 500);
   assert.equal(middle500.length, 500);
   assert.equal(last500.length, 500);
   assert.deepEqual(
@@ -170,21 +337,21 @@ test("common-character shuffle preserves the full set and practice metadata", ()
       String.fromCodePoint(0x4e00 + index),
     ).join(""),
   };
-  const ordered = buildCommonPracticeArticle(data, "first-100");
+  const ordered = buildCommonPracticeArticle(data, "first-050");
   const shuffled = buildCommonPracticeArticle(
     data,
-    "first-100",
+    "first-050",
     true,
     () => 0,
   );
 
-  assert.equal(ordered.wordCount, 100);
+  assert.equal(ordered.wordCount, 50);
   assert.equal(ordered.shuffled, false);
   assert.equal(shuffled.shuffled, true);
   assert.notEqual(shuffled.text, ordered.text);
   assert.deepEqual(
-    [...shuffleCharacters(getCommonCharacterSlice(data, "first-100"), () => 0)].sort(),
-    [...getCommonCharacterSlice(data, "first-100")].sort(),
+    [...shuffleCharacters(getCommonCharacterSlice(data, "first-050"), () => 0)].sort(),
+    [...getCommonCharacterSlice(data, "first-050")].sort(),
   );
   assert.equal(isCommonPracticeArticle(ordered), true);
   assert.equal(isCommonPracticeArticle(shuffled), true);

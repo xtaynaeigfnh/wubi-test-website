@@ -7,7 +7,7 @@ const readJson = async (name) =>
 
 test("article library has the planned distribution and valid metadata", async () => {
   const index = await readJson("articles-index.json");
-  assert.equal(index.length, 200);
+  assert.equal(index.length, 300);
   assert.deepEqual(
     Object.fromEntries(
       ["short", "medium", "long", "water"].map((length) => [
@@ -15,10 +15,43 @@ test("article library has the planned distribution and valid metadata", async ()
         index.filter((article) => article.length === length).length,
       ]),
     ),
-    { short: 80, medium: 70, long: 30, water: 20 },
+    { short: 120, medium: 105, long: 45, water: 30 },
   );
-  assert.equal(new Set(index.map((article) => article.id)).size, 200);
+  assert.equal(new Set(index.map((article) => article.id)).size, 300);
+  assert.equal(new Set(index.map((article) => article.title)).size, 300);
   assert.ok(index.every((article) => article.title && article.topic && article.wordCount > 0));
+
+  const addedRanges = {
+    short: [81, 120],
+    medium: [71, 105],
+    long: [31, 45],
+    water: [21, 30],
+  };
+  const added = index.filter((article) => {
+    const [length, serial] = article.id.split("-");
+    const range = addedRanges[length];
+    return range && Number(serial) >= range[0] && Number(serial) <= range[1];
+  });
+  assert.equal(added.length, 100);
+  assert.ok(added.every((article) => !/ · \d+$/u.test(article.title)));
+  assert.deepEqual(
+    Object.fromEntries(
+      ["日常生活", "职场办公", "科技数码", "自然旅行", "阅读随笔", "历史文化", "通俗科普", "网络聊天"].map((topic) => [
+        topic,
+        added.filter((article) => article.topic === topic).length,
+      ]),
+    ),
+    {
+      日常生活: 13,
+      职场办公: 13,
+      科技数码: 13,
+      自然旅行: 13,
+      阅读随笔: 13,
+      历史文化: 13,
+      通俗科普: 12,
+      网络聊天: 10,
+    },
+  );
 });
 
 test("article bodies are complete, unique, and inside their length bands", async () => {
@@ -29,8 +62,8 @@ test("article bodies are complete, unique, and inside their length bands", async
     )
   ).flat();
   const bodyMap = new Map(bodies.map((row) => [row.id, row.text]));
-  assert.equal(bodyMap.size, 200);
-  assert.equal(new Set(bodies.map((row) => row.text)).size, 200);
+  assert.equal(bodyMap.size, 300);
+  assert.equal(new Set(bodies.map((row) => row.text)).size, 300);
 
   const ranges = {
     short: [80, 180],
@@ -68,6 +101,23 @@ test("article bodies are complete, unique, and inside their length bands", async
         `${fingerprints[left].id} and ${fingerprints[right].id} are too similar`,
       );
     }
+  }
+});
+
+test("article prose keeps punctuation balanced and drops generator artifacts", async () => {
+  const articles = (
+    await Promise.all(
+      ["short", "medium", "long", "water"].map((name) => readJson(`articles-${name}.json`)),
+    )
+  ).flat();
+
+  for (const { id, text } of articles) {
+    assert.equal((text.match(/“/gu) || []).length, (text.match(/”/gu) || []).length, `${id} has unbalanced Chinese quotes`);
+    assert.equal(/【\d+】/u.test(text), false, `${id} contains an internal deduplication marker`);
+    assert.equal(/[，。！？；：][，。！？；：]/u.test(text), false, `${id} contains adjacent punctuation`);
+    assert.equal(/[。！？][，；：]|[，；：][。！？]/u.test(text), false, `${id} contains punctuation in the wrong order`);
+    assert.equal(/而是把[^。！？]*依据。[^。！？]*他们没有回避/u.test(text), false, `${id} contains a reordered clause artifact`);
+    assert.equal(/不再应当|已经应当|一时难以判断/u.test(text), false, `${id} contains a mechanical rewrite artifact`);
   }
 });
 
@@ -114,6 +164,10 @@ test("all articles reject recycled generator phrases and internal repetition", a
     "有人愿意多观察一步，于是",
     "合适的做法不是急着下结论，而是先确认事实",
     "可以看到习惯如何形成：先从小处开始，再依据反馈调整",
+    "后续观察仍然围绕当时的条件展开",
+    "这次也把前提一并记下",
+    "相关判断暂时只作为线索保留",
+    "记录没有把它写成固定答案",
   ];
 
   for (const { id, text } of articles) {
@@ -145,6 +199,84 @@ test("all articles reject recycled generator phrases and internal repetition", a
       `${id} repeats phrase ${repeatedPhrase?.[0]}`,
     );
   }
+});
+
+test("cross-article prose stays below repetition thresholds", async () => {
+  const groups = ["short", "medium", "long", "water"];
+  const articles = (
+    await Promise.all(groups.map((name) => readJson(`articles-${name}.json`)))
+  ).flat();
+  const sentenceOwners = new Map();
+  const skeletonOwners = new Map();
+  const phraseOwners = new Map();
+  const wordLimits = { short: 8, medium: 13, long: 18, water: 8 };
+  const segmenter = new Intl.Segmenter("zh-CN", { granularity: "word" });
+
+  const addOwner = (map, value, id) => {
+    const owners = map.get(value) ?? new Set();
+    owners.add(id);
+    map.set(value, owners);
+  };
+
+  for (const { id, text } of articles) {
+    const sentences = text
+      .split(/[。！？]/)
+      .map((sentence) => sentence.replace(/\s/g, ""))
+      .filter((sentence) => sentence.length >= 8);
+    for (const sentence of sentences) {
+      addOwner(sentenceOwners, sentence, id);
+      addOwner(
+        skeletonOwners,
+        sentence.replace(/“[^”]*”/gu, "“主题”").replace(/[0-9０-９]+/gu, "数字"),
+        id,
+      );
+
+      const han = sentence.replace(/[^\p{Script=Han}]/gu, "");
+      const articlePhrases = new Set();
+      for (let index = 0; index <= han.length - 10; index += 1) {
+        articlePhrases.add(han.slice(index, index + 10));
+      }
+      for (const phrase of articlePhrases) addOwner(phraseOwners, phrase, id);
+    }
+
+    const wordCounts = new Map();
+    for (const part of segmenter.segment(text)) {
+      const word = part.segment.trim();
+      if (!part.isWordLike || word.length < 2 || !/^\p{Script=Han}+$/u.test(word)) {
+        continue;
+      }
+      wordCounts.set(word, (wordCounts.get(word) ?? 0) + 1);
+    }
+    const mostRepeatedWord = [...wordCounts].sort((left, right) => right[1] - left[1])[0];
+    const length = id.slice(0, id.indexOf("-"));
+    assert.ok(
+      !mostRepeatedWord || mostRepeatedWord[1] <= wordLimits[length],
+      `${id} repeats word ${mostRepeatedWord?.[0]} ${mostRepeatedWord?.[1]} times`,
+    );
+  }
+
+  const mostRepeatedSentence = [...sentenceOwners].sort(
+    (left, right) => right[1].size - left[1].size,
+  )[0];
+  const mostRepeatedSkeleton = [...skeletonOwners].sort(
+    (left, right) => right[1].size - left[1].size,
+  )[0];
+  const mostRepeatedPhrase = [...phraseOwners].sort(
+    (left, right) => right[1].size - left[1].size,
+  )[0];
+
+  assert.ok(
+    mostRepeatedSentence[1].size <= 18,
+    `sentence appears in ${mostRepeatedSentence[1].size} articles: ${mostRepeatedSentence[0]}`,
+  );
+  assert.ok(
+    mostRepeatedSkeleton[1].size <= 18,
+    `sentence skeleton appears in ${mostRepeatedSkeleton[1].size} articles: ${mostRepeatedSkeleton[0]}`,
+  );
+  assert.ok(
+    mostRepeatedPhrase[1].size <= 18,
+    `10-character phrase appears in ${mostRepeatedPhrase[1].size} articles: ${mostRepeatedPhrase[0]}`,
+  );
 });
 
 test("Wubi dictionary contains core words and no invalid codes", async () => {
@@ -200,10 +332,10 @@ test("common-character data contains the verified first 1500 frequency ranks", a
   assert.ok(characters.every((character) => codedCharacters.has(character)));
 });
 
-test("music catalog maps five licensed entries to bundled audio files", async () => {
+test("music catalog maps ten licensed entries to bundled audio files", async () => {
   const catalog = await readJson("music-catalog.json");
   assert.equal(catalog.version, 1);
-  assert.equal(catalog.tracks.length, 5);
+  assert.equal(catalog.tracks.length, 10);
   assert.equal(
     new Set(catalog.tracks.map((track) => track.id)).size,
     catalog.tracks.length,

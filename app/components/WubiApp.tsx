@@ -16,15 +16,23 @@ import {
   addError,
   buildCommonPracticeArticle,
   buildChallengePool,
+  buildCustomArticle,
+  buildMinimumCodeLengthIndex,
   calculateAccuracy,
+  calculateRemainingSeconds,
+  calculateTheoreticalMinimumCodeLength,
+  calculateTypingMetrics,
   canCompleteTyping,
+  clearKeyUsage,
   commonCharacterPresets,
   countCommittedAttempts,
   defaultSettings,
   formatDuration,
   getProgress,
   getSessions,
+  isWubiLetterKey,
   lengthLabels,
+  loadArticleMetadata,
   loadArticles,
   loadCommonCharacters,
   loadWubi,
@@ -33,12 +41,14 @@ import {
   readLocal,
   readLocalArray,
   readSettings,
+  recordKeyUsage,
   saveSession,
   isCommonPracticeArticle,
   selectInitialArticle,
   shouldDeferInputCommit,
   STORAGE,
   writeLocal,
+  type MinimumCodeLengthIndex,
 } from "../lib";
 import type {
   AppView,
@@ -52,15 +62,32 @@ import type {
   UserSettings,
   WubiEntry,
 } from "../types";
+import { downloadShareCard } from "../share-card";
+import { DataManagement } from "./DataManagement";
+import { PwaControl } from "./PwaControl";
+import { TrainingCenter } from "./TrainingCenter";
+import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
+import { KeySummary } from "./KeySummary";
 
-const navItems: Array<{ view: AppView; href: string; label: string }> = [
-  { view: "typing", href: "/", label: "文章测速" },
-  { view: "challenge", href: "/challenge", label: "字码挑战" },
-  { view: "lookup", href: "/lookup", label: "五笔查码" },
-  { view: "history", href: "/history", label: "本地成绩" },
-  { view: "settings", href: "/settings", label: "设置" },
+const navItems: Array<{
+  view: AppView;
+  href: string;
+  label: string;
+  coordinate: string;
+}> = [
+  { view: "typing", href: "/", label: "文章测速", coordinate: "QW" },
+  { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
+  { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
+  { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
+  { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
+  { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
+
+const FALLBACK_ARTICLE_COUNT = 300;
+
+const isNavItemActive = (view: AppView, itemView: AppView) =>
+  view === itemView || (view === "summary" && itemView === "history");
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -118,6 +145,7 @@ function useKeySound(enabled: boolean): KeySoundPlayer {
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const mainNavRef = useRef<HTMLElement>(null);
   const playKeySound = useKeySound(settings.sound);
 
   useEffect(() => {
@@ -126,39 +154,99 @@ export function WubiApp({ view }: { view: AppView }) {
   }, []);
 
   useEffect(() => {
+    if (!settingsReady) return;
     const root = document.documentElement;
     root.dataset.theme = settings.theme;
     writeLocal(STORAGE.settings, settings);
-  }, [settings]);
+  }, [settings, settingsReady]);
+
+  useEffect(() => {
+    const navigation = mainNavRef.current;
+    const activeItem = navigation?.querySelector<HTMLElement>(
+      '[aria-current="page"]',
+    );
+    if (
+      !navigation ||
+      !activeItem ||
+      navigation.scrollWidth <= navigation.clientWidth
+    ) {
+      return;
+    }
+    navigation.scrollLeft = Math.max(
+      0,
+      activeItem.offsetLeft -
+        (navigation.clientWidth - activeItem.offsetWidth) / 2,
+    );
+  }, [view]);
+
+  const themeLabels: Record<UserSettings["theme"], string> = {
+    system: "系统",
+    light: "浅色",
+    dark: "深色",
+  };
+  const nextTheme: Record<UserSettings["theme"], UserSettings["theme"]> = {
+    system: "light",
+    light: "dark",
+    dark: "system",
+  };
+  const cycleTheme = () =>
+    setSettings((current) => ({
+      ...current,
+      theme: nextTheme[current.theme],
+    }));
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-view={view}>
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
       <header className="site-header">
         <div className="header-inner">
           <Link href="/" className="brand" aria-label="五笔测试网站首页">
-            <span className="brand-mark">五</span>
+            <span className="brand-mark" aria-hidden="true">
+              <i>五</i>
+              <b>86</b>
+            </span>
             <span>
               <strong>五笔测试网站</strong>
-              <small>八六版 · 离线练习</small>
+              <small>WUBI 86 / LOCAL PRACTICE</small>
             </span>
           </Link>
-          <nav className="main-nav" aria-label="主导航">
+          <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
             {navItems.map((item) => (
               <Link
                 key={item.view}
                 href={item.href}
-                className={view === item.view ? "nav-item active" : "nav-item"}
-                aria-current={view === item.view ? "page" : undefined}
+                className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
+                aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
               >
-                {item.label}
+                <span aria-hidden="true">{item.coordinate}</span>
+                <strong>{item.label}</strong>
               </Link>
             ))}
           </nav>
-          <div className="local-badge"><i /> 练习记录只留在这里</div>
+          <div className="header-utilities">
+            <button
+              className="theme-switch"
+              type="button"
+              onClick={cycleTheme}
+              aria-label={`当前${themeLabels[settings.theme]}主题，点击切换为${themeLabels[nextTheme[settings.theme]]}主题`}
+              title={`主题：${themeLabels[settings.theme]}`}
+            >
+              <span aria-hidden="true">{
+                settings.theme === "dark" ? "◐" : settings.theme === "light" ? "◑" : "◒"
+              }</span>
+              <b>{themeLabels[settings.theme]}</b>
+            </button>
+            <div className="local-badge">
+              <i />
+              <span><b>LOCAL</b> 数据只存本机</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="page-wrap">
+      <main className="page-wrap" id="main-content">
         {view === "typing" && (
           <TypingView
             settings={settings}
@@ -166,11 +254,15 @@ export function WubiApp({ view }: { view: AppView }) {
             playKeySound={playKeySound}
           />
         )}
+        {view === "training" && (
+          <TrainingCenter playKeySound={playKeySound} />
+        )}
         {view === "challenge" && (
           <ChallengeView playKeySound={playKeySound} />
         )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
+        {view === "summary" && <KeySummary />}
         {view === "settings" && (
           <SettingsView
             settings={settings}
@@ -181,7 +273,7 @@ export function WubiApp({ view }: { view: AppView }) {
       </main>
 
       <footer className="site-footer">
-        <span>慢慢练，手会记住。</span>
+        <span><b>86 / OFFLINE</b> 慢慢练，手会记住。</span>
         <span>
           86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
         </span>
@@ -229,6 +321,7 @@ function TypingView({
   const [correctAttemptCount, setCorrectAttemptCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
@@ -241,6 +334,9 @@ function TypingView({
   const errorPositions = useRef(new Set<number>());
   const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
   const [codeHintsError, setCodeHintsError] = useState("");
+  const [minimumCodeIndex, setMinimumCodeIndex] =
+    useState<MinimumCodeLengthIndex | null>(null);
+  const [minimumCodeError, setMinimumCodeError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -270,6 +366,25 @@ function TypingView({
   }, []);
 
   useEffect(() => {
+    let active = true;
+    setMinimumCodeError("");
+    loadWubi()
+      .then((rows) => {
+        if (active) setMinimumCodeIndex(buildMinimumCodeLengthIndex(rows));
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setMinimumCodeError(
+            error instanceof Error ? error.message : "理论码长计算数据加载失败",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     setFilter((value) => ({
       ...value,
       length: settings.preferredLength,
@@ -282,7 +397,13 @@ function TypingView({
     else delete root.dataset.focusMode;
 
     const exitFocusMode = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape" && focusMode && !pickerOpen && !customOpen) {
+      if (
+        event.key === "Escape" &&
+        focusMode &&
+        !pickerOpen &&
+        !customOpen &&
+        !commonOpen
+      ) {
         setFocusMode(false);
       }
     };
@@ -291,7 +412,7 @@ function TypingView({
       document.removeEventListener("keydown", exitFocusMode);
       delete root.dataset.focusMode;
     };
-  }, [customOpen, focusMode, pickerOpen]);
+  }, [commonOpen, customOpen, focusMode, pickerOpen]);
 
   useEffect(() => {
     if (!settings.showCodeHints) {
@@ -401,6 +522,7 @@ function TypingView({
       setCorrectAttemptCount(0);
       setErrorCount(0);
       setCompleted(false);
+      setLastSession(null);
       composing.current = false;
       recorded.current = false;
       committedValue.current = "";
@@ -512,6 +634,15 @@ function TypingView({
     () => visibleText.replace(/[\r\n]/g, ""),
     [visibleText],
   );
+  const targetCharacters = useMemo(() => Array.from(targetText), [targetText]);
+  const typedCharacters = useMemo(() => Array.from(typed), [typed]);
+  const theoreticalCodeLength = useMemo(
+    () =>
+      minimumCodeIndex
+        ? calculateTheoreticalMinimumCodeLength(targetText, minimumCodeIndex)
+        : null,
+    [minimumCodeIndex, targetText],
+  );
   const displayCharacters = useMemo(() => {
     let targetIndex = 0;
     return Array.from(visibleText).map((character, visibleIndex) => {
@@ -526,20 +657,25 @@ function TypingView({
     });
   }, [visibleText]);
 
-  const correctChars = useMemo(() => {
-    if (!article) return 0;
-    let count = 0;
-    for (let index = 0; index < typed.length; index += 1) {
-      if (typed[index] === targetText[index]) count += 1;
-    }
-    return count;
-  }, [article, targetText, typed]);
   const seconds = completed ? elapsed : elapsed || 0;
-  const speed = seconds > 0 ? Math.round(correctChars / (seconds / 60)) : 0;
-  const kps = seconds > 0 ? keyCount / seconds : 0;
-  const codeLength = correctChars > 0 ? letterKeys / correctChars : 0;
-  const accuracy = calculateAccuracy(correctAttemptCount, attemptCount);
-  const progressRatio = Math.min(1, typed.length / Math.max(1, targetText.length));
+  const {
+    speed,
+    kps,
+    codeLength,
+    accuracy,
+  } = calculateTypingMetrics({
+    typed,
+    target: targetText,
+    durationSeconds: seconds,
+    keyCount,
+    letterKeys,
+    attemptCount,
+    correctAttemptCount,
+  });
+  const progressRatio = Math.min(
+    1,
+    typedCharacters.length / Math.max(1, targetCharacters.length),
+  );
   const progressPercent = Math.round(progressRatio * 100);
 
   useEffect(() => {
@@ -563,19 +699,22 @@ function TypingView({
         viewport.clientHeight * 0.28,
     );
     viewport.scrollTo({ top: nextTop, behavior: "smooth" });
-  }, [article?.id, typed.length]);
+  }, [article?.id, typedCharacters.length]);
 
   useEffect(() => {
     if (!article || !typed) return;
     let changed = false;
-    for (let index = 0; index < typed.length; index += 1) {
-      if (typed[index] !== targetText[index] && !errorPositions.current.has(index)) {
+    for (let index = 0; index < typedCharacters.length; index += 1) {
+      if (
+        typedCharacters[index] !== targetCharacters[index] &&
+        !errorPositions.current.has(index)
+      ) {
         errorPositions.current.add(index);
         changed = true;
       }
     }
     if (changed) setErrorCount(errorPositions.current.size);
-  }, [article, targetText, typed]);
+  }, [article, targetCharacters, typed, typedCharacters]);
 
   useEffect(() => {
     if (
@@ -591,44 +730,53 @@ function TypingView({
     if (recorded.current) return;
     recorded.current = true;
     const errorChars = Array.from(errorPositions.current)
-      .map((index) => targetText[index])
+      .map((index) => targetCharacters[index])
       .filter(Boolean);
     errorChars.forEach((character) => addError(character));
-    saveSession({
+    const finalMetrics = calculateTypingMetrics({
+      typed,
+      target: targetText,
+      durationSeconds: finalSeconds,
+      keyCount,
+      letterKeys,
+      attemptCount,
+      correctAttemptCount,
+    });
+    const session: SessionResult = {
       id: crypto.randomUUID(),
       type: "article",
       articleId:
-        article.kind || article.id.startsWith("custom-")
+        article.kind === "custom" ||
+        article.kind === "common" ||
+        article.id.startsWith("custom-")
           ? undefined
           : article.id,
       title: article.title,
       date: new Date().toISOString(),
       durationSeconds: finalSeconds,
-      correctChars: targetText.length,
-      attemptedChars: Math.max(targetText.length, attemptCount),
-      speed: finalSeconds > 0 ? Math.round(targetText.length / (finalSeconds / 60)) : 0,
-      kps: finalSeconds > 0 ? keyCount / finalSeconds : 0,
-      codeLength: targetText.length ? letterKeys / targetText.length : 0,
-      accuracy,
+      ...finalMetrics,
       errors: errorPositions.current.size,
       errorChars,
-    });
+    };
+    saveSession(session);
+    setLastSession(session);
   }, [
     article,
-    accuracy,
     attemptCount,
     completed,
+    correctAttemptCount,
     keyCount,
     letterKeys,
     startedAt,
     targetText,
+    targetCharacters,
     typed,
   ]);
 
   const commitTypedValue = (nextValue: string) => {
-    const committed = nextValue
-      .replace(/[\r\n]/g, "")
-      .slice(0, targetText.length);
+    const committed = Array.from(nextValue.replace(/[\r\n]/g, ""))
+      .slice(0, targetCharacters.length)
+      .join("");
     const previous = committedValue.current;
     if (committed === previous) {
       setInputValue(committed);
@@ -657,30 +805,24 @@ function TypingView({
     }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
+      recordKeyUsage(event.code);
       playKeySound();
     }
-    if (/^[a-y]$/i.test(event.key)) setLetterKeys((value) => value + 1);
+    if (isWubiLetterKey(event.key, event.code)) {
+      setLetterKeys((value) => value + 1);
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
       event.preventDefault();
     }
   };
 
   const useCustomText = () => {
-    const clean = customText
-      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
-      .trim()
-      .slice(0, 5000);
-    if (clean.length < 10) return;
-    const custom: PracticeArticle = {
-      id: `custom-${Date.now()}`,
-      title: customTitle.trim() || "我的自定义练习",
-      length: clean.length < 200 ? "short" : clean.length < 700 ? "medium" : "long",
-      topic: "自定义",
-      wordCount: clean.replace(/\s/g, "").length,
-      version: 1,
-      text: clean,
-      kind: "custom",
-    };
+    const custom = buildCustomArticle(
+      `custom-${Date.now()}`,
+      customTitle,
+      customText,
+    );
+    if (!custom) return;
     const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
     const nextCustomTexts = [
       custom,
@@ -701,10 +843,13 @@ function TypingView({
     else randomArticle();
   };
 
-  if (articlesLoading) {
+  if (
+    articlesLoading ||
+    (!article && (!settingsReady || availableArticles.length > 0))
+  ) {
     return (
       <div className="loading-card" role="status" aria-busy="true">
-        正在整理 200 篇练习文章…
+        正在整理 300 篇练习文章…
       </div>
     );
   }
@@ -759,7 +904,11 @@ function TypingView({
           active={startedAt !== null && !completed}
         />
         <Metric label="击键" value={kps.toFixed(2)} unit="次/秒" />
-        <Metric label="码长" value={codeLength.toFixed(2)} unit="键/字" />
+        <CodeLengthMetric
+          value={codeLength.toFixed(2)}
+          theoreticalValue={theoreticalCodeLength}
+          error={minimumCodeError}
+        />
         <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
         <Metric label="回退" value={errorCount.toString()} unit="处" />
         <Metric label="用时" value={formatDuration(seconds)} unit="" />
@@ -788,7 +937,7 @@ function TypingView({
             </div>
           </div>
           <div className="typing-toolbar">
-            <div>
+            <div className="article-heading">
               <div className="article-kicker">
                 <span>{lengthLabels[article.length]}</span>
                 <span>{article.topic}</span>
@@ -796,32 +945,72 @@ function TypingView({
               </div>
               <h2>{article.title}</h2>
             </div>
-            <div className="article-progress">
-              <strong>{progressPercent}%</strong>
-              {isCommonPracticeArticle(article) ? (
-                <>
-                  <button
-                    className="common-toolbar-action range-action"
-                    aria-label="更换常用字练习范围"
-                    title="更换常用字练习范围"
-                    onClick={openCommonPractice}
-                  >
-                    更换范围
-                  </button>
-                  <button
-                    className="common-toolbar-action shuffle-action"
-                    disabled={commonLoading}
-                    aria-label="打乱当前范围并从头开始"
-                    title="打乱当前范围并从头开始"
-                    onClick={() => void shuffleCurrentCommonPractice()}
-                  >
-                    {commonLoading ? "载入中…" : "乱序"}
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setPickerOpen(true)}>选文章</button>
+            <div className="article-toolbar-actions">
+              {settings.showCodeHints && (
+                <div
+                  className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
+                  aria-live="polite"
+                  aria-label={`当前字 ${targetCharacters[typedCharacters.length] || "无"}，最短编码 ${
+                    codeHintsError ||
+                    codeHints
+                      .get(targetCharacters[typedCharacters.length] || "")
+                      ?.toUpperCase() ||
+                    "暂无"
+                  }`}
+                >
+                  <strong className="code-hint-character" aria-hidden="true">
+                    {targetCharacters[typedCharacters.length] || "完"}
+                  </strong>
+                  <span className="code-hint-copy">
+                    <small>{codeHintsError ? "编码提示" : "当前字 · 编码"}</small>
+                    <b>
+                      {codeHintsError
+                        ? "加载失败"
+                        : codeHints
+                            .get(targetCharacters[typedCharacters.length] || "")
+                            ?.toUpperCase() ||
+                          "暂无"}
+                    </b>
+                  </span>
+                </div>
               )}
-              <button onClick={() => chooseArticle(article)}>重新开始</button>
+              <div className="article-restart">
+                <div
+                  className="toolbar-actions"
+                  role="group"
+                  aria-label="当前练习操作"
+                >
+                  {isCommonPracticeArticle(article) ? (
+                    <>
+                      <button
+                        className="common-toolbar-action range-action"
+                        aria-label="更换常用字练习范围"
+                        title="更换常用字练习范围"
+                        onClick={openCommonPractice}
+                      >
+                        更换范围
+                      </button>
+                      <button
+                        className="common-toolbar-action shuffle-action"
+                        disabled={commonLoading}
+                        aria-label="打乱当前范围并从头开始"
+                        title="打乱当前范围并从头开始"
+                        onClick={() => void shuffleCurrentCommonPractice()}
+                      >
+                        {commonLoading ? "载入中…" : "乱序"}
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setPickerOpen(true)}>选文章</button>
+                  )}
+                  <button
+                    className="restart-action"
+                    onClick={() => chooseArticle(article)}
+                  >
+                    重新开始
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <div
@@ -860,9 +1049,9 @@ function TypingView({
           <div
             key={article.id}
             ref={articleTextRef}
-            className={`article-text ${
+            className={`article-text article-swap ${
               isCommonPracticeArticle(article) ? "common-character-text" : ""
-            } article-swap`}
+            }`}
             style={{ fontSize: `${settings.fontSize}px` }}
             onClick={() => inputRef.current?.focus()}
             aria-live="off"
@@ -876,11 +1065,11 @@ function TypingView({
                 );
               }
               const state =
-                targetIndex >= typed.length
-                  ? targetIndex === typed.length
+                targetIndex >= typedCharacters.length
+                  ? targetIndex === typedCharacters.length
                     ? "current"
                     : "pending"
-                  : typed[targetIndex] === character
+                  : typedCharacters[targetIndex] === character
                     ? "correct"
                     : "wrong";
               return (
@@ -949,37 +1138,17 @@ function TypingView({
             disabled={completed}
             placeholder={completed ? "本次练习已完成" : "点击这里，切换到五笔输入法后开始输入…"}
             aria-label="跟打输入区"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
             spellCheck={false}
           />
-          <div className={`typing-footer${settings.showCodeHints ? " with-code-hint" : ""}`}>
+          <div className="typing-footer">
             <span className="typing-position">
-              第 {Math.min(typed.length + 1, targetText.length)} / {targetText.length} 字
+              第 {Math.min(typedCharacters.length + 1, targetCharacters.length)} /{" "}
+              {targetCharacters.length} 字
             </span>
-            {settings.showCodeHints ? (
-              <div
-                className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
-                aria-live="polite"
-                aria-label={`当前字 ${targetText[typed.length] || "无"}，最短编码 ${
-                  codeHintsError ||
-                  codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
-                  "暂无"
-                }`}
-              >
-                <strong className="code-hint-character" aria-hidden="true">
-                  {targetText[typed.length] || "完"}
-                </strong>
-                <span className="code-hint-copy">
-                  <small>{codeHintsError ? "编码提示" : "当前字 · 最短编码"}</small>
-                  <b>
-                    {codeHintsError ||
-                      codeHints.get(targetText[typed.length] || "")?.toUpperCase() ||
-                      "暂无"}
-                  </b>
-                </span>
-              </div>
-            ) : (
-              <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
-            )}
+            <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
           </div>
           {completed && (
             <div className="completion-panel">
@@ -991,14 +1160,21 @@ function TypingView({
                 </div>
               </div>
               <div className="completion-results" aria-label="本次练习成绩">
-                <span><small>速度</small><strong>{speed}</strong><i>字/分</i></span>
-                <span><small>击键</small><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span>
-                <span><small>码长</small><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span>
-                <span><small>准确率</small><strong>{accuracy.toFixed(1)}</strong><i>%</i></span>
-                <span><small>回退</small><strong>{errorCount}</strong><i>处</i></span>
+                <span><small>速度</small><span className="completion-value"><strong>{speed}</strong><i>字/分</i></span></span>
+                <span><small>击键</small><span className="completion-value"><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span></span>
+                <span><small>码长</small><span className="completion-value"><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span></span>
+                <span><small>准确率</small><span className="completion-value"><strong>{accuracy.toFixed(1)}</strong><i>%</i></span></span>
+                <span><small>回退</small><span className="completion-value"><strong>{errorCount}</strong><i>处</i></span></span>
               </div>
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
+                <button
+                  className="button secondary"
+                  disabled={!lastSession}
+                  onClick={() => lastSession && downloadShareCard(lastSession)}
+                >
+                  下载成绩卡
+                </button>
                 <button className="button primary" onClick={settings.autoNext ? randomArticle : () => chooseArticle(article)}>
                   {settings.autoNext ? "下一篇" : "再练一次"}
                 </button>
@@ -1011,7 +1187,7 @@ function TypingView({
           <div className="side-heading">
             <div>
               <span className="eyebrow">文章库</span>
-              <h3>200 篇离线练习</h3>
+              <h3>{articles.length || FALLBACK_ARTICLE_COUNT} 篇离线练习</h3>
             </div>
             <span className="count-badge">{articles.length}</span>
           </div>
@@ -1071,7 +1247,10 @@ function TypingView({
       {pickerOpen && (
         <Modal title="选择练习文章" onClose={() => setPickerOpen(false)}>
           <div className="article-list">
-            {filtered.slice(0, 60).map((item) => {
+            <div className="article-list-summary" role="status">
+              共 {filtered.length} 篇符合当前筛选条件
+            </div>
+            {filtered.map((item) => {
               const record = progressMap.get(item.id);
               return (
                 <button key={item.id} onClick={() => chooseArticle(item)}>
@@ -1100,7 +1279,7 @@ function TypingView({
               <span aria-hidden="true">1500</span>
               <div>
                 <strong>按字频分段练习</strong>
-                <p>默认按常用程度依次练习。进入练习后可随时点击“乱序”。</p>
+                <p>前 500 常用字按字频分成 10 组，每组 50 字。进入后可随时点击“乱序”。</p>
               </div>
             </div>
             {commonError ? (
@@ -1165,12 +1344,14 @@ function Metric({
   unit,
   primary = false,
   active = false,
+  description,
 }: {
   label: string;
   value: string;
   unit: string;
   primary?: boolean;
   active?: boolean;
+  description?: string;
 }) {
   const className = [
     "metric",
@@ -1179,10 +1360,49 @@ function Metric({
   ].filter(Boolean).join(" ");
 
   return (
-    <div className={className}>
+    <div className={className} title={description}>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{unit}</small>
+    </div>
+  );
+}
+
+function CodeLengthMetric({
+  value,
+  theoreticalValue,
+  error,
+}: {
+  value: string;
+  theoreticalValue: number | null;
+  error: string;
+}) {
+  const theoreticalDisplay = error
+    ? "暂不可用"
+    : theoreticalValue === null
+      ? "—"
+      : theoreticalValue.toFixed(2);
+  const description =
+    error ||
+    "按当前 86 版码表，用单字和词组的最优组合计算，不含标点、数字和拉丁字母。";
+
+  return (
+    <div className="metric code-length-metric" role="group" aria-label="码长">
+      <span>码长</span>
+      <div className="code-length-current">
+        <strong>{value}</strong>
+        <small>键/字</small>
+      </div>
+      <div
+        className={`code-length-baseline${error ? " is-unavailable" : ""}`}
+        title={description}
+      >
+        <span>理论下限</span>
+        <strong>{theoreticalDisplay}</strong>
+      </div>
+      {error && (
+        <span className="sr-only">理论最小码长暂不可用：{error}</span>
+      )}
     </div>
   );
 }
@@ -1208,9 +1428,11 @@ function ChallengeView({
   const [remaining, setRemaining] = useState(60);
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
   const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
+  const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const startedAtRef = useRef(0);
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
+  const deadlineRef = useRef(0);
   const seenQuestionsRef = useRef(new Set<string>());
   const submitLockRef = useRef(false);
 
@@ -1266,12 +1488,15 @@ function ChallengeView({
     ) => {
       if (recordedRef.current) return;
       recordedRef.current = true;
-      const durationSeconds = Math.max(
+      const elapsedSeconds = Math.max(
         0,
         (Date.now() - startedAtRef.current) / 1000,
       );
+      const durationSeconds = timed
+        ? Math.min(60, elapsedSeconds)
+        : elapsedSeconds;
       if (answered > 0) {
-        saveSession({
+        const session: SessionResult = {
           id: crypto.randomUUID(),
           type: "challenge",
           title: `${mode === "char" ? "单字" : "词组"}挑战${timed ? " · 60 秒" : ""}`,
@@ -1287,7 +1512,9 @@ function ChallengeView({
           codeLength: 0,
           accuracy: calculateAccuracy(correctAnswers, answered),
           errors: answered - correctAnswers,
-        });
+        };
+        saveSession(session);
+        setLastSession(session);
       }
       if (nextTimerRef.current) {
         window.clearTimeout(nextTimerRef.current);
@@ -1301,10 +1528,11 @@ function ChallengeView({
 
   useEffect(() => {
     if (!started || !timed) return;
-    const timer = window.setInterval(
-      () => setRemaining((value) => Math.max(0, value - 1)),
-      1000,
-    );
+    const updateRemaining = () => {
+      setRemaining(calculateRemainingSeconds(deadlineRef.current));
+    };
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 250);
     return () => window.clearInterval(timer);
   }, [started, timed]);
 
@@ -1328,12 +1556,14 @@ function ChallengeView({
     recordedRef.current = false;
     seenQuestionsRef.current.clear();
     startedAtRef.current = Date.now();
+    deadlineRef.current = startedAtRef.current + 60_000;
     setStarted(true);
     setIndex(0);
     setCorrect(0);
     setRemaining(60);
     setMistakes([]);
     setFinishedReason("");
+    setLastSession(null);
     nextQuestion();
   };
 
@@ -1386,7 +1616,6 @@ function ChallengeView({
         <div className={`challenge-card${started && feedback === "wrong" ? " has-error" : ""}`}>
           {!started ? (
             <div className="challenge-start">
-              <span className="giant-code">86</span>
               <h2>
                 {index
                   ? finishedReason === "timeout"
@@ -1400,6 +1629,14 @@ function ChallengeView({
                 </div>
               )}
               <p>看到汉字后输入最短可用五笔编码，按回车提交。答错后会停留显示正确编码。</p>
+              {lastSession && (
+                <button
+                  className="button secondary"
+                  onClick={() => downloadShareCard(lastSession)}
+                >
+                  下载本轮成绩卡
+                </button>
+              )}
               <button className="button primary" disabled={loading || !pool.length} onClick={start}>
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
@@ -1414,10 +1651,13 @@ function ChallengeView({
               <div
                 key={question?.[0]}
                 className="question-character question-swap"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
               >
                 {question?.[0]}
               </div>
-              <div className="code-slots">
+              <div className="code-slots" aria-hidden="true">
                 {Array.from({ length: question?.[1].length ?? 0 }, (_, slot) => (
                   <span key={slot} className={input[slot] ? "filled" : ""}>
                     {input[slot]?.toUpperCase() || "·"}
@@ -1432,13 +1672,14 @@ function ChallengeView({
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    recordKeyUsage(event.code);
                     playKeySound();
                   }
                   if (event.key === "Enter" && feedback === "idle") submit();
                   if (event.key === "Enter" && feedback === "wrong") advanceQuestion();
                 }}
                 placeholder="输入编码后回车"
-                aria-label="五笔编码"
+                aria-label={`请输入“${question?.[0] ?? "当前题目"}”的五码编码`}
                 aria-invalid={feedback === "wrong"}
                 readOnly={feedback !== "idle"}
               />
@@ -1586,7 +1827,9 @@ function LookupView() {
       {!query && (
         <div className="lookup-empty">
           <div className="keyboard-visual">
-            {"QWERTYUIOPASDFGHJKL".split("").map((key) => <span key={key}>{key}</span>)}
+            {"QWERTYUIOPASDFGHJKLXCVBNM".split("").map((key) => (
+              <span key={key}>{key}</span>
+            ))}
           </div>
           <h2>查一个字，也可以反查一组编码</h2>
           <p>输入中文会匹配汉字与词组；输入英文字母会精确反查编码。</p>
@@ -1622,28 +1865,52 @@ function HistoryView() {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
-  const [type, setType] = useState<"all" | "article" | "challenge">("all");
+  const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
+  const [type, setType] = useState<
+    "all" | "article" | "challenge" | "training"
+  >("all");
 
   const refresh = () => {
     setSessions(getSessions());
     setProgress(getProgress());
-    setErrors(readLocal(STORAGE.errors, []));
+    setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
   };
   useEffect(refresh, []);
+  useEffect(() => {
+    let active = true;
+    loadArticleMetadata()
+      .then((rows) => {
+        if (active) setArticleTotal(rows.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const filtered = sessions.filter((session) => type === "all" || session.type === type);
+  const filtered = sessions.filter(
+    (session) =>
+      type === "all" ||
+      session.type === type ||
+      (type === "training" &&
+        (session.type === "review" || session.type === "roots")),
+  );
   const articleSessions = sessions.filter((session) => session.type === "article");
   const totalChars = articleSessions.reduce((sum, session) => sum + session.correctChars, 0);
   const bestSpeed = articleSessions.reduce((best, session) => Math.max(best, session.speed), 0);
   const averageAccuracy = articleSessions.length
     ? articleSessions.reduce((sum, session) => sum + session.accuracy, 0) / articleSessions.length
     : 0;
+  const completedArticleCount = progress.filter(
+    (item) => item.completed,
+  ).length;
 
-  const clearAll = () => {
+  const clearResults = () => {
     if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
+    clearKeyUsage();
     refresh();
   };
 
@@ -1655,39 +1922,86 @@ function HistoryView() {
           <h1>本地成绩</h1>
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
-        <button className="button danger" onClick={clearAll}>清除全部记录</button>
+        <div className="heading-actions">
+          <Link className="button secondary" href="/summary">查看按键画像</Link>
+          <button className="button danger" onClick={clearResults}>
+            清除成绩与错题
+          </button>
+        </div>
       </div>
       <div className="summary-grid">
-        <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章与字码挑战" />
+        <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
         <SummaryCard label="最高速度" value={`${bestSpeed}`} unit="字/分" note="文章测速个人最佳" accent />
         <SummaryCard label="累计字数" value={totalChars.toLocaleString("zh-CN")} note="正确完成字符" />
         <SummaryCard label="平均准确率" value={averageAccuracy.toFixed(1)} unit="%" note="仅统计文章测速" />
       </div>
+      <TrendPanel sessions={sessions} />
       <div className="history-grid">
         <div className="history-panel">
           <div className="panel-title">
             <h2>最近练习</h2>
             <div className="segmented small history-filter" aria-label="练习类型筛选">
-              {(["all", "article", "challenge"] as const).map((value) => (
+              {(["all", "article", "challenge", "training"] as const).map((value) => (
                 <button
                   key={value}
                   className={type === value ? "active" : ""}
                   aria-pressed={type === value}
                   onClick={() => setType(value)}
                 >
-                  {value === "all" ? "全部" : value === "article" ? "文章" : "字码"}
+                  {value === "all"
+                    ? "全部"
+                    : value === "article"
+                      ? "文章"
+                      : value === "challenge"
+                        ? "字码"
+                        : "专项"}
                 </button>
               ))}
             </div>
           </div>
           <div className="session-table">
-            <div className="table-head"><span>练习</span><span>速度</span><span>准确率</span><span>时间</span></div>
+            <div className="table-head">
+              <span>练习</span>
+              <span>速度</span>
+              <span>码长</span>
+              <span>准确率</span>
+              <span>时间</span>
+              <span>操作</span>
+            </div>
             {filtered.slice(0, 12).map((session) => (
               <div className="table-row" key={session.id}>
-                <span><strong>{session.title}</strong><small>{new Date(session.date).toLocaleString("zh-CN")}</small></span>
-                <span>{session.speed || "—"}<small>{session.type === "challenge" ? "题/分" : "字/分"}</small></span>
-                <span>{session.accuracy.toFixed(1)}<small>%</small></span>
-                <span>{formatDuration(session.durationSeconds)}</span>
+                <span className="session-practice">
+                  <strong>{session.title}</strong>
+                  <small>{new Date(session.date).toLocaleString("zh-CN")}</small>
+                </span>
+                <span className="session-speed">
+                  {session.speed || "—"}
+                  <small>{session.type === "article" ? "字/分" : "题/分"}</small>
+                </span>
+                <span className="session-code-length">
+                  {Number.isFinite(session.codeLength) && session.codeLength > 0 ? (
+                    <>
+                      {session.codeLength.toFixed(2)}
+                      <small>键/字</small>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+                <span className="session-accuracy">
+                  {session.accuracy.toFixed(1)}<small>%</small>
+                </span>
+                <span className="session-duration">
+                  {formatDuration(session.durationSeconds)}
+                </span>
+                <button
+                  className="session-share"
+                  aria-label={`下载“${session.title}”成绩卡`}
+                  onClick={() => downloadShareCard(session)}
+                >
+                  <span aria-hidden="true">↓</span>
+                  成绩卡
+                </button>
               </div>
             ))}
             {!filtered.length && <div className="empty-state">完成一次练习后，成绩会出现在这里。</div>}
@@ -1707,15 +2021,19 @@ function HistoryView() {
           </div>
           <div className="completion-stat">
             <span>文章完成度</span>
-            <strong>{progress.filter((item) => item.completed).length} / 200</strong>
+            <strong>{completedArticleCount} / {articleTotal}</strong>
             <i
               role="progressbar"
               aria-label="文章完成度"
               aria-valuemin={0}
-              aria-valuemax={200}
-              aria-valuenow={progress.filter((item) => item.completed).length}
+              aria-valuemax={articleTotal}
+              aria-valuenow={completedArticleCount}
             >
-              <b style={{ width: `${Math.min(100, progress.length / 2)}%` }} />
+              <b
+                style={{
+                  width: `${Math.min(100, (completedArticleCount / articleTotal) * 100)}%`,
+                }}
+              />
             </i>
           </div>
         </aside>
@@ -1788,6 +2106,8 @@ function SettingsView({
           <a href="https://github.com/rime/rime-wubi" target="_blank" rel="noreferrer">查看 Rime 五笔方案 ↗</a>
         </div>
       </div>
+      <DataManagement />
+      <PwaControl />
     </section>
   );
 }

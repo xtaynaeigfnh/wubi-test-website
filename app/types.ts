@@ -1,8 +1,23 @@
 export type ArticleLength = "short" | "medium" | "long" | "water";
-export type AppView = "typing" | "challenge" | "lookup" | "history" | "settings";
+export type AppView =
+  | "typing"
+  | "training"
+  | "challenge"
+  | "lookup"
+  | "history"
+  | "summary"
+  | "settings";
 export type CommonCharacterPreset =
-  | "first-100"
-  | "first-500"
+  | "first-050"
+  | "051-100"
+  | "101-150"
+  | "151-200"
+  | "201-250"
+  | "251-300"
+  | "301-350"
+  | "351-400"
+  | "401-450"
+  | "451-500"
   | "middle-500"
   | "last-500"
   | "first-1500";
@@ -15,6 +30,7 @@ export interface PracticeArticle {
   wordCount: number;
   version: number;
   text: string;
+  favorite?: boolean;
   kind?: "custom" | "common";
 }
 
@@ -46,7 +62,7 @@ export type WubiEntry = [text: string, code: string, weight: number];
 
 export interface SessionResult {
   id: string;
-  type: "article" | "challenge";
+  type: "article" | "challenge" | "review" | "roots";
   articleId?: string;
   title: string;
   date: string;
@@ -66,6 +82,8 @@ export interface ErrorStat {
   code?: string;
   count: number;
   lastSeen: string;
+  mastery?: number;
+  lastCorrect?: string;
 }
 
 export interface ArticleProgress {
@@ -84,6 +102,38 @@ export interface UserSettings {
   sound: boolean;
   theme: "light" | "dark" | "system";
   autoNext: boolean;
+}
+
+export interface DailyGoal {
+  targetChars: number;
+  targetMinutes: number;
+  targetRounds: number;
+}
+
+export interface DailyProgress {
+  date: string;
+  chars: number;
+  minutes: number;
+  rounds: number;
+  articleSessions: number;
+  trainingSessions: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  label: string;
+  sessions: number;
+  chars: number;
+  minutes: number;
+  speed: number;
+  accuracy: number;
+}
+
+export interface BackupPayload {
+  format: "wubi-test-backup";
+  version: 2;
+  exportedAt: string;
+  data: Record<string, unknown>;
 }
 
 export type AudioMimeType = "audio/mpeg" | "audio/ogg" | "audio/mp4";
