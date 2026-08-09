@@ -31,6 +31,7 @@ import {
   getSessions,
   isWubiLetterKey,
   lengthLabels,
+  loadArticleMetadata,
   loadArticles,
   loadCommonCharacters,
   loadWubi,
@@ -79,6 +80,8 @@ const navItems: Array<{
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
+
+const FALLBACK_ARTICLE_COUNT = 300;
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -815,7 +818,7 @@ function TypingView({
   if (articlesLoading) {
     return (
       <div className="loading-card" role="status" aria-busy="true">
-        正在整理 200 篇练习文章…
+        正在整理 300 篇练习文章…
       </div>
     );
   }
@@ -1153,7 +1156,7 @@ function TypingView({
           <div className="side-heading">
             <div>
               <span className="eyebrow">文章库</span>
-              <h3>200 篇离线练习</h3>
+              <h3>{articles.length || FALLBACK_ARTICLE_COUNT} 篇离线练习</h3>
             </div>
             <span className="count-badge">{articles.length}</span>
           </div>
@@ -1830,6 +1833,7 @@ function HistoryView() {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
+  const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training"
   >("all");
@@ -1840,6 +1844,17 @@ function HistoryView() {
     setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
   };
   useEffect(refresh, []);
+  useEffect(() => {
+    let active = true;
+    loadArticleMetadata()
+      .then((rows) => {
+        if (active) setArticleTotal(rows.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = sessions.filter(
     (session) =>
@@ -1970,17 +1985,17 @@ function HistoryView() {
           </div>
           <div className="completion-stat">
             <span>文章完成度</span>
-            <strong>{completedArticleCount} / 200</strong>
+            <strong>{completedArticleCount} / {articleTotal}</strong>
             <i
               role="progressbar"
               aria-label="文章完成度"
               aria-valuemin={0}
-              aria-valuemax={200}
+              aria-valuemax={articleTotal}
               aria-valuenow={completedArticleCount}
             >
               <b
                 style={{
-                  width: `${Math.min(100, completedArticleCount / 2)}%`,
+                  width: `${Math.min(100, (completedArticleCount / articleTotal) * 100)}%`,
                 }}
               />
             </i>

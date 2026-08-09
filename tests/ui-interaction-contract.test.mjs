@@ -210,7 +210,7 @@ test("common-character practice inherits the article reading rhythm", async () =
   assert.doesNotMatch(styles, /\.common-character-text > span:not/);
 });
 
-test("common-character scores stay out of the 200-article completion progress", async () => {
+test("common-character scores stay out of built-in article completion progress", async () => {
   const component = await readFile(componentPath, "utf8");
 
   assert.match(
@@ -218,7 +218,8 @@ test("common-character scores stay out of the 200-article completion progress", 
     /article\.kind === "custom" \|\|[\s\S]*article\.kind === "common" \|\|[\s\S]*article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
   );
   assert.match(component, /文章完成度/);
-  assert.match(component, /\/ 200/);
+  assert.match(component, /loadArticleMetadata\(\)/);
+  assert.match(component, /completedArticleCount \/ articleTotal/);
 });
 
 test("one root-level audio player exposes accessible manual controls", async () => {
