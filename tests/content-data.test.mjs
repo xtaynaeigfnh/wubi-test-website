@@ -332,10 +332,10 @@ test("common-character data contains the verified first 1500 frequency ranks", a
   assert.ok(characters.every((character) => codedCharacters.has(character)));
 });
 
-test("music catalog maps five licensed entries to bundled audio files", async () => {
+test("music catalog maps ten licensed entries to bundled audio files", async () => {
   const catalog = await readJson("music-catalog.json");
   assert.equal(catalog.version, 1);
-  assert.equal(catalog.tracks.length, 5);
+  assert.equal(catalog.tracks.length, 10);
   assert.equal(
     new Set(catalog.tracks.map((track) => track.id)).size,
     catalog.tracks.length,
