@@ -177,13 +177,18 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /五笔五区使用率/);
   assert.match(summary, /手指使用率/);
   assert.match(summary, /aria-label="练习按键次数热力图"/);
+  assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
+  assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
+  assert.match(summary, /id="finger-usage-title"[\s\S]*wide/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
   assert.match(
     styles,
-    /\.heading-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+    /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
   );
-  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.key-summary-metrics/s);
+  assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(styles, /\.usage-card-wide \.usage-bars\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.key-summary-metrics/s);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
