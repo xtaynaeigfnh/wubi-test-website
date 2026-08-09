@@ -6,17 +6,23 @@ import {
   buildChallengePool,
   buildMinimumCodeLengthIndex,
   buildCustomArticle,
+  calculateActiveDurationSeconds,
   calculateAccuracy,
+  calculateKeyAccuracy,
+  calculatePhraseRate,
   calculateRemainingSeconds,
   calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
+  classifyWubiHand,
   commonCharacterPresets,
   countCommittedAttempts,
+  countCommittedEdit,
   formatCommonCharacterText,
   getCommonCharacterSlice,
   isCommonPracticeArticle,
   isWubiLetterKey,
+  isImeSelectionKey,
   preferShortestWubiCodes,
   selectInitialArticle,
   shuffleCharacters,
@@ -84,6 +90,58 @@ test("typing result metrics only credit characters that actually match", () => {
       codeLength: 4,
       accuracy: 50,
     },
+  );
+});
+
+test("typing diagnostics derive correction cost, phrase rate, and hand use", () => {
+  assert.equal(
+    calculateKeyAccuracy({
+      keyCount: 100,
+      backspaceCount: 2,
+      correctionCount: 3,
+      codeLength: 2,
+    }),
+    92,
+  );
+  assert.equal(calculateKeyAccuracy({ keyCount: 0, backspaceCount: 0, correctionCount: 0, codeLength: 0 }), 100);
+  assert.equal(calculatePhraseRate(40, 80), 50);
+  assert.equal(calculatePhraseRate(10, 0), 0);
+  assert.deepEqual(countCommittedEdit("中国", "中华人"), {
+    removed: 1,
+    inserted: 2,
+    phraseChars: 2,
+  });
+  assert.deepEqual(countCommittedEdit("😀中", "😀中国"), {
+    removed: 0,
+    inserted: 1,
+    phraseChars: 0,
+  });
+  assert.equal(classifyWubiHand("a", "KeyA"), "left");
+  assert.equal(classifyWubiHand("j", "KeyJ"), "right");
+  assert.equal(classifyWubiHand("Shift", "ShiftLeft"), null);
+  assert.equal(isImeSelectionKey(" "), true);
+  assert.equal(isImeSelectionKey("3"), true);
+  assert.equal(isImeSelectionKey("0"), false);
+});
+
+test("active typing duration excludes completed and current pauses", () => {
+  assert.equal(
+    calculateActiveDurationSeconds({
+      startedAt: 1_000,
+      now: 11_000,
+      pausedDurationMs: 2_000,
+      pausedAt: null,
+    }),
+    8,
+  );
+  assert.equal(
+    calculateActiveDurationSeconds({
+      startedAt: 1_000,
+      now: 11_000,
+      pausedDurationMs: 2_000,
+      pausedAt: 9_000,
+    }),
+    6,
   );
 });
 

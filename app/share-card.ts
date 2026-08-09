@@ -39,9 +39,9 @@ export function downloadShareCard(session: SessionResult) {
 
   const metrics = [
     ["速度", session.speed.toString(), session.type === "article" ? "字/分" : "题/分"],
-    ["准确率", session.accuracy.toFixed(1), "%"],
-    ["正确", session.correctChars.toString(), "字/题"],
-    ["用时", formatDuration(session.durationSeconds), ""],
+    ["击键", session.type === "article" ? session.kps.toFixed(2) : "—", "次/秒"],
+    ["码长", session.codeLength > 0 ? session.codeLength.toFixed(2) : "—", "键/字"],
+    ["字准", session.accuracy.toFixed(1), "%"],
   ];
   metrics.forEach(([label, value, unit], index) => {
     const x = 72 + index * 270;
@@ -61,7 +61,18 @@ export function downloadShareCard(session: SessionResult) {
   context.stroke();
   context.fillStyle = "#53696f";
   context.font = '20px "Songti SC", "STSong", serif';
-  context.fillText("慢慢练，手会记住。", 72, 518);
+  const diagnosticLine = [
+    `正确 ${session.correctChars} 字/题`,
+    `用时 ${formatDuration(session.durationSeconds)}`,
+    session.keyAccuracy === undefined
+      ? ""
+      : `键准 ${session.keyAccuracy.toFixed(1)}%`,
+    session.theoreticalCodeLength === undefined ||
+    session.theoreticalCodeLength === null
+      ? ""
+      : `理论码长 ${session.theoreticalCodeLength.toFixed(2)}`,
+  ].filter(Boolean).join(" · ");
+  context.fillText(diagnosticLine, 72, 518);
   context.textAlign = "right";
   context.font = '16px "SFMono-Regular", monospace';
   context.fillText(

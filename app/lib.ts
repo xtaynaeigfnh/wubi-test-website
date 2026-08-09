@@ -667,6 +667,83 @@ export function calculateTypingMetrics({
   };
 }
 
+export function calculateKeyAccuracy({
+  keyCount,
+  backspaceCount,
+  correctionCount,
+  codeLength,
+}: {
+  keyCount: number;
+  backspaceCount: number;
+  correctionCount: number;
+  codeLength: number;
+}): number {
+  if (keyCount <= 0) return 100;
+  const correctionCost =
+    backspaceCount + correctionCount * Math.max(1, codeLength);
+  return Math.max(0, Math.min(100, ((keyCount - correctionCost) / keyCount) * 100));
+}
+
+export function calculatePhraseRate(
+  phraseChars: number,
+  correctChars: number,
+): number {
+  if (correctChars <= 0) return 0;
+  return Math.max(0, Math.min(100, (phraseChars / correctChars) * 100));
+}
+
+export function countCommittedEdit(previous: string, next: string) {
+  const previousCharacters = Array.from(previous);
+  const nextCharacters = Array.from(next);
+  let commonPrefix = 0;
+  while (
+    commonPrefix < previousCharacters.length &&
+    commonPrefix < nextCharacters.length &&
+    previousCharacters[commonPrefix] === nextCharacters[commonPrefix]
+  ) {
+    commonPrefix += 1;
+  }
+  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  return {
+    removed: Math.max(0, previousCharacters.length - commonPrefix),
+    inserted,
+    phraseChars: inserted > 1 ? inserted : 0,
+  };
+}
+
+export function classifyWubiHand(
+  key: string,
+  code = "",
+): "left" | "right" | null {
+  const normalized = code.startsWith("Key")
+    ? code.slice(3).toLowerCase()
+    : key.toLowerCase();
+  if (normalized.length !== 1) return null;
+  if ("qwertasdfgzxcvb".includes(normalized)) return "left";
+  if ("yuiophjklnm".includes(normalized)) return "right";
+  return null;
+}
+
+export function isImeSelectionKey(key: string): boolean {
+  return key === " " || key === "Enter" || /^[1-9]$/.test(key);
+}
+
+export function calculateActiveDurationSeconds({
+  startedAt,
+  now,
+  pausedDurationMs,
+  pausedAt,
+}: {
+  startedAt: number | null;
+  now: number;
+  pausedDurationMs: number;
+  pausedAt: number | null;
+}): number {
+  if (startedAt === null) return 0;
+  const currentPause = pausedAt === null ? 0 : Math.max(0, now - pausedAt);
+  return Math.max(0, (now - startedAt - pausedDurationMs - currentPause) / 1000);
+}
+
 export function calculateRemainingSeconds(
   deadline: number,
   now = Date.now(),
@@ -1032,6 +1109,19 @@ function isSessionResult(value: unknown): value is SessionResult {
     "codeLength",
     "errors",
   ];
+  const optionalNumericFields = [
+    "keyCount",
+    "backspaceCount",
+    "correctionCount",
+    "enterCount",
+    "selectionCount",
+    "leftHandKeys",
+    "rightHandKeys",
+    "pauseCount",
+    "pauseSeconds",
+    "retryCount",
+  ];
+  const optionalPercentageFields = ["keyAccuracy", "phraseRate"];
   return (
     isBoundedString(value.id, 160) &&
     value.id.length > 0 &&
@@ -1041,6 +1131,17 @@ function isSessionResult(value: unknown): value is SessionResult {
     isDateString(value.date) &&
     numericFields.every((field) => isFiniteRange(value[field], 0, 1_000_000_000)) &&
     isFiniteRange(value.accuracy, 0, 100) &&
+    (value.theoreticalCodeLength === undefined ||
+      value.theoreticalCodeLength === null ||
+      isFiniteRange(value.theoreticalCodeLength, 0, 100)) &&
+    optionalNumericFields.every(
+      (field) =>
+        value[field] === undefined ||
+        isFiniteRange(value[field], 0, 1_000_000_000),
+    ) &&
+    optionalPercentageFields.every(
+      (field) => value[field] === undefined || isFiniteRange(value[field], 0, 100),
+    ) &&
     (value.errorChars === undefined ||
       (Array.isArray(value.errorChars) &&
         value.errorChars.length <= 5000 &&

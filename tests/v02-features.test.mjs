@@ -26,8 +26,21 @@ function session(overrides = {}) {
     speed: 100,
     kps: 2,
     codeLength: 2.4,
+    theoreticalCodeLength: 1.8,
     accuracy: 97.5,
+    keyAccuracy: 95.2,
     errors: 5,
+    keyCount: 240,
+    backspaceCount: 2,
+    correctionCount: 1,
+    enterCount: 0,
+    selectionCount: 3,
+    phraseRate: 42.5,
+    leftHandKeys: 120,
+    rightHandKeys: 115,
+    pauseCount: 1,
+    pauseSeconds: 3.5,
+    retryCount: 0,
     ...overrides,
   };
 }
@@ -298,7 +311,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(training, /training-card-stat/);
   assert.match(training, /连续/);
   assert.match(training, /五码根专项/);
-  assert.match(trends, /速度与准确率/);
+  assert.match(trends, /速度与字准/);
   assert.match(pwa, /serviceWorker/);
   assert.match(share, /canvas\.toDataURL/);
   assert.match(app, /downloadShareCard/);

@@ -41,29 +41,31 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(component, />\s*清除成绩与错题\s*</);
   assert.match(component, /className="session-practice"/);
   assert.match(component, /className="session-speed"/);
+  assert.match(component, /className="session-kps"/);
   assert.match(component, /className="session-code-length"/);
   assert.match(component, /className="session-accuracy"/);
+  assert.match(component, /className="session-diagnostics"/);
   assert.match(component, /className="session-share"/);
   assert.match(component, />\s*操作\s*</);
-  assert.match(component, />\s*速度\s*<\/span>\s*<span>码长<\/span>\s*<span>准确率\s*</);
+  assert.match(component, />\s*速度\s*<\/span>\s*<span>击键<\/span>\s*<span>码长<\/span>\s*<span>字准\s*</);
   assert.match(component, /session\.codeLength\.toFixed\(2\)/);
   assert.match(component, /<small>键\/字<\/small>/);
   assert.match(
     styles,
-    /\.session-speed,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
+    /\.session-speed,\s*\.session-kps,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
   );
   assert.match(
     styles,
-    /\.session-speed small,\s*\.session-code-length small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
+    /\.session-speed small,\s*\.session-kps small,\s*\.session-code-length small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
   );
   assert.match(styles, /\.session-share\s*\{[^}]*justify-self:\s*end/s);
   assert.match(
     styles,
-    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice practice action"\s*"speed code-length accuracy duration"/s,
+    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice practice practice action"\s*"speed kps code-length accuracy duration"\s*"diagnostics diagnostics diagnostics diagnostics diagnostics"/s,
   );
   assert.match(
     styles,
-    /@media \(max-width: 620px\)[\s\S]*grid-template-areas:\s*"practice action"\s*"speed code-length"\s*"accuracy duration"/s,
+    /@media \(max-width: 620px\)[\s\S]*grid-template-areas:\s*"practice action"\s*"speed kps"\s*"code-length accuracy"\s*"duration duration"\s*"diagnostics diagnostics"/s,
   );
 });
 
@@ -82,6 +84,12 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(component, /autoCapitalize="none"/);
   assert.match(component, /isWubiLetterKey\(event\.key, event\.code\)/);
   assert.match(component, /<CodeLengthMetric/);
+  assert.match(component, /className="typing-diagnostics"/);
+  assert.match(component, /label="键准"/);
+  assert.match(component, /label="打词"/);
+  assert.match(component, /label="左右手"/);
+  assert.match(component, /aria-pressed=\{pausedAt !== null\}/);
+  assert.match(component, /chooseArticle\(article, true, retryCount \+ 1\)/);
   assert.doesNotMatch(component, /<Metric\s+label="理论最小码长"/);
   assert.match(component, /theoreticalValue=\{theoreticalCodeLength\}/);
   assert.match(component, /theoreticalValue\.toFixed\(2\)/);
@@ -99,6 +107,10 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.metric-strip\s*\{[^}]*grid-template-columns:\s*repeat\(2, 1fr\)/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.typing-diagnostics\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s,
   );
   assert.match(
     component,
