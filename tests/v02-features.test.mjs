@@ -258,9 +258,10 @@ test("backup restore rolls back every key after a storage failure", () => {
 });
 
 test("PWA files declare offline routes and data caches", async () => {
-  const [manifestText, worker] = await Promise.all([
+  const [manifestText, worker, pwa] = await Promise.all([
     readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
   ]);
   const manifest = JSON.parse(manifestText);
   assert.equal(manifest.display, "standalone");
@@ -275,6 +276,10 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
+  assert.match(worker, /wubi-test-v06/);
+  assert.match(pwa, /updateViaCache: "none"/);
+  assert.match(pwa, /controllerchange/);
+  assert.match(pwa, /window\.location\.reload\(\)/);
   assert.doesNotMatch(worker.match(/const PRECACHE = \[[\s\S]*?\]\.map/)?.[0] ?? "", /wubi86/);
 });
 

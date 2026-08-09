@@ -34,9 +34,31 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let isReloading = false;
+    const onControllerChange = () => {
+      if (!hadController || isReloading) return;
+      isReloading = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      onControllerChange,
+    );
+
     navigator.serviceWorker
-      .register(`${basePath}/sw.js`, { scope: `${basePath || ""}/` })
-      .then(() => navigator.serviceWorker.ready)
+      .register(`${basePath}/sw.js`, {
+        scope: `${basePath || ""}/`,
+        updateViaCache: "none",
+      })
+      .then(async (registration) => {
+        try {
+          await registration.update();
+        } catch {
+          // 离线时继续使用已激活的缓存，不影响应用启动。
+        }
+        return navigator.serviceWorker.ready;
+      })
       .then(() => setStatus("离线缓存已启用，断网后仍可打开。"))
       .catch(() => setStatus("离线缓存注册失败，请刷新页面重试。"));
 
@@ -45,7 +67,13 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       setPromptEvent(event as InstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    return () => {
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        onControllerChange,
+      );
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+    };
   }, []);
 
   const value = useMemo(
