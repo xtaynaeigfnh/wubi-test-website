@@ -283,6 +283,8 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(management, /取消收藏/);
   assert.match(training, /高频错题复练/);
   assert.match(training, /智能推荐/);
+  assert.match(training, /training-card-header/);
+  assert.match(training, /training-card-stat/);
   assert.match(training, /连续/);
   assert.match(training, /五码根专项/);
   assert.match(trends, /速度与准确率/);

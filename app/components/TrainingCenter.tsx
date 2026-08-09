@@ -183,13 +183,19 @@ export function TrainingCenter({
       {tab === "plan" && (
         <div className="training-plan">
           <div className="daily-progress-card">
-            <div className="panel-title">
-              <div>
+            <header className="panel-title training-card-header">
+              <div className="training-card-heading">
                 <span className="eyebrow">今日进度</span>
                 <h2>三件事，练完就收手</h2>
               </div>
-              <strong>{today.rounds} 轮</strong>
-            </div>
+              <div
+                className="training-card-stat"
+                aria-label={`今日已完成 ${today.rounds} 轮`}
+              >
+                <strong>{today.rounds}</strong>
+                <span>轮</span>
+              </div>
+            </header>
             <GoalRow
               label="文章字数"
               value={today.chars}
@@ -251,13 +257,19 @@ export function TrainingCenter({
           </div>
 
           <div className="smart-plan-card">
-            <div className="panel-title">
-              <div>
+            <header className="panel-title training-card-header">
+              <div className="training-card-heading">
                 <span className="eyebrow">智能推荐</span>
                 <h2>今天从这里开始</h2>
               </div>
-              <span>{errors.length ? `${errors.length} 个弱项` : "暂无错题"}</span>
-            </div>
+              <div
+                className="training-card-stat"
+                aria-label={errors.length ? `${errors.length} 个弱项` : "暂无错题"}
+              >
+                <strong>{errors.length}</strong>
+                <span>{errors.length ? "个弱项" : "暂无错题"}</span>
+              </div>
+            </header>
             <ol className="plan-steps">
               <li>
                 <span>壹</span>

@@ -3061,6 +3061,57 @@ select,
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.daily-progress-card .training-card-header,
+.smart-plan-card .training-card-header {
+  min-height: 104px;
+  padding: 4px 0 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 32px;
+  background: transparent;
+}
+
+.training-card-heading {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+}
+
+.training-card-heading .eyebrow,
+.training-card-heading h2 {
+  margin: 0;
+}
+
+.training-card-heading h2 {
+  line-height: 1.35;
+  letter-spacing: 0.025em;
+}
+
+.training-card-stat {
+  min-width: 96px;
+  padding-left: 24px;
+  display: grid;
+  grid-template-columns: auto auto;
+  place-content: center end;
+  align-items: baseline;
+  gap: 8px;
+  border-left: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.training-card-stat strong {
+  color: var(--accent-bamboo);
+  font: 800 24px/1 var(--font-data);
+}
+
+.training-card-stat span {
+  color: var(--text-secondary);
+  font: 700 10px/1.2 var(--font-body);
+  letter-spacing: 0.04em;
+}
+
 .daily-progress-card h2,
 .smart-plan-card h2,
 .code-drill h2,
@@ -5349,12 +5400,14 @@ textarea {
 }
 
 .site-footer {
-  min-height: 104px;
-  margin-top: 40px;
-  padding: 24px 20px 94px;
+  min-height: 60px;
+  margin-top: 28px;
+  padding: 14px 84px 14px 20px;
+  align-items: center;
   border: 1px solid var(--border-default);
   border-bottom: 0;
   background: var(--bg-paper);
+  line-height: 1.5;
 }
 
 .site-footer b {
@@ -5735,8 +5788,24 @@ textarea {
     height: 112px;
   }
 
+  .daily-progress-card .training-card-header,
+  .smart-plan-card .training-card-header {
+    min-height: auto;
+    padding-bottom: 20px;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .training-card-stat {
+    min-width: 0;
+    padding: 12px 0 0;
+    place-content: center start;
+    border-top: 1px solid var(--border-subtle);
+    border-left: 0;
+  }
+
   .site-footer {
     margin-top: 20px;
-    padding-inline: 16px;
+    padding: 14px 72px 14px 16px;
   }
 }
