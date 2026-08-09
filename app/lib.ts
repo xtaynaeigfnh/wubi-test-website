@@ -843,10 +843,20 @@ export function saveSession(session: SessionResult) {
   writeLocal(STORAGE.progress, progress);
 }
 
+export function getErrors(): ErrorStat[] {
+  const stored = readLocalArray<ErrorStat>(STORAGE.errors);
+  const merged = mergeErrorStatsByText(stored);
+  if (merged.length !== stored.length) {
+    writeLocal(STORAGE.errors, merged);
+  }
+  return merged;
+}
+
 export function addError(text: string, code?: string) {
-  const errors = readLocalArray<ErrorStat>(STORAGE.errors);
-  const existing = errors.find((row) => row.text === text && row.code === code);
+  const errors = getErrors();
+  const existing = errors.find((row) => row.text === text);
   if (existing) {
+    if (code) existing.code = code;
     existing.count += 1;
     existing.lastSeen = new Date().toISOString();
     existing.mastery = Math.max(0, (existing.mastery ?? 0) - 1);
@@ -867,9 +877,12 @@ export function updateErrorMastery(
   code: string,
   correct: boolean,
 ): ErrorStat[] {
-  const errors = readLocalArray<ErrorStat>(STORAGE.errors);
+  const errors = getErrors();
   const existing = errors.find((row) => row.text === text);
-  if (!existing) return errors;
+  if (!existing) {
+    writeLocal(STORAGE.errors, errors);
+    return errors;
+  }
   existing.code = code;
   if (correct) {
     existing.mastery = Math.min(5, (existing.mastery ?? 0) + 1);
@@ -885,6 +898,33 @@ export function updateErrorMastery(
   );
   writeLocal(STORAGE.errors, next);
   return next;
+}
+
+function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
+  const merged = new Map<string, ErrorStat>();
+  for (const error of errors) {
+    const existing = merged.get(error.text);
+    if (!existing) {
+      merged.set(error.text, { ...error });
+      continue;
+    }
+    existing.count += error.count;
+    existing.code = existing.code ?? error.code;
+    existing.mastery = Math.min(
+      5,
+      (existing.mastery ?? 0) + (error.mastery ?? 0),
+    );
+    if (error.lastSeen > existing.lastSeen) {
+      existing.lastSeen = error.lastSeen;
+    }
+    if (
+      error.lastCorrect &&
+      (!existing.lastCorrect || error.lastCorrect > existing.lastCorrect)
+    ) {
+      existing.lastCorrect = error.lastCorrect;
+    }
+  }
+  return Array.from(merged.values());
 }
 
 export function buildReviewPool(
@@ -998,18 +1038,15 @@ export function buildTrendSeries(
   }, null);
   const dayCount =
     range === "all"
-      ? Math.min(
-          365,
-          Math.max(
-            1,
-            oldest
-              ? Math.floor(
-                  (new Date(localDateKey(now)).getTime() -
-                    new Date(localDateKey(oldest)).getTime()) /
-                    86400000,
-                ) + 1
-              : 1,
-          ),
+      ? Math.max(
+          1,
+          oldest
+            ? Math.floor(
+                (new Date(localDateKey(now)).getTime() -
+                  new Date(localDateKey(oldest)).getTime()) /
+                  86400000,
+              ) + 1
+            : 1,
         )
       : range;
   return Array.from({ length: dayCount }, (_, offset) => {
