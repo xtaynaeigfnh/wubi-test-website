@@ -139,6 +139,7 @@ function useKeySound(enabled: boolean): KeySoundPlayer {
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const mainNavRef = useRef<HTMLElement>(null);
   const playKeySound = useKeySound(settings.sound);
 
   useEffect(() => {
@@ -152,6 +153,25 @@ export function WubiApp({ view }: { view: AppView }) {
     root.dataset.theme = settings.theme;
     writeLocal(STORAGE.settings, settings);
   }, [settings, settingsReady]);
+
+  useEffect(() => {
+    const navigation = mainNavRef.current;
+    const activeItem = navigation?.querySelector<HTMLElement>(
+      '[aria-current="page"]',
+    );
+    if (
+      !navigation ||
+      !activeItem ||
+      navigation.scrollWidth <= navigation.clientWidth
+    ) {
+      return;
+    }
+    navigation.scrollLeft = Math.max(
+      0,
+      activeItem.offsetLeft -
+        (navigation.clientWidth - activeItem.offsetWidth) / 2,
+    );
+  }, [view]);
 
   const themeLabels: Record<UserSettings["theme"], string> = {
     system: "系统",
@@ -186,7 +206,7 @@ export function WubiApp({ view }: { view: AppView }) {
               <small>WUBI 86 / LOCAL PRACTICE</small>
             </span>
           </Link>
-          <nav className="main-nav" aria-label="主导航">
+          <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
             {navItems.map((item) => (
               <Link
                 key={item.view}
@@ -815,7 +835,10 @@ function TypingView({
     else randomArticle();
   };
 
-  if (articlesLoading) {
+  if (
+    articlesLoading ||
+    (!article && (!settingsReady || availableArticles.length > 0))
+  ) {
     return (
       <div className="loading-card" role="status" aria-busy="true">
         正在整理 300 篇练习文章…

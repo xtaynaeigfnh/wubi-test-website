@@ -107,6 +107,21 @@ test("typing exposes every filtered article and resets timing on restart", async
     styles,
     /\.completion-value\s*\{[^}]*display:\s*inline-flex;[^}]*white-space:\s*nowrap;/s,
   );
+  assert.match(
+    component,
+    /articlesLoading\s*\|\|\s*\(!article && \(!settingsReady \|\| availableArticles\.length > 0\)\)/,
+  );
+});
+
+test("mobile navigation scrolls the active route into view", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /const mainNavRef = useRef<HTMLElement>\(null\)/);
+  assert.match(component, /<nav ref=\{mainNavRef\}/);
+  assert.match(component, /querySelector<HTMLElement>\(\s*'\[aria-current="page"\]'/s);
+  assert.match(component, /navigation\.scrollWidth <= navigation\.clientWidth/);
+  assert.match(component, /navigation\.scrollLeft = Math\.max\(/);
+  assert.match(component, /activeItem\.offsetLeft/);
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
