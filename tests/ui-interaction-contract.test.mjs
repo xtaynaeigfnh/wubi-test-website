@@ -6,6 +6,7 @@ const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
+const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [component, styles] = await Promise.all([
@@ -140,6 +141,29 @@ test("key sound is shared by typing, challenge, and the settings preview", async
     component,
     /文章测速和字码挑战输入时播放轻提示音/,
   );
+});
+
+test("typing surfaces record physical keys and the summary exposes the reference analyses", async () => {
+  const [component, training, summary, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readFile(keySummaryPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /recordKeyUsage\(event\.code\)/);
+  assert.match(training, /recordKeyUsage\(event\.code\)/);
+  assert.match(component, /href="\/summary">查看按键画像/);
+  assert.match(summary, /按键使用画像/);
+  assert.match(summary, /键盘热力图/);
+  assert.match(summary, /左右手均衡/);
+  assert.match(summary, /键盘行使用率/);
+  assert.match(summary, /五笔五区使用率/);
+  assert.match(summary, /手指使用率/);
+  assert.match(summary, /aria-label="练习按键次数热力图"/);
+  assert.match(styles, /\.keyboard-heatmap\s*\{/);
+  assert.match(styles, /\.key-analysis-grid\s*\{/);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.key-summary-metrics/s);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {

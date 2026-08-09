@@ -40,10 +40,19 @@ test("server-renders the finished Chinese product shell", async () => {
 });
 
 test("all planned routes render successfully", async () => {
-  for (const pathname of ["/training", "/challenge", "/lookup", "/history", "/settings"]) {
+  for (const pathname of ["/training", "/challenge", "/lookup", "/history", "/summary", "/settings"]) {
     const response = await render(pathname);
     assert.equal(response.status, 200, pathname);
     const html = await response.text();
     assert.match(html, /五笔测试网站/, pathname);
   }
+});
+
+test("keyboard summary route server-renders its analysis shell", async () => {
+  const response = await render("/summary");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /按键使用画像/);
+  assert.match(html, /键盘热力图/);
+  assert.match(html, /左右手均衡/);
 });

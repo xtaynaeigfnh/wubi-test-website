@@ -17,6 +17,12 @@ import type {
   UserSettings,
   WubiEntry,
 } from "./types";
+import {
+  incrementKeyUsage,
+  isValidKeyUsage,
+  normalizeKeyUsage,
+  type KeyUsageMap,
+} from "./key-usage.ts";
 
 export const STORAGE = {
   settings: "wubi-test:settings:v1",
@@ -29,6 +35,7 @@ export const STORAGE = {
   dailyGoal: "wubi-test:daily-goal:v1",
   currentGenerated: "wubi-test:current-generated-practice:v1",
   music: "wubi-test:music:v1",
+  keyUsage: "wubi-test:key-usage:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -163,6 +170,37 @@ export function writeLocal<T>(key: string, value: T): boolean {
   } catch {
     return false;
   }
+}
+
+let pendingKeyUsage: KeyUsageMap | null = null;
+let keyUsageTimer: number | null = null;
+
+export function readKeyUsage(): KeyUsageMap {
+  return normalizeKeyUsage(
+    pendingKeyUsage ?? readLocal<unknown>(STORAGE.keyUsage, {}),
+  );
+}
+
+export function recordKeyUsage(code: string): void {
+  if (typeof window === "undefined") return;
+  const current = readKeyUsage();
+  const next = incrementKeyUsage(current, code);
+  if (next === current) return;
+  pendingKeyUsage = next;
+  if (keyUsageTimer !== null) return;
+  keyUsageTimer = window.setTimeout(() => {
+    if (pendingKeyUsage) writeLocal(STORAGE.keyUsage, pendingKeyUsage);
+    pendingKeyUsage = null;
+    keyUsageTimer = null;
+  }, 180);
+}
+
+export function clearKeyUsage(): void {
+  if (typeof window === "undefined") return;
+  if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
+  pendingKeyUsage = null;
+  keyUsageTimer = null;
+  writeLocal(STORAGE.keyUsage, {});
 }
 
 async function fetchJson<T>(url: string, label: string): Promise<T> {
@@ -1158,6 +1196,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       return isPracticeArticle(value);
     case STORAGE.music:
       return isMusicPreferences(value);
+    case STORAGE.keyUsage:
+      return isValidKeyUsage(value);
     default:
       return false;
   }

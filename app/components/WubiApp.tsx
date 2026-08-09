@@ -23,6 +23,7 @@ import {
   calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
+  clearKeyUsage,
   commonCharacterPresets,
   countCommittedAttempts,
   defaultSettings,
@@ -40,6 +41,7 @@ import {
   readLocal,
   readLocalArray,
   readSettings,
+  recordKeyUsage,
   saveSession,
   isCommonPracticeArticle,
   selectInitialArticle,
@@ -66,6 +68,7 @@ import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
 import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
+import { KeySummary } from "./KeySummary";
 
 const navItems: Array<{
   view: AppView;
@@ -82,6 +85,9 @@ const navItems: Array<{
 ];
 
 const FALLBACK_ARTICLE_COUNT = 300;
+
+const isNavItemActive = (view: AppView, itemView: AppView) =>
+  view === itemView || (view === "summary" && itemView === "history");
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -191,8 +197,8 @@ export function WubiApp({ view }: { view: AppView }) {
               <Link
                 key={item.view}
                 href={item.href}
-                className={view === item.view ? "nav-item active" : "nav-item"}
-                aria-current={view === item.view ? "page" : undefined}
+                className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
+                aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
               >
                 <span aria-hidden="true">{item.coordinate}</span>
                 <strong>{item.label}</strong>
@@ -236,6 +242,7 @@ export function WubiApp({ view }: { view: AppView }) {
         )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
+        {view === "summary" && <KeySummary />}
         {view === "settings" && (
           <SettingsView
             settings={settings}
@@ -778,6 +785,7 @@ function TypingView({
     }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
+      recordKeyUsage(event.code);
       playKeySound();
     }
     if (isWubiLetterKey(event.key, event.code)) {
@@ -1641,6 +1649,7 @@ function ChallengeView({
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    recordKeyUsage(event.code);
                     playKeySound();
                   }
                   if (event.key === "Enter" && feedback === "idle") submit();
@@ -1878,6 +1887,7 @@ function HistoryView() {
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
+    clearKeyUsage();
     refresh();
   };
 
@@ -1889,9 +1899,12 @@ function HistoryView() {
           <h1>本地成绩</h1>
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
-        <button className="button danger" onClick={clearResults}>
-          清除成绩与错题
-        </button>
+        <div className="heading-actions">
+          <Link className="button secondary" href="/summary">查看按键画像</Link>
+          <button className="button danger" onClick={clearResults}>
+            清除成绩与错题
+          </button>
+        </div>
       </div>
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />

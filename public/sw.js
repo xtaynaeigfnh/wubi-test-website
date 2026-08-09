@@ -7,6 +7,7 @@ const PRECACHE = [
   "/challenge/",
   "/lookup/",
   "/history/",
+  "/summary/",
   "/settings/",
   "/manifest.webmanifest",
   "/icon.svg",
