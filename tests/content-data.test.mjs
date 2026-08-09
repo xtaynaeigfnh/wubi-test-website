@@ -20,6 +20,8 @@ test("article library has the planned distribution and valid metadata", async ()
   assert.equal(new Set(index.map((article) => article.id)).size, 300);
   assert.equal(new Set(index.map((article) => article.title)).size, 300);
   assert.ok(index.every((article) => article.title && article.topic && article.wordCount > 0));
+  assert.ok(index.every((article) => !/[A-Za-z]/u.test(article.title)));
+  assert.ok(index.every((article) => !/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/u.test(article.title)));
 
   const addedRanges = {
     short: [81, 120],
@@ -115,6 +117,8 @@ test("article prose keeps punctuation balanced and drops generator artifacts", a
     assert.equal((text.match(/“/gu) || []).length, (text.match(/”/gu) || []).length, `${id} has unbalanced Chinese quotes`);
     assert.equal(/【\d+】/u.test(text), false, `${id} contains an internal deduplication marker`);
     assert.equal(/[，。！？；：][，。！？；：]/u.test(text), false, `${id} contains adjacent punctuation`);
+    assert.equal(/[A-Za-z]/u.test(text), false, `${id} contains English letters`);
+    assert.equal(/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/u.test(text), false, `${id} contains ASCII punctuation`);
     assert.equal(/[。！？][，；：]|[，；：][。！？]/u.test(text), false, `${id} contains punctuation in the wrong order`);
     assert.equal(/而是把[^。！？]*依据。[^。！？]*他们没有回避/u.test(text), false, `${id} contains a reordered clause artifact`);
     assert.equal(/不再应当|已经应当|一时难以判断/u.test(text), false, `${id} contains a mechanical rewrite artifact`);

@@ -72,9 +72,22 @@ export interface SessionResult {
   speed: number;
   kps: number;
   codeLength: number;
+  theoreticalCodeLength?: number | null;
   accuracy: number;
+  keyAccuracy?: number;
   errors: number;
   errorChars?: string[];
+  keyCount?: number;
+  backspaceCount?: number;
+  correctionCount?: number;
+  enterCount?: number;
+  selectionCount?: number;
+  phraseRate?: number;
+  leftHandKeys?: number;
+  rightHandKeys?: number;
+  pauseCount?: number;
+  pauseSeconds?: number;
+  retryCount?: number;
 }
 
 export interface ErrorStat {

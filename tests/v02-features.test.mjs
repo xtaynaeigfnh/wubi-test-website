@@ -10,6 +10,7 @@ import {
   calculateStreak,
   createBackupPayload,
   parseBackupPayload,
+  recordKeyUsage,
   restoreBackupPayload,
   STORAGE,
 } from "../app/lib.ts";
@@ -26,8 +27,21 @@ function session(overrides = {}) {
     speed: 100,
     kps: 2,
     codeLength: 2.4,
+    theoreticalCodeLength: 1.8,
     accuracy: 97.5,
+    keyAccuracy: 95.2,
     errors: 5,
+    keyCount: 240,
+    backspaceCount: 2,
+    correctionCount: 1,
+    enterCount: 0,
+    selectionCount: 3,
+    phraseRate: 42.5,
+    leftHandKeys: 120,
+    rightHandKeys: 115,
+    pauseCount: 1,
+    pauseSeconds: 3.5,
+    retryCount: 0,
     ...overrides,
   };
 }
@@ -257,10 +271,47 @@ test("backup restore rolls back every key after a storage failure", () => {
   }
 });
 
+test("backup restore cannot be overwritten by a pending key-usage write", () => {
+  const values = new Map();
+  const timers = new Map();
+  let nextTimer = 1;
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+  globalThis.window = {
+    localStorage,
+    setTimeout: (callback) => {
+      const id = nextTimer;
+      nextTimer += 1;
+      timers.set(id, callback);
+      return id;
+    },
+    clearTimeout: (id) => timers.delete(id),
+  };
+  try {
+    recordKeyUsage("KeyA");
+    const pendingWrite = timers.values().next().value;
+    assert.equal(typeof pendingWrite, "function");
+
+    restoreBackupPayload(
+      createBackupPayload({ [STORAGE.keyUsage]: { KeyQ: 9 } }),
+    );
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
+
+    pendingWrite();
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("PWA files declare offline routes and data caches", async () => {
-  const [manifestText, worker] = await Promise.all([
+  const [manifestText, worker, pwa] = await Promise.all([
     readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
   ]);
   const manifest = JSON.parse(manifestText);
   assert.equal(manifest.display, "standalone");
@@ -275,6 +326,10 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
+  assert.match(worker, /wubi-test-v06/);
+  assert.match(pwa, /updateViaCache: "none"/);
+  assert.match(pwa, /controllerchange/);
+  assert.match(pwa, /window\.location\.reload\(\)/);
   assert.doesNotMatch(worker.match(/const PRECACHE = \[[\s\S]*?\]\.map/)?.[0] ?? "", /wubi86/);
 });
 
@@ -298,7 +353,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(training, /training-card-stat/);
   assert.match(training, /连续/);
   assert.match(training, /五码根专项/);
-  assert.match(trends, /速度与准确率/);
+  assert.match(trends, /速度与字准/);
   assert.match(pwa, /serviceWorker/);
   assert.match(share, /canvas\.toDataURL/);
   assert.match(app, /downloadShareCard/);

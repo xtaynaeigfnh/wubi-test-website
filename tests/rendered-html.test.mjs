@@ -55,4 +55,7 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   assert.match(html, /按键使用画像/);
   assert.match(html, /键盘热力图/);
   assert.match(html, /左右手均衡/);
+  assert.match(html, /五笔五区使用率/);
+  assert.match(html, /手指使用率/);
+  assert.match(html, /窄屏可左右滑动查看完整键盘/);
 });

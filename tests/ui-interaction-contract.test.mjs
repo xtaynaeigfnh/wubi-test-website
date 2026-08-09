@@ -39,31 +39,38 @@ test("history filters are visually separate and expose pressed state", async () 
   );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(component, />\s*清除成绩与错题\s*</);
+  const clearResults = component.match(
+    /const clearResults = \(\) => \{[\s\S]*?\n  \};/,
+  )?.[0];
+  assert.ok(clearResults);
+  assert.doesNotMatch(clearResults, /clearKeyUsage/);
   assert.match(component, /className="session-practice"/);
   assert.match(component, /className="session-speed"/);
+  assert.match(component, /className="session-kps"/);
   assert.match(component, /className="session-code-length"/);
   assert.match(component, /className="session-accuracy"/);
+  assert.match(component, /className="session-diagnostics"/);
   assert.match(component, /className="session-share"/);
   assert.match(component, />\s*操作\s*</);
-  assert.match(component, />\s*速度\s*<\/span>\s*<span>码长<\/span>\s*<span>准确率\s*</);
+  assert.match(component, />\s*速度\s*<\/span>\s*<span>击键<\/span>\s*<span>码长<\/span>\s*<span>字准\s*</);
   assert.match(component, /session\.codeLength\.toFixed\(2\)/);
   assert.match(component, /<small>键\/字<\/small>/);
   assert.match(
     styles,
-    /\.session-speed,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
+    /\.session-speed,\s*\.session-kps,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
   );
   assert.match(
     styles,
-    /\.session-speed small,\s*\.session-code-length small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
+    /\.session-speed small,\s*\.session-kps small,\s*\.session-code-length small,\s*\.session-accuracy small\s*\{[^}]*display:\s*inline/s,
   );
   assert.match(styles, /\.session-share\s*\{[^}]*justify-self:\s*end/s);
   assert.match(
     styles,
-    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice practice action"\s*"speed code-length accuracy duration"/s,
+    /@media \(max-width: 900px\)[\s\S]*grid-template-areas:\s*"practice practice practice practice action"\s*"speed kps code-length accuracy duration"\s*"diagnostics diagnostics diagnostics diagnostics diagnostics"/s,
   );
   assert.match(
     styles,
-    /@media \(max-width: 620px\)[\s\S]*grid-template-areas:\s*"practice action"\s*"speed code-length"\s*"accuracy duration"/s,
+    /@media \(max-width: 620px\)[\s\S]*grid-template-areas:\s*"practice action"\s*"speed kps"\s*"code-length accuracy"\s*"duration duration"\s*"diagnostics diagnostics"/s,
   );
 });
 
@@ -82,6 +89,12 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(component, /autoCapitalize="none"/);
   assert.match(component, /isWubiLetterKey\(event\.key, event\.code\)/);
   assert.match(component, /<CodeLengthMetric/);
+  assert.match(component, /className="typing-diagnostics"/);
+  assert.match(component, /label="键准"/);
+  assert.match(component, /label="打词"/);
+  assert.match(component, /label="左右手"/);
+  assert.match(component, /aria-pressed=\{pausedAt !== null\}/);
+  assert.match(component, /chooseArticle\(article, true, retryCount \+ 1\)/);
   assert.doesNotMatch(component, /<Metric\s+label="理论最小码长"/);
   assert.match(component, /theoreticalValue=\{theoreticalCodeLength\}/);
   assert.match(component, /theoreticalValue\.toFixed\(2\)/);
@@ -99,6 +112,10 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.metric-strip\s*\{[^}]*grid-template-columns:\s*repeat\(2, 1fr\)/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.typing-diagnostics\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s,
   );
   assert.match(
     component,
@@ -169,6 +186,7 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(component, /recordKeyUsage\(event\.code\)/);
   assert.match(training, /recordKeyUsage\(event\.code\)/);
   assert.match(component, /href="\/summary">查看按键画像/);
+  assert.match(summary, /href="\/history">返回本地成绩/);
   assert.match(summary, /按键使用画像/);
   assert.match(summary, /键盘热力图/);
   assert.match(summary, /左右手均衡/);
@@ -176,9 +194,18 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /五笔五区使用率/);
   assert.match(summary, /手指使用率/);
   assert.match(summary, /aria-label="练习按键次数热力图"/);
+  assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
+  assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
+  assert.match(summary, /id="finger-usage-title"[\s\S]*wide/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
-  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.key-summary-metrics/s);
+  assert.match(
+    styles,
+    /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+  );
+  assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(styles, /\.usage-card-wide \.usage-bars\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.key-summary-metrics/s);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
