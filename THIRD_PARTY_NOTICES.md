@@ -58,6 +58,16 @@ Included tracks:
   https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ode-to-forgetting-lofi-chill-relax/
 - Wave Maker:
   https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wave-maker-lofi-dreamy-retro/
+- Tranquil Mindscape:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tranquil-mindscape-lofi-happy-reflection/
+- Canon Event:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/canon-event-lofi-sad-reflection/
+- Still Life:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/still-life-lofi-chill-nostalgic/
+- Bubbles:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/bubbles-lofi-bright-relaxed/
+- Tokyo Sunset:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tokyo-sunset-lofi-peaceful-soft/
 
 CC0 1.0 legal text:
 https://creativecommons.org/publicdomain/zero/1.0/legalcode

@@ -146,6 +146,7 @@ test("backup format only accepts known versioned storage keys", () => {
         theme: "dark",
         autoNext: false,
       },
+      [STORAGE.keyUsage]: { KeyQ: 12, KeyW: 8 },
       unrelated: "discard me",
     },
     new Date("2026-07-29T12:00:00+08:00"),
@@ -154,6 +155,7 @@ test("backup format only accepts known versioned storage keys", () => {
   assert.deepEqual(Object.keys(payload.data).sort(), [
     STORAGE.sessions,
     STORAGE.settings,
+    STORAGE.keyUsage,
   ].sort());
   assert.deepEqual(parseBackupPayload(payload), payload);
   assert.throws(
@@ -169,6 +171,14 @@ test("backup format only accepts known versioned storage keys", () => {
       parseBackupPayload({
         ...payload,
         data: { [STORAGE.errors]: { text: "不是数组" } },
+      }),
+    /格式不正确/,
+  );
+  assert.throws(
+    () =>
+      parseBackupPayload({
+        ...payload,
+        data: { [STORAGE.keyUsage]: { KeyQ: -1, Unknown: 3 } },
       }),
     /格式不正确/,
   );
@@ -256,6 +266,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.start_url, ".");
   assert.match(worker, /\/training\//);
+  assert.match(worker, /\/summary\//);
   assert.match(worker, /\/data\/common-characters\.json/);
   assert.match(worker, /\/data\/music-catalog\.json/);
   assert.doesNotMatch(worker, /audioAssets/);
@@ -290,4 +301,5 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(share, /canvas\.toDataURL/);
   assert.match(app, /downloadShareCard/);
   assert.match(app, /TrainingCenter/);
+  assert.match(app, /KeySummary/);
 });

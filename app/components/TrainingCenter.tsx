@@ -14,6 +14,7 @@ import {
   loadWubiChallenge,
   readDailyGoal,
   readLocalArray,
+  recordKeyUsage,
   saveSession,
   STORAGE,
   updateErrorMastery,
@@ -547,6 +548,7 @@ function CodeDrill({
             }
             onKeyDown={(event) => {
               if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                recordKeyUsage(event.code);
                 playKeySound();
               }
               if (event.key === "Enter" && feedback === "idle") submit();

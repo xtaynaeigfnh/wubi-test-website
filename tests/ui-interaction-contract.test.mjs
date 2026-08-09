@@ -6,6 +6,7 @@ const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
+const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [component, styles] = await Promise.all([
@@ -142,6 +143,29 @@ test("key sound is shared by typing, challenge, and the settings preview", async
   );
 });
 
+test("typing surfaces record physical keys and the summary exposes the reference analyses", async () => {
+  const [component, training, summary, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readFile(keySummaryPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /recordKeyUsage\(event\.code\)/);
+  assert.match(training, /recordKeyUsage\(event\.code\)/);
+  assert.match(component, /href="\/summary">查看按键画像/);
+  assert.match(summary, /按键使用画像/);
+  assert.match(summary, /键盘热力图/);
+  assert.match(summary, /左右手均衡/);
+  assert.match(summary, /键盘行使用率/);
+  assert.match(summary, /五笔五区使用率/);
+  assert.match(summary, /手指使用率/);
+  assert.match(summary, /aria-label="练习按键次数热力图"/);
+  assert.match(styles, /\.keyboard-heatmap\s*\{/);
+  assert.match(styles, /\.key-analysis-grid\s*\{/);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.key-summary-metrics/s);
+});
+
 test("code hint pairs the current character with a compact toolbar code card", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
@@ -210,7 +234,7 @@ test("common-character practice inherits the article reading rhythm", async () =
   assert.doesNotMatch(styles, /\.common-character-text > span:not/);
 });
 
-test("common-character scores stay out of the 200-article completion progress", async () => {
+test("common-character scores stay out of built-in article completion progress", async () => {
   const component = await readFile(componentPath, "utf8");
 
   assert.match(
@@ -218,7 +242,8 @@ test("common-character scores stay out of the 200-article completion progress", 
     /article\.kind === "custom" \|\|[\s\S]*article\.kind === "common" \|\|[\s\S]*article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
   );
   assert.match(component, /文章完成度/);
-  assert.match(component, /\/ 200/);
+  assert.match(component, /loadArticleMetadata\(\)/);
+  assert.match(component, /completedArticleCount \/ articleTotal/);
 });
 
 test("one root-level audio player exposes accessible manual controls", async () => {

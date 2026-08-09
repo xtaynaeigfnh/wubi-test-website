@@ -23,6 +23,11 @@ import {
   shouldDeferInputCommit,
 } from "../app/lib.ts";
 import {
+  incrementKeyUsage,
+  normalizeKeyUsage,
+  summarizeKeyUsage,
+} from "../app/key-usage.ts";
+import {
   getAdjacentTrackIndex,
   parseMusicCatalog,
   parseMusicPreferences,
@@ -223,6 +228,41 @@ test("Wubi letter detection falls back to physical keys for Windows IME events",
   assert.equal(isWubiLetterKey("Unidentified", "KeyY"), true);
   assert.equal(isWubiLetterKey("Process", "KeyZ"), false);
   assert.equal(isWubiLetterKey("Process"), false);
+});
+
+test("keyboard usage summary groups physical keys by hand, row, finger, and Wubi zone", () => {
+  let usage = {};
+  for (const code of [
+    "KeyQ", "KeyQ", "KeyQ", "KeyQ",
+    "KeyA", "KeyA",
+    "KeyY", "KeyY", "KeyY",
+    "Space",
+  ]) {
+    usage = incrementKeyUsage(usage, code);
+  }
+  assert.equal(incrementKeyUsage(usage, "MediaPlayPause"), usage);
+
+  const summary = summarizeKeyUsage(usage);
+  assert.equal(summary.total, 10);
+  assert.deepEqual(summary.mostUsed, { label: "Q", count: 4 });
+  assert.deepEqual(summary.hands.map(({ label, count }) => [label, count]), [
+    ["左手", 6],
+    ["右手", 3],
+  ]);
+  assert.deepEqual(summary.rows.map(({ label, count }) => [label, count]), [
+    ["数字排", 0],
+    ["上排", 7],
+    ["中排", 2],
+    ["下排", 0],
+  ]);
+  assert.deepEqual(summary.zones.map(({ name, count }) => [name, count]), [
+    ["撇区", 4],
+    ["捺区", 3],
+    ["横区", 2],
+    ["竖区", 0],
+    ["折区", 0],
+  ]);
+  assert.deepEqual(normalizeKeyUsage({ KeyQ: 3, Unknown: 9, KeyW: -1 }), { KeyQ: 3 });
 });
 
 test("shortest Wubi code wins and equal lengths prefer higher weight", () => {

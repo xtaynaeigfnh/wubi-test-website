@@ -5,6 +5,7 @@ export type AppView =
   | "challenge"
   | "lookup"
   | "history"
+  | "summary"
   | "settings";
 export type CommonCharacterPreset =
   | "first-050"

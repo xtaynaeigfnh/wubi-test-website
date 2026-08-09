@@ -23,6 +23,7 @@ import {
   calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
+  clearKeyUsage,
   commonCharacterPresets,
   countCommittedAttempts,
   defaultSettings,
@@ -31,6 +32,7 @@ import {
   getSessions,
   isWubiLetterKey,
   lengthLabels,
+  loadArticleMetadata,
   loadArticles,
   loadCommonCharacters,
   loadWubi,
@@ -39,6 +41,7 @@ import {
   readLocal,
   readLocalArray,
   readSettings,
+  recordKeyUsage,
   saveSession,
   isCommonPracticeArticle,
   selectInitialArticle,
@@ -65,6 +68,7 @@ import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
 import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
+import { KeySummary } from "./KeySummary";
 
 const navItems: Array<{
   view: AppView;
@@ -79,6 +83,11 @@ const navItems: Array<{
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
+
+const FALLBACK_ARTICLE_COUNT = 300;
+
+const isNavItemActive = (view: AppView, itemView: AppView) =>
+  view === itemView || (view === "summary" && itemView === "history");
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -188,8 +197,8 @@ export function WubiApp({ view }: { view: AppView }) {
               <Link
                 key={item.view}
                 href={item.href}
-                className={view === item.view ? "nav-item active" : "nav-item"}
-                aria-current={view === item.view ? "page" : undefined}
+                className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
+                aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
               >
                 <span aria-hidden="true">{item.coordinate}</span>
                 <strong>{item.label}</strong>
@@ -233,6 +242,7 @@ export function WubiApp({ view }: { view: AppView }) {
         )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
+        {view === "summary" && <KeySummary />}
         {view === "settings" && (
           <SettingsView
             settings={settings}
@@ -775,6 +785,7 @@ function TypingView({
     }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
+      recordKeyUsage(event.code);
       playKeySound();
     }
     if (isWubiLetterKey(event.key, event.code)) {
@@ -815,7 +826,7 @@ function TypingView({
   if (articlesLoading) {
     return (
       <div className="loading-card" role="status" aria-busy="true">
-        正在整理 200 篇练习文章…
+        正在整理 300 篇练习文章…
       </div>
     );
   }
@@ -1153,7 +1164,7 @@ function TypingView({
           <div className="side-heading">
             <div>
               <span className="eyebrow">文章库</span>
-              <h3>200 篇离线练习</h3>
+              <h3>{articles.length || FALLBACK_ARTICLE_COUNT} 篇离线练习</h3>
             </div>
             <span className="count-badge">{articles.length}</span>
           </div>
@@ -1638,6 +1649,7 @@ function ChallengeView({
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    recordKeyUsage(event.code);
                     playKeySound();
                   }
                   if (event.key === "Enter" && feedback === "idle") submit();
@@ -1830,6 +1842,7 @@ function HistoryView() {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
+  const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training"
   >("all");
@@ -1840,6 +1853,17 @@ function HistoryView() {
     setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
   };
   useEffect(refresh, []);
+  useEffect(() => {
+    let active = true;
+    loadArticleMetadata()
+      .then((rows) => {
+        if (active) setArticleTotal(rows.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = sessions.filter(
     (session) =>
@@ -1863,6 +1887,7 @@ function HistoryView() {
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
+    clearKeyUsage();
     refresh();
   };
 
@@ -1874,9 +1899,12 @@ function HistoryView() {
           <h1>本地成绩</h1>
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
-        <button className="button danger" onClick={clearResults}>
-          清除成绩与错题
-        </button>
+        <div className="heading-actions">
+          <Link className="button secondary" href="/summary">查看按键画像</Link>
+          <button className="button danger" onClick={clearResults}>
+            清除成绩与错题
+          </button>
+        </div>
       </div>
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
@@ -1970,17 +1998,17 @@ function HistoryView() {
           </div>
           <div className="completion-stat">
             <span>文章完成度</span>
-            <strong>{completedArticleCount} / 200</strong>
+            <strong>{completedArticleCount} / {articleTotal}</strong>
             <i
               role="progressbar"
               aria-label="文章完成度"
               aria-valuemin={0}
-              aria-valuemax={200}
+              aria-valuemax={articleTotal}
               aria-valuenow={completedArticleCount}
             >
               <b
                 style={{
-                  width: `${Math.min(100, completedArticleCount / 2)}%`,
+                  width: `${Math.min(100, (completedArticleCount / articleTotal) * 100)}%`,
                 }}
               />
             </i>
