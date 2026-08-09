@@ -169,6 +169,7 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(component, /recordKeyUsage\(event\.code\)/);
   assert.match(training, /recordKeyUsage\(event\.code\)/);
   assert.match(component, /href="\/summary">查看按键画像/);
+  assert.match(summary, /href="\/history">返回本地成绩/);
   assert.match(summary, /按键使用画像/);
   assert.match(summary, /键盘热力图/);
   assert.match(summary, /左右手均衡/);
@@ -178,6 +179,10 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /aria-label="练习按键次数热力图"/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
+  assert.match(
+    styles,
+    /\.heading-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+  );
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.key-summary-metrics/s);
 });
 

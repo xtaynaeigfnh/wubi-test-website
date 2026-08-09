@@ -4556,6 +4556,13 @@ select,
   gap: 10px;
 }
 
+.heading-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .key-summary-page {
   --heat-key-size: 46px;
 }
