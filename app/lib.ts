@@ -175,6 +175,15 @@ export function writeLocal<T>(key: string, value: T): boolean {
 let pendingKeyUsage: KeyUsageMap | null = null;
 let keyUsageTimer: number | null = null;
 
+function flushPendingKeyUsage(): void {
+  if (typeof window === "undefined") return;
+  if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
+  const usage = pendingKeyUsage;
+  pendingKeyUsage = null;
+  keyUsageTimer = null;
+  if (usage) writeLocal(STORAGE.keyUsage, usage);
+}
+
 export function readKeyUsage(): KeyUsageMap {
   return normalizeKeyUsage(
     pendingKeyUsage ?? readLocal<unknown>(STORAGE.keyUsage, {}),
@@ -188,11 +197,7 @@ export function recordKeyUsage(code: string): void {
   if (next === current) return;
   pendingKeyUsage = next;
   if (keyUsageTimer !== null) return;
-  keyUsageTimer = window.setTimeout(() => {
-    if (pendingKeyUsage) writeLocal(STORAGE.keyUsage, pendingKeyUsage);
-    pendingKeyUsage = null;
-    keyUsageTimer = null;
-  }, 180);
+  keyUsageTimer = window.setTimeout(flushPendingKeyUsage, 180);
 }
 
 export function clearKeyUsage(): void {
@@ -1258,6 +1263,7 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     throw new Error("只能在浏览器中恢复备份");
   }
   const validated = parseBackupPayload(payload);
+  flushPendingKeyUsage();
   const previous = new Map(
     STORAGE_KEYS.map((key) => [key, window.localStorage.getItem(key)]),
   );

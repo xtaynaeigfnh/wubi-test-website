@@ -39,6 +39,11 @@ test("history filters are visually separate and expose pressed state", async () 
   );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(component, />\s*清除成绩与错题\s*</);
+  const clearResults = component.match(
+    /const clearResults = \(\) => \{[\s\S]*?\n  \};/,
+  )?.[0];
+  assert.ok(clearResults);
+  assert.doesNotMatch(clearResults, /clearKeyUsage/);
   assert.match(component, /className="session-practice"/);
   assert.match(component, /className="session-speed"/);
   assert.match(component, /className="session-code-length"/);

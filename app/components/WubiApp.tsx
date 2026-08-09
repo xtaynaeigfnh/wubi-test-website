@@ -23,7 +23,6 @@ import {
   calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
-  clearKeyUsage,
   commonCharacterPresets,
   countCommittedAttempts,
   defaultSettings,
@@ -1910,7 +1909,6 @@ function HistoryView() {
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
-    clearKeyUsage();
     refresh();
   };
 

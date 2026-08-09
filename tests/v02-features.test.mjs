@@ -10,6 +10,7 @@ import {
   calculateStreak,
   createBackupPayload,
   parseBackupPayload,
+  recordKeyUsage,
   restoreBackupPayload,
   STORAGE,
 } from "../app/lib.ts";
@@ -252,6 +253,42 @@ test("backup restore rolls back every key after a storage failure", () => {
     assert.throws(() => restoreBackupPayload(payload), /恢复未生效/);
     assert.equal(values.get(STORAGE.settings), originalSettings);
     assert.equal(values.get(STORAGE.errors), originalErrors);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup restore cannot be overwritten by a pending key-usage write", () => {
+  const values = new Map();
+  const timers = new Map();
+  let nextTimer = 1;
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+  globalThis.window = {
+    localStorage,
+    setTimeout: (callback) => {
+      const id = nextTimer;
+      nextTimer += 1;
+      timers.set(id, callback);
+      return id;
+    },
+    clearTimeout: (id) => timers.delete(id),
+  };
+  try {
+    recordKeyUsage("KeyA");
+    const pendingWrite = timers.values().next().value;
+    assert.equal(typeof pendingWrite, "function");
+
+    restoreBackupPayload(
+      createBackupPayload({ [STORAGE.keyUsage]: { KeyQ: 9 } }),
+    );
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
+
+    pendingWrite();
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
   } finally {
     delete globalThis.window;
   }
