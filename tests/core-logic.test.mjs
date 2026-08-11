@@ -156,6 +156,19 @@ test("typing delay samples follow Unicode positions, phrase commits, and correct
   assert.deepEqual(delays, [600, 2200, 1200]);
 });
 
+test("typing delay samples do not spill across an unchanged suffix", () => {
+  assert.deepEqual(
+    applyTypingDelaySample({
+      previous: "甲错丙丁",
+      next: "甲乙丙丁",
+      target: "甲乙丙丁",
+      delayMs: 800,
+      delays: [],
+    }),
+    [0, 800, 0, 0],
+  );
+});
+
 test("typing transition timing keeps active time around a manual pause", () => {
   const beforePause = calculateTypingTransitionMs({
     lastActiveAt: 1000,

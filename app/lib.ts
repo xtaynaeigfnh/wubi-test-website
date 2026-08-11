@@ -747,18 +747,29 @@ export function applyTypingDelaySample({
     commonPrefix += 1;
   }
 
+  let previousSuffix = previousCharacters.length;
+  let nextSuffix = nextCharacters.length;
+  while (
+    previousSuffix > commonPrefix &&
+    nextSuffix > commonPrefix &&
+    previousCharacters[previousSuffix - 1] === nextCharacters[nextSuffix - 1]
+  ) {
+    previousSuffix -= 1;
+    nextSuffix -= 1;
+  }
+
   const boundedDelay = Math.min(
     MAX_TYPING_DELAY_MS,
     Math.max(0, delayMs),
   );
-  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  const inserted = Math.max(0, nextSuffix - commonPrefix);
   if (inserted > 0) {
     const perCharacter = boundedDelay / inserted;
-    const end = Math.min(targetLength, commonPrefix + inserted);
+    const end = Math.min(targetLength, nextSuffix);
     for (let index = commonPrefix; index < end; index += 1) {
       result[index] += perCharacter;
     }
-  } else if (previousCharacters.length > nextCharacters.length) {
+  } else if (previousSuffix > commonPrefix) {
     const affectedIndex = Math.min(commonPrefix, targetLength - 1);
     if (affectedIndex >= 0) result[affectedIndex] += boundedDelay;
   }
@@ -1178,13 +1189,34 @@ export function buildTrendSeries(
   range: 7 | 30 | "all",
   now = new Date(),
 ): TrendPoint[] {
-  const articleSessions = sessions.filter(
-    (session) => session.type === "article",
-  );
-  const oldest = articleSessions.reduce<Date | null>((result, session) => {
+  const daily = new Map<
+    string,
+    {
+      sessions: number;
+      chars: number;
+      minutes: number;
+      accuracyTotal: number;
+    }
+  >();
+  let oldest: Date | null = null;
+  for (const session of sessions) {
+    if (session.type !== "article") continue;
     const date = new Date(session.date);
-    return !result || date < result ? date : result;
-  }, null);
+    if (!Number.isFinite(date.getTime())) continue;
+    if (!oldest || date < oldest) oldest = date;
+    const key = localDateKey(date);
+    const current = daily.get(key) ?? {
+      sessions: 0,
+      chars: 0,
+      minutes: 0,
+      accuracyTotal: 0,
+    };
+    current.sessions += 1;
+    current.chars += session.correctChars;
+    current.minutes += session.durationSeconds / 60;
+    current.accuracyTotal += session.accuracy;
+    daily.set(key, current);
+  }
   const dayCount =
     range === "all"
       ? Math.max(
@@ -1203,27 +1235,19 @@ export function buildTrendSeries(
     date.setHours(12, 0, 0, 0);
     date.setDate(date.getDate() - (dayCount - offset - 1));
     const key = localDateKey(date);
-    const rows = articleSessions.filter(
-      (session) => localDateKey(session.date) === key,
-    );
-    const weightedChars = rows.reduce(
-      (sum, session) => sum + session.correctChars,
-      0,
-    );
-    const weightedMinutes = rows.reduce(
-      (sum, session) => sum + session.durationSeconds / 60,
-      0,
-    );
+    const aggregate = daily.get(key);
+    const sessionCount = aggregate?.sessions ?? 0;
+    const weightedChars = aggregate?.chars ?? 0;
+    const weightedMinutes = aggregate?.minutes ?? 0;
     return {
       date: key,
       label: `${date.getMonth() + 1}/${date.getDate()}`,
-      sessions: rows.length,
+      sessions: sessionCount,
       chars: weightedChars,
       minutes: weightedMinutes,
       speed: weightedMinutes > 0 ? Math.round(weightedChars / weightedMinutes) : 0,
-      accuracy: rows.length
-        ? rows.reduce((sum, session) => sum + session.accuracy, 0) / rows.length
-        : 0,
+      accuracy:
+        sessionCount > 0 ? (aggregate?.accuracyTotal ?? 0) / sessionCount : 0,
     };
   });
 }

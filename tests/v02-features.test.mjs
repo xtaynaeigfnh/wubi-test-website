@@ -115,6 +115,33 @@ test("all trend range includes sessions older than one year", () => {
   assert.equal(points.reduce((sum, point) => sum + point.sessions, 0), 1);
 });
 
+test("trend series aggregates dense history by local day", () => {
+  const now = new Date("2026-07-29T12:00:00+08:00");
+  const oldDate = new Date(now);
+  oldDate.setDate(oldDate.getDate() - 400);
+  const sessions = Array.from({ length: 500 }, (_, index) =>
+    session({
+      id: `dense-${index}`,
+      date: oldDate.toISOString(),
+      correctChars: 10,
+      durationSeconds: 60,
+      accuracy: 90,
+    }),
+  );
+  const points = buildTrendSeries(sessions, "all", now);
+
+  assert.equal(points.length, 401);
+  assert.deepEqual(points[0], {
+    date: points[0].date,
+    label: points[0].label,
+    sessions: 500,
+    chars: 5000,
+    minutes: 500,
+    speed: 10,
+    accuracy: 90,
+  });
+});
+
 test("review and root pools reuse preferred Wubi codes", () => {
   const entries = [
     ["测", "imj", 200000],

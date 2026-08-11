@@ -8,6 +8,7 @@ const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
 const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
+const trainingPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [component, styles] = await Promise.all([
@@ -151,6 +152,23 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(styles, /--heat-mild:/);
   assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);
+});
+
+test("daily goal ring uses one angle unit from component to typed CSS property", async () => {
+  const [training, styles] = await Promise.all([
+    readFile(trainingPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(training, /--goal-progress.*totalRate \* 360\}deg/);
+  assert.match(
+    styles,
+    /@property --goal-progress\s*\{[^}]*syntax:\s*"<angle>";[^}]*initial-value:\s*0deg;/s,
+  );
+  assert.match(
+    styles,
+    /@keyframes goal-ring-fill\s*\{\s*from\s*\{[^}]*--goal-progress:\s*0deg;/s,
+  );
 });
 
 test("mobile navigation scrolls the active route into view", async () => {
