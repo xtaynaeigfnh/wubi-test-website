@@ -1548,7 +1548,9 @@ function Metric({
   return (
     <div className={className} title={description}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong>
+        <span key={value} className="metric-value">{value}</span>
+      </strong>
       <small>{unit}</small>
     </div>
   );
@@ -1594,7 +1596,9 @@ function CodeLengthMetric({
     <div className="metric code-length-metric" role="group" aria-label="码长">
       <span>码长</span>
       <div className="code-length-current">
-        <strong>{value}</strong>
+        <strong>
+          <span key={value} className="metric-value">{value}</span>
+        </strong>
         <small>键/字</small>
       </div>
       <div
