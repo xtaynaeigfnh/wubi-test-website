@@ -7,6 +7,7 @@ const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
+const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [component, styles] = await Promise.all([
@@ -129,6 +130,27 @@ test("typing exposes every filtered article and resets timing on restart", async
     component,
     /articlesLoading\s*\|\|\s*\(!article && \(!settingsReady \|\| availableArticles\.length > 0\)\)/,
   );
+});
+
+test("typing completion and history expose an accessible hesitation heatmap", async () => {
+  const [component, heatmap, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(hesitationHeatmapPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
+  assert.match(component, /<HesitationHeatmap heatmap=\{lastSession\.heatmap\}/);
+  assert.match(component, /className="session-heatmap-trigger"/);
+  assert.match(component, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
+  assert.match(component, /aria-controls=\{`session-heatmap-\$\{session\.id\}`\}/);
+  assert.match(heatmap, /卡顿位置热力图/);
+  assert.match(heatmap, /aria-label="热力等级图例"/);
+  assert.match(heatmap, /最明显的五处卡顿/);
+  assert.match(heatmap, /这轮节奏很稳/);
+  assert.match(styles, /--heat-mild:/);
+  assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });
 
 test("mobile navigation scrolls the active route into view", async () => {

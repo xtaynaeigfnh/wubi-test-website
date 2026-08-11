@@ -2,16 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyTypingDelaySample,
   buildCommonPracticeArticle,
   buildChallengePool,
   buildMinimumCodeLengthIndex,
   buildCustomArticle,
+  buildTypingHeatmap,
   calculateActiveDurationSeconds,
   calculateAccuracy,
   calculateKeyAccuracy,
   calculatePhraseRate,
   calculateRemainingSeconds,
   calculateTheoreticalMinimumCodeLength,
+  calculateTypingTransitionMs,
   calculateTypingMetrics,
   canCompleteTyping,
   classifyWubiHand,
@@ -20,6 +23,7 @@ import {
   countCommittedEdit,
   formatCommonCharacterText,
   getCommonCharacterSlice,
+  getHesitationLevel,
   isCommonPracticeArticle,
   isWubiLetterKey,
   isImeSelectionKey,
@@ -122,6 +126,75 @@ test("typing diagnostics derive correction cost, phrase rate, and hand use", () 
   assert.equal(isImeSelectionKey(" "), true);
   assert.equal(isImeSelectionKey("3"), true);
   assert.equal(isImeSelectionKey("0"), false);
+});
+
+test("typing delay samples follow Unicode positions, phrase commits, and corrections", () => {
+  const target = "😀中华";
+  let delays = applyTypingDelaySample({
+    previous: "",
+    next: "😀中",
+    target,
+    delayMs: 1200,
+    delays: [],
+  });
+  assert.deepEqual(delays, [600, 600, 0]);
+
+  delays = applyTypingDelaySample({
+    previous: "😀中",
+    next: "😀",
+    target,
+    delayMs: 400,
+    delays,
+  });
+  delays = applyTypingDelaySample({
+    previous: "😀",
+    next: "😀中华",
+    target,
+    delayMs: 2400,
+    delays,
+  });
+  assert.deepEqual(delays, [600, 2200, 1200]);
+});
+
+test("typing transition timing keeps active time around a manual pause", () => {
+  const beforePause = calculateTypingTransitionMs({
+    lastActiveAt: 1000,
+    now: 1300,
+    pendingMs: 0,
+  });
+  const afterPause = calculateTypingTransitionMs({
+    lastActiveAt: 5000,
+    now: 5500,
+    pendingMs: beforePause,
+  });
+  assert.equal(beforePause, 300);
+  assert.equal(afterPause, 800);
+});
+
+test("typing heatmap uses an adaptive threshold, preserves paragraphs, and ranks levels", () => {
+  const heatmap = buildTypingHeatmap("甲乙\n丙丁戊", [400, 500, 450, 2000, 4000]);
+  assert.equal(heatmap.version, 1);
+  assert.equal(heatmap.text, "甲乙\n丙丁戊");
+  assert.equal(heatmap.baselineMs, 500);
+  assert.equal(heatmap.thresholdMs, 1000);
+  assert.deepEqual(heatmap.segments, [
+    { start: 3, length: 1, delayMs: 2000 },
+    { start: 4, length: 1, delayMs: 4000 },
+  ]);
+  assert.equal(getHesitationLevel(999, 1000), 0);
+  assert.equal(getHesitationLevel(1000, 1000), 1);
+  assert.equal(getHesitationLevel(1500, 1000), 2);
+  assert.equal(getHesitationLevel(2500, 1000), 3);
+});
+
+test("typing heatmap retains only the 32 strongest separated segments", () => {
+  const delays = Array.from({ length: 130 }, (_, index) =>
+    index % 2 === 0 ? 8000 + index : 200,
+  );
+  const heatmap = buildTypingHeatmap("字".repeat(130), delays);
+  assert.equal(heatmap.segments.length, 32);
+  assert.ok(heatmap.segments.every((segment) => segment.start % 2 === 0));
+  assert.equal(Math.max(...heatmap.segments.map((segment) => segment.delayMs)), 8128);
 });
 
 test("active typing duration excludes completed and current pauses", () => {

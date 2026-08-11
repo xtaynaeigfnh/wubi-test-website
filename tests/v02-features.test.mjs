@@ -12,6 +12,7 @@ import {
   parseBackupPayload,
   recordKeyUsage,
   restoreBackupPayload,
+  saveSession,
   STORAGE,
 } from "../app/lib.ts";
 
@@ -229,6 +230,71 @@ test("backup format only accepts known versioned storage keys", () => {
       autoNext: false,
     },
   );
+});
+
+test("backup validates optional typing heatmaps without changing the format version", () => {
+  const heatmap = {
+    version: 1,
+    text: "甲乙\n丙丁",
+    baselineMs: 480,
+    thresholdMs: 1000,
+    segments: [{ start: 2, length: 1, delayMs: 2200 }],
+  };
+  const payload = createBackupPayload({
+    [STORAGE.sessions]: [session({ heatmap })],
+  });
+  assert.equal(payload.version, 2);
+  assert.deepEqual(parseBackupPayload(payload), payload);
+
+  for (const invalidHeatmap of [
+    { ...heatmap, text: "" },
+    { ...heatmap, segments: [{ start: 4, length: 1, delayMs: 2200 }] },
+    { ...heatmap, segments: Array.from({ length: 33 }, () => ({ start: 0, length: 1, delayMs: 2200 })) },
+    { ...heatmap, segments: [{ start: 0, length: 1, delayMs: 700000 }] },
+  ]) {
+    assert.throws(
+      () =>
+        parseBackupPayload(
+          createBackupPayload({
+            [STORAGE.sessions]: [session({ heatmap: invalidHeatmap })],
+          }),
+        ),
+      /格式不正确/,
+    );
+  }
+});
+
+test("local session history keeps heatmaps for only the newest 50 rounds", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    for (let index = 0; index < 55; index += 1) {
+      saveSession(
+        session({
+          id: `heatmap-${index}`,
+          heatmap: {
+            version: 1,
+            text: "甲乙丙丁",
+            baselineMs: 500,
+            thresholdMs: 1000,
+            segments: [{ start: 2, length: 1, delayMs: 2400 }],
+          },
+        }),
+      );
+    }
+    const stored = JSON.parse(values.get(STORAGE.sessions));
+    assert.equal(stored.length, 55);
+    assert.equal(stored.filter((item) => item.heatmap).length, 50);
+    assert.equal(stored[0].id, "heatmap-54");
+    assert.equal(stored[50].heatmap, undefined);
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 test("backup restore rolls back every key after a storage failure", () => {
