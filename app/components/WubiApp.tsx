@@ -14,16 +14,19 @@ import {
 import Link from "next/link";
 import {
   addError,
+  applyTypingDelaySample,
   buildCommonPracticeArticle,
   buildChallengePool,
   buildCustomArticle,
   buildMinimumCodeLengthIndex,
+  buildTypingHeatmap,
   calculateActiveDurationSeconds,
   calculateAccuracy,
   calculateKeyAccuracy,
   calculatePhraseRate,
   calculateRemainingSeconds,
   calculateTheoreticalMinimumCodeLength,
+  calculateTypingTransitionMs,
   calculateTypingMetrics,
   canCompleteTyping,
   classifyWubiHand,
@@ -75,6 +78,7 @@ import { TrainingCenter } from "./TrainingCenter";
 import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 import { KeySummary } from "./KeySummary";
+import { HesitationHeatmap } from "./HesitationHeatmap";
 
 const navItems: Array<{
   view: AppView;
@@ -344,6 +348,9 @@ function TypingView({
   const recorded = useRef(false);
   const committedValue = useRef("");
   const startedAtRef = useRef<number | null>(null);
+  const lastTimingAtRef = useRef<number | null>(null);
+  const pendingTimingMsRef = useRef(0);
+  const typingDelaysRef = useRef<number[]>([]);
   const compositionCommitTimer = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
@@ -508,6 +515,7 @@ function TypingView({
     if (startedAtRef.current !== null) return;
     const now = Date.now();
     startedAtRef.current = now;
+    lastTimingAtRef.current = now;
     setStartedAt(now);
   }, []);
 
@@ -555,6 +563,9 @@ function TypingView({
       recorded.current = false;
       committedValue.current = "";
       startedAtRef.current = null;
+      lastTimingAtRef.current = null;
+      pendingTimingMsRef.current = 0;
+      typingDelaysRef.current = [];
       errorPositions.current = new Set();
       setPickerOpen(false);
       window.setTimeout(() => {
@@ -828,6 +839,7 @@ function TypingView({
       pauseCount,
       pauseSeconds,
       retryCount,
+      heatmap: buildTypingHeatmap(visibleText, typingDelaysRef.current),
     };
     saveSession(session);
     setLastSession(session);
@@ -855,6 +867,7 @@ function TypingView({
     targetCharacters,
     theoreticalCodeLength,
     typed,
+    visibleText,
   ]);
 
   const commitTypedValue = (nextValue: string) => {
@@ -867,6 +880,21 @@ function TypingView({
       return;
     }
     if (committed) startTimer();
+    const now = Date.now();
+    const transitionMs = calculateTypingTransitionMs({
+      lastActiveAt: lastTimingAtRef.current,
+      now,
+      pendingMs: pendingTimingMsRef.current,
+    });
+    typingDelaysRef.current = applyTypingDelaySample({
+      previous,
+      next: committed,
+      target: targetText,
+      delayMs: transitionMs,
+      delays: typingDelaysRef.current,
+    });
+    pendingTimingMsRef.current = 0;
+    lastTimingAtRef.current = now;
     committedValue.current = committed;
     const edit = countCommittedEdit(previous, committed);
     if (edit.removed > 0) {
@@ -928,9 +956,16 @@ function TypingView({
     if (pausedAt !== null) {
       setPausedDurationMs((value) => value + Math.max(0, now - pausedAt));
       setPausedAt(null);
+      lastTimingAtRef.current = now;
       window.setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
+    pendingTimingMsRef.current = calculateTypingTransitionMs({
+      lastActiveAt: lastTimingAtRef.current,
+      now,
+      pendingMs: pendingTimingMsRef.current,
+    });
+    lastTimingAtRef.current = null;
     setPausedAt(now);
     setPauseCount((value) => value + 1);
   };
@@ -1346,6 +1381,9 @@ function TypingView({
                 <DiagnosticMetric label="暂停" value={`${pauseCount} / ${pauseSeconds.toFixed(1)}`} unit="次/秒" />
                 <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
               </div>
+              {lastSession?.heatmap && (
+                <HesitationHeatmap heatmap={lastSession.heatmap} />
+              )}
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
                 <button
@@ -2078,6 +2116,7 @@ function HistoryView() {
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training"
   >("all");
+  const [expandedHeatmapId, setExpandedHeatmapId] = useState<string | null>(null);
 
   const refresh = () => {
     setSessions(getSessions());
@@ -2119,6 +2158,7 @@ function HistoryView() {
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
+    setExpandedHeatmapId(null);
     refresh();
   };
 
@@ -2213,14 +2253,30 @@ function HistoryView() {
                 <span className="session-duration">
                   {formatDuration(session.durationSeconds)}
                 </span>
-                <button
-                  className="session-share"
-                  aria-label={`下载“${session.title}”成绩卡`}
-                  onClick={() => downloadShareCard(session)}
-                >
-                  <span aria-hidden="true">↓</span>
-                  成绩卡
-                </button>
+                <div className="session-actions">
+                  {session.heatmap && (
+                    <button
+                      className="session-heatmap-trigger"
+                      aria-expanded={expandedHeatmapId === session.id}
+                      aria-controls={`session-heatmap-${session.id}`}
+                      onClick={() =>
+                        setExpandedHeatmapId((current) =>
+                          current === session.id ? null : session.id,
+                        )
+                      }
+                    >
+                      卡顿图
+                    </button>
+                  )}
+                  <button
+                    className="session-share"
+                    aria-label={`下载“${session.title}”成绩卡`}
+                    onClick={() => downloadShareCard(session)}
+                  >
+                    <span aria-hidden="true">↓</span>
+                    成绩卡
+                  </button>
+                </div>
                 {session.type === "article" && session.keyCount !== undefined && (
                   <div className="session-diagnostics" aria-label={`${session.title}输入诊断`}>
                     <DiagnosticMetric
@@ -2264,6 +2320,14 @@ function HistoryView() {
                       unit={session.pauseCount === undefined ? "" : "次/秒"}
                     />
                     <DiagnosticMetric label="重打" value={session.retryCount?.toString() ?? "—"} unit="" />
+                  </div>
+                )}
+                {session.heatmap && expandedHeatmapId === session.id && (
+                  <div
+                    className="session-heatmap-detail"
+                    id={`session-heatmap-${session.id}`}
+                  >
+                    <HesitationHeatmap heatmap={session.heatmap} compact />
                   </div>
                 )}
               </div>
