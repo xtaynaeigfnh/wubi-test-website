@@ -6363,3 +6363,134 @@ textarea {
     padding: 14px 72px 14px 16px;
   }
 }
+
+/* Motion language: brisk key feedback, quiet ink-and-paper reveals. */
+
+@property --goal-progress {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+.site-header {
+  animation: header-drop-in 420ms var(--ease-out) both;
+}
+
+.hero-row > div:first-child > *,
+.subpage-heading > * {
+  animation: copy-rise-in 480ms var(--ease-out) both;
+}
+
+.hero-row > div:first-child > :nth-child(2),
+.subpage-heading > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.hero-row > div:first-child > :nth-child(3),
+.subpage-heading > :nth-child(3) {
+  animation-delay: 110ms;
+}
+
+.hero-actions {
+  animation: copy-rise-in 480ms 150ms var(--ease-out) both;
+}
+
+.hero-row::before,
+.subpage-heading::before {
+  transform-origin: right top;
+  animation: watermark-settle-in 720ms 80ms var(--ease-out) both;
+}
+
+.metric-value {
+  display: inline-block;
+  animation: metric-tick 180ms var(--ease-out) both;
+}
+
+.typing-card {
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms var(--ease-out);
+}
+
+.typing-card:has(.typing-input:focus) {
+  border-color: color-mix(in srgb, var(--accent-bamboo) 72%, var(--border-strong));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent-bamboo) 9%, transparent),
+    var(--shadow-panel);
+  transform: translateY(-2px);
+}
+
+.goal-seal {
+  animation: goal-ring-fill 720ms 140ms var(--ease-out) both;
+}
+
+.usage-bar > i b {
+  animation: usage-bar-fill 560ms var(--ease-out) both;
+}
+
+.usage-bar:nth-child(2) > i b { animation-delay: 45ms; }
+.usage-bar:nth-child(3) > i b { animation-delay: 90ms; }
+.usage-bar:nth-child(4) > i b { animation-delay: 135ms; }
+.usage-bar:nth-child(5) > i b { animation-delay: 180ms; }
+.usage-bar:nth-child(6) > i b { animation-delay: 225ms; }
+
+.trend-chart .speed-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-line-draw 720ms 80ms var(--ease-out) forwards;
+}
+
+.trend-chart .accuracy-line {
+  stroke-dasharray: 0.035 0.025;
+  stroke-dashoffset: 1;
+  animation: chart-line-draw 780ms 170ms var(--ease-out) forwards;
+}
+
+@keyframes header-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes copy-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes watermark-settle-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px) rotate(2deg) scale(0.96);
+  }
+}
+
+@keyframes metric-tick {
+  from {
+    opacity: 0.45;
+    transform: translateY(3px) scale(0.96);
+  }
+}
+
+@keyframes goal-ring-fill {
+  from {
+    --goal-progress: 0%;
+    opacity: 0.7;
+    transform: rotate(-4deg) scale(0.96);
+  }
+}
+
+@keyframes usage-bar-fill {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes chart-line-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

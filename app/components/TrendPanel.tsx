@@ -77,6 +77,7 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
       </div>
       <div className="trend-chart">
         <svg
+          key={range}
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={`${range === "all" ? "全部" : `${range} 天`}练习速度与字准折线图`}
@@ -94,11 +95,13 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
           <polyline
             points={coordinates("speed")}
             className="speed-line"
+            pathLength={1}
             fill="none"
           />
           <polyline
             points={coordinates("accuracy")}
             className="accuracy-line"
+            pathLength={1}
             fill="none"
           />
         </svg>
