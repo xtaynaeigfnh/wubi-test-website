@@ -10,7 +10,9 @@ import {
   calculateStreak,
   createBackupPayload,
   parseBackupPayload,
+  recordKeyUsage,
   restoreBackupPayload,
+  saveSession,
   STORAGE,
 } from "../app/lib.ts";
 
@@ -26,8 +28,21 @@ function session(overrides = {}) {
     speed: 100,
     kps: 2,
     codeLength: 2.4,
+    theoreticalCodeLength: 1.8,
     accuracy: 97.5,
+    keyAccuracy: 95.2,
     errors: 5,
+    keyCount: 240,
+    backspaceCount: 2,
+    correctionCount: 1,
+    enterCount: 0,
+    selectionCount: 3,
+    phraseRate: 42.5,
+    leftHandKeys: 120,
+    rightHandKeys: 115,
+    pauseCount: 1,
+    pauseSeconds: 3.5,
+    retryCount: 0,
     ...overrides,
   };
 }
@@ -217,6 +232,71 @@ test("backup format only accepts known versioned storage keys", () => {
   );
 });
 
+test("backup validates optional typing heatmaps without changing the format version", () => {
+  const heatmap = {
+    version: 1,
+    text: "甲乙\n丙丁",
+    baselineMs: 480,
+    thresholdMs: 1000,
+    segments: [{ start: 2, length: 1, delayMs: 2200 }],
+  };
+  const payload = createBackupPayload({
+    [STORAGE.sessions]: [session({ heatmap })],
+  });
+  assert.equal(payload.version, 2);
+  assert.deepEqual(parseBackupPayload(payload), payload);
+
+  for (const invalidHeatmap of [
+    { ...heatmap, text: "" },
+    { ...heatmap, segments: [{ start: 4, length: 1, delayMs: 2200 }] },
+    { ...heatmap, segments: Array.from({ length: 33 }, () => ({ start: 0, length: 1, delayMs: 2200 })) },
+    { ...heatmap, segments: [{ start: 0, length: 1, delayMs: 700000 }] },
+  ]) {
+    assert.throws(
+      () =>
+        parseBackupPayload(
+          createBackupPayload({
+            [STORAGE.sessions]: [session({ heatmap: invalidHeatmap })],
+          }),
+        ),
+      /格式不正确/,
+    );
+  }
+});
+
+test("local session history keeps heatmaps for only the newest 50 rounds", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    for (let index = 0; index < 55; index += 1) {
+      saveSession(
+        session({
+          id: `heatmap-${index}`,
+          heatmap: {
+            version: 1,
+            text: "甲乙丙丁",
+            baselineMs: 500,
+            thresholdMs: 1000,
+            segments: [{ start: 2, length: 1, delayMs: 2400 }],
+          },
+        }),
+      );
+    }
+    const stored = JSON.parse(values.get(STORAGE.sessions));
+    assert.equal(stored.length, 55);
+    assert.equal(stored.filter((item) => item.heatmap).length, 50);
+    assert.equal(stored[0].id, "heatmap-54");
+    assert.equal(stored[50].heatmap, undefined);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("backup restore rolls back every key after a storage failure", () => {
   const originalSettings = JSON.stringify({ theme: "light" });
   const originalErrors = JSON.stringify([]);
@@ -252,6 +332,42 @@ test("backup restore rolls back every key after a storage failure", () => {
     assert.throws(() => restoreBackupPayload(payload), /恢复未生效/);
     assert.equal(values.get(STORAGE.settings), originalSettings);
     assert.equal(values.get(STORAGE.errors), originalErrors);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup restore cannot be overwritten by a pending key-usage write", () => {
+  const values = new Map();
+  const timers = new Map();
+  let nextTimer = 1;
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+  globalThis.window = {
+    localStorage,
+    setTimeout: (callback) => {
+      const id = nextTimer;
+      nextTimer += 1;
+      timers.set(id, callback);
+      return id;
+    },
+    clearTimeout: (id) => timers.delete(id),
+  };
+  try {
+    recordKeyUsage("KeyA");
+    const pendingWrite = timers.values().next().value;
+    assert.equal(typeof pendingWrite, "function");
+
+    restoreBackupPayload(
+      createBackupPayload({ [STORAGE.keyUsage]: { KeyQ: 9 } }),
+    );
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
+
+    pendingWrite();
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
   } finally {
     delete globalThis.window;
   }
@@ -303,7 +419,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(training, /training-card-stat/);
   assert.match(training, /连续/);
   assert.match(training, /五码根专项/);
-  assert.match(trends, /速度与准确率/);
+  assert.match(trends, /速度与字准/);
   assert.match(pwa, /serviceWorker/);
   assert.match(share, /canvas\.toDataURL/);
   assert.match(app, /downloadShareCard/);

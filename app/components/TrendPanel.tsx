@@ -46,7 +46,7 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
       <div className="panel-title">
         <div>
           <span className="eyebrow">练习趋势</span>
-          <h2 id="trend-title">速度与准确率</h2>
+          <h2 id="trend-title">速度与字准</h2>
         </div>
         <div className="trend-range" aria-label="趋势时间范围">
           {([
@@ -70,16 +70,17 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
           <i className="speed-dot" /> 平均速度 <strong>{averageSpeed}</strong> 字/分
         </span>
         <span>
-          <i className="accuracy-dot" /> 平均准确率{" "}
+          <i className="accuracy-dot" /> 平均字准{" "}
           <strong>{averageAccuracy.toFixed(1)}</strong>%
         </span>
         <span>活跃 {activeDays.length} 天</span>
       </div>
       <div className="trend-chart">
         <svg
+          key={range}
           viewBox={`0 0 ${width} ${height}`}
           role="img"
-          aria-label={`${range === "all" ? "全部" : `${range} 天`}练习速度与准确率折线图`}
+          aria-label={`${range === "all" ? "全部" : `${range} 天`}练习速度与字准折线图`}
         >
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <line
@@ -94,11 +95,13 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
           <polyline
             points={coordinates("speed")}
             className="speed-line"
+            pathLength={1}
             fill="none"
           />
           <polyline
             points={coordinates("accuracy")}
             className="accuracy-line"
+            pathLength={1}
             fill="none"
           />
         </svg>

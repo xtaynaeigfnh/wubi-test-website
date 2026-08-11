@@ -866,18 +866,18 @@ const longEvidencePatterns = [
 ];
 
 const additionalLongEvidencePatterns = [
-  (story) => `为了不让“${story.subject}”只停在一次顺利经验，${story.actor}又选择不同时段复查。每次都从原始现象开始，不用后来的结论替换当时记录。`,
-  (story) => `${story.actor}把“${story.subject}”的执行代价也列入评估。方法若需要长期额外提醒，即使短期有效，也必须继续简化。`,
-  (story) => `一次与预期不同的反馈被完整保留。它没有推翻“${story.subject}”已经显现的方向，却提醒${story.actor}查看方法的适用边界。`,
-  (story) => `记录还区分了行动之前已存在的条件和行动之后才出现的变化。这个顺序让“${story.subject}”的因果判断不会被时间先后混淆。`,
-  (story) => `当外部条件改变时，${story.actor}没有强行保持全部步骤。“${story.subject}”的核心目标仍然保留，具体操作则根据现场限制调整。`,
-  (story) => `后来接手记录的人只阅读文字，便能说清“${story.subject}”从什么现象开始、做过哪些变化、还有什么没有确认。`,
-  (story) => `复查过程没有只搜集支持当前方法的材料。${story.actor}同时记下偏差和失败，使“${story.subject}”的结论不需要靠省略例外才能成立。`,
+  (story) => `为了不让这次改善只停在一次顺利经验，${story.actor}又选择不同时段复查。每次都从原始现象开始，不用后来的结论替换当时记录。`,
+  (story) => `${story.actor}把执行代价也列入评估。方法若需要长期额外提醒，即使短期有效，也必须继续简化。`,
+  (story) => `一次与预期不同的反馈被完整保留。它没有推翻已经显现的方向，却提醒${story.actor}查看方法的适用边界。`,
+  () => `记录还区分了行动之前已存在的条件和行动之后才出现的变化。这个顺序让因果判断不会被时间先后混淆。`,
+  (story) => `当外部条件改变时，${story.actor}没有强行保持全部步骤。核心目标仍然保留，具体操作则根据现场限制调整。`,
+  () => `后来接手记录的人只阅读文字，便能说清事情从什么现象开始、做过哪些变化、还有什么没有确认。`,
+  (story) => `复查过程没有只搜集支持当前方法的材料。${story.actor}同时记下偏差和失败，使结论不需要靠省略例外才能成立。`,
   (story) => `评估中另一项重要内容是${story.outcome}。这个变化能够对应到具体步骤，因此比笼统的满意或不满意更有用。`,
-  (story) => `团队还曾暂时撤回一项改动，观察原有问题是否重现。这种反向检查为“${story.subject}”的前后差异提供了另一份依据。`,
+  () => `团队还曾暂时撤回一项改动，观察原有问题是否重现。这种反向检查为前后差异提供了另一份依据。`,
   (story) => `实际使用中，最先暴露的是${story.challenge}。${story.actor}因此没有扩大方案，而是回到这个阻力上调整操作顺序。`,
-  (story) => `在忙碌或资源不足的日子里，${story.actor}仍尝试完成“${story.subject}”的核心步骤。只有在普通节奏中也能执行，它才值得长期保留。`,
-  (story) => `最后一轮没有再增加新工具，而是检查${story.method}是否真的完成。“${story.subject}”由此从方案描述回到了可观察的行动。`,
+  (story) => `在忙碌或资源不足的日子里，${story.actor}仍尝试完成核心步骤。只有在普通节奏中也能执行，它才值得长期保留。`,
+  (story) => `最后一轮没有再增加新工具，而是检查${story.method}是否真的完成。方案由此回到了可观察的行动。`,
 ];
 
 const longClosingReflections = [
@@ -1102,6 +1102,12 @@ function assertGeneratedTextQuality(id, text) {
   if (/[，。！？；：][，。！？；：]/u.test(text)) {
     throw new Error(`${id} contains adjacent punctuation`);
   }
+  if (/[A-Za-z]/u.test(text)) {
+    throw new Error(`${id} contains English letters`);
+  }
+  if (/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/u.test(text)) {
+    throw new Error(`${id} contains ASCII punctuation`);
+  }
 }
 
 const chatArticles = [
@@ -1135,7 +1141,7 @@ const chatArticles = [
 
 负责归档的同事展示了自己的规则：文件名只写日期、项目名和内容，不使用“最新”这类会过期的词；正在处理的材料统一放进“本周待办”，完成后才移入项目目录。她还强调，文件夹层级不宜太深，否则整理看似认真，寻找时仍要逐层猜测。
 
-报价单最终在下载目录里找到，幸好内容没有丢。求助者随后删掉重复副本，将确认发送的那份命名为“20260726_青禾_报价单”，并在群文件里补了一份。大家约定周五下班前用十分钟整理本周资料。这个小插曲没有靠新软件解决，却让团队第一次形成了别人也能理解的存放方式。`,
+报价单最终在下载目录里找到，幸好内容没有丢。求助者随后删掉重复副本，将确认发送的那份命名为“二〇二六年七月二十六日青禾报价单”，并在群文件里补了一份。大家约定周五下班前用十分钟整理本周资料。这个小插曲没有靠新软件解决，却让团队第一次形成了别人也能理解的存放方式。`,
   },
   {
     title: "读到第三页就走神",
@@ -1444,6 +1450,7 @@ const additionalLessonPatterns = [
 function toAdditionalStory(seed, index) {
   return {
     ...seed,
+    subject: seed.title,
     additional: true,
     lesson: additionalLessonPatterns[index % additionalLessonPatterns.length](seed),
     actor: topicActors[seed.topic]?.[index % 3] ?? "群友",
@@ -1469,12 +1476,12 @@ const additionalCoreFrames = [
 ];
 
 const additionalMediumEvidencePatterns = [
-  (story) => `第一轮记录后，${story.actor}又在另一个普通日子复查“${story.subject}”。只有能够重现的改善，才被继续保留。`,
-  (story) => `实际执行还暴露了${story.challenge}。这个偏差被视作调整“${story.subject}”的依据，而不是个人没有努力的证明。`,
-  (story) => `${story.actor}同时查看了新做法是否增加额外负担。“${story.subject}”的改善若需要不断督促，方法本身就还需要简化。`,
-  (story) => `为了便于别人理解，记录中写明了${story.method}。后来者可以从“${story.subject}”的原始现象出发，独立判断这一步是否合适。`,
-  (story) => `复盘没有把${story.outcome}写成永久状态。${story.actor}为“${story.subject}”保留了再次检查的时点，以便条件变化后及时修正。`,
-  (story) => `除了结果，他们还记录完成“${story.subject}”所需的时间和工具。真正可复用的经验，必须让人看到收益也看到代价。`,
+  (story) => `第一轮记录后，${story.actor}又在另一个普通日子复查。只有能够重现的改善，才被继续保留。`,
+  (story) => `实际执行还暴露了${story.challenge}。这个偏差被视作调整依据，而不是个人没有努力的证明。`,
+  (story) => `${story.actor}同时查看了新做法是否增加额外负担。改善若需要不断督促，方法本身就还需要简化。`,
+  (story) => `为了便于别人理解，记录中写明了${story.method}。后来者可以从原始现象出发，独立判断这一步是否合适。`,
+  (story) => `复盘没有把${story.outcome}写成永久状态。${story.actor}保留了再次检查的时点，以便条件变化后及时修正。`,
+  () => `除了结果，他们还记录所需的时间和工具。真正可复用的经验，必须让人看到收益也看到代价。`,
 ];
 
 function buildAdditionalArticle(seed, index, length) {
@@ -1489,7 +1496,7 @@ function buildAdditionalArticle(seed, index, length) {
     evidencePatterns[(index * 5 + offset) % evidencePatterns.length](story));
   const paragraphs = [...core.slice(0, 4), ...evidence, core[4]];
   if (length === "long") {
-    paragraphs.push(`“${story.subject}”仍会随环境改变，因此记录也保留了下一次复查的入口。`);
+    paragraphs.push("实际情况仍会随环境改变，因此记录也保留了下一次复查的入口。复查时先对照最初写下的现象，再分别核对行动、反馈和外部条件，不会因为一次顺利就省略仍未确认的部分。这样既能看出方法是否继续有效，也能在出现新限制时及时收回不合适的步骤并妥善应对。");
   }
   return paragraphs.join("\n\n");
 }
