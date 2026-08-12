@@ -2171,7 +2171,10 @@ function HistoryView() {
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
         <div className="heading-actions">
-          <Link className="button secondary" href="/summary">查看按键画像</Link>
+          <Link className="button secondary key-profile-entry" href="/summary">
+            查看按键画像
+            <span aria-hidden="true">→</span>
+          </Link>
           <button className="button danger" onClick={clearResults}>
             清除成绩与错题
           </button>
