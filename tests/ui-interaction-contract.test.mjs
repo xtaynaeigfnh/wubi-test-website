@@ -207,7 +207,10 @@ test("typing surfaces record physical keys and the summary exposes the reference
 
   assert.match(component, /recordKeyUsage\(event\.code\)/);
   assert.match(training, /recordKeyUsage\(event\.code\)/);
-  assert.match(component, /href="\/summary">查看按键画像/);
+  assert.match(component, /href="\/summary">\s*查看按键画像/);
+  assert.match(component, /className="button secondary key-profile-entry"/);
+  assert.match(styles, /\.button\s*\{[^}]*display:\s*inline-flex/s);
+  assert.match(styles, /\.button\.secondary\.key-profile-entry\s*\{[^}]*min-width:\s*168px/s);
   assert.match(summary, /href="\/history">返回本地成绩/);
   assert.match(summary, /按键使用画像/);
   assert.match(summary, /键盘热力图/);
