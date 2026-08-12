@@ -594,6 +594,22 @@ test("service worker creates valid cached audio range responses", async () => {
   );
 });
 
+test("Vinext lifecycle scripts stay cross-platform", async () => {
+  const [packageText, viteConfig] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+  ]);
+  const packageJson = JSON.parse(packageText);
+
+  assert.equal(packageJson.scripts.dev, "vinext dev");
+  assert.equal(packageJson.scripts.build, "vinext build");
+  assert.equal(packageJson.scripts.start, "vinext start");
+  assert.ok(
+    viteConfig.indexOf("process.env.WRANGLER_LOG_PATH ??=") <
+      viteConfig.indexOf('await import("@cloudflare/vite-plugin")'),
+  );
+});
+
 test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   const [app, training, management, trends, pwa, share] = await Promise.all([
     readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
