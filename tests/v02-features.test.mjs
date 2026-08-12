@@ -11,6 +11,9 @@ import {
   calculateDailyProgress,
   calculateStreak,
   createBackupPayload,
+  getErrors,
+  getProgress,
+  getSessions,
   parseBackupPayload,
   recordKeyUsage,
   restoreBackupPayload,
@@ -361,6 +364,93 @@ test("local session history keeps heatmaps for only the newest 50 rounds", () =>
     assert.equal(stored.filter((item) => item.heatmap).length, 50);
     assert.equal(stored[0].id, "heatmap-54");
     assert.equal(stored[50].heatmap, undefined);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("local history readers discard malformed records and self-heal storage", () => {
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([{}, session({ id: "valid" })])],
+    [STORAGE.progress, JSON.stringify([{}, {
+      articleId: "article-1",
+      attempts: 1,
+      bestSpeed: 80,
+      completed: true,
+      lastPracticed: "2026-07-29T09:00:00.000Z",
+      errors: 0,
+    }])],
+    [STORAGE.errors, JSON.stringify([{}, {
+      text: "测",
+      code: "imj",
+      count: 1,
+      lastSeen: "2026-07-29T09:00:00.000Z",
+    }])],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(getSessions().length, 1);
+    assert.equal(getProgress().length, 1);
+    assert.equal(getErrors().length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.progress)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.errors)).length, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("session and article progress writes roll back together after storage failure", () => {
+  const oldSessions = JSON.stringify([session({ id: "old" })]);
+  const oldProgress = JSON.stringify([]);
+  const values = new Map([
+    [STORAGE.sessions, oldSessions],
+    [STORAGE.progress, oldProgress],
+  ]);
+  let failProgress = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.progress && failProgress) {
+          failProgress = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    assert.equal(saveSession(session({ id: "new", articleId: "article-1" })), false);
+    assert.equal(values.get(STORAGE.sessions), oldSessions);
+    assert.equal(values.get(STORAGE.progress), oldProgress);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("session saving reports inaccessible storage without throwing", () => {
+  let reads = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: () => {
+        reads += 1;
+        if (reads > 2) throw new Error("denied");
+        return JSON.stringify([]);
+      },
+      removeItem() {},
+      setItem() {},
+    },
+  };
+  try {
+    assert.equal(saveSession(session({ articleId: "article-1" })), false);
   } finally {
     delete globalThis.window;
   }
