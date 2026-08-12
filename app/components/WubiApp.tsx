@@ -18,19 +18,26 @@ import {
   buildChallengePool,
   buildCustomArticle,
   buildMinimumCodeLengthIndex,
+  calculateActiveDurationSeconds,
   calculateAccuracy,
+  calculateKeyAccuracy,
+  calculatePhraseRate,
   calculateRemainingSeconds,
   calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
+  classifyWubiHand,
   commonCharacterPresets,
+  countCommittedEdit,
   countCommittedAttempts,
   defaultSettings,
   formatDuration,
+  getErrors,
   getProgress,
   getSessions,
   isWubiLetterKey,
   lengthLabels,
+  loadArticleMetadata,
   loadArticles,
   loadCommonCharacters,
   loadWubi,
@@ -39,8 +46,10 @@ import {
   readLocal,
   readLocalArray,
   readSettings,
+  recordKeyUsage,
   saveSession,
   isCommonPracticeArticle,
+  isImeSelectionKey,
   selectInitialArticle,
   shouldDeferInputCommit,
   STORAGE,
@@ -65,6 +74,7 @@ import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
 import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
+import { KeySummary } from "./KeySummary";
 
 const navItems: Array<{
   view: AppView;
@@ -79,6 +89,11 @@ const navItems: Array<{
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
+
+const FALLBACK_ARTICLE_COUNT = 300;
+
+const isNavItemActive = (view: AppView, itemView: AppView) =>
+  view === itemView || (view === "summary" && itemView === "history");
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -136,6 +151,7 @@ function useKeySound(enabled: boolean): KeySoundPlayer {
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const mainNavRef = useRef<HTMLElement>(null);
   const playKeySound = useKeySound(settings.sound);
 
   useEffect(() => {
@@ -149,6 +165,25 @@ export function WubiApp({ view }: { view: AppView }) {
     root.dataset.theme = settings.theme;
     writeLocal(STORAGE.settings, settings);
   }, [settings, settingsReady]);
+
+  useEffect(() => {
+    const navigation = mainNavRef.current;
+    const activeItem = navigation?.querySelector<HTMLElement>(
+      '[aria-current="page"]',
+    );
+    if (
+      !navigation ||
+      !activeItem ||
+      navigation.scrollWidth <= navigation.clientWidth
+    ) {
+      return;
+    }
+    navigation.scrollLeft = Math.max(
+      0,
+      activeItem.offsetLeft -
+        (navigation.clientWidth - activeItem.offsetWidth) / 2,
+    );
+  }, [view]);
 
   const themeLabels: Record<UserSettings["theme"], string> = {
     system: "系统",
@@ -183,13 +218,13 @@ export function WubiApp({ view }: { view: AppView }) {
               <small>WUBI 86 / LOCAL PRACTICE</small>
             </span>
           </Link>
-          <nav className="main-nav" aria-label="主导航">
+          <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
             {navItems.map((item) => (
               <Link
                 key={item.view}
                 href={item.href}
-                className={view === item.view ? "nav-item active" : "nav-item"}
-                aria-current={view === item.view ? "page" : undefined}
+                className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
+                aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
               >
                 <span aria-hidden="true">{item.coordinate}</span>
                 <strong>{item.label}</strong>
@@ -233,6 +268,7 @@ export function WubiApp({ view }: { view: AppView }) {
         )}
         {view === "lookup" && <LookupView />}
         {view === "history" && <HistoryView />}
+        {view === "summary" && <KeySummary />}
         {view === "settings" && (
           <SettingsView
             settings={settings}
@@ -287,6 +323,17 @@ function TypingView({
   const [elapsed, setElapsed] = useState(0);
   const [keyCount, setKeyCount] = useState(0);
   const [letterKeys, setLetterKeys] = useState(0);
+  const [backspaceCount, setBackspaceCount] = useState(0);
+  const [correctionCount, setCorrectionCount] = useState(0);
+  const [enterCount, setEnterCount] = useState(0);
+  const [selectionCount, setSelectionCount] = useState(0);
+  const [phraseChars, setPhraseChars] = useState(0);
+  const [leftHandKeys, setLeftHandKeys] = useState(0);
+  const [rightHandKeys, setRightHandKeys] = useState(0);
+  const [pauseCount, setPauseCount] = useState(0);
+  const [pausedDurationMs, setPausedDurationMs] = useState(0);
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [attemptCount, setAttemptCount] = useState(0);
   const [correctAttemptCount, setCorrectAttemptCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
@@ -465,7 +512,7 @@ function TypingView({
   }, []);
 
   const chooseArticle = useCallback(
-    (next: PracticeArticle, focusInput = true) => {
+    (next: PracticeArticle, focusInput = true, nextRetryCount = 0) => {
       if (compositionCommitTimer.current !== null) {
         window.clearTimeout(compositionCommitTimer.current);
         compositionCommitTimer.current = null;
@@ -488,6 +535,17 @@ function TypingView({
       setElapsed(0);
       setKeyCount(0);
       setLetterKeys(0);
+      setBackspaceCount(0);
+      setCorrectionCount(0);
+      setEnterCount(0);
+      setSelectionCount(0);
+      setPhraseChars(0);
+      setLeftHandKeys(0);
+      setRightHandKeys(0);
+      setPauseCount(0);
+      setPausedDurationMs(0);
+      setPausedAt(null);
+      setRetryCount(nextRetryCount);
       setAttemptCount(0);
       setCorrectAttemptCount(0);
       setErrorCount(0);
@@ -590,12 +648,19 @@ function TypingView({
 
   useEffect(() => {
     if (!startedAt || completed) return;
-    const timer = window.setInterval(
-      () => setElapsed((Date.now() - startedAt) / 1000),
-      250,
-    );
+    const updateElapsed = () =>
+      setElapsed(
+        calculateActiveDurationSeconds({
+          startedAt,
+          now: Date.now(),
+          pausedDurationMs,
+          pausedAt,
+        }),
+      );
+    updateElapsed();
+    const timer = window.setInterval(updateElapsed, 250);
     return () => window.clearInterval(timer);
-  }, [completed, startedAt]);
+  }, [completed, pausedAt, pausedDurationMs, startedAt]);
 
   const visibleText = article?.text || "";
   // Paragraph breaks are presentation, not typing targets. Keeping them in the
@@ -629,6 +694,7 @@ function TypingView({
 
   const seconds = completed ? elapsed : elapsed || 0;
   const {
+    correctChars,
     speed,
     kps,
     codeLength,
@@ -642,6 +708,18 @@ function TypingView({
     attemptCount,
     correctAttemptCount,
   });
+  const keyAccuracy = calculateKeyAccuracy({
+    keyCount,
+    backspaceCount,
+    correctionCount,
+    codeLength,
+  });
+  const phraseRate = calculatePhraseRate(phraseChars, correctChars);
+  const pauseSeconds = pausedDurationMs / 1000;
+  const theoreticalGap =
+    theoreticalCodeLength !== null && codeLength > 0
+      ? Math.max(0, codeLength - theoreticalCodeLength)
+      : null;
   const progressRatio = Math.min(
     1,
     typedCharacters.length / Math.max(1, targetCharacters.length),
@@ -694,7 +772,12 @@ function TypingView({
     ) {
       return;
     }
-    const finalSeconds = startedAt ? (Date.now() - startedAt) / 1000 : 0;
+    const finalSeconds = calculateActiveDurationSeconds({
+      startedAt,
+      now: Date.now(),
+      pausedDurationMs,
+      pausedAt,
+    });
     setElapsed(finalSeconds);
     setCompleted(true);
     if (recorded.current) return;
@@ -725,21 +808,52 @@ function TypingView({
       date: new Date().toISOString(),
       durationSeconds: finalSeconds,
       ...finalMetrics,
+      theoreticalCodeLength,
+      keyAccuracy: calculateKeyAccuracy({
+        keyCount,
+        backspaceCount,
+        correctionCount,
+        codeLength: finalMetrics.codeLength,
+      }),
       errors: errorPositions.current.size,
       errorChars,
+      keyCount,
+      backspaceCount,
+      correctionCount,
+      enterCount,
+      selectionCount,
+      phraseRate: calculatePhraseRate(phraseChars, finalMetrics.correctChars),
+      leftHandKeys,
+      rightHandKeys,
+      pauseCount,
+      pauseSeconds,
+      retryCount,
     };
     saveSession(session);
     setLastSession(session);
   }, [
     article,
     attemptCount,
+    backspaceCount,
     completed,
+    correctionCount,
     correctAttemptCount,
+    enterCount,
     keyCount,
+    leftHandKeys,
     letterKeys,
+    pauseCount,
+    pauseSeconds,
+    pausedAt,
+    pausedDurationMs,
+    phraseChars,
+    retryCount,
+    rightHandKeys,
+    selectionCount,
     startedAt,
     targetText,
     targetCharacters,
+    theoreticalCodeLength,
     typed,
   ]);
 
@@ -754,6 +868,13 @@ function TypingView({
     }
     if (committed) startTimer();
     committedValue.current = committed;
+    const edit = countCommittedEdit(previous, committed);
+    if (edit.removed > 0) {
+      setCorrectionCount((value) => value + edit.removed);
+    }
+    if (edit.phraseChars > 0) {
+      setPhraseChars((value) => value + edit.phraseChars);
+    }
     const attempt = countCommittedAttempts(previous, committed, targetText);
     if (attempt.attempts > 0) {
       setAttemptCount((value) => value + attempt.attempts);
@@ -775,14 +896,43 @@ function TypingView({
     }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       setKeyCount((value) => value + 1);
+      recordKeyUsage(event.code);
       playKeySound();
+    }
+    if (event.key === "Backspace") {
+      setBackspaceCount((value) => value + 1);
+    }
+    if (event.key === "Enter") {
+      setEnterCount((value) => value + 1);
+    }
+    if (
+      (composing.current || event.nativeEvent.isComposing) &&
+      isImeSelectionKey(event.key)
+    ) {
+      setSelectionCount((value) => value + 1);
     }
     if (isWubiLetterKey(event.key, event.code)) {
       setLetterKeys((value) => value + 1);
+      const hand = classifyWubiHand(event.key, event.code);
+      if (hand === "left") setLeftHandKeys((value) => value + 1);
+      if (hand === "right") setRightHandKeys((value) => value + 1);
     }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
       event.preventDefault();
     }
+  };
+
+  const togglePause = () => {
+    if (startedAtRef.current === null || completed) return;
+    const now = Date.now();
+    if (pausedAt !== null) {
+      setPausedDurationMs((value) => value + Math.max(0, now - pausedAt));
+      setPausedAt(null);
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
+    setPausedAt(now);
+    setPauseCount((value) => value + 1);
   };
 
   const useCustomText = () => {
@@ -812,10 +962,13 @@ function TypingView({
     else randomArticle();
   };
 
-  if (articlesLoading) {
+  if (
+    articlesLoading ||
+    (!article && (!settingsReady || availableArticles.length > 0))
+  ) {
     return (
       <div className="loading-card" role="status" aria-busy="true">
-        正在整理 200 篇练习文章…
+        正在整理 300 篇练习文章…
       </div>
     );
   }
@@ -875,9 +1028,30 @@ function TypingView({
           theoreticalValue={theoreticalCodeLength}
           error={minimumCodeError}
         />
-        <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
-        <Metric label="回退" value={errorCount.toString()} unit="处" />
+        <Metric label="字准" value={accuracy.toFixed(1)} unit="%" />
+        <Metric label="错字" value={errorCount.toString()} unit="处" />
         <Metric label="用时" value={formatDuration(seconds)} unit="" />
+      </section>
+
+      <section className="typing-diagnostics" aria-label="输入诊断">
+        <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
+        <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
+        <DiagnosticMetric
+          label="码长差"
+          value={theoreticalGap === null ? "—" : `+${theoreticalGap.toFixed(2)}`}
+          unit=""
+        />
+        <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
+        <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
+        <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
+        <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
+        <DiagnosticMetric
+          label="左右手"
+          value={`${leftHandKeys} / ${rightHandKeys}`}
+          unit=""
+        />
+        <DiagnosticMetric label="暂停" value={pauseCount.toString()} unit="次" />
+        <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
       </section>
 
       <section className="workspace-grid">
@@ -893,6 +1067,20 @@ function TypingView({
             <div className="practice-actions">
               <button onClick={() => setPickerOpen(true)}>选文章</button>
               <button onClick={randomArticle}>随机</button>
+              <button
+                disabled={startedAt === null || completed}
+                className={pausedAt !== null ? "active" : ""}
+                onClick={togglePause}
+                aria-pressed={pausedAt !== null}
+              >
+                {pausedAt !== null ? "继续" : "暂停"}
+              </button>
+              <button
+                disabled={startedAt === null && !inputValue}
+                onClick={() => chooseArticle(article, true, retryCount + 1)}
+              >
+                重来
+              </button>
               <button
                 className={focusMode ? "active" : ""}
                 onClick={() => setFocusMode((value) => !value)}
@@ -1101,8 +1289,14 @@ function TypingView({
             }}
             onKeyDown={onKeyDown}
             onPaste={(event) => event.preventDefault()}
-            disabled={completed}
-            placeholder={completed ? "本次练习已完成" : "点击这里，切换到五笔输入法后开始输入…"}
+            disabled={completed || pausedAt !== null}
+            placeholder={
+              completed
+                ? "本次练习已完成"
+                : pausedAt !== null
+                  ? "练习已暂停"
+                  : "点击这里，切换到五笔输入法后开始输入…"
+            }
             aria-label="跟打输入区"
             autoComplete="off"
             autoCorrect="off"
@@ -1129,8 +1323,28 @@ function TypingView({
                 <span><small>速度</small><span className="completion-value"><strong>{speed}</strong><i>字/分</i></span></span>
                 <span><small>击键</small><span className="completion-value"><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span></span>
                 <span><small>码长</small><span className="completion-value"><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span></span>
-                <span><small>准确率</small><span className="completion-value"><strong>{accuracy.toFixed(1)}</strong><i>%</i></span></span>
-                <span><small>回退</small><span className="completion-value"><strong>{errorCount}</strong><i>处</i></span></span>
+                <span><small>字准</small><span className="completion-value"><strong>{accuracy.toFixed(1)}</strong><i>%</i></span></span>
+                <span><small>错字</small><span className="completion-value"><strong>{errorCount}</strong><i>处</i></span></span>
+              </div>
+              <div className="completion-diagnostics" aria-label="本次输入诊断">
+                <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
+                <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
+                <DiagnosticMetric
+                  label="理论码长"
+                  value={
+                    theoreticalCodeLength === null
+                      ? "—"
+                      : theoreticalCodeLength.toFixed(2)
+                  }
+                  unit=""
+                />
+                <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
+                <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
+                <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
+                <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
+                <DiagnosticMetric label="左右手" value={`${leftHandKeys} / ${rightHandKeys}`} unit="" />
+                <DiagnosticMetric label="暂停" value={`${pauseCount} / ${pauseSeconds.toFixed(1)}`} unit="次/秒" />
+                <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
               </div>
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
@@ -1141,7 +1355,14 @@ function TypingView({
                 >
                   下载成绩卡
                 </button>
-                <button className="button primary" onClick={settings.autoNext ? randomArticle : () => chooseArticle(article)}>
+                <button
+                  className="button primary"
+                  onClick={
+                    settings.autoNext
+                      ? randomArticle
+                      : () => chooseArticle(article, true, retryCount + 1)
+                  }
+                >
                   {settings.autoNext ? "下一篇" : "再练一次"}
                 </button>
               </div>
@@ -1153,7 +1374,7 @@ function TypingView({
           <div className="side-heading">
             <div>
               <span className="eyebrow">文章库</span>
-              <h3>200 篇离线练习</h3>
+              <h3>{articles.length || FALLBACK_ARTICLE_COUNT} 篇离线练习</h3>
             </div>
             <span className="count-badge">{articles.length}</span>
           </div>
@@ -1331,6 +1552,24 @@ function Metric({
       <strong>{value}</strong>
       <small>{unit}</small>
     </div>
+  );
+}
+
+function DiagnosticMetric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <span className="diagnostic-metric">
+      <small>{label}</small>
+      <strong>{value}</strong>
+      {unit && <i>{unit}</i>}
+    </span>
   );
 }
 
@@ -1638,6 +1877,7 @@ function ChallengeView({
                 onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
                 onKeyDown={(event) => {
                   if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                    recordKeyUsage(event.code);
                     playKeySound();
                   }
                   if (event.key === "Enter" && feedback === "idle") submit();
@@ -1830,6 +2070,7 @@ function HistoryView() {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
+  const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training"
   >("all");
@@ -1837,9 +2078,20 @@ function HistoryView() {
   const refresh = () => {
     setSessions(getSessions());
     setProgress(getProgress());
-    setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
+    setErrors(getErrors());
   };
   useEffect(refresh, []);
+  useEffect(() => {
+    let active = true;
+    loadArticleMetadata()
+      .then((rows) => {
+        if (active) setArticleTotal(rows.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = sessions.filter(
     (session) =>
@@ -1874,15 +2126,18 @@ function HistoryView() {
           <h1>本地成绩</h1>
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
-        <button className="button danger" onClick={clearResults}>
-          清除成绩与错题
-        </button>
+        <div className="heading-actions">
+          <Link className="button secondary" href="/summary">查看按键画像</Link>
+          <button className="button danger" onClick={clearResults}>
+            清除成绩与错题
+          </button>
+        </div>
       </div>
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
         <SummaryCard label="最高速度" value={`${bestSpeed}`} unit="字/分" note="文章测速个人最佳" accent />
         <SummaryCard label="累计字数" value={totalChars.toLocaleString("zh-CN")} note="正确完成字符" />
-        <SummaryCard label="平均准确率" value={averageAccuracy.toFixed(1)} unit="%" note="仅统计文章测速" />
+        <SummaryCard label="平均字准" value={averageAccuracy.toFixed(1)} unit="%" note="仅统计文章测速" />
       </div>
       <TrendPanel sessions={sessions} />
       <div className="history-grid">
@@ -1912,8 +2167,9 @@ function HistoryView() {
             <div className="table-head">
               <span>练习</span>
               <span>速度</span>
+              <span>击键</span>
               <span>码长</span>
-              <span>准确率</span>
+              <span>字准</span>
               <span>时间</span>
               <span>操作</span>
             </div>
@@ -1927,11 +2183,21 @@ function HistoryView() {
                   {session.speed || "—"}
                   <small>{session.type === "article" ? "字/分" : "题/分"}</small>
                 </span>
+                <span className="session-kps">
+                  {session.type === "article" ? session.kps.toFixed(2) : "—"}
+                  <small>次/秒</small>
+                </span>
                 <span className="session-code-length">
                   {Number.isFinite(session.codeLength) && session.codeLength > 0 ? (
                     <>
                       {session.codeLength.toFixed(2)}
                       <small>键/字</small>
+                      {session.theoreticalCodeLength !== undefined &&
+                        session.theoreticalCodeLength !== null && (
+                          <small className="session-theoretical">
+                            理论 {session.theoreticalCodeLength.toFixed(2)}
+                          </small>
+                        )}
                     </>
                   ) : (
                     "—"
@@ -1951,6 +2217,51 @@ function HistoryView() {
                   <span aria-hidden="true">↓</span>
                   成绩卡
                 </button>
+                {session.type === "article" && session.keyCount !== undefined && (
+                  <div className="session-diagnostics" aria-label={`${session.title}输入诊断`}>
+                    <DiagnosticMetric
+                      label="总键"
+                      value={session.keyCount?.toString() ?? "—"}
+                      unit=""
+                    />
+                    <DiagnosticMetric
+                      label="键准"
+                      value={
+                        session.keyAccuracy === undefined
+                          ? "—"
+                          : session.keyAccuracy.toFixed(1)
+                      }
+                      unit={session.keyAccuracy === undefined ? "" : "%"}
+                    />
+                    <DiagnosticMetric label="回改" value={session.correctionCount?.toString() ?? "—"} unit="" />
+                    <DiagnosticMetric label="退格" value={session.backspaceCount?.toString() ?? "—"} unit="" />
+                    <DiagnosticMetric label="选重" value={session.selectionCount?.toString() ?? "—"} unit="" />
+                    <DiagnosticMetric
+                      label="打词"
+                      value={session.phraseRate === undefined ? "—" : session.phraseRate.toFixed(1)}
+                      unit={session.phraseRate === undefined ? "" : "%"}
+                    />
+                    <DiagnosticMetric
+                      label="左右手"
+                      value={
+                        session.leftHandKeys === undefined || session.rightHandKeys === undefined
+                          ? "—"
+                          : `${session.leftHandKeys} / ${session.rightHandKeys}`
+                      }
+                      unit=""
+                    />
+                    <DiagnosticMetric
+                      label="暂停"
+                      value={
+                        session.pauseCount === undefined
+                          ? "—"
+                          : `${session.pauseCount} / ${(session.pauseSeconds ?? 0).toFixed(1)}`
+                      }
+                      unit={session.pauseCount === undefined ? "" : "次/秒"}
+                    />
+                    <DiagnosticMetric label="重打" value={session.retryCount?.toString() ?? "—"} unit="" />
+                  </div>
+                )}
               </div>
             ))}
             {!filtered.length && <div className="empty-state">完成一次练习后，成绩会出现在这里。</div>}
@@ -1970,17 +2281,17 @@ function HistoryView() {
           </div>
           <div className="completion-stat">
             <span>文章完成度</span>
-            <strong>{completedArticleCount} / 200</strong>
+            <strong>{completedArticleCount} / {articleTotal}</strong>
             <i
               role="progressbar"
               aria-label="文章完成度"
               aria-valuemin={0}
-              aria-valuemax={200}
+              aria-valuemax={articleTotal}
               aria-valuenow={completedArticleCount}
             >
               <b
                 style={{
-                  width: `${Math.min(100, completedArticleCount / 2)}%`,
+                  width: `${Math.min(100, (completedArticleCount / articleTotal) * 100)}%`,
                 }}
               />
             </i>

@@ -6,22 +6,33 @@ import {
   buildChallengePool,
   buildMinimumCodeLengthIndex,
   buildCustomArticle,
+  calculateActiveDurationSeconds,
   calculateAccuracy,
+  calculateKeyAccuracy,
+  calculatePhraseRate,
   calculateRemainingSeconds,
   calculateTheoreticalMinimumCodeLength,
   calculateTypingMetrics,
   canCompleteTyping,
+  classifyWubiHand,
   commonCharacterPresets,
   countCommittedAttempts,
+  countCommittedEdit,
   formatCommonCharacterText,
   getCommonCharacterSlice,
   isCommonPracticeArticle,
   isWubiLetterKey,
+  isImeSelectionKey,
   preferShortestWubiCodes,
   selectInitialArticle,
   shuffleCharacters,
   shouldDeferInputCommit,
 } from "../app/lib.ts";
+import {
+  incrementKeyUsage,
+  normalizeKeyUsage,
+  summarizeKeyUsage,
+} from "../app/key-usage.ts";
 import {
   getAdjacentTrackIndex,
   parseMusicCatalog,
@@ -79,6 +90,58 @@ test("typing result metrics only credit characters that actually match", () => {
       codeLength: 4,
       accuracy: 50,
     },
+  );
+});
+
+test("typing diagnostics derive correction cost, phrase rate, and hand use", () => {
+  assert.equal(
+    calculateKeyAccuracy({
+      keyCount: 100,
+      backspaceCount: 2,
+      correctionCount: 3,
+      codeLength: 2,
+    }),
+    92,
+  );
+  assert.equal(calculateKeyAccuracy({ keyCount: 0, backspaceCount: 0, correctionCount: 0, codeLength: 0 }), 100);
+  assert.equal(calculatePhraseRate(40, 80), 50);
+  assert.equal(calculatePhraseRate(10, 0), 0);
+  assert.deepEqual(countCommittedEdit("中国", "中华人"), {
+    removed: 1,
+    inserted: 2,
+    phraseChars: 2,
+  });
+  assert.deepEqual(countCommittedEdit("😀中", "😀中国"), {
+    removed: 0,
+    inserted: 1,
+    phraseChars: 0,
+  });
+  assert.equal(classifyWubiHand("a", "KeyA"), "left");
+  assert.equal(classifyWubiHand("j", "KeyJ"), "right");
+  assert.equal(classifyWubiHand("Shift", "ShiftLeft"), null);
+  assert.equal(isImeSelectionKey(" "), true);
+  assert.equal(isImeSelectionKey("3"), true);
+  assert.equal(isImeSelectionKey("0"), false);
+});
+
+test("active typing duration excludes completed and current pauses", () => {
+  assert.equal(
+    calculateActiveDurationSeconds({
+      startedAt: 1_000,
+      now: 11_000,
+      pausedDurationMs: 2_000,
+      pausedAt: null,
+    }),
+    8,
+  );
+  assert.equal(
+    calculateActiveDurationSeconds({
+      startedAt: 1_000,
+      now: 11_000,
+      pausedDurationMs: 2_000,
+      pausedAt: 9_000,
+    }),
+    6,
   );
 });
 
@@ -223,6 +286,41 @@ test("Wubi letter detection falls back to physical keys for Windows IME events",
   assert.equal(isWubiLetterKey("Unidentified", "KeyY"), true);
   assert.equal(isWubiLetterKey("Process", "KeyZ"), false);
   assert.equal(isWubiLetterKey("Process"), false);
+});
+
+test("keyboard usage summary groups physical keys by hand, row, finger, and Wubi zone", () => {
+  let usage = {};
+  for (const code of [
+    "KeyQ", "KeyQ", "KeyQ", "KeyQ",
+    "KeyA", "KeyA",
+    "KeyY", "KeyY", "KeyY",
+    "Space",
+  ]) {
+    usage = incrementKeyUsage(usage, code);
+  }
+  assert.equal(incrementKeyUsage(usage, "MediaPlayPause"), usage);
+
+  const summary = summarizeKeyUsage(usage);
+  assert.equal(summary.total, 10);
+  assert.deepEqual(summary.mostUsed, { label: "Q", count: 4 });
+  assert.deepEqual(summary.hands.map(({ label, count }) => [label, count]), [
+    ["左手", 6],
+    ["右手", 3],
+  ]);
+  assert.deepEqual(summary.rows.map(({ label, count }) => [label, count]), [
+    ["数字排", 0],
+    ["上排", 7],
+    ["中排", 2],
+    ["下排", 0],
+  ]);
+  assert.deepEqual(summary.zones.map(({ name, count }) => [name, count]), [
+    ["撇区", 4],
+    ["捺区", 3],
+    ["横区", 2],
+    ["竖区", 0],
+    ["折区", 0],
+  ]);
+  assert.deepEqual(normalizeKeyUsage({ KeyQ: 3, Unknown: 9, KeyW: -1 }), { KeyQ: 3 });
 });
 
 test("shortest Wubi code wins and equal lengths prefer higher weight", () => {

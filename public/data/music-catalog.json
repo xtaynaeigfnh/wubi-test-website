@@ -70,6 +70,76 @@
       "durationSeconds": 185,
       "license": "CC0 1.0 Universal",
       "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wave-maker-lofi-dreamy-retro/"
+    },
+    {
+      "id": "tranquil-mindscape",
+      "title": "Tranquil Mindscape",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/tranquil-mindscape.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 153,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tranquil-mindscape-lofi-happy-reflection/"
+    },
+    {
+      "id": "canon-event",
+      "title": "Canon Event",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/canon-event.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 153,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/canon-event-lofi-sad-reflection/"
+    },
+    {
+      "id": "still-life",
+      "title": "Still Life",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/still-life.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 134,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/still-life-lofi-chill-nostalgic/"
+    },
+    {
+      "id": "bubbles",
+      "title": "Bubbles",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/bubbles.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 147,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/bubbles-lofi-bright-relaxed/"
+    },
+    {
+      "id": "tokyo-sunset",
+      "title": "Tokyo Sunset",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/tokyo-sunset.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 138,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tokyo-sunset-lofi-peaceful-soft/"
     }
   ]
 }

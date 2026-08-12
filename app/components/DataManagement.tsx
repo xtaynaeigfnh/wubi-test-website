@@ -6,6 +6,7 @@ import {
   buildCustomArticle,
   createBackupPayload,
   parseBackupPayload,
+  readKeyUsage,
   readLocal,
   readLocalArray,
   restoreBackupPayload,
@@ -31,7 +32,12 @@ function BackupManager() {
 
   const exportBackup = () => {
     const data = Object.fromEntries(
-      STORAGE_KEYS.map((key) => [key, readLocal<unknown>(key, null)]),
+      STORAGE_KEYS.map((key) => [
+        key,
+        key === STORAGE.keyUsage
+          ? readKeyUsage()
+          : readLocal<unknown>(key, null),
+      ]),
     );
     const payload = createBackupPayload(data);
     const blob = new Blob([JSON.stringify(payload, null, 2)], {

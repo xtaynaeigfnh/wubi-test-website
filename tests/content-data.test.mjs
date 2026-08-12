@@ -7,7 +7,7 @@ const readJson = async (name) =>
 
 test("article library has the planned distribution and valid metadata", async () => {
   const index = await readJson("articles-index.json");
-  assert.equal(index.length, 200);
+  assert.equal(index.length, 300);
   assert.deepEqual(
     Object.fromEntries(
       ["short", "medium", "long", "water"].map((length) => [
@@ -15,10 +15,45 @@ test("article library has the planned distribution and valid metadata", async ()
         index.filter((article) => article.length === length).length,
       ]),
     ),
-    { short: 80, medium: 70, long: 30, water: 20 },
+    { short: 120, medium: 105, long: 45, water: 30 },
   );
-  assert.equal(new Set(index.map((article) => article.id)).size, 200);
+  assert.equal(new Set(index.map((article) => article.id)).size, 300);
+  assert.equal(new Set(index.map((article) => article.title)).size, 300);
   assert.ok(index.every((article) => article.title && article.topic && article.wordCount > 0));
+  assert.ok(index.every((article) => !/[A-Za-z]/u.test(article.title)));
+  assert.ok(index.every((article) => !/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/u.test(article.title)));
+
+  const addedRanges = {
+    short: [81, 120],
+    medium: [71, 105],
+    long: [31, 45],
+    water: [21, 30],
+  };
+  const added = index.filter((article) => {
+    const [length, serial] = article.id.split("-");
+    const range = addedRanges[length];
+    return range && Number(serial) >= range[0] && Number(serial) <= range[1];
+  });
+  assert.equal(added.length, 100);
+  assert.ok(added.every((article) => !/ · \d+$/u.test(article.title)));
+  assert.deepEqual(
+    Object.fromEntries(
+      ["日常生活", "职场办公", "科技数码", "自然旅行", "阅读随笔", "历史文化", "通俗科普", "网络聊天"].map((topic) => [
+        topic,
+        added.filter((article) => article.topic === topic).length,
+      ]),
+    ),
+    {
+      日常生活: 13,
+      职场办公: 13,
+      科技数码: 13,
+      自然旅行: 13,
+      阅读随笔: 13,
+      历史文化: 13,
+      通俗科普: 12,
+      网络聊天: 10,
+    },
+  );
 });
 
 test("article bodies are complete, unique, and inside their length bands", async () => {
@@ -29,8 +64,8 @@ test("article bodies are complete, unique, and inside their length bands", async
     )
   ).flat();
   const bodyMap = new Map(bodies.map((row) => [row.id, row.text]));
-  assert.equal(bodyMap.size, 200);
-  assert.equal(new Set(bodies.map((row) => row.text)).size, 200);
+  assert.equal(bodyMap.size, 300);
+  assert.equal(new Set(bodies.map((row) => row.text)).size, 300);
 
   const ranges = {
     short: [80, 180],
@@ -82,6 +117,8 @@ test("article prose keeps punctuation balanced and drops generator artifacts", a
     assert.equal((text.match(/“/gu) || []).length, (text.match(/”/gu) || []).length, `${id} has unbalanced Chinese quotes`);
     assert.equal(/【\d+】/u.test(text), false, `${id} contains an internal deduplication marker`);
     assert.equal(/[，。！？；：][，。！？；：]/u.test(text), false, `${id} contains adjacent punctuation`);
+    assert.equal(/[A-Za-z]/u.test(text), false, `${id} contains English letters`);
+    assert.equal(/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/u.test(text), false, `${id} contains ASCII punctuation`);
     assert.equal(/[。！？][，；：]|[，；：][。！？]/u.test(text), false, `${id} contains punctuation in the wrong order`);
     assert.equal(/而是把[^。！？]*依据。[^。！？]*他们没有回避/u.test(text), false, `${id} contains a reordered clause artifact`);
     assert.equal(/不再应当|已经应当|一时难以判断/u.test(text), false, `${id} contains a mechanical rewrite artifact`);
@@ -299,10 +336,10 @@ test("common-character data contains the verified first 1500 frequency ranks", a
   assert.ok(characters.every((character) => codedCharacters.has(character)));
 });
 
-test("music catalog maps five licensed entries to bundled audio files", async () => {
+test("music catalog maps ten licensed entries to bundled audio files", async () => {
   const catalog = await readJson("music-catalog.json");
   assert.equal(catalog.version, 1);
-  assert.equal(catalog.tracks.length, 5);
+  assert.equal(catalog.tracks.length, 10);
   assert.equal(
     new Set(catalog.tracks.map((track) => track.id)).size,
     catalog.tracks.length,

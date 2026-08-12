@@ -17,6 +17,12 @@ import type {
   UserSettings,
   WubiEntry,
 } from "./types";
+import {
+  incrementKeyUsage,
+  isValidKeyUsage,
+  normalizeKeyUsage,
+  type KeyUsageMap,
+} from "./key-usage.ts";
 
 export const STORAGE = {
   settings: "wubi-test:settings:v1",
@@ -29,6 +35,7 @@ export const STORAGE = {
   dailyGoal: "wubi-test:daily-goal:v1",
   currentGenerated: "wubi-test:current-generated-practice:v1",
   music: "wubi-test:music:v1",
+  keyUsage: "wubi-test:key-usage:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -163,6 +170,42 @@ export function writeLocal<T>(key: string, value: T): boolean {
   } catch {
     return false;
   }
+}
+
+let pendingKeyUsage: KeyUsageMap | null = null;
+let keyUsageTimer: number | null = null;
+
+function flushPendingKeyUsage(): void {
+  if (typeof window === "undefined") return;
+  if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
+  const usage = pendingKeyUsage;
+  pendingKeyUsage = null;
+  keyUsageTimer = null;
+  if (usage) writeLocal(STORAGE.keyUsage, usage);
+}
+
+export function readKeyUsage(): KeyUsageMap {
+  return normalizeKeyUsage(
+    pendingKeyUsage ?? readLocal<unknown>(STORAGE.keyUsage, {}),
+  );
+}
+
+export function recordKeyUsage(code: string): void {
+  if (typeof window === "undefined") return;
+  const current = readKeyUsage();
+  const next = incrementKeyUsage(current, code);
+  if (next === current) return;
+  pendingKeyUsage = next;
+  if (keyUsageTimer !== null) return;
+  keyUsageTimer = window.setTimeout(flushPendingKeyUsage, 180);
+}
+
+export function clearKeyUsage(): void {
+  if (typeof window === "undefined") return;
+  if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
+  pendingKeyUsage = null;
+  keyUsageTimer = null;
+  writeLocal(STORAGE.keyUsage, {});
 }
 
 async function fetchJson<T>(url: string, label: string): Promise<T> {
@@ -629,6 +672,83 @@ export function calculateTypingMetrics({
   };
 }
 
+export function calculateKeyAccuracy({
+  keyCount,
+  backspaceCount,
+  correctionCount,
+  codeLength,
+}: {
+  keyCount: number;
+  backspaceCount: number;
+  correctionCount: number;
+  codeLength: number;
+}): number {
+  if (keyCount <= 0) return 100;
+  const correctionCost =
+    backspaceCount + correctionCount * Math.max(1, codeLength);
+  return Math.max(0, Math.min(100, ((keyCount - correctionCost) / keyCount) * 100));
+}
+
+export function calculatePhraseRate(
+  phraseChars: number,
+  correctChars: number,
+): number {
+  if (correctChars <= 0) return 0;
+  return Math.max(0, Math.min(100, (phraseChars / correctChars) * 100));
+}
+
+export function countCommittedEdit(previous: string, next: string) {
+  const previousCharacters = Array.from(previous);
+  const nextCharacters = Array.from(next);
+  let commonPrefix = 0;
+  while (
+    commonPrefix < previousCharacters.length &&
+    commonPrefix < nextCharacters.length &&
+    previousCharacters[commonPrefix] === nextCharacters[commonPrefix]
+  ) {
+    commonPrefix += 1;
+  }
+  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  return {
+    removed: Math.max(0, previousCharacters.length - commonPrefix),
+    inserted,
+    phraseChars: inserted > 1 ? inserted : 0,
+  };
+}
+
+export function classifyWubiHand(
+  key: string,
+  code = "",
+): "left" | "right" | null {
+  const normalized = code.startsWith("Key")
+    ? code.slice(3).toLowerCase()
+    : key.toLowerCase();
+  if (normalized.length !== 1) return null;
+  if ("qwertasdfgzxcvb".includes(normalized)) return "left";
+  if ("yuiophjklnm".includes(normalized)) return "right";
+  return null;
+}
+
+export function isImeSelectionKey(key: string): boolean {
+  return key === " " || key === "Enter" || /^[1-9]$/.test(key);
+}
+
+export function calculateActiveDurationSeconds({
+  startedAt,
+  now,
+  pausedDurationMs,
+  pausedAt,
+}: {
+  startedAt: number | null;
+  now: number;
+  pausedDurationMs: number;
+  pausedAt: number | null;
+}): number {
+  if (startedAt === null) return 0;
+  const currentPause = pausedAt === null ? 0 : Math.max(0, now - pausedAt);
+  return Math.max(0, (now - startedAt - pausedDurationMs - currentPause) / 1000);
+}
+
 export function calculateRemainingSeconds(
   deadline: number,
   now = Date.now(),
@@ -723,10 +843,20 @@ export function saveSession(session: SessionResult) {
   writeLocal(STORAGE.progress, progress);
 }
 
+export function getErrors(): ErrorStat[] {
+  const stored = readLocalArray<ErrorStat>(STORAGE.errors);
+  const merged = mergeErrorStatsByText(stored);
+  if (merged.length !== stored.length) {
+    writeLocal(STORAGE.errors, merged);
+  }
+  return merged;
+}
+
 export function addError(text: string, code?: string) {
-  const errors = readLocalArray<ErrorStat>(STORAGE.errors);
-  const existing = errors.find((row) => row.text === text && row.code === code);
+  const errors = getErrors();
+  const existing = errors.find((row) => row.text === text);
   if (existing) {
+    if (code) existing.code = code;
     existing.count += 1;
     existing.lastSeen = new Date().toISOString();
     existing.mastery = Math.max(0, (existing.mastery ?? 0) - 1);
@@ -747,9 +877,12 @@ export function updateErrorMastery(
   code: string,
   correct: boolean,
 ): ErrorStat[] {
-  const errors = readLocalArray<ErrorStat>(STORAGE.errors);
+  const errors = getErrors();
   const existing = errors.find((row) => row.text === text);
-  if (!existing) return errors;
+  if (!existing) {
+    writeLocal(STORAGE.errors, errors);
+    return errors;
+  }
   existing.code = code;
   if (correct) {
     existing.mastery = Math.min(5, (existing.mastery ?? 0) + 1);
@@ -765,6 +898,33 @@ export function updateErrorMastery(
   );
   writeLocal(STORAGE.errors, next);
   return next;
+}
+
+function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
+  const merged = new Map<string, ErrorStat>();
+  for (const error of errors) {
+    const existing = merged.get(error.text);
+    if (!existing) {
+      merged.set(error.text, { ...error });
+      continue;
+    }
+    existing.count += error.count;
+    existing.code = existing.code ?? error.code;
+    existing.mastery = Math.min(
+      5,
+      (existing.mastery ?? 0) + (error.mastery ?? 0),
+    );
+    if (error.lastSeen > existing.lastSeen) {
+      existing.lastSeen = error.lastSeen;
+    }
+    if (
+      error.lastCorrect &&
+      (!existing.lastCorrect || error.lastCorrect > existing.lastCorrect)
+    ) {
+      existing.lastCorrect = error.lastCorrect;
+    }
+  }
+  return Array.from(merged.values());
 }
 
 export function buildReviewPool(
@@ -878,18 +1038,15 @@ export function buildTrendSeries(
   }, null);
   const dayCount =
     range === "all"
-      ? Math.min(
-          365,
-          Math.max(
-            1,
-            oldest
-              ? Math.floor(
-                  (new Date(localDateKey(now)).getTime() -
-                    new Date(localDateKey(oldest)).getTime()) /
-                    86400000,
-                ) + 1
-              : 1,
-          ),
+      ? Math.max(
+          1,
+          oldest
+            ? Math.floor(
+                (new Date(localDateKey(now)).getTime() -
+                  new Date(localDateKey(oldest)).getTime()) /
+                  86400000,
+              ) + 1
+            : 1,
         )
       : range;
   return Array.from({ length: dayCount }, (_, offset) => {
@@ -994,6 +1151,19 @@ function isSessionResult(value: unknown): value is SessionResult {
     "codeLength",
     "errors",
   ];
+  const optionalNumericFields = [
+    "keyCount",
+    "backspaceCount",
+    "correctionCount",
+    "enterCount",
+    "selectionCount",
+    "leftHandKeys",
+    "rightHandKeys",
+    "pauseCount",
+    "pauseSeconds",
+    "retryCount",
+  ];
+  const optionalPercentageFields = ["keyAccuracy", "phraseRate"];
   return (
     isBoundedString(value.id, 160) &&
     value.id.length > 0 &&
@@ -1003,6 +1173,17 @@ function isSessionResult(value: unknown): value is SessionResult {
     isDateString(value.date) &&
     numericFields.every((field) => isFiniteRange(value[field], 0, 1_000_000_000)) &&
     isFiniteRange(value.accuracy, 0, 100) &&
+    (value.theoreticalCodeLength === undefined ||
+      value.theoreticalCodeLength === null ||
+      isFiniteRange(value.theoreticalCodeLength, 0, 100)) &&
+    optionalNumericFields.every(
+      (field) =>
+        value[field] === undefined ||
+        isFiniteRange(value[field], 0, 1_000_000_000),
+    ) &&
+    optionalPercentageFields.every(
+      (field) => value[field] === undefined || isFiniteRange(value[field], 0, 100),
+    ) &&
     (value.errorChars === undefined ||
       (Array.isArray(value.errorChars) &&
         value.errorChars.length <= 5000 &&
@@ -1158,6 +1339,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       return isPracticeArticle(value);
     case STORAGE.music:
       return isMusicPreferences(value);
+    case STORAGE.keyUsage:
+      return isValidKeyUsage(value);
     default:
       return false;
   }
@@ -1218,6 +1401,7 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     throw new Error("只能在浏览器中恢复备份");
   }
   const validated = parseBackupPayload(payload);
+  flushPendingKeyUsage();
   const previous = new Map(
     STORAGE_KEYS.map((key) => [key, window.localStorage.getItem(key)]),
   );
