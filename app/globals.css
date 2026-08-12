@@ -1211,17 +1211,21 @@ a {
   width: 100%;
 }
 
-.completion-panel > .hesitation-heatmap {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  border-top: 1px solid color-mix(in srgb, var(--state-success) 26%, transparent);
-}
-
 .hesitation-heatmap {
   padding: 20px;
   display: grid;
   gap: 16px;
   background: var(--bg-paper);
+}
+
+.post-practice-review {
+  margin-top: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-top: 3px solid var(--accent-vermilion);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+  box-shadow: var(--shadow-panel);
 }
 
 .hesitation-heading {
@@ -4224,10 +4228,6 @@ select,
     grid-template-columns: repeat(5, minmax(80px, 1fr));
   }
 
-  .completion-panel > .hesitation-heatmap {
-    grid-row: 3;
-  }
-
   .hesitation-ranking {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -4545,11 +4545,6 @@ select,
 
   .completion-next .button {
     width: 100%;
-  }
-
-  .completion-panel > .hesitation-heatmap {
-    grid-column: 1;
-    grid-row: 4;
   }
 
   .hesitation-heading {

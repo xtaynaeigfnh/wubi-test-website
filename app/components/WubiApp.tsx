@@ -1381,9 +1381,6 @@ function TypingView({
                 <DiagnosticMetric label="暂停" value={`${pauseCount} / ${pauseSeconds.toFixed(1)}`} unit="次/秒" />
                 <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
               </div>
-              {lastSession?.heatmap && (
-                <HesitationHeatmap heatmap={lastSession.heatmap} />
-              )}
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
                 <button
@@ -1468,6 +1465,12 @@ function TypingView({
           </div>
         </aside>
       </section>
+
+      {completed && lastSession?.heatmap && (
+        <div className="post-practice-review">
+          <HesitationHeatmap heatmap={lastSession.heatmap} />
+        </div>
+      )}
 
       {pickerOpen && (
         <Modal title="选择练习文章" onClose={() => setPickerOpen(false)}>
