@@ -91,13 +91,13 @@ const navItems: Array<{
   { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
   { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
+  { view: "summary", href: "/summary", label: "按键画像", coordinate: "JK" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
 
 const FALLBACK_ARTICLE_COUNT = 300;
 
-const isNavItemActive = (view: AppView, itemView: AppView) =>
-  view === itemView || (view === "summary" && itemView === "history");
+const isNavItemActive = (view: AppView, itemView: AppView) => view === itemView;
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
