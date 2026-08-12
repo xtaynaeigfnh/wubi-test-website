@@ -235,27 +235,31 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.doesNotMatch(summary, /返回本地成绩/);
   assert.match(summary, /按键使用画像/);
   assert.match(summary, /键盘热力图/);
-  assert.match(summary, /左右手均衡/);
-  assert.match(summary, /className="hand-heatmap" role="img" aria-label="左右手按键使用热力分布"/);
-  assert.match(summary, /className="hand-heat-circle"/);
-  assert.match(summary, /键盘行使用率/);
-  assert.match(summary, /五笔五区使用率/);
-  assert.match(summary, /手指使用率/);
+  assert.match(summary, /左右手均衡情况/);
+  assert.match(summary, /className="hand-pie"/);
+  assert.match(summary, /aria-label=\{`左右手按键使用热力分布/);
+  assert.match(summary, /不同位置按键使用率/);
+  assert.match(summary, /title="手指使用率"/);
+  assert.match(summary, /手指使用率（分区）/);
   assert.match(summary, /aria-label="练习按键次数热力图"/);
   assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
   assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
-  assert.match(summary, /id="finger-usage-title"[\s\S]*wide/);
+  assert.match(summary, /id="finger-usage-title"[\s\S]*className="vertical-chart"/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
-  assert.match(styles, /\.hand-heatmap\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /\.hand-heat-circle\s*\{[^}]*border-radius:\s*50%/s);
+  assert.match(styles, /\.hand-pie\s*\{[^}]*border-radius:\s*50%/s);
+  assert.match(styles, /\.axis-grid\s*\{/);
+  assert.match(styles, /\.vertical-bars\s*\{[^}]*grid-template-columns:\s*repeat\(9,/s);
+  assert.match(styles, /@keyframes heat-key-rise/);
+  assert.match(styles, /@keyframes pie-sweep-in/);
+  assert.match(styles, /@keyframes bar-grow-in/);
+  assert.match(styles, /@keyframes vertical-bar-grow-in/);
   assert.match(
     styles,
     /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
   );
   assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
-  assert.match(styles, /\.usage-card-wide \.usage-bars\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.key-summary-metrics/s);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.vertical-chart/s);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
