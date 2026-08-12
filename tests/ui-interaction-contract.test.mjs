@@ -8,6 +8,22 @@ const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
 const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
+const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
+
+test("recorded data renders without replay animations", async () => {
+  const [component, trendPanel, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(trendPanelPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.doesNotMatch(component, /className="metric-value"/);
+  assert.doesNotMatch(trendPanel, /pathLength=|<svg\s+key=\{range\}/);
+  assert.doesNotMatch(
+    styles,
+    /metric-tick|goal-ring-fill|usage-bar-fill|chart-line-draw/,
+  );
+});
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [component, styles] = await Promise.all([
