@@ -5193,6 +5193,70 @@ select,
   gap: 12px;
 }
 
+.hand-heatmap {
+  min-height: 160px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  justify-items: center;
+  gap: 18px;
+}
+
+.hand-heat {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.hand-heat-circle {
+  width: clamp(104px, 10vw, 132px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, #fff calc(var(--hand-heat) * 88%), var(--text-primary));
+  border: 1px solid color-mix(in srgb, var(--accent-bamboo) calc(var(--hand-heat) * 72%), var(--border-default));
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 34%, color-mix(in srgb, #fff 20%, transparent) 0 8%, transparent 28%),
+    radial-gradient(circle, color-mix(in srgb, var(--accent-bamboo-fill) calc(var(--hand-heat) * 100%), var(--bg-key)) 0 48%, color-mix(in srgb, var(--accent-bamboo) calc(var(--hand-heat) * 76%), var(--bg-key)) 100%);
+  box-shadow:
+    inset 0 0 0 10px color-mix(in srgb, #fff 7%, transparent),
+    0 10px 24px color-mix(in srgb, var(--accent-bamboo) calc(var(--hand-heat) * 20%), transparent);
+}
+
+.hand-heat-right .hand-heat-circle {
+  border-color: color-mix(in srgb, var(--accent-vermilion) calc(var(--hand-heat) * 72%), var(--border-default));
+  background:
+    radial-gradient(circle at 38% 34%, color-mix(in srgb, #fff 20%, transparent) 0 8%, transparent 28%),
+    radial-gradient(circle, color-mix(in srgb, var(--accent-vermilion-fill) calc(var(--hand-heat) * 100%), var(--bg-key)) 0 48%, color-mix(in srgb, var(--accent-vermilion) calc(var(--hand-heat) * 76%), var(--bg-key)) 100%);
+  box-shadow:
+    inset 0 0 0 10px color-mix(in srgb, #fff 7%, transparent),
+    0 10px 24px color-mix(in srgb, var(--accent-vermilion) calc(var(--hand-heat) * 20%), transparent);
+}
+
+.hand-heat-circle span {
+  font: 800 23px/1 var(--font-data);
+  letter-spacing: -0.05em;
+}
+
+.hand-heat > strong {
+  margin-top: 3px;
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.hand-heat > small,
+.hand-heatmap-note {
+  color: var(--text-secondary);
+  font: 700 10px/1.4 var(--font-data);
+}
+
+.hand-heatmap-note {
+  margin: 12px 0 0;
+  text-align: center;
+}
+
 .usage-bar {
   display: grid;
   grid-template-columns: minmax(58px, 72px) minmax(52px, 1fr) 38px 48px;
@@ -5351,6 +5415,14 @@ select,
 
   .usage-bar > small {
     display: none;
+  }
+
+  .hand-heatmap {
+    gap: 12px;
+  }
+
+  .hand-heat-circle {
+    width: min(116px, 32vw);
   }
 }
 
@@ -5759,35 +5831,6 @@ body::before {
   border-color: var(--border-strong);
   background: var(--bg-paper);
   box-shadow: 0 2px 0 var(--border-default);
-}
-
-.button.secondary.key-profile-entry {
-  min-width: 168px;
-  gap: 14px;
-  color: var(--accent-bamboo);
-  border-color: color-mix(in srgb, var(--accent-bamboo) 58%, var(--border-default));
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--accent-bamboo) 11%, var(--bg-paper)),
-      var(--bg-paper) 70%
-    );
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--accent-bamboo) 28%, var(--border-default));
-}
-
-.button.secondary.key-profile-entry:hover:not(:disabled) {
-  color: var(--accent-bamboo);
-  border-color: var(--accent-bamboo);
-  background: color-mix(in srgb, var(--accent-bamboo) 10%, var(--bg-paper));
-}
-
-.key-profile-entry span {
-  font: 800 17px/1 var(--font-data);
-  transition: transform 160ms var(--ease-out);
-}
-
-.key-profile-entry:hover span {
-  transform: translateX(3px);
 }
 
 .metric-strip {
@@ -6634,10 +6677,6 @@ textarea {
     width: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .button.secondary.key-profile-entry {
-    min-width: 0;
   }
 
   .challenge-layout {

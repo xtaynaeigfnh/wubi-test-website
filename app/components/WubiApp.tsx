@@ -91,13 +91,13 @@ const navItems: Array<{
   { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
   { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
+  { view: "summary", href: "/summary", label: "统计", coordinate: "JK" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
 
 const FALLBACK_ARTICLE_COUNT = 300;
 
-const isNavItemActive = (view: AppView, itemView: AppView) =>
-  view === itemView || (view === "summary" && itemView === "history");
+const isNavItemActive = (view: AppView, itemView: AppView) => view === itemView;
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -2171,10 +2171,6 @@ function HistoryView() {
           <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
         </div>
         <div className="heading-actions">
-          <Link className="button secondary key-profile-entry" href="/summary">
-            查看按键画像
-            <span aria-hidden="true">→</span>
-          </Link>
           <button className="button danger" onClick={clearResults}>
             清除成绩与错题
           </button>
