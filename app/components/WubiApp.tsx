@@ -32,6 +32,7 @@ import {
   countCommittedAttempts,
   defaultSettings,
   formatDuration,
+  getErrors,
   getProgress,
   getSessions,
   isWubiLetterKey,
@@ -2077,7 +2078,7 @@ function HistoryView() {
   const refresh = () => {
     setSessions(getSessions());
     setProgress(getProgress());
-    setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
+    setErrors(getErrors());
   };
   useEffect(refresh, []);
   useEffect(() => {

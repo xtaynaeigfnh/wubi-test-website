@@ -10,10 +10,10 @@ import {
   calculateDailyProgress,
   calculateStreak,
   defaultDailyGoal,
+  getErrors,
   getSessions,
   loadWubiChallenge,
   readDailyGoal,
-  readLocalArray,
   recordKeyUsage,
   saveSession,
   STORAGE,
@@ -54,7 +54,7 @@ export function TrainingCenter({
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   const refreshLocal = useCallback(() => {
-    setErrors(readLocalArray<ErrorStat>(STORAGE.errors));
+    setErrors(getErrors());
     setSessions(getSessions());
     setGoal(readDailyGoal());
   }, []);
