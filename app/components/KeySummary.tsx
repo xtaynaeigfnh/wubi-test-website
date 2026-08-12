@@ -128,7 +128,6 @@ export function KeySummary() {
           <p>参照练习期间记录的物理键位，查看热区、左右手均衡、键盘行与手指分工。数据只保存在当前浏览器。</p>
         </div>
         <div className="key-summary-actions">
-          <Link className="button secondary" href="/history">返回本地成绩</Link>
           <button className="button danger" type="button" disabled={!summary.total} onClick={reset}>清空按键记录</button>
         </div>
       </header>

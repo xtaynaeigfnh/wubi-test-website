@@ -5833,35 +5833,6 @@ body::before {
   box-shadow: 0 2px 0 var(--border-default);
 }
 
-.button.secondary.key-profile-entry {
-  min-width: 168px;
-  gap: 14px;
-  color: var(--accent-bamboo);
-  border-color: color-mix(in srgb, var(--accent-bamboo) 58%, var(--border-default));
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--accent-bamboo) 11%, var(--bg-paper)),
-      var(--bg-paper) 70%
-    );
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--accent-bamboo) 28%, var(--border-default));
-}
-
-.button.secondary.key-profile-entry:hover:not(:disabled) {
-  color: var(--accent-bamboo);
-  border-color: var(--accent-bamboo);
-  background: color-mix(in srgb, var(--accent-bamboo) 10%, var(--bg-paper));
-}
-
-.key-profile-entry span {
-  font: 800 17px/1 var(--font-data);
-  transition: transform 160ms var(--ease-out);
-}
-
-.key-profile-entry:hover span {
-  transform: translateX(3px);
-}
-
 .metric-strip {
   margin: 0;
   border: 1px solid var(--border-strong);
@@ -6706,10 +6677,6 @@ textarea {
     width: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .button.secondary.key-profile-entry {
-    min-width: 0;
   }
 
   .challenge-layout {
