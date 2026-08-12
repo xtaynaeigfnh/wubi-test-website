@@ -158,7 +158,7 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.match(
     component,
-    /\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap heatmap=\{lastSession\.heatmap\}/,
+    /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap heatmap=\{lastSession\.heatmap\}[\s\S]*<aside className="side-panel">/,
   );
   assert.match(component, /className="session-heatmap-trigger"/);
   assert.match(component, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
@@ -168,7 +168,18 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(heatmap, /最明显的五处卡顿/);
   assert.match(heatmap, /这轮节奏很稳/);
   assert.match(styles, /--heat-mild:/);
-  assert.match(styles, /\.post-practice-review\s*\{[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s);
+  assert.match(
+    styles,
+    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
+  );
+  assert.match(
+    styles,
+    /\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*\.post-practice-review,[\s\S]*\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*auto;/s,
+  );
   assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });

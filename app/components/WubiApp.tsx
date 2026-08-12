@@ -1405,6 +1405,12 @@ function TypingView({
           )}
         </article>
 
+        {completed && lastSession?.heatmap && (
+          <div className="post-practice-review">
+            <HesitationHeatmap heatmap={lastSession.heatmap} />
+          </div>
+        )}
+
         <aside className="side-panel">
           <div className="side-heading">
             <div>
@@ -1465,12 +1471,6 @@ function TypingView({
           </div>
         </aside>
       </section>
-
-      {completed && lastSession?.heatmap && (
-        <div className="post-practice-review">
-          <HesitationHeatmap heatmap={lastSession.heatmap} />
-        </div>
-      )}
 
       {pickerOpen && (
         <Modal title="选择练习文章" onClose={() => setPickerOpen(false)}>

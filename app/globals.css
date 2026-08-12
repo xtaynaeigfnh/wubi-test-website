@@ -1219,13 +1219,20 @@ a {
 }
 
 .post-practice-review {
-  margin-top: 20px;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 2;
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-top: 3px solid var(--accent-vermilion);
   border-radius: var(--radius-medium);
   background: var(--bg-paper);
   box-shadow: var(--shadow-panel);
+}
+
+.workspace-grid > .side-panel {
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .hesitation-heading {
@@ -6402,6 +6409,12 @@ textarea {
 
   .workspace-grid {
     grid-template-columns: 1fr;
+  }
+
+  .post-practice-review,
+  .workspace-grid > .side-panel {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .side-panel {
