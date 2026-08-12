@@ -61,6 +61,48 @@ function UsageBars({
   );
 }
 
+function HandBalanceHeatmap({
+  rows,
+}: {
+  rows: Array<{ name: string; label: string; count: number }>;
+}) {
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const maxCount = Math.max(1, ...rows.map((row) => row.count));
+
+  return (
+    <section className="usage-card hand-heatmap-card" aria-labelledby="hand-balance-title">
+      <div className="summary-card-heading">
+        <div>
+          <span className="eyebrow">发力分配</span>
+          <h2 id="hand-balance-title">左右手均衡</h2>
+        </div>
+        <strong>{total.toLocaleString("zh-CN")} 次</strong>
+      </div>
+      <div className="hand-heatmap" role="img" aria-label="左右手按键使用热力分布">
+        {rows.map((row) => {
+          const rate = percent(row.count, total);
+          const heat = row.count / maxCount;
+          return (
+            <div
+              className={`hand-heat hand-heat-${row.name}`}
+              key={row.name}
+              style={{ "--hand-heat": heat } as CSSProperties}
+              aria-label={`${row.label}，${rate}%，${row.count} 次`}
+            >
+              <div className="hand-heat-circle" aria-hidden="true">
+                <span>{rate}%</span>
+              </div>
+              <strong>{row.label}</strong>
+              <small>{row.count.toLocaleString("zh-CN")} 次</small>
+            </div>
+          );
+        })}
+      </div>
+      <p className="hand-heatmap-note">颜色越深，表示该侧按键使用越集中</p>
+    </section>
+  );
+}
+
 export function KeySummary() {
   const [usage, setUsage] = useState<KeyUsageMap>({});
   useEffect(() => setUsage(readKeyUsage()), []);
@@ -86,7 +128,6 @@ export function KeySummary() {
           <p>参照练习期间记录的物理键位，查看热区、左右手均衡、键盘行与手指分工。数据只保存在当前浏览器。</p>
         </div>
         <div className="key-summary-actions">
-          <Link className="button secondary" href="/history">返回本地成绩</Link>
           <button className="button danger" type="button" disabled={!summary.total} onClick={reset}>清空按键记录</button>
         </div>
       </header>
@@ -143,7 +184,7 @@ export function KeySummary() {
       </section>
 
       <div className="key-analysis-grid" aria-label="按键分布分析">
-        <UsageBars id="hand-balance-title" title="左右手均衡" note="发力分配" rows={summary.hands} />
+        <HandBalanceHeatmap rows={summary.hands} />
         <UsageBars id="keyboard-row-title" title="键盘行使用率" note="位置分布" rows={summary.rows} />
         <UsageBars id="wubi-zone-title" title="五笔五区使用率" note="字根分区" rows={summary.zones.map((item) => ({ ...item, label: item.name }))} />
       </div>

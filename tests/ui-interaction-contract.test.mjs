@@ -7,6 +7,23 @@ const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
+const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
+const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
+
+test("recorded data renders without replay animations", async () => {
+  const [component, trendPanel, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(trendPanelPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.doesNotMatch(component, /className="metric-value"/);
+  assert.doesNotMatch(trendPanel, /pathLength=|<svg\s+key=\{range\}/);
+  assert.doesNotMatch(
+    styles,
+    /metric-tick|goal-ring-fill|usage-bar-fill|chart-line-draw/,
+  );
+});
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [component, styles] = await Promise.all([
@@ -131,6 +148,42 @@ test("typing exposes every filtered article and resets timing on restart", async
   );
 });
 
+test("typing completion and history expose an accessible hesitation heatmap", async () => {
+  const [component, heatmap, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(hesitationHeatmapPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
+  assert.match(
+    component,
+    /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap heatmap=\{lastSession\.heatmap\}[\s\S]*<aside className="side-panel">/,
+  );
+  assert.match(component, /className="session-heatmap-trigger"/);
+  assert.match(component, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
+  assert.match(component, /aria-controls=\{`session-heatmap-\$\{session\.id\}`\}/);
+  assert.match(heatmap, /卡顿位置热力图/);
+  assert.match(heatmap, /aria-label="热力等级图例"/);
+  assert.match(heatmap, /最明显的五处卡顿/);
+  assert.match(heatmap, /这轮节奏很稳/);
+  assert.match(styles, /--heat-mild:/);
+  assert.match(
+    styles,
+    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
+  );
+  assert.match(
+    styles,
+    /\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*\.post-practice-review,[\s\S]*\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*auto;/s,
+  );
+  assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);
+});
+
 test("mobile navigation scrolls the active route into view", async () => {
   const component = await readFile(componentPath, "utf8");
 
@@ -185,11 +238,17 @@ test("typing surfaces record physical keys and the summary exposes the reference
 
   assert.match(component, /recordKeyUsage\(event\.code\)/);
   assert.match(training, /recordKeyUsage\(event\.code\)/);
-  assert.match(component, /href="\/summary">查看按键画像/);
-  assert.match(summary, /href="\/history">返回本地成绩/);
+  assert.match(component, /view: "summary", href: "\/summary", label: "统计"/);
+  assert.doesNotMatch(component, /查看按键画像/);
+  assert.doesNotMatch(component, /key-profile-entry/);
+  assert.match(styles, /\.button\s*\{[^}]*display:\s*inline-flex/s);
+  assert.doesNotMatch(styles, /key-profile-entry/);
+  assert.doesNotMatch(summary, /返回本地成绩/);
   assert.match(summary, /按键使用画像/);
   assert.match(summary, /键盘热力图/);
   assert.match(summary, /左右手均衡/);
+  assert.match(summary, /className="hand-heatmap" role="img" aria-label="左右手按键使用热力分布"/);
+  assert.match(summary, /className="hand-heat-circle"/);
   assert.match(summary, /键盘行使用率/);
   assert.match(summary, /五笔五区使用率/);
   assert.match(summary, /手指使用率/);
@@ -199,6 +258,8 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /id="finger-usage-title"[\s\S]*wide/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
+  assert.match(styles, /\.hand-heatmap\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /\.hand-heat-circle\s*\{[^}]*border-radius:\s*50%/s);
   assert.match(
     styles,
     /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,

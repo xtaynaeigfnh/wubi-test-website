@@ -60,6 +60,20 @@ export interface ArticleFilter {
 
 export type WubiEntry = [text: string, code: string, weight: number];
 
+export interface HesitationSegment {
+  start: number;
+  length: number;
+  delayMs: number;
+}
+
+export interface TypingHeatmap {
+  version: 1;
+  text: string;
+  baselineMs: number;
+  thresholdMs: number;
+  segments: HesitationSegment[];
+}
+
 export interface SessionResult {
   id: string;
   type: "article" | "challenge" | "review" | "roots";
@@ -88,6 +102,7 @@ export interface SessionResult {
   pauseCount?: number;
   pauseSeconds?: number;
   retryCount?: number;
+  heatmap?: TypingHeatmap;
 }
 
 export interface ErrorStat {

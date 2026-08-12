@@ -11,8 +11,10 @@ import type {
   DailyGoal,
   DailyProgress,
   ErrorStat,
+  HesitationSegment,
   PracticeArticle,
   SessionResult,
+  TypingHeatmap,
   TrendPoint,
   UserSettings,
   WubiEntry,
@@ -697,6 +699,145 @@ export function calculatePhraseRate(
   return Math.max(0, Math.min(100, (phraseChars / correctChars) * 100));
 }
 
+const MAX_TYPING_DELAY_MS = 10 * 60 * 1000;
+
+export function calculateTypingTransitionMs({
+  lastActiveAt,
+  now,
+  pendingMs,
+}: {
+  lastActiveAt: number | null;
+  now: number;
+  pendingMs: number;
+}): number {
+  const currentInterval =
+    lastActiveAt === null ? 0 : Math.max(0, now - lastActiveAt);
+  return Math.min(
+    MAX_TYPING_DELAY_MS,
+    Math.max(0, pendingMs) + currentInterval,
+  );
+}
+
+export function applyTypingDelaySample({
+  previous,
+  next,
+  target,
+  delayMs,
+  delays,
+}: {
+  previous: string;
+  next: string;
+  target: string;
+  delayMs: number;
+  delays: number[];
+}): number[] {
+  const previousCharacters = Array.from(previous);
+  const nextCharacters = Array.from(next);
+  const targetLength = Array.from(target).length;
+  const result = Array.from(
+    { length: targetLength },
+    (_, index) => delays[index] ?? 0,
+  );
+  let commonPrefix = 0;
+  while (
+    commonPrefix < previousCharacters.length &&
+    commonPrefix < nextCharacters.length &&
+    previousCharacters[commonPrefix] === nextCharacters[commonPrefix]
+  ) {
+    commonPrefix += 1;
+  }
+
+  const boundedDelay = Math.min(
+    MAX_TYPING_DELAY_MS,
+    Math.max(0, delayMs),
+  );
+  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  if (inserted > 0) {
+    const perCharacter = boundedDelay / inserted;
+    const end = Math.min(targetLength, commonPrefix + inserted);
+    for (let index = commonPrefix; index < end; index += 1) {
+      result[index] += perCharacter;
+    }
+  } else if (previousCharacters.length > nextCharacters.length) {
+    const affectedIndex = Math.min(commonPrefix, targetLength - 1);
+    if (affectedIndex >= 0) result[affectedIndex] += boundedDelay;
+  }
+  return result;
+}
+
+export function getHesitationLevel(
+  delayMs: number,
+  thresholdMs: number,
+): 0 | 1 | 2 | 3 {
+  if (delayMs < thresholdMs) return 0;
+  if (delayMs < thresholdMs * 1.5) return 1;
+  if (delayMs < thresholdMs * 2.5) return 2;
+  return 3;
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+}
+
+export function buildTypingHeatmap(
+  text: string,
+  delays: number[],
+): TypingHeatmap {
+  const targetLength = Array.from(text.replace(/[\r\n]/g, "")).length;
+  const normalizedDelays = Array.from(
+    { length: targetLength },
+    (_, index) =>
+      Math.min(MAX_TYPING_DELAY_MS, Math.max(0, delays[index] ?? 0)),
+  );
+  const baselineMs = Math.round(
+    median(normalizedDelays.filter((delay) => delay > 0)),
+  );
+  const thresholdMs = Math.round(
+    Math.min(MAX_TYPING_DELAY_MS, Math.max(1000, baselineMs * 1.8)),
+  );
+  const grouped: Array<HesitationSegment & { level: 1 | 2 | 3 }> = [];
+
+  normalizedDelays.forEach((delayMs, index) => {
+    const level = getHesitationLevel(delayMs, thresholdMs);
+    if (level === 0) return;
+    const previous = grouped.at(-1);
+    if (
+      previous &&
+      previous.start + previous.length === index &&
+      previous.level === level
+    ) {
+      previous.length += 1;
+      previous.delayMs = Math.max(previous.delayMs, Math.round(delayMs));
+      return;
+    }
+    grouped.push({
+      start: index,
+      length: 1,
+      delayMs: Math.round(delayMs),
+      level,
+    });
+  });
+
+  const segments = grouped
+    .sort((a, b) => b.delayMs - a.delayMs || a.start - b.start)
+    .slice(0, 32)
+    .sort((a, b) => a.start - b.start)
+    .map(({ start, length, delayMs }) => ({ start, length, delayMs }));
+
+  return {
+    version: 1,
+    text: Array.from(text).slice(0, 5000).join(""),
+    baselineMs,
+    thresholdMs,
+    segments,
+  };
+}
+
 export function countCommittedEdit(previous: string, next: string) {
   const previousCharacters = Array.from(previous);
   const nextCharacters = Array.from(next);
@@ -819,7 +960,15 @@ export function getProgress() {
 }
 
 export function saveSession(session: SessionResult) {
-  const sessions = [session, ...getSessions()].slice(0, 500);
+  let retainedHeatmaps = 0;
+  const sessions = [session, ...getSessions()].slice(0, 500).map((item) => {
+    if (!item.heatmap) return item;
+    retainedHeatmaps += 1;
+    if (retainedHeatmaps <= 50) return item;
+    const summary = { ...item };
+    delete summary.heatmap;
+    return summary;
+  });
   writeLocal(STORAGE.sessions, sessions);
   if (!session.articleId) return;
   const progress = getProgress();
@@ -1187,7 +1336,34 @@ function isSessionResult(value: unknown): value is SessionResult {
     (value.errorChars === undefined ||
       (Array.isArray(value.errorChars) &&
         value.errorChars.length <= 5000 &&
-        value.errorChars.every((item) => isBoundedString(item, 8))))
+        value.errorChars.every((item) => isBoundedString(item, 8)))) &&
+    (value.heatmap === undefined || isTypingHeatmap(value.heatmap))
+  );
+}
+
+function isTypingHeatmap(value: unknown): value is TypingHeatmap {
+  if (!isRecord(value)) return false;
+  if (
+    value.version !== 1 ||
+    !isBoundedString(value.text, 5000) ||
+    value.text.length === 0 ||
+    !isFiniteRange(value.baselineMs, 0, MAX_TYPING_DELAY_MS) ||
+    !isFiniteRange(value.thresholdMs, 1000, MAX_TYPING_DELAY_MS) ||
+    !Array.isArray(value.segments) ||
+    value.segments.length > 32
+  ) {
+    return false;
+  }
+  const targetLength = Array.from(value.text.replace(/[\r\n]/g, "")).length;
+  return value.segments.every(
+    (segment) =>
+      isRecord(segment) &&
+      Number.isInteger(segment.start) &&
+      isFiniteRange(segment.start, 0, Math.max(0, targetLength - 1)) &&
+      Number.isInteger(segment.length) &&
+      isFiniteRange(segment.length, 1, Math.max(1, targetLength)) &&
+      segment.start + segment.length <= targetLength &&
+      isFiniteRange(segment.delayMs, 0, MAX_TYPING_DELAY_MS),
   );
 }
 
