@@ -76,23 +76,22 @@ function HorizontalBarChart({
   rows: Array<{ name: string; label?: string; count: number }>;
 }) {
   const total = rows.reduce((sum, row) => sum + row.count, 0);
-  const max = Math.max(1, ...rows.map((row) => row.count));
 
   return (
     <section className="usage-card horizontal-chart" aria-labelledby={id}>
       <ChartHeading id={id} title={title} total={total} />
       <div className="axis-chart axis-chart-horizontal">
         <div className="axis-grid" aria-hidden="true" />
-        <div className="axis-bars">
+        <div className="axis-bars" role="list">
           {rows.map((row, index) => {
             const rate = percent(row.count, total);
-            const relativeRate = percent(row.count, max);
             return (
               <div
                 className="axis-bar-row"
+                role="listitem"
                 key={row.name}
                 aria-label={`${row.label ?? row.name}，${rate}%，${row.count} 次`}
-                style={chartStyle(index, relativeRate)}
+                style={chartStyle(index, rate)}
               >
                 <span>{row.label ?? row.name}</span>
                 <i aria-hidden="true"><b /></i>
@@ -118,23 +117,24 @@ function FingerComparisonChart({
     { label: "中指", left: count("左中指"), right: count("右中指") },
     { label: "无名指", left: count("左无名指"), right: count("右无名指") },
     { label: "小指", left: count("左小指"), right: count("右小指") },
+    { label: "拇指", left: count("左拇指"), right: count("拇指") + count("右拇指") },
   ];
-  const total = fingers.reduce((sum, finger) => sum + finger.count, 0);
-  const max = Math.max(1, ...rows.map((row) => row.left + row.right));
+  const total = rows.reduce((sum, row) => sum + row.left + row.right, 0);
 
   return (
     <section className="usage-card finger-compare-chart" aria-labelledby="finger-compare-title">
       <ChartHeading id="finger-compare-title" title="手指使用率" total={total} />
       <div className="axis-chart axis-chart-horizontal">
         <div className="axis-grid" aria-hidden="true" />
-        <div className="axis-bars">
+        <div className="axis-bars" role="list">
           {rows.map((row, index) => {
             const rowTotal = row.left + row.right;
-            const width = percent(rowTotal, max);
+            const width = percent(rowTotal, total);
             const leftShare = percent(row.left, rowTotal);
             return (
               <div
                 className="axis-bar-row stacked-bar-row"
+                role="listitem"
                 key={row.label}
                 style={{
                   "--chart-index": index,
@@ -180,7 +180,7 @@ function FingerDistributionChart({
   return (
     <section className="usage-card usage-card-wide finger-distribution-chart" aria-labelledby="finger-usage-title">
       <ChartHeading id="finger-usage-title" title="手指使用率（分区）" total={total} />
-      <div className="vertical-chart" role="img" aria-label="九个手指分区的按键使用次数柱状图">
+      <div className="vertical-chart" role="list" aria-label="九个手指分区的按键使用次数柱状图">
         <div className="vertical-grid" aria-hidden="true" />
         <div className="vertical-bars">
           {rows.map((row, index) => {
@@ -188,6 +188,7 @@ function FingerDistributionChart({
             return (
               <div
                 className="vertical-bar"
+                role="listitem"
                 key={`${row.label}-${index}`}
                 style={chartStyle(index, rate)}
                 aria-label={`${row.label}，${row.count} 次`}

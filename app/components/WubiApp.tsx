@@ -841,7 +841,9 @@ function TypingView({
       retryCount,
       heatmap: buildTypingHeatmap(visibleText, typingDelaysRef.current),
     };
-    saveSession(session);
+    if (!saveSession(session)) {
+      window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+    }
     setLastSession(session);
   }, [
     article,
@@ -1759,7 +1761,9 @@ function ChallengeView({
           accuracy: calculateAccuracy(correctAnswers, answered),
           errors: answered - correctAnswers,
         };
-        saveSession(session);
+        if (!saveSession(session)) {
+          window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+        }
         setLastSession(session);
       }
       if (nextTimerRef.current) {

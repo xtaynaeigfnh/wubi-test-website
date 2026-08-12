@@ -621,12 +621,23 @@ export function countCommittedAttempts(
     commonPrefix += 1;
   }
 
+  let commonSuffix = 0;
+  while (
+    commonSuffix < previousCharacters.length - commonPrefix &&
+    commonSuffix < nextCharacters.length - commonPrefix &&
+    previousCharacters[previousCharacters.length - 1 - commonSuffix] ===
+      nextCharacters[nextCharacters.length - 1 - commonSuffix]
+  ) {
+    commonSuffix += 1;
+  }
+
   let correct = 0;
-  for (let index = commonPrefix; index < nextCharacters.length; index += 1) {
+  const changedEnd = nextCharacters.length - commonSuffix;
+  for (let index = commonPrefix; index < changedEnd; index += 1) {
     if (nextCharacters[index] === targetCharacters[index]) correct += 1;
   }
   return {
-    attempts: Math.max(0, nextCharacters.length - commonPrefix),
+    attempts: Math.max(0, changedEnd - commonPrefix),
     correct,
   };
 }
@@ -747,11 +758,24 @@ export function applyTypingDelaySample({
     commonPrefix += 1;
   }
 
+  let commonSuffix = 0;
+  while (
+    commonSuffix < previousCharacters.length - commonPrefix &&
+    commonSuffix < nextCharacters.length - commonPrefix &&
+    previousCharacters[previousCharacters.length - 1 - commonSuffix] ===
+      nextCharacters[nextCharacters.length - 1 - commonSuffix]
+  ) {
+    commonSuffix += 1;
+  }
+
   const boundedDelay = Math.min(
     MAX_TYPING_DELAY_MS,
     Math.max(0, delayMs),
   );
-  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  const inserted = Math.max(
+    0,
+    nextCharacters.length - commonPrefix - commonSuffix,
+  );
   if (inserted > 0) {
     const perCharacter = boundedDelay / inserted;
     const end = Math.min(targetLength, commonPrefix + inserted);
@@ -849,9 +873,24 @@ export function countCommittedEdit(previous: string, next: string) {
   ) {
     commonPrefix += 1;
   }
-  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  let commonSuffix = 0;
+  while (
+    commonSuffix < previousCharacters.length - commonPrefix &&
+    commonSuffix < nextCharacters.length - commonPrefix &&
+    previousCharacters[previousCharacters.length - 1 - commonSuffix] ===
+      nextCharacters[nextCharacters.length - 1 - commonSuffix]
+  ) {
+    commonSuffix += 1;
+  }
+  const inserted = Math.max(
+    0,
+    nextCharacters.length - commonPrefix - commonSuffix,
+  );
   return {
-    removed: Math.max(0, previousCharacters.length - commonPrefix),
+    removed: Math.max(
+      0,
+      previousCharacters.length - commonPrefix - commonSuffix,
+    ),
     inserted,
     phraseChars: inserted > 1 ? inserted : 0,
   };
@@ -952,14 +991,14 @@ export async function loadWubiChallenge(): Promise<WubiEntry[]> {
 }
 
 export function getSessions() {
-  return readLocalArray<SessionResult>(STORAGE.sessions);
+  return readValidatedLocalArray(STORAGE.sessions, 500, isSessionResult);
 }
 
 export function getProgress() {
-  return readLocalArray<ArticleProgress>(STORAGE.progress);
+  return readValidatedLocalArray(STORAGE.progress, 500, isArticleProgress);
 }
 
-export function saveSession(session: SessionResult) {
+export function saveSession(session: SessionResult): boolean {
   let retainedHeatmaps = 0;
   const sessions = [session, ...getSessions()].slice(0, 500).map((item) => {
     if (!item.heatmap) return item;
@@ -969,8 +1008,7 @@ export function saveSession(session: SessionResult) {
     delete summary.heatmap;
     return summary;
   });
-  writeLocal(STORAGE.sessions, sessions);
-  if (!session.articleId) return;
+  if (!session.articleId) return writeLocal(STORAGE.sessions, sessions);
   const progress = getProgress();
   const existing = progress.find((row) => row.articleId === session.articleId);
   if (existing) {
@@ -989,11 +1027,35 @@ export function saveSession(session: SessionResult) {
       errors: session.errors,
     });
   }
-  writeLocal(STORAGE.progress, progress);
+  if (typeof window === "undefined") return false;
+  let oldSessions: string | null;
+  let oldProgress: string | null;
+  try {
+    oldSessions = window.localStorage.getItem(STORAGE.sessions);
+    oldProgress = window.localStorage.getItem(STORAGE.progress);
+  } catch {
+    return false;
+  }
+  try {
+    window.localStorage.setItem(STORAGE.sessions, JSON.stringify(sessions));
+    window.localStorage.setItem(STORAGE.progress, JSON.stringify(progress));
+    return true;
+  } catch {
+    try {
+      if (oldSessions === null) window.localStorage.removeItem(STORAGE.sessions);
+      else window.localStorage.setItem(STORAGE.sessions, oldSessions);
+      if (oldProgress === null) window.localStorage.removeItem(STORAGE.progress);
+      else window.localStorage.setItem(STORAGE.progress, oldProgress);
+    } catch {
+      // The original write already failed; keep the API non-throwing for a
+      // completed practice while making a best effort to restore both keys.
+    }
+    return false;
+  }
 }
 
 export function getErrors(): ErrorStat[] {
-  const stored = readLocalArray<ErrorStat>(STORAGE.errors);
+  const stored = readValidatedLocalArray(STORAGE.errors, 300, isErrorStat);
   const merged = mergeErrorStatsByText(stored);
   if (merged.length !== stored.length) {
     writeLocal(STORAGE.errors, merged);
@@ -1408,6 +1470,21 @@ function validateArray(
     value.length <= maximum &&
     value.every(validator)
   );
+}
+
+function readValidatedLocalArray<T>(
+  key: string,
+  maximum: number,
+  validator: (item: unknown) => item is T,
+): T[] {
+  const raw = readLocal<unknown>(key, []);
+  if (!Array.isArray(raw)) {
+    writeLocal(key, []);
+    return [];
+  }
+  const validated = raw.slice(0, maximum).filter(validator);
+  if (validated.length !== raw.length) writeLocal(key, validated);
+  return validated;
 }
 
 function isSettings(value: unknown): value is UserSettings {

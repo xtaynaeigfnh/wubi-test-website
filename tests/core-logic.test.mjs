@@ -120,6 +120,11 @@ test("typing diagnostics derive correction cost, phrase rate, and hand use", () 
     inserted: 1,
     phraseChars: 0,
   });
+  assert.deepEqual(countCommittedEdit("中国民", "中国人民"), {
+    removed: 0,
+    inserted: 1,
+    phraseChars: 0,
+  });
   assert.equal(classifyWubiHand("a", "KeyA"), "left");
   assert.equal(classifyWubiHand("j", "KeyJ"), "right");
   assert.equal(classifyWubiHand("Shift", "ShiftLeft"), null);
@@ -154,6 +159,17 @@ test("typing delay samples follow Unicode positions, phrase commits, and correct
     delays,
   });
   assert.deepEqual(delays, [600, 2200, 1200]);
+
+  assert.deepEqual(
+    applyTypingDelaySample({
+      previous: "😀中国民",
+      next: "😀中国人民",
+      target: "😀中国人民",
+      delayMs: 1000,
+      delays: [],
+    }),
+    [0, 0, 0, 1000, 0],
+  );
 });
 
 test("typing transition timing keeps active time around a manual pause", () => {
@@ -349,6 +365,10 @@ test("IME pre-edit buffers are deferred and a repeated final value is not counte
   assert.deepEqual(firstCommit, { attempts: 1, correct: 1 });
   assert.deepEqual(repeatedCommit, { attempts: 0, correct: 0 });
   assert.deepEqual(secondCommit, { attempts: 1, correct: 1 });
+  assert.deepEqual(countCommittedAttempts("中国民", "中国人民", "中国人民"), {
+    attempts: 1,
+    correct: 1,
+  });
 });
 
 test("Wubi letter detection falls back to physical keys for Windows IME events", () => {
@@ -367,24 +387,24 @@ test("keyboard usage summary groups physical keys by hand, row, finger, and Wubi
     "KeyQ", "KeyQ", "KeyQ", "KeyQ",
     "KeyA", "KeyA",
     "KeyY", "KeyY", "KeyY",
-    "Space",
+    "Space", "KeyZ",
   ]) {
     usage = incrementKeyUsage(usage, code);
   }
   assert.equal(incrementKeyUsage(usage, "MediaPlayPause"), usage);
 
   const summary = summarizeKeyUsage(usage);
-  assert.equal(summary.total, 10);
+  assert.equal(summary.total, 11);
   assert.deepEqual(summary.mostUsed, { label: "Q", count: 4 });
   assert.deepEqual(summary.hands.map(({ label, count }) => [label, count]), [
-    ["左手", 6],
+    ["左手", 7],
     ["右手", 3],
   ]);
   assert.deepEqual(summary.rows.map(({ label, count }) => [label, count]), [
     ["数字排", 0],
     ["上排", 7],
     ["中排", 2],
-    ["下排", 0],
+    ["下排", 1],
   ]);
   assert.deepEqual(summary.zones.map(({ name, count }) => [name, count]), [
     ["撇区", 4],

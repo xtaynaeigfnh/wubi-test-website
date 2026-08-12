@@ -256,6 +256,9 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
   assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
   assert.match(summary, /id="finger-usage-title"[\s\S]*className="vertical-chart"/);
+  assert.match(summary, /className="axis-bars" role="list"/);
+  assert.match(summary, /className="vertical-chart" role="list"/);
+  assert.match(summary, /className="vertical-bar"[\s\S]*role="listitem"/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
   assert.match(styles, /\.hand-pie\s*\{[^}]*border-radius:\s*50%/s);
@@ -271,6 +274,10 @@ test("typing surfaces record physical keys and the summary exposes the reference
   );
   assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.vertical-chart/s);
+  assert.match(
+    styles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.key-summary-page \*[\s\S]*animation-delay:\s*0\.01ms !important/s,
+  );
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {

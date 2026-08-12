@@ -6882,7 +6882,7 @@ textarea {
     0 2px 0 color-mix(in srgb, var(--border-strong) 90%, #000),
     0 0 calc(20px * var(--heat)) color-mix(in srgb, var(--accent-vermilion) calc(var(--heat) * 56%), transparent);
   transform-origin: center bottom;
-  animation: heat-key-rise 420ms calc(80ms + var(--key-index) * 9ms) var(--ease-out) both;
+  animation: heat-key-rise 420ms calc(80ms + var(--key-index) * 9ms) var(--ease-out) backwards;
 }
 
 .key-summary-page .heat-key:hover {
@@ -7319,5 +7319,14 @@ textarea {
 
   .vertical-grid {
     left: 20px;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .key-summary-page *,
+  .key-summary-page *::before,
+  .key-summary-page *::after {
+    animation-delay: 0.01ms !important;
   }
 }
