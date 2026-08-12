@@ -3,19 +3,19 @@
 ## 项目结构与模块组织
 
 - `app/` 存放 Next.js 路由、共享 TypeScript 模块和 React 组件。路由入口放在 `app/<route>/page.tsx`，可复用界面组件放在 `app/components/`。
-- `app/components/WubiApp.tsx` 负责各路由的应用外壳和主要交互；训练计划、成绩趋势、数据管理、PWA 安装与根级音乐播放器分别拆分在 `TrainingCenter.tsx`、`TrendPanel.tsx`、`DataManagement.tsx`、`PwaControl.tsx` 和 `MusicPlayer.tsx`。
-- `app/lib.ts` 集中处理浏览器本地数据、文章与码表加载、练习统计、备份校验/恢复，以及基于单字和词组最优分段的理论最小码长计算；共享类型位于 `app/types.ts`，音乐目录逻辑位于 `app/music.ts`。
+- `app/components/WubiApp.tsx` 负责各路由的应用外壳和主要交互；训练计划、成绩趋势、按键画像、卡顿热力图、数据管理、PWA 安装与根级音乐播放器分别拆分在 `TrainingCenter.tsx`、`TrendPanel.tsx`、`KeySummary.tsx`、`HesitationHeatmap.tsx`、`DataManagement.tsx`、`PwaControl.tsx` 和 `MusicPlayer.tsx`。
+- `app/lib.ts` 集中处理浏览器本地数据、文章与码表加载、练习统计、备份校验/恢复，以及基于单字和词组最优分段的理论最小码长计算；共享类型位于 `app/types.ts`，按键统计、音乐目录、分享卡片和 ChatGPT 授权逻辑分别位于 `app/key-usage.ts`、`app/music.ts`、`app/share-card.ts` 和 `app/chatgpt-auth.ts`。
 - `tests/` 存放 Node 测试套件，测试文件统一命名为 `*.test.mjs`。
 - `public/` 存放 PWA 清单、Service Worker、生成的 JSON 数据、图标和离线音频。
 - `scripts/` 用于生成 200 篇分级文章、常用字与五笔数据。原始数据和许可证位于 `third_party/`；重新分发时必须保留来源与授权信息。
-- `worker/`、`db/`、`drizzle/`、`vite.config.ts`、`build/` 和 `.openai/hosting.json` 支撑 Vinext/Sites/Cloudflare 运行环境；当前 D1 与 R2 均未启用。GitHub Pages 静态导出配置位于 `next.config.ts` 和 `.github/workflows/pages.yml`。
+- `worker/`、`db/`、`drizzle/`、`vite.config.ts`、`build/` 和 `.openai/hosting.json` 支撑 Vinext/Sites/Cloudflare 运行环境；当前 D1 与 R2 均未启用，`examples/d1/` 仅保留可选 D1 用法示例。GitHub Pages 静态导出配置位于 `next.config.ts` 和 `.github/workflows/pages.yml`。
 
 ## 构建、测试与开发命令
 
 使用 Node.js 22.13 或更高版本，并通过 `npm ci` 按锁文件精确安装依赖。
 
 - `npm run dev`：启动支持热更新的 Vinext 开发服务器。
-- `npm run build`：生成 Vinext 生产构建。
+- `npm run build`：生成 Vinext 生产构建，默认输出到 `dist/`。
 - `npm run build:pages`：生成供 GitHub Pages 使用的 Next.js 静态导出。
 - `npm run start`：在本地运行已完成的生产构建。
 - `npm run data:generate`：重新生成四组文章文件、文章索引、常用字数据、完整五笔码表及挑战码表。
