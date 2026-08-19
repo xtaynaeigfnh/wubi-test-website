@@ -1397,6 +1397,352 @@ a {
   font-size: 10px;
 }
 
+.heatmap-segment-button {
+  min-width: 1em;
+  min-height: 28px;
+  margin: 0;
+  padding: 2px 1px;
+  color: inherit;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.heatmap-segment-button.heat-level-1 {
+  background: var(--heat-mild);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent-vermilion) 45%, transparent);
+}
+
+.heatmap-segment-button.heat-level-2 {
+  color: #251810;
+  background: var(--heat-clear);
+  box-shadow: inset 0 -3px 0 var(--accent-vermilion-dark);
+}
+
+.heatmap-segment-button.heat-level-3 {
+  color: var(--heat-severe-text);
+  background: var(--heat-severe);
+  box-shadow: inset 0 -3px 0 var(--accent-vermilion-dark);
+}
+
+.heatmap-segment-button:hover {
+  outline: 2px solid var(--accent-vermilion);
+  outline-offset: 2px;
+}
+
+.heatmap-segment-button:focus-visible,
+.hesitation-segment-actions button:focus-visible,
+.hesitation-practice-modal button:focus-visible,
+.hesitation-practice-input:focus-visible {
+  outline: 3px solid var(--accent-bamboo);
+  outline-offset: 3px;
+}
+
+.hesitation-segment-actions {
+  margin-top: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.hesitation-segment-actions button {
+  min-height: 32px;
+  padding: 0 8px;
+  color: var(--accent-bamboo);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-paper);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.hesitation-segment-actions button:first-of-type {
+  color: var(--text-on-accent);
+  border-color: var(--accent-bamboo);
+  background: var(--accent-bamboo-fill);
+}
+
+.hesitation-segment-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.hesitation-segment-status {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font: 700 9px/1.4 var(--font-data);
+  white-space: normal;
+}
+
+.hesitation-segment-status i {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--text-on-accent);
+  border-radius: 50%;
+  background: var(--accent-bamboo-fill);
+  font-style: normal;
+}
+
+.hesitation-practice-modal {
+  max-height: calc(100dvh - 116px);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  overflow-y: auto;
+  background:
+    linear-gradient(rgba(32, 38, 34, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 38, 34, 0.022) 1px, transparent 1px),
+    var(--bg-raised);
+  background-size: 32px 32px;
+}
+
+.hesitation-practice-meta {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hesitation-practice-meta > div {
+  display: grid;
+  gap: 4px;
+}
+
+.hesitation-practice-meta .eyebrow {
+  margin: 0;
+}
+
+.hesitation-practice-meta strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.hesitation-practice-meta > span {
+  color: var(--text-secondary);
+  font: 700 10px/1.4 var(--font-data);
+}
+
+.hesitation-practice-target {
+  padding: 18px 20px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-top: 3px solid var(--accent-vermilion);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+  font-family: var(--font-reading);
+  font-size: clamp(22px, 5vw, 34px);
+  line-height: 1.75;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.hesitation-practice-target span {
+  min-width: 1em;
+  display: inline-block;
+  border-radius: 3px;
+}
+
+.hesitation-practice-target span.focus-fragment {
+  box-shadow: inset 0 -3px 0 var(--accent-vermilion);
+}
+
+.hesitation-practice-target span.correct {
+  color: var(--accent-bamboo);
+}
+
+.hesitation-practice-target span.wrong {
+  color: var(--text-on-accent);
+  background: var(--state-error-fill);
+}
+
+.hesitation-practice-target span.current {
+  color: var(--text-on-accent);
+  background: var(--accent-vermilion-fill);
+}
+
+.hesitation-practice-goal,
+.hesitation-practice-ready p,
+.hesitation-practice-outcome p,
+.hesitation-save-error p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.hesitation-practice-goal {
+  padding-left: 10px;
+  border-left: 3px solid var(--accent-bamboo);
+}
+
+.hesitation-practice-ready,
+.hesitation-practice-done,
+.hesitation-save-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hesitation-practice-input-block {
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+}
+
+.hesitation-practice-input {
+  width: 100%;
+  min-height: 108px;
+  padding: 18px 20px;
+  resize: vertical;
+  color: var(--text-primary);
+  border: 0;
+  background: var(--bg-paper);
+  font-family: var(--font-reading);
+  font-size: 20px;
+  line-height: 1.7;
+}
+
+.hesitation-practice-live {
+  min-height: 42px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
+  font: 700 9px/1.4 var(--font-data);
+}
+
+.hesitation-practice-notice {
+  margin: 0;
+  padding: 8px 16px;
+  color: var(--state-warning, var(--accent-vermilion));
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+}
+
+.hesitation-round-result {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-default);
+  border-left: 4px solid var(--accent-bamboo);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+}
+
+.hesitation-round-result > span,
+.hesitation-round-result > strong {
+  font: 700 10px/1.4 var(--font-data);
+}
+
+.hesitation-round-result > span {
+  color: var(--text-secondary);
+}
+
+.hesitation-practice-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.hesitation-practice-outcome {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-default);
+  border-left: 4px solid var(--accent-vermilion);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+}
+
+.hesitation-practice-outcome.mastered {
+  border-left-color: var(--state-success);
+}
+
+.hesitation-practice-outcome > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--text-on-accent);
+  border-radius: 50%;
+  background: var(--accent-vermilion-fill);
+  font-weight: 800;
+}
+
+.hesitation-practice-outcome.mastered > span {
+  background: var(--state-success);
+}
+
+.hesitation-practice-outcome strong {
+  display: block;
+  margin-bottom: 3px;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.hesitation-attempt-table {
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+}
+
+.hesitation-attempt-table > div {
+  min-height: 42px;
+  padding: 0 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font: 600 10px/1.4 var(--font-data);
+}
+
+.hesitation-attempt-table > div:first-child {
+  border-top: 0;
+}
+
+.hesitation-attempt-head {
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  font-weight: 800 !important;
+}
+
+.hesitation-saving,
+.hesitation-practice-done > span {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.hesitation-save-error {
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--state-error) 45%, var(--border-default));
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--state-error) 6%, var(--bg-paper));
+}
+
 .side-panel {
   padding: 24px;
 }
@@ -3375,6 +3721,7 @@ select,
 
 .daily-progress-card,
 .smart-plan-card,
+.hesitation-queue-card,
 .code-drill,
 .management-card,
 .trend-panel {
@@ -3385,12 +3732,14 @@ select,
 }
 
 .daily-progress-card,
-.smart-plan-card {
+.smart-plan-card,
+.hesitation-queue-card {
   padding: 24px;
 }
 
 .daily-progress-card .panel-title,
 .smart-plan-card .panel-title,
+.hesitation-queue-card .panel-title,
 .trend-panel .panel-title {
   min-height: auto;
   padding: 0 0 20px;
@@ -3398,7 +3747,8 @@ select,
 }
 
 .daily-progress-card .training-card-header,
-.smart-plan-card .training-card-header {
+.smart-plan-card .training-card-header,
+.hesitation-queue-card .training-card-header {
   min-height: 104px;
   padding: 4px 0 24px;
   display: grid;
@@ -3450,6 +3800,7 @@ select,
 
 .daily-progress-card h2,
 .smart-plan-card h2,
+.hesitation-queue-card h2,
 .code-drill h2,
 .management-card h2,
 .trend-panel h2 {
@@ -3594,6 +3945,99 @@ select,
   font: 700 8px/1 var(--font-data);
   letter-spacing: 0.12em;
   pointer-events: none;
+}
+
+.hesitation-queue-card {
+  grid-column: 1 / -1;
+  border-top: 3px solid var(--accent-vermilion);
+}
+
+.hesitation-queue-card .training-card-stat strong small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.hesitation-queue-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+}
+
+.hesitation-queue-list li {
+  min-width: 0;
+  min-height: 112px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.hesitation-queue-list li[data-status="in-progress"] {
+  border-left: 4px solid var(--accent-bamboo);
+}
+
+.hesitation-queue-list li[data-status="completed"] {
+  background: color-mix(in srgb, var(--state-success) 6%, var(--bg-raised));
+}
+
+.hesitation-queue-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.hesitation-queue-copy > span,
+.hesitation-queue-copy small,
+.hesitation-queue-copy time {
+  color: var(--text-secondary);
+  font: 700 9px/1.4 var(--font-data);
+}
+
+.hesitation-queue-copy strong {
+  overflow: hidden;
+  font-family: var(--font-reading);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hesitation-queue-copy time {
+  color: var(--state-success);
+}
+
+.hesitation-queue-list .button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.hesitation-queue-empty {
+  min-height: 104px;
+  padding: 18px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  text-align: center;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.hesitation-queue-empty span,
+.hesitation-queue-note {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.hesitation-queue-note {
+  margin: 14px 0 0;
 }
 
 .plan-message {
@@ -8149,5 +8593,75 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .theme-preset-option {
     transition: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .hesitation-queue-list {
+    grid-template-columns: 1fr;
+  }
+
+  .hesitation-queue-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .hesitation-queue-list .button {
+    width: 100%;
+  }
+
+  .hesitation-practice-modal {
+    max-height: calc(100dvh - 96px);
+    padding: 14px;
+  }
+
+  .hesitation-practice-meta,
+  .hesitation-practice-ready,
+  .hesitation-practice-done,
+  .hesitation-save-error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hesitation-practice-meta > span {
+    text-align: left;
+  }
+
+  .hesitation-practice-target {
+    padding: 14px 10px;
+    font-size: 23px;
+  }
+
+  .hesitation-round-result {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hesitation-round-result .button {
+    grid-column: 1 / -1;
+  }
+
+  .hesitation-practice-ready .button,
+  .hesitation-practice-done .button,
+  .hesitation-save-error .button {
+    width: 100%;
+  }
+
+  .hesitation-segment-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .hesitation-segment-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heatmap-segment-button,
+  .hesitation-practice-modal *,
+  .hesitation-practice-modal *::before,
+  .hesitation-practice-modal *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
   }
 }

@@ -13,6 +13,9 @@ import type {
   DailyGoal,
   DailyProgress,
   ErrorStat,
+  HesitationQueueItem,
+  HesitationPracticeQueue,
+  HesitationPracticeTarget,
   HesitationSegment,
   PracticeArticle,
   SessionResult,
@@ -43,6 +46,7 @@ export const STORAGE = {
   music: "wubi-test:music:v1",
   keyUsage: "wubi-test:key-usage:v1",
   trainingPlan: "wubi-test:training-plan:v1",
+  hesitationQueue: "wubi-test:hesitation-queue:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -153,25 +157,37 @@ export function readSettings(): UserSettings {
 
 export function readDailyGoal(): DailyGoal {
   const value = readLocal<Partial<DailyGoal>>(STORAGE.dailyGoal, {});
+  const integerInRange = (
+    candidate: unknown,
+    minimum: number,
+    maximum: number,
+    fallback: number,
+  ) =>
+    typeof candidate === "number" &&
+    Number.isFinite(candidate) &&
+    candidate >= minimum &&
+    candidate <= maximum
+      ? Math.round(candidate)
+      : fallback;
   return {
-    targetChars:
-      typeof value.targetChars === "number" &&
-      value.targetChars >= 100 &&
-      value.targetChars <= 10000
-        ? value.targetChars
-        : defaultDailyGoal.targetChars,
-    targetMinutes:
-      typeof value.targetMinutes === "number" &&
-      value.targetMinutes >= 5 &&
-      value.targetMinutes <= 180
-        ? value.targetMinutes
-        : defaultDailyGoal.targetMinutes,
-    targetRounds:
-      typeof value.targetRounds === "number" &&
-      value.targetRounds >= 1 &&
-      value.targetRounds <= 20
-        ? value.targetRounds
-        : defaultDailyGoal.targetRounds,
+    targetChars: integerInRange(
+      value.targetChars,
+      100,
+      10000,
+      defaultDailyGoal.targetChars,
+    ),
+    targetMinutes: integerInRange(
+      value.targetMinutes,
+      5,
+      180,
+      defaultDailyGoal.targetMinutes,
+    ),
+    targetRounds: integerInRange(
+      value.targetRounds,
+      1,
+      20,
+      defaultDailyGoal.targetRounds,
+    ),
   };
 }
 
@@ -180,11 +196,14 @@ export function selectInitialArticle(
   builtInArticles: PracticeArticle[],
   currentId: string | null,
   preferredLength: ArticleLength | "all",
+  prioritizeCurrent = false,
 ): PracticeArticle | null {
   const matchesPreference = (article: PracticeArticle) =>
     preferredLength === "all" || article.length === preferredLength;
   const current = availableArticles.find(
-    (article) => article.id === currentId && matchesPreference(article),
+    (article) =>
+      article.id === currentId &&
+      (prioritizeCurrent || matchesPreference(article)),
   );
   if (current) return current;
 
@@ -703,9 +722,18 @@ export function calculateTypingMetrics({
   const typedCharacters = Array.from(typed);
   const targetCharacters = Array.from(target);
   let correctChars = 0;
+  let correctHanChars = 0;
+  let correctDirectLetterKeys = 0;
   for (let index = 0; index < typedCharacters.length; index += 1) {
-    if (typedCharacters[index] === targetCharacters[index]) correctChars += 1;
+    if (typedCharacters[index] !== targetCharacters[index]) continue;
+    correctChars += 1;
+    if (hanCharacterPattern.test(targetCharacters[index])) {
+      correctHanChars += 1;
+    } else if (/^[a-y]$/i.test(targetCharacters[index])) {
+      correctDirectLetterKeys += 1;
+    }
   }
+  const wubiLetterKeys = Math.max(0, letterKeys - correctDirectLetterKeys);
   return {
     correctChars,
     attemptedChars: Math.max(targetCharacters.length, attemptCount),
@@ -714,7 +742,7 @@ export function calculateTypingMetrics({
         ? Math.round(correctChars / (durationSeconds / 60))
         : 0,
     kps: durationSeconds > 0 ? keyCount / durationSeconds : 0,
-    codeLength: correctChars > 0 ? letterKeys / correctChars : 0,
+    codeLength: correctHanChars > 0 ? wubiLetterKeys / correctHanChars : 0,
     accuracy: calculateAccuracy(correctAttemptCount, attemptCount),
   };
 }
@@ -1068,6 +1096,94 @@ export function startTrainingTask(
   return writeTrainingPlan(plan) ? plan : null;
 }
 
+function emptyHesitationQueue(now: Date): HesitationPracticeQueue {
+  return {
+    version: 1,
+    date: localDateKey(now),
+    items: [],
+  };
+}
+
+export function readHesitationQueue(
+  now = new Date(),
+): HesitationPracticeQueue {
+  const empty = emptyHesitationQueue(now);
+  const value = readLocal<unknown>(STORAGE.hesitationQueue, null);
+  if (isHesitationPracticeQueue(value) && value.date === empty.date) {
+    return value;
+  }
+  writeLocal(STORAGE.hesitationQueue, empty);
+  return empty;
+}
+
+export function addHesitationQueueItem(
+  target: HesitationPracticeTarget,
+  now = new Date(),
+): {
+  result: "added" | "duplicate" | "full" | "invalid" | "storage-error";
+  queue: HesitationPracticeQueue;
+} {
+  const queue = readHesitationQueue(now);
+  if (!isHesitationPracticeTarget(target)) {
+    return { result: "invalid", queue };
+  }
+  if (queue.items.some((item) => item.target.fingerprint === target.fingerprint)) {
+    return { result: "duplicate", queue };
+  }
+  if (queue.items.length >= 5) return { result: "full", queue };
+  if (typeof window === "undefined") return { result: "storage-error", queue };
+
+  let id = target.id;
+  let suffix = 2;
+  while (queue.items.some((item) => item.id === id)) {
+    id = `${target.id}-${suffix}`;
+    suffix += 1;
+  }
+  const next: HesitationPracticeQueue = {
+    ...queue,
+    items: [
+      ...queue.items,
+      {
+        id,
+        target,
+        status: "pending",
+        estimatedMinutes: 1,
+        addedAt: now.toISOString(),
+      },
+    ],
+  };
+  return writeLocal(STORAGE.hesitationQueue, next)
+    ? { result: "added", queue: next }
+    : { result: "storage-error", queue };
+}
+
+export function startHesitationQueueItem(
+  id: string,
+  now = new Date(),
+): HesitationPracticeQueue | null {
+  const queue = readHesitationQueue(now);
+  const index = queue.items.findIndex((item) => item.id === id);
+  if (index < 0) return null;
+  const current = queue.items[index];
+  if (current.status === "in-progress") return queue;
+
+  const item = {
+    ...current,
+    status: "in-progress" as const,
+    startedAt: now.toISOString(),
+  };
+  delete item.completedAt;
+  delete item.sessionId;
+  delete item.outcome;
+  const next = {
+    ...queue,
+    items: queue.items.map((candidate, itemIndex) =>
+      itemIndex === index ? item : candidate,
+    ),
+  };
+  return writeLocal(STORAGE.hesitationQueue, next) ? next : null;
+}
+
 function withCompletedTrainingTask(
   plan: DailyTrainingPlan | null,
   session: SessionResult,
@@ -1091,8 +1207,66 @@ export function savePracticeOutcome(
   session: SessionResult,
   observations: WeakObservation[] = [],
 ): boolean {
+  return persistPracticeOutcome(session, observations);
+}
+
+export function saveHesitationPracticeOutcome(
+  session: SessionResult,
+  observations: WeakObservation[] = [],
+  queueItemId?: string,
+): boolean {
+  if (
+    session.type !== "hesitation" ||
+    !session.hesitationPractice ||
+    !isSessionResult(session)
+  ) {
+    return false;
+  }
+  if (getSessions().some((item) => item.id === session.id)) return true;
+  if (!queueItemId) return persistPracticeOutcome(session, observations);
+
+  const queue = readHesitationQueue(new Date(session.date));
+  const index = queue.items.findIndex((item) => item.id === queueItemId);
+  if (index < 0) return false;
+  const current = queue.items[index];
+  const result = session.hesitationPractice;
+  if (
+    current.target.id !== result.target.id ||
+    current.target.fingerprint !== result.target.fingerprint
+  ) {
+    return false;
+  }
+  const completedItem = {
+    ...current,
+    status: "completed" as const,
+    startedAt: current.startedAt ?? session.date,
+    completedAt: result.completedAt,
+    sessionId: session.id,
+    outcome: result.outcome,
+  };
+  const nextQueue = {
+    ...queue,
+    items: queue.items.map((item, itemIndex) =>
+      itemIndex === index ? completedItem : item,
+    ),
+  };
+  return persistPracticeOutcome(
+    session,
+    observations,
+    new Map([[STORAGE.hesitationQueue, nextQueue]]),
+  );
+}
+
+function persistPracticeOutcome(
+  session: SessionResult,
+  observations: WeakObservation[],
+  extraWrites = new Map<string, unknown>(),
+): boolean {
+  if (typeof window === "undefined") return false;
+  const currentSessions = getSessions();
+  if (currentSessions.some((item) => item.id === session.id)) return true;
   let retainedHeatmaps = 0;
-  const sessions = [session, ...getSessions()].slice(0, 500).map((item) => {
+  const sessions = [session, ...currentSessions].slice(0, 500).map((item) => {
     if (!item.heatmap) return item;
     retainedHeatmaps += 1;
     if (retainedHeatmaps <= 50) return item;
@@ -1101,7 +1275,7 @@ export function savePracticeOutcome(
     return summary;
   });
   const progress = getProgress();
-  if (session.articleId) {
+  if (session.type === "article" && session.articleId) {
     const existing = progress.find((row) => row.articleId === session.articleId);
     if (existing) {
       existing.attempts += 1;
@@ -1120,18 +1294,25 @@ export function savePracticeOutcome(
       });
     }
   }
-  if (typeof window === "undefined") return false;
   const errors = observations.length
     ? applyWeakObservations(getErrors(), observations, new Date(session.date))
     : null;
   const currentPlan = readTrainingPlan();
   const trainingPlan = withCompletedTrainingTask(currentPlan, session);
   const writes = new Map<string, unknown>([[STORAGE.sessions, sessions]]);
-  if (session.articleId) writes.set(STORAGE.progress, progress);
+  if (session.type === "article" && session.articleId) {
+    writes.set(STORAGE.progress, progress);
+  }
   if (errors) writes.set(STORAGE.errors, errors);
   if (trainingPlan && session.trainingTaskId) {
     writes.set(STORAGE.trainingPlan, trainingPlan);
   }
+  for (const [key, value] of extraWrites) writes.set(key, value);
+  return commitLocalWrites(writes);
+}
+
+function commitLocalWrites(writes: Map<string, unknown>): boolean {
+  if (typeof window === "undefined") return false;
   let previous: Map<string, string | null>;
   try {
     previous = new Map(
@@ -1358,7 +1539,7 @@ export function buildTrendSeries(
     const date = new Date(session.date);
     return !result || date < result ? date : result;
   }, null);
-  const dayCount =
+  const rawDayCount =
     range === "all"
       ? Math.max(
           1,
@@ -1371,14 +1552,33 @@ export function buildTrendSeries(
             : 1,
         )
       : range;
-  return Array.from({ length: dayCount }, (_, offset) => {
-    const date = new Date(now);
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() - (dayCount - offset - 1));
-    const key = localDateKey(date);
-    const rows = articleSessions.filter(
-      (session) => localDateKey(session.date) === key,
-    );
+  const maximumContinuousDays = 3660;
+  const safeDayCount =
+    Number.isFinite(rawDayCount) && rawDayCount > 0
+      ? rawDayCount
+      : maximumContinuousDays + 1;
+  const useActiveDays = range === "all" && safeDayCount > maximumContinuousDays;
+  const dayCount = Math.min(safeDayCount, maximumContinuousDays);
+  const dateKeys = useActiveDays
+    ? Array.from(
+        new Set(articleSessions.map((session) => localDateKey(session.date))),
+      ).sort()
+    : Array.from({ length: dayCount }, (_, offset) => {
+        const date = new Date(now);
+        date.setHours(12, 0, 0, 0);
+        date.setDate(date.getDate() - (dayCount - offset - 1));
+        return localDateKey(date);
+      });
+  const sessionsByDate = new Map<string, SessionResult[]>();
+  for (const session of articleSessions) {
+    const key = localDateKey(session.date);
+    const rows = sessionsByDate.get(key) ?? [];
+    rows.push(session);
+    sessionsByDate.set(key, rows);
+  }
+  return dateKeys.map((key) => {
+    const date = new Date(`${key}T12:00:00`);
+    const rows = sessionsByDate.get(key) ?? [];
     const weightedChars = rows.reduce(
       (sum, session) => sum + session.correctChars,
       0,
@@ -1462,6 +1662,169 @@ function isPracticeArticle(value: unknown): value is PracticeArticle {
   );
 }
 
+function isHesitationPracticeTarget(
+  value: unknown,
+): value is HesitationPracticeTarget {
+  if (!isRecord(value)) return false;
+  const textLength = typeof value.text === "string" ? Array.from(value.text).length : 0;
+  return (
+    value.version === 1 &&
+    isBoundedString(value.id, 160) &&
+    value.id.length > 0 &&
+    isBoundedString(value.fingerprint, 200) &&
+    value.fingerprint.length > 0 &&
+    isBoundedString(value.sourceSessionId, 160) &&
+    value.sourceSessionId.length > 0 &&
+    (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
+    isBoundedString(value.sourceTitle, 200) &&
+    value.sourceTitle.length > 0 &&
+    isDateString(value.sourceDate) &&
+    isBoundedString(value.text, 15) &&
+    textLength > 0 &&
+    !/[\r\n]/.test(value.text) &&
+    Number.isInteger(value.sourceStart) &&
+    isFiniteRange(value.sourceStart, 0, 5000) &&
+    Number.isInteger(value.focusOffset) &&
+    isFiniteRange(value.focusOffset, 0, textLength - 1) &&
+    Number.isInteger(value.focusLength) &&
+    isFiniteRange(value.focusLength, 1, textLength) &&
+    value.focusOffset + value.focusLength <= textLength &&
+    value.fingerprint ===
+      `${value.text}\u0000${value.focusOffset}\u0000${value.focusLength}` &&
+    isFiniteRange(value.sourceDelayMs, 0, MAX_TYPING_DELAY_MS) &&
+    isFiniteRange(value.baselineMs, 0, MAX_TYPING_DELAY_MS) &&
+    isFiniteRange(value.thresholdMs, 1000, MAX_TYPING_DELAY_MS)
+  );
+}
+
+function isHesitationPracticeAttempt(
+  value: unknown,
+  targetLength: number,
+  round: 1 | 2 | 3,
+): boolean {
+  if (!isRecord(value)) return false;
+  const errorIndexes = value.errorIndexes;
+  const delaysMs = value.delaysMs;
+  return (
+    value.round === round &&
+    isFiniteRange(value.durationMs, 0, 1_000_000_000) &&
+    Array.isArray(errorIndexes) &&
+    errorIndexes.length <= targetLength &&
+    errorIndexes.every(
+      (index) =>
+        Number.isInteger(index) && isFiniteRange(index, 0, targetLength - 1),
+    ) &&
+    new Set(errorIndexes).size === errorIndexes.length &&
+    Array.isArray(delaysMs) &&
+    delaysMs.length <= targetLength &&
+    delaysMs.every((delay) => isFiniteRange(delay, 0, 1_000_000_000)) &&
+    isDateString(value.completedAt)
+  );
+}
+
+function isHesitationPracticeResult(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    !isHesitationPracticeTarget(value.target) ||
+    !Array.isArray(value.attempts) ||
+    value.attempts.length !== 3 ||
+    !["mastered", "needs-review"].includes(String(value.outcome)) ||
+    !isDateString(value.completedAt)
+  ) {
+    return false;
+  }
+  const targetLength = Array.from(value.target.text).length;
+  return value.attempts.every((attempt, index) =>
+    isHesitationPracticeAttempt(
+      attempt,
+      targetLength,
+      (index + 1) as 1 | 2 | 3,
+    ),
+  );
+}
+
+function isHesitationQueueItem(value: unknown): value is HesitationQueueItem {
+  if (
+    !isRecord(value) ||
+    !isBoundedString(value.id, 200) ||
+    value.id.length === 0 ||
+    !isHesitationPracticeTarget(value.target) ||
+    !["pending", "in-progress", "completed"].includes(String(value.status)) ||
+    value.estimatedMinutes !== 1 ||
+    !isDateString(value.addedAt) ||
+    (value.startedAt !== undefined && !isDateString(value.startedAt)) ||
+    (value.completedAt !== undefined && !isDateString(value.completedAt)) ||
+    (value.sessionId !== undefined && !isBoundedString(value.sessionId, 160)) ||
+    (value.outcome !== undefined &&
+      !["mastered", "needs-review"].includes(String(value.outcome)))
+  ) {
+    return false;
+  }
+  if (value.status === "pending") {
+    return (
+      value.startedAt === undefined &&
+      value.completedAt === undefined &&
+      value.sessionId === undefined &&
+      value.outcome === undefined
+    );
+  }
+  if (value.status === "in-progress") {
+    return (
+      value.startedAt !== undefined &&
+      value.completedAt === undefined &&
+      value.sessionId === undefined &&
+      value.outcome === undefined
+    );
+  }
+  return (
+    value.startedAt !== undefined &&
+    value.completedAt !== undefined &&
+    value.sessionId !== undefined &&
+    value.sessionId.length > 0 &&
+    value.outcome !== undefined
+  );
+}
+
+function isHesitationPracticeQueue(
+  value: unknown,
+): value is HesitationPracticeQueue {
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(String(value.date)) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 5 ||
+    !value.items.every(isHesitationQueueItem)
+  ) {
+    return false;
+  }
+  const ids = value.items.map((item) => item.id);
+  const fingerprints = value.items.map((item) => item.target.fingerprint);
+  return (
+    new Set(ids).size === ids.length &&
+    new Set(fingerprints).size === fingerprints.length
+  );
+}
+
+function isCustomPracticeArticle(value: unknown): value is PracticeArticle {
+  if (!isPracticeArticle(value) || value.kind !== "custom") return false;
+  const normalized = buildCustomArticle(
+    value.id,
+    value.title,
+    value.text,
+    value.version,
+  );
+  return (
+    normalized !== null &&
+    normalized.title === value.title &&
+    normalized.length === value.length &&
+    normalized.topic === value.topic &&
+    normalized.wordCount === value.wordCount &&
+    normalized.text === value.text
+  );
+}
+
 function isSessionResult(value: unknown): value is SessionResult {
   if (!isRecord(value)) return false;
   const numericFields = [
@@ -1489,7 +1852,9 @@ function isSessionResult(value: unknown): value is SessionResult {
   return (
     isBoundedString(value.id, 160) &&
     value.id.length > 0 &&
-    ["article", "challenge", "review", "roots"].includes(String(value.type)) &&
+    ["article", "challenge", "review", "roots", "hesitation"].includes(
+      String(value.type),
+    ) &&
     (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
     (value.trainingTaskId === undefined ||
       isBoundedString(value.trainingTaskId, 200)) &&
@@ -1512,7 +1877,12 @@ function isSessionResult(value: unknown): value is SessionResult {
       (Array.isArray(value.errorChars) &&
         value.errorChars.length <= 5000 &&
         value.errorChars.every((item) => isBoundedString(item, 8)))) &&
-    (value.heatmap === undefined || isTypingHeatmap(value.heatmap))
+    (value.heatmap === undefined || isTypingHeatmap(value.heatmap)) &&
+    (value.hesitationPractice === undefined ||
+      isHesitationPracticeResult(value.hesitationPractice)) &&
+    (value.type === "hesitation"
+      ? value.hesitationPractice !== undefined
+      : value.hesitationPractice === undefined)
   );
 }
 
@@ -1795,7 +2165,7 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.progress:
       return validateArray(value, 500, isArticleProgress);
     case STORAGE.customTexts:
-      return validateArray(value, 20, isPracticeArticle);
+      return validateArray(value, 20, isCustomPracticeArticle);
     case STORAGE.recent:
       return validateArray(
         value,
@@ -1814,6 +2184,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       return isValidKeyUsage(value);
     case STORAGE.trainingPlan:
       return isDailyTrainingPlan(value);
+    case STORAGE.hesitationQueue:
+      return isHesitationPracticeQueue(value);
     default:
       return false;
   }
@@ -1882,7 +2254,10 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     for (const key of STORAGE_KEYS) {
       if (key in validated.data) {
         window.localStorage.setItem(key, JSON.stringify(validated.data[key]));
-      } else if (key === STORAGE.trainingPlan) {
+      } else if (
+        key === STORAGE.trainingPlan ||
+        key === STORAGE.hesitationQueue
+      ) {
         window.localStorage.removeItem(key);
       }
     }

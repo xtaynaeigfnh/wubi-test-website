@@ -74,9 +74,46 @@ export interface TypingHeatmap {
   segments: HesitationSegment[];
 }
 
+export interface HesitationPracticeTarget {
+  version: 1;
+  id: string;
+  fingerprint: string;
+  sourceSessionId: string;
+  articleId?: string;
+  sourceTitle: string;
+  sourceDate: string;
+  text: string;
+  sourceStart: number;
+  focusOffset: number;
+  focusLength: number;
+  sourceDelayMs: number;
+  baselineMs: number;
+  thresholdMs: number;
+}
+
+export interface HesitationPracticeAttempt {
+  round: 1 | 2 | 3;
+  durationMs: number;
+  errorIndexes: number[];
+  delaysMs: number[];
+  completedAt: string;
+}
+
+export interface HesitationPracticeResult {
+  version: 1;
+  target: HesitationPracticeTarget;
+  attempts: [
+    HesitationPracticeAttempt,
+    HesitationPracticeAttempt,
+    HesitationPracticeAttempt,
+  ];
+  outcome: "mastered" | "needs-review";
+  completedAt: string;
+}
+
 export interface SessionResult {
   id: string;
-  type: "article" | "challenge" | "review" | "roots";
+  type: "article" | "challenge" | "review" | "roots" | "hesitation";
   articleId?: string;
   title: string;
   date: string;
@@ -104,6 +141,7 @@ export interface SessionResult {
   retryCount?: number;
   heatmap?: TypingHeatmap;
   trainingTaskId?: string;
+  hesitationPractice?: HesitationPracticeResult;
 }
 
 export interface ErrorStat {
@@ -163,6 +201,26 @@ export interface DailyTrainingPlan {
   estimatedMinutes: number;
   tasks: TrainingTask[];
   weakSnapshot: Record<string, number>;
+}
+
+export type HesitationQueueStatus = "pending" | "in-progress" | "completed";
+
+export interface HesitationQueueItem {
+  id: string;
+  target: HesitationPracticeTarget;
+  status: HesitationQueueStatus;
+  estimatedMinutes: number;
+  addedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  sessionId?: string;
+  outcome?: "mastered" | "needs-review";
+}
+
+export interface HesitationPracticeQueue {
+  version: 1;
+  date: string;
+  items: HesitationQueueItem[];
 }
 
 export interface TrainingSummary {
