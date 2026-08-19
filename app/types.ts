@@ -123,12 +123,26 @@ export interface ArticleProgress {
   errors: number;
 }
 
+export type ThemeId =
+  | "system"
+  | "light"
+  | "dark"
+  | "bamboo"
+  | "qingdai"
+  | "custom";
+
+export interface CustomTheme {
+  accent: string;
+  canvas: string;
+}
+
 export interface UserSettings {
   fontSize: number;
   preferredLength: ArticleLength | "all";
   showCodeHints: boolean;
   sound: boolean;
-  theme: "light" | "dark" | "system";
+  theme: ThemeId;
+  customTheme?: CustomTheme;
   autoNext: boolean;
 }
 
