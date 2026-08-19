@@ -74,6 +74,7 @@ export const KEYBOARD_ROWS: KeyboardKeyDefinition[][] = [
   ],
   [
     key("ShiftLeft", "Shift", "left", "左小指", "lower", 2.3),
+    key("KeyZ", "Z", "left", "左小指", "lower"),
     ..."XCVBN".split("").map((letter) =>
       key(`Key${letter}`, letter, "left", {
         X: "左无名指", C: "左中指", V: "左食指", B: "左食指", N: "右食指",

@@ -55,7 +55,29 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   assert.match(html, /按键使用画像/);
   assert.match(html, /键盘热力图/);
   assert.match(html, /左右手均衡/);
-  assert.match(html, /五笔五区使用率/);
-  assert.match(html, /手指使用率/);
+  assert.match(html, /不同位置按键使用率/);
+  assert.match(html, /手指使用率（分区）/);
   assert.match(html, /窄屏可左右滑动查看完整键盘/);
+});
+
+test("settings route server-renders every theme preset", async () => {
+  const response = await render("/settings");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+
+  assert.match(html, /主题预设/);
+  for (const [value, label] of [
+    ["system", "系统"],
+    ["light", "浅色"],
+    ["dark", "深色"],
+    ["bamboo", "竹纸"],
+    ["qingdai", "青黛"],
+    ["custom", "自定义"],
+  ]) {
+    assert.match(html, new RegExp(`data-theme-option="${value}"`));
+    assert.match(html, new RegExp(`>${label}<`));
+  }
+  assert.match(html, /即时预览/);
+  assert.match(html, /普通文字/);
+  assert.match(html, /练习区域/);
 });

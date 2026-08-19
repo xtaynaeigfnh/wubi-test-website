@@ -246,27 +246,38 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.doesNotMatch(summary, /返回本地成绩/);
   assert.match(summary, /按键使用画像/);
   assert.match(summary, /键盘热力图/);
-  assert.match(summary, /左右手均衡/);
-  assert.match(summary, /className="hand-heatmap" role="img" aria-label="左右手按键使用热力分布"/);
-  assert.match(summary, /className="hand-heat-circle"/);
-  assert.match(summary, /键盘行使用率/);
-  assert.match(summary, /五笔五区使用率/);
-  assert.match(summary, /手指使用率/);
+  assert.match(summary, /左右手均衡情况/);
+  assert.match(summary, /className="hand-pie"/);
+  assert.match(summary, /aria-label=\{`左右手按键使用热力分布/);
+  assert.match(summary, /不同位置按键使用率/);
+  assert.match(summary, /title="手指使用率"/);
+  assert.match(summary, /手指使用率（分区）/);
   assert.match(summary, /aria-label="练习按键次数热力图"/);
   assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
   assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
-  assert.match(summary, /id="finger-usage-title"[\s\S]*wide/);
+  assert.match(summary, /id="finger-usage-title"[\s\S]*className="vertical-chart"/);
+  assert.match(summary, /className="axis-bars" role="list"/);
+  assert.match(summary, /className="vertical-chart" role="list"/);
+  assert.match(summary, /className="vertical-bar"[\s\S]*role="listitem"/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
   assert.match(styles, /\.key-analysis-grid\s*\{/);
-  assert.match(styles, /\.hand-heatmap\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /\.hand-heat-circle\s*\{[^}]*border-radius:\s*50%/s);
+  assert.match(styles, /\.hand-pie\s*\{[^}]*border-radius:\s*50%/s);
+  assert.match(styles, /\.axis-grid\s*\{/);
+  assert.match(styles, /\.vertical-bars\s*\{[^}]*grid-template-columns:\s*repeat\(9,/s);
+  assert.match(styles, /@keyframes heat-key-rise/);
+  assert.match(styles, /@keyframes pie-sweep-in/);
+  assert.match(styles, /@keyframes bar-grow-in/);
+  assert.match(styles, /@keyframes vertical-bar-grow-in/);
   assert.match(
     styles,
     /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
   );
   assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
-  assert.match(styles, /\.usage-card-wide \.usage-bars\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.key-summary-metrics/s);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.vertical-chart/s);
+  assert.match(
+    styles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.key-summary-page \*[\s\S]*animation-delay:\s*0\.01ms !important/s,
+  );
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
@@ -322,6 +333,88 @@ test("typing offers ordered common-character ranges with explicit reshuffling", 
   assert.match(styles, /\.common-range-grid\s*\{/);
   assert.match(styles, /\.common-range-grid button:last-child\s*\{/);
   assert.match(styles, /\.toolbar-actions \.shuffle-action\s*\{/);
+});
+
+test("theme settings expose six presets and accessible custom color controls", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  for (const [value, label] of [
+    ["system", "系统"],
+    ["light", "浅色"],
+    ["dark", "深色"],
+    ["bamboo", "竹纸"],
+    ["qingdai", "青黛"],
+    ["custom", "自定义"],
+  ]) {
+    assert.match(component, new RegExp(`${value}: "${label}"`));
+  }
+  assert.match(component, /主题预设/);
+  assert.match(component, /<fieldset className="theme-preset-fieldset">/);
+  assert.match(component, /<legend>主题预设<\/legend>/);
+  assert.match(component, /className=\{`theme-preset-option/);
+  assert.match(component, /type="radio"/);
+  assert.match(component, /name="theme"/);
+  assert.match(component, /data-theme-option=/);
+  assert.match(component, /settings\.theme === "custom"\s*&&/);
+  assert.match(
+    component,
+    /<label className="color-control"[^>]*>[\s\S]*?强调色[\s\S]*?<input[^>]*type="color"/,
+  );
+  assert.match(
+    component,
+    /<label className="color-control"[^>]*>[\s\S]*?页面背景色[\s\S]*?<input[^>]*type="color"/,
+  );
+  assert.equal(component.match(/type="color"/g)?.length, 2);
+  assert.match(component, /恢复当前主题默认配色/);
+});
+
+test("custom theme preview reports contrast and keeps semantic colors stable", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /function getContrastRatio\s*\(/);
+  assert.match(component, /function chooseContrastText\s*\(/);
+  assert.match(component, /4\.5/);
+  assert.match(component, /"--custom-accent":\s*accent/);
+  assert.match(component, /"--custom-canvas":\s*canvas/);
+  assert.match(component, /"--custom-text":\s*text/);
+  assert.match(component, /"--custom-accent-text":\s*chooseContrastText\(accent\)/);
+  assert.match(component, /Object\.entries\(customVariables\)/);
+  assert.match(component, /root\.style\.setProperty\(property, value\)/);
+  assert.match(component, /className="theme-preview/);
+  assert.match(component, /即时预览/);
+  assert.match(component, /className="theme-preview-button"/);
+  assert.match(component, /className="theme-preview-card"/);
+  assert.match(component, /className="theme-preview-practice"/);
+  assert.match(component, /颜色对比度不足[\s\S]*按钮已自动使用高对比度文字/);
+  assert.match(component, /达到 WCAG AA/);
+
+  assert.match(styles, /:root\[data-theme="bamboo"\]\s*\{/);
+  assert.match(styles, /:root\[data-theme="qingdai"\]\s*\{/);
+  const customThemeRule = styles.match(
+    /:root\[data-theme="custom"\]\s*\{([^}]*)\}/,
+  )?.[1];
+  assert.ok(customThemeRule);
+  assert.match(customThemeRule, /--bg-canvas:\s*var\(--custom-canvas,/);
+  assert.match(customThemeRule, /--accent-vermilion:\s*var\(--custom-accent,/);
+  assert.match(customThemeRule, /--text-primary:\s*var\(--custom-text,/);
+  assert.match(customThemeRule, /--text-on-accent:\s*var\(--custom-accent-text,/);
+  assert.doesNotMatch(customThemeRule, /--state-(?:success|error)|--heat-/);
+});
+
+test("header theme shortcut cycles basic themes and leaves presets for system", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /system:\s*"light"/);
+  assert.match(component, /light:\s*"dark"/);
+  assert.match(component, /dark:\s*"system"/);
+  assert.match(
+    component,
+    /function getNextQuickTheme[\s\S]*theme === "system" \|\| theme === "light" \|\| theme === "dark"[\s\S]*\? basicThemeCycle\[theme\][\s\S]*: "system";/,
+  );
+  assert.match(component, /aria-label=\{`当前\$\{currentThemeName\}主题，点击切换为\$\{themeLabels\[quickTheme\]\}主题`\}/);
 });
 
 test("common-character practice inherits the article reading rhythm", async () => {

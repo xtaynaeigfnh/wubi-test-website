@@ -8,6 +8,8 @@ import type {
   CommonCharacterData,
   CommonCharacterPreset,
   CommonPracticeArticle,
+  CustomTheme,
+  DailyTrainingPlan,
   DailyGoal,
   DailyProgress,
   ErrorStat,
@@ -17,8 +19,10 @@ import type {
   TypingHeatmap,
   TrendPoint,
   UserSettings,
+  WeakObservation,
   WubiEntry,
 } from "./types";
+import { applyWeakObservations } from "./training-plan.ts";
 import {
   incrementKeyUsage,
   isValidKeyUsage,
@@ -38,9 +42,34 @@ export const STORAGE = {
   currentGenerated: "wubi-test:current-generated-practice:v1",
   music: "wubi-test:music:v1",
   keyUsage: "wubi-test:key-usage:v1",
+  trainingPlan: "wubi-test:training-plan:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
+
+export const defaultCustomTheme: CustomTheme = {
+  accent: "#B3432B",
+  canvas: "#F2EBDD",
+};
+
+export function isValidHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+export function normalizeCustomTheme(value: unknown): CustomTheme {
+  const customTheme =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<CustomTheme>)
+      : {};
+  return {
+    accent: isValidHexColor(customTheme.accent)
+      ? customTheme.accent
+      : defaultCustomTheme.accent,
+    canvas: isValidHexColor(customTheme.canvas)
+      ? customTheme.canvas
+      : defaultCustomTheme.canvas,
+  };
+}
 
 export const defaultSettings: UserSettings = {
   fontSize: 30,
@@ -48,6 +77,7 @@ export const defaultSettings: UserSettings = {
   showCodeHints: false,
   sound: false,
   theme: "system",
+  customTheme: defaultCustomTheme,
   autoNext: false,
 };
 
@@ -107,9 +137,13 @@ export function readSettings(): UserSettings {
         ? partial.sound
         : defaultSettings.sound,
     theme:
-      partial.theme && ["light", "dark", "system"].includes(partial.theme)
+      partial.theme &&
+      ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
+        partial.theme,
+      )
         ? partial.theme
         : defaultSettings.theme,
+    customTheme: normalizeCustomTheme(partial.customTheme),
     autoNext:
       typeof partial.autoNext === "boolean"
         ? partial.autoNext
@@ -621,12 +655,23 @@ export function countCommittedAttempts(
     commonPrefix += 1;
   }
 
+  let commonSuffix = 0;
+  while (
+    commonSuffix < previousCharacters.length - commonPrefix &&
+    commonSuffix < nextCharacters.length - commonPrefix &&
+    previousCharacters[previousCharacters.length - 1 - commonSuffix] ===
+      nextCharacters[nextCharacters.length - 1 - commonSuffix]
+  ) {
+    commonSuffix += 1;
+  }
+
   let correct = 0;
-  for (let index = commonPrefix; index < nextCharacters.length; index += 1) {
+  const changedEnd = nextCharacters.length - commonSuffix;
+  for (let index = commonPrefix; index < changedEnd; index += 1) {
     if (nextCharacters[index] === targetCharacters[index]) correct += 1;
   }
   return {
-    attempts: Math.max(0, nextCharacters.length - commonPrefix),
+    attempts: Math.max(0, changedEnd - commonPrefix),
     correct,
   };
 }
@@ -747,11 +792,24 @@ export function applyTypingDelaySample({
     commonPrefix += 1;
   }
 
+  let commonSuffix = 0;
+  while (
+    commonSuffix < previousCharacters.length - commonPrefix &&
+    commonSuffix < nextCharacters.length - commonPrefix &&
+    previousCharacters[previousCharacters.length - 1 - commonSuffix] ===
+      nextCharacters[nextCharacters.length - 1 - commonSuffix]
+  ) {
+    commonSuffix += 1;
+  }
+
   const boundedDelay = Math.min(
     MAX_TYPING_DELAY_MS,
     Math.max(0, delayMs),
   );
-  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  const inserted = Math.max(
+    0,
+    nextCharacters.length - commonPrefix - commonSuffix,
+  );
   if (inserted > 0) {
     const perCharacter = boundedDelay / inserted;
     const end = Math.min(targetLength, commonPrefix + inserted);
@@ -838,7 +896,7 @@ export function buildTypingHeatmap(
   };
 }
 
-export function countCommittedEdit(previous: string, next: string) {
+export function getCommittedEditRange(previous: string, next: string) {
   const previousCharacters = Array.from(previous);
   const nextCharacters = Array.from(next);
   let commonPrefix = 0;
@@ -849,11 +907,35 @@ export function countCommittedEdit(previous: string, next: string) {
   ) {
     commonPrefix += 1;
   }
-  const inserted = Math.max(0, nextCharacters.length - commonPrefix);
+  let commonSuffix = 0;
+  while (
+    commonSuffix < previousCharacters.length - commonPrefix &&
+    commonSuffix < nextCharacters.length - commonPrefix &&
+    previousCharacters[previousCharacters.length - 1 - commonSuffix] ===
+      nextCharacters[nextCharacters.length - 1 - commonSuffix]
+  ) {
+    commonSuffix += 1;
+  }
+  const inserted = Math.max(
+    0,
+    nextCharacters.length - commonPrefix - commonSuffix,
+  );
   return {
-    removed: Math.max(0, previousCharacters.length - commonPrefix),
+    start: commonPrefix,
+    removed: Math.max(
+      0,
+      previousCharacters.length - commonPrefix - commonSuffix,
+    ),
     inserted,
+  };
+}
+
+export function countCommittedEdit(previous: string, next: string) {
+  const { removed, inserted } = getCommittedEditRange(previous, next);
+  return {
+    removed,
     phraseChars: inserted > 1 ? inserted : 0,
+    inserted,
   };
 }
 
@@ -952,14 +1034,63 @@ export async function loadWubiChallenge(): Promise<WubiEntry[]> {
 }
 
 export function getSessions() {
-  return readLocalArray<SessionResult>(STORAGE.sessions);
+  return readValidatedLocalArray(STORAGE.sessions, 500, isSessionResult);
 }
 
 export function getProgress() {
-  return readLocalArray<ArticleProgress>(STORAGE.progress);
+  return readValidatedLocalArray(STORAGE.progress, 500, isArticleProgress);
 }
 
-export function saveSession(session: SessionResult) {
+export function readTrainingPlan(): DailyTrainingPlan | null {
+  const value = readLocal<unknown>(STORAGE.trainingPlan, null);
+  if (value === null) return null;
+  if (isDailyTrainingPlan(value)) return value;
+  writeLocal(STORAGE.trainingPlan, null);
+  return null;
+}
+
+export function writeTrainingPlan(plan: DailyTrainingPlan): boolean {
+  return isDailyTrainingPlan(plan) && writeLocal(STORAGE.trainingPlan, plan);
+}
+
+export function startTrainingTask(
+  taskId: string,
+  now = new Date(),
+): DailyTrainingPlan | null {
+  const plan = readTrainingPlan();
+  if (!plan) return null;
+  const task = plan.tasks.find((item) => item.id === taskId);
+  if (!task) return null;
+  if (task.status === "pending") {
+    task.status = "in-progress";
+    task.startedAt = now.toISOString();
+  }
+  return writeTrainingPlan(plan) ? plan : null;
+}
+
+function withCompletedTrainingTask(
+  plan: DailyTrainingPlan | null,
+  session: SessionResult,
+): DailyTrainingPlan | null {
+  if (!plan || !session.trainingTaskId) return plan;
+  const task = plan.tasks.find((item) => item.id === session.trainingTaskId);
+  if (!task || task.status === "completed" || task.type !== session.type) {
+    return plan;
+  }
+  if (task.type === "article" && task.articleId !== session.articleId) {
+    return plan;
+  }
+  task.status = "completed";
+  task.startedAt ??= session.date;
+  task.completedAt = session.date;
+  task.sessionId = session.id;
+  return plan;
+}
+
+export function savePracticeOutcome(
+  session: SessionResult,
+  observations: WeakObservation[] = [],
+): boolean {
   let retainedHeatmaps = 0;
   const sessions = [session, ...getSessions()].slice(0, 500).map((item) => {
     if (!item.heatmap) return item;
@@ -969,56 +1100,88 @@ export function saveSession(session: SessionResult) {
     delete summary.heatmap;
     return summary;
   });
-  writeLocal(STORAGE.sessions, sessions);
-  if (!session.articleId) return;
   const progress = getProgress();
-  const existing = progress.find((row) => row.articleId === session.articleId);
-  if (existing) {
-    existing.attempts += 1;
-    existing.bestSpeed = Math.max(existing.bestSpeed, session.speed);
-    existing.completed = true;
-    existing.lastPracticed = session.date;
-    existing.errors += session.errors;
-  } else {
-    progress.push({
-      articleId: session.articleId,
-      attempts: 1,
-      bestSpeed: session.speed,
-      completed: true,
-      lastPracticed: session.date,
-      errors: session.errors,
-    });
+  if (session.articleId) {
+    const existing = progress.find((row) => row.articleId === session.articleId);
+    if (existing) {
+      existing.attempts += 1;
+      existing.bestSpeed = Math.max(existing.bestSpeed, session.speed);
+      existing.completed = true;
+      existing.lastPracticed = session.date;
+      existing.errors += session.errors;
+    } else {
+      progress.push({
+        articleId: session.articleId,
+        attempts: 1,
+        bestSpeed: session.speed,
+        completed: true,
+        lastPracticed: session.date,
+        errors: session.errors,
+      });
+    }
   }
-  writeLocal(STORAGE.progress, progress);
+  if (typeof window === "undefined") return false;
+  const errors = observations.length
+    ? applyWeakObservations(getErrors(), observations, new Date(session.date))
+    : null;
+  const currentPlan = readTrainingPlan();
+  const trainingPlan = withCompletedTrainingTask(currentPlan, session);
+  const writes = new Map<string, unknown>([[STORAGE.sessions, sessions]]);
+  if (session.articleId) writes.set(STORAGE.progress, progress);
+  if (errors) writes.set(STORAGE.errors, errors);
+  if (trainingPlan && session.trainingTaskId) {
+    writes.set(STORAGE.trainingPlan, trainingPlan);
+  }
+  let previous: Map<string, string | null>;
+  try {
+    previous = new Map(
+      Array.from(writes.keys()).map((key) => [
+        key,
+        window.localStorage.getItem(key),
+      ]),
+    );
+  } catch {
+    return false;
+  }
+  try {
+    for (const [key, value] of writes) {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }
+    return true;
+  } catch {
+    try {
+      for (const [key, oldValue] of previous) {
+        if (oldValue === null) window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, oldValue);
+      }
+    } catch {
+      // The original write already failed; keep the API non-throwing for a
+      // completed practice while making a best effort to restore every key.
+    }
+    return false;
+  }
+}
+
+export function saveSession(session: SessionResult): boolean {
+  return savePracticeOutcome(session);
 }
 
 export function getErrors(): ErrorStat[] {
-  const stored = readLocalArray<ErrorStat>(STORAGE.errors);
-  const merged = mergeErrorStatsByText(stored);
-  if (merged.length !== stored.length) {
+  const stored = readValidatedLocalArray(STORAGE.errors, 300, isErrorStat);
+  const merged = mergeErrorStatsByText(stored).map(normalizeErrorStat);
+  if (JSON.stringify(merged) !== JSON.stringify(stored)) {
     writeLocal(STORAGE.errors, merged);
   }
   return merged;
 }
 
 export function addError(text: string, code?: string) {
-  const errors = getErrors();
-  const existing = errors.find((row) => row.text === text);
-  if (existing) {
-    if (code) existing.code = code;
-    existing.count += 1;
-    existing.lastSeen = new Date().toISOString();
-    existing.mastery = Math.max(0, (existing.mastery ?? 0) - 1);
-  } else {
-    errors.push({
-      text,
-      code,
-      count: 1,
-      lastSeen: new Date().toISOString(),
-      mastery: 0,
-    });
-  }
-  writeLocal(STORAGE.errors, errors.sort((a, b) => b.count - a.count).slice(0, 300));
+  writeLocal(
+    STORAGE.errors,
+    applyWeakObservations(getErrors(), [
+      { text, code, kind: "coding-error" },
+    ]),
+  );
 }
 
 export function updateErrorMastery(
@@ -1026,27 +1189,23 @@ export function updateErrorMastery(
   code: string,
   correct: boolean,
 ): ErrorStat[] {
-  const errors = getErrors();
-  const existing = errors.find((row) => row.text === text);
-  if (!existing) {
-    writeLocal(STORAGE.errors, errors);
-    return errors;
-  }
-  existing.code = code;
-  if (correct) {
-    existing.mastery = Math.min(5, (existing.mastery ?? 0) + 1);
-    existing.lastCorrect = new Date().toISOString();
-  } else {
-    existing.count += 1;
-    existing.mastery = Math.max(0, (existing.mastery ?? 0) - 1);
-    existing.lastSeen = new Date().toISOString();
-  }
-  const next = errors.sort(
-    (a, b) =>
-      b.count - (b.mastery ?? 0) - (a.count - (a.mastery ?? 0)),
-  );
+  const next = applyWeakObservations(getErrors(), [
+    { text, code, kind: correct ? "correct" : "coding-error" },
+  ]);
   writeLocal(STORAGE.errors, next);
   return next;
+}
+
+function normalizeErrorStat(error: ErrorStat): ErrorStat {
+  return {
+    ...error,
+    codingErrors: error.codingErrors ?? error.count,
+    hesitationPoints: error.hesitationPoints ?? 0,
+    correctionCount: error.correctionCount ?? 0,
+    seenCount: error.seenCount ?? 0,
+    correctStreak: error.correctStreak ?? 0,
+    mastery: error.mastery ?? 0,
+  };
 }
 
 function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
@@ -1057,7 +1216,21 @@ function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
       merged.set(error.text, { ...error });
       continue;
     }
+    const existingCodingErrors = existing.codingErrors ?? existing.count;
     existing.count += error.count;
+    existing.codingErrors =
+      existingCodingErrors +
+      (error.codingErrors ?? error.count);
+    existing.hesitationPoints =
+      (existing.hesitationPoints ?? 0) + (error.hesitationPoints ?? 0);
+    existing.correctionCount =
+      (existing.correctionCount ?? 0) + (error.correctionCount ?? 0);
+    existing.seenCount =
+      (existing.seenCount ?? 0) + (error.seenCount ?? 0);
+    existing.correctStreak = Math.max(
+      existing.correctStreak ?? 0,
+      error.correctStreak ?? 0,
+    );
     existing.code = existing.code ?? error.code;
     existing.mastery = Math.min(
       5,
@@ -1318,6 +1491,8 @@ function isSessionResult(value: unknown): value is SessionResult {
     value.id.length > 0 &&
     ["article", "challenge", "review", "roots"].includes(String(value.type)) &&
     (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
+    (value.trainingTaskId === undefined ||
+      isBoundedString(value.trainingTaskId, 200)) &&
     isBoundedString(value.title, 200) &&
     isDateString(value.date) &&
     numericFields.every((field) => isFiniteRange(value[field], 0, 1_000_000_000)) &&
@@ -1368,6 +1543,13 @@ function isTypingHeatmap(value: unknown): value is TypingHeatmap {
 }
 
 function isErrorStat(value: unknown): value is ErrorStat {
+  const optionalIntegerFields = [
+    "codingErrors",
+    "hesitationPoints",
+    "correctionCount",
+    "seenCount",
+    "correctStreak",
+  ];
   return (
     isRecord(value) &&
     isBoundedString(value.text, 20) &&
@@ -1379,7 +1561,86 @@ function isErrorStat(value: unknown): value is ErrorStat {
     isDateString(value.lastSeen) &&
     (value.mastery === undefined ||
       (isFiniteRange(value.mastery, 0, 5) && Number.isInteger(value.mastery))) &&
-    (value.lastCorrect === undefined || isDateString(value.lastCorrect))
+    (value.lastCorrect === undefined || isDateString(value.lastCorrect)) &&
+    optionalIntegerFields.every(
+      (field) =>
+        value[field] === undefined ||
+        (isFiniteRange(value[field], 0, 1_000_000) &&
+          Number.isInteger(value[field])),
+    )
+  );
+}
+
+function isWubiEntry(value: unknown): value is WubiEntry {
+  return (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    isBoundedString(value[0], 20) &&
+    value[0].length > 0 &&
+    isBoundedString(value[1], 4) &&
+    /^[a-y]{1,4}$/i.test(value[1]) &&
+    isFiniteRange(value[2], 0, 10_000_000_000)
+  );
+}
+
+function isTrainingTask(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    isBoundedString(value.id, 200) &&
+    value.id.length > 0 &&
+    ["article", "review", "roots"].includes(String(value.type)) &&
+    ["pending", "in-progress", "completed"].includes(String(value.status)) &&
+    isBoundedString(value.title, 80) &&
+    value.title.length > 0 &&
+    isBoundedString(value.reason, 300) &&
+    isFiniteRange(value.estimatedMinutes, 1, 180) &&
+    Number.isInteger(value.estimatedMinutes) &&
+    Array.isArray(value.items) &&
+    value.items.length <= 20 &&
+    value.items.every(isWubiEntry) &&
+    (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
+    (value.articleTitle === undefined || isBoundedString(value.articleTitle, 80)) &&
+    (value.articleWordCount === undefined ||
+      (isFiniteRange(value.articleWordCount, 0, 5000) &&
+        Number.isInteger(value.articleWordCount))) &&
+    (value.zoneId === undefined || isBoundedString(value.zoneId, 20)) &&
+    (value.zoneKeys === undefined ||
+      (isBoundedString(value.zoneKeys, 5) && /^[a-y]{1,5}$/i.test(value.zoneKeys))) &&
+    (value.startedAt === undefined || isDateString(value.startedAt)) &&
+    (value.completedAt === undefined || isDateString(value.completedAt)) &&
+    (value.sessionId === undefined || isBoundedString(value.sessionId, 160))
+  );
+}
+
+function isDailyTrainingPlan(value: unknown): value is DailyTrainingPlan {
+  if (!isRecord(value)) return false;
+  if (
+    value.version !== 1 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(String(value.date)) ||
+    !isFiniteRange(value.revision, 0, 10_000) ||
+    !Number.isInteger(value.revision) ||
+    !isDateString(value.generatedAt) ||
+    !isFiniteRange(value.estimatedMinutes, 3, 540) ||
+    !Number.isInteger(value.estimatedMinutes) ||
+    !Array.isArray(value.tasks) ||
+    value.tasks.length !== 3 ||
+    !value.tasks.every(isTrainingTask) ||
+    !isRecord(value.weakSnapshot)
+  ) {
+    return false;
+  }
+  const types = value.tasks.map((task) => task.type);
+  return (
+    new Set(types).size === 3 &&
+    ["article", "review", "roots"].every((type) => types.includes(type)) &&
+    Object.keys(value.weakSnapshot).length <= 50 &&
+    Object.entries(value.weakSnapshot).every(
+      ([text, score]) =>
+        Array.from(text).length <= 20 &&
+        text.length > 0 &&
+        isFiniteRange(score, 0, 1000) &&
+        Number.isInteger(score),
+    )
   );
 }
 
@@ -1410,6 +1671,21 @@ function validateArray(
   );
 }
 
+function readValidatedLocalArray<T>(
+  key: string,
+  maximum: number,
+  validator: (item: unknown) => item is T,
+): T[] {
+  const raw = readLocal<unknown>(key, []);
+  if (!Array.isArray(raw)) {
+    writeLocal(key, []);
+    return [];
+  }
+  const validated = raw.slice(0, maximum).filter(validator);
+  if (validated.length !== raw.length) writeLocal(key, validated);
+  return validated;
+}
+
 function isSettings(value: unknown): value is UserSettings {
   return (
     isRecord(value) &&
@@ -1419,7 +1695,13 @@ function isSettings(value: unknown): value is UserSettings {
     ) &&
     typeof value.showCodeHints === "boolean" &&
     typeof value.sound === "boolean" &&
-    ["light", "dark", "system"].includes(String(value.theme)) &&
+    ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
+      String(value.theme),
+    ) &&
+    (!Object.hasOwn(value, "customTheme") ||
+      (isRecord(value.customTheme) &&
+        isValidHexColor(value.customTheme.accent) &&
+        isValidHexColor(value.customTheme.canvas))) &&
     typeof value.autoNext === "boolean"
   );
 }
@@ -1437,13 +1719,26 @@ function normalizeBackupSettings(value: unknown): UserSettings | null {
       )) ||
     (keys.has("showCodeHints") && typeof value.showCodeHints !== "boolean") ||
     (keys.has("sound") && typeof value.sound !== "boolean") ||
-    (keys.has("theme") &&
-      !["light", "dark", "system"].includes(String(value.theme))) ||
     (keys.has("autoNext") && typeof value.autoNext !== "boolean")
   ) {
     return null;
   }
-  return { ...defaultSettings, ...value } as UserSettings;
+  const theme = [
+    "light",
+    "dark",
+    "system",
+    "bamboo",
+    "qingdai",
+    "custom",
+  ].includes(String(value.theme))
+    ? (value.theme as UserSettings["theme"])
+    : defaultSettings.theme;
+  return {
+    ...defaultSettings,
+    ...value,
+    theme,
+    customTheme: normalizeCustomTheme(value.customTheme),
+  } as UserSettings;
 }
 
 function isDailyGoal(value: unknown): value is DailyGoal {
@@ -1517,6 +1812,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       return isMusicPreferences(value);
     case STORAGE.keyUsage:
       return isValidKeyUsage(value);
+    case STORAGE.trainingPlan:
+      return isDailyTrainingPlan(value);
     default:
       return false;
   }
@@ -1585,6 +1882,8 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     for (const key of STORAGE_KEYS) {
       if (key in validated.data) {
         window.localStorage.setItem(key, JSON.stringify(validated.data[key]));
+      } else if (key === STORAGE.trainingPlan) {
+        window.localStorage.removeItem(key);
       }
     }
   } catch {

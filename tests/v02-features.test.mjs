@@ -11,13 +11,26 @@ import {
   calculateDailyProgress,
   calculateStreak,
   createBackupPayload,
+  defaultCustomTheme,
+  getErrors,
+  getProgress,
+  getSessions,
   parseBackupPayload,
+  readSettings,
   recordKeyUsage,
   restoreBackupPayload,
+  savePracticeOutcome,
   saveSession,
   STORAGE,
   updateErrorMastery,
 } from "../app/lib.ts";
+import {
+  applyWeakObservations,
+  buildTrainingSummary,
+  generateDailyTrainingPlan,
+  regenerateIncompleteTasks,
+  scoreWeakItem,
+} from "../app/training-plan.ts";
 
 function session(overrides = {}) {
   return {
@@ -76,6 +89,142 @@ test("daily goals and streak use completed local sessions", () => {
     trainingSessions: 1,
   });
   assert.equal(calculateStreak(sessions, now), 2);
+});
+
+const trainingEntries = [
+  ["我", "q", 1477224452],
+  ["人", "w", 850000],
+  ["中", "k", 800000],
+  ["国", "l", 780000],
+  ["一", "g", 760000],
+  ["上", "h", 740000],
+  ["学", "i", 720000],
+  ["习", "n", 700000],
+  ["文", "y", 680000],
+  ["字", "p", 660000],
+  ["打", "r", 640000],
+  ["输", "lwg", 620000],
+  ["法", "ifc", 600000],
+  ["练", "xan", 580000],
+  ["速", "gkip", 560000],
+  ["度", "yac", 540000],
+];
+
+const trainingArticles = [
+  {
+    id: "article-a",
+    title: "练习文章甲",
+    length: "short",
+    topic: "测试",
+    wordCount: 100,
+    version: 1,
+    text: "我们练习中文输入法。",
+  },
+  {
+    id: "article-b",
+    title: "练习文章乙",
+    length: "short",
+    topic: "测试",
+    wordCount: 120,
+    version: 1,
+    text: "打字速度需要稳定训练。",
+  },
+];
+
+test("weakness scoring is explainable and consecutive correct answers lower priority", () => {
+  const now = new Date("2026-08-19T10:00:00+08:00");
+  const coding = {
+    text: "我",
+    count: 5,
+    codingErrors: 5,
+    lastSeen: "2026-08-19T09:00:00+08:00",
+    mastery: 0,
+  };
+  const hesitation = {
+    text: "人",
+    count: 0,
+    hesitationPoints: 6,
+    lastSeen: "2026-08-19T09:00:00+08:00",
+    mastery: 0,
+  };
+  assert.equal(scoreWeakItem(coding, now).issue, "coding-error");
+  assert.equal(scoreWeakItem(hesitation, now).issue, "hesitation");
+  assert.ok(scoreWeakItem(coding, now).score > scoreWeakItem(hesitation, now).score);
+
+  const once = applyWeakObservations([coding], [
+    { text: "我", code: "q", kind: "correct" },
+  ], now);
+  const twice = applyWeakObservations(once, [
+    { text: "我", code: "q", kind: "correct" },
+  ], now);
+  assert.ok(scoreWeakItem(once[0], now).score < scoreWeakItem(coding, now).score);
+  assert.ok(scoreWeakItem(twice[0], now).score < scoreWeakItem(once[0], now).score);
+  const reset = applyWeakObservations(twice, [
+    { text: "我", code: "q", kind: "coding-error" },
+  ], now);
+  assert.equal(reset[0].correctStreak, 0);
+});
+
+test("daily training plans are deterministic and provide a complete first-use prescription", () => {
+  const input = {
+    date: "2026-08-19",
+    now: new Date("2026-08-19T10:00:00+08:00"),
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [],
+    entries: trainingEntries,
+    preferredLength: "all",
+  };
+  const first = generateDailyTrainingPlan(input);
+  const second = generateDailyTrainingPlan(input);
+  assert.deepEqual(first, second);
+  assert.deepEqual(first.tasks.map((task) => task.type), ["article", "review", "roots"]);
+  assert.equal(first.tasks[1].items.length, 10);
+  assert.equal(first.tasks[2].zoneId, "heng");
+  assert.ok(first.estimatedMinutes >= 3);
+});
+
+test("regrouping preserves completed tasks and training summaries compare snapshots", () => {
+  const weakItems = [{
+    text: "我",
+    code: "q",
+    count: 5,
+    codingErrors: 5,
+    lastSeen: "2026-08-19T09:00:00+08:00",
+    mastery: 0,
+  }];
+  const input = {
+    date: "2026-08-19",
+    now: new Date("2026-08-19T10:00:00+08:00"),
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems,
+    entries: trainingEntries,
+    preferredLength: "all",
+  };
+  const plan = generateDailyTrainingPlan(input);
+  plan.tasks[0] = {
+    ...plan.tasks[0],
+    status: "completed",
+    sessionId: "warmup-session",
+    completedAt: "2026-08-19T10:10:00+08:00",
+  };
+  const regrouped = regenerateIncompleteTasks(plan, input);
+  assert.deepEqual(regrouped.tasks[0], plan.tasks[0]);
+  assert.equal(regrouped.revision, 1);
+
+  const mastered = [{ ...weakItems[0], mastery: 5, correctStreak: 5 }];
+  const summary = buildTrainingSummary(
+    plan,
+    mastered,
+    [session({ id: "warmup-session", durationSeconds: 180 })],
+    input.now,
+  );
+  assert.deepEqual(summary.resolved, ["我"]);
+  assert.equal(summary.rounds, 1);
+  assert.equal(summary.durationSeconds, 180);
 });
 
 test("trend series produces daily speed and accuracy summaries", () => {
@@ -201,6 +350,11 @@ test("error mastery merges legacy records for the same text", () => {
         text: "测",
         code: "imyt",
         count: 5,
+        codingErrors: 5,
+        hesitationPoints: 0,
+        correctionCount: 0,
+        seenCount: 1,
+        correctStreak: 1,
         mastery: 4,
         lastSeen: "2026-07-29T09:00:00.000Z",
         lastCorrect: updated[0].lastCorrect,
@@ -228,6 +382,7 @@ test("backup format only accepts known versioned storage keys", () => {
         showCodeHints: false,
         sound: false,
         theme: "dark",
+        customTheme: defaultCustomTheme,
         autoNext: false,
       },
       [STORAGE.keyUsage]: { KeyQ: 12, KeyW: 8 },
@@ -296,9 +451,209 @@ test("backup format only accepts known versioned storage keys", () => {
       showCodeHints: false,
       sound: false,
       theme: "dark",
+      customTheme: defaultCustomTheme,
       autoNext: false,
     },
   );
+});
+
+test("backup validates daily prescriptions and old restores clear stale plans", () => {
+  const plan = generateDailyTrainingPlan({
+    date: "2026-08-19",
+    now: new Date("2026-08-19T10:00:00+08:00"),
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [],
+    entries: trainingEntries,
+    preferredLength: "all",
+  });
+  const payload = createBackupPayload({ [STORAGE.trainingPlan]: plan });
+  assert.deepEqual(parseBackupPayload(payload).data[STORAGE.trainingPlan], plan);
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({
+      [STORAGE.trainingPlan]: { ...plan, tasks: plan.tasks.slice(0, 2) },
+    })),
+    /格式不正确/,
+  );
+
+  const values = new Map([[STORAGE.trainingPlan, JSON.stringify(plan)]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    restoreBackupPayload(createBackupPayload({ [STORAGE.errors]: [] }));
+    assert.equal(values.has(STORAGE.trainingPlan), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("practice outcome saves weakness and task completion in one transaction", () => {
+  const plan = generateDailyTrainingPlan({
+    date: "2026-08-19",
+    now: new Date("2026-08-19T10:00:00+08:00"),
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [],
+    entries: trainingEntries,
+    preferredLength: "all",
+  });
+  const review = plan.tasks.find((task) => task.type === "review");
+  review.status = "in-progress";
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+    [STORAGE.trainingPlan, JSON.stringify(plan)],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const result = session({
+      id: "review-result",
+      type: "review",
+      articleId: undefined,
+      trainingTaskId: review.id,
+    });
+    assert.equal(savePracticeOutcome(result, [
+      { text: "我", code: "q", kind: "coding-error" },
+    ]), true);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions))[0].id, "review-result");
+    assert.equal(JSON.parse(values.get(STORAGE.errors))[0].codingErrors, 1);
+    const storedPlan = JSON.parse(values.get(STORAGE.trainingPlan));
+    assert.equal(storedPlan.tasks.find((task) => task.type === "review").status, "completed");
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("settings read old and new themes while normalizing custom colors", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+    },
+  };
+  try {
+    for (const theme of [
+      "system",
+      "light",
+      "dark",
+      "bamboo",
+      "qingdai",
+    ]) {
+      values.set(STORAGE.settings, JSON.stringify({ theme }));
+      assert.equal(readSettings().theme, theme);
+      assert.deepEqual(readSettings().customTheme, defaultCustomTheme);
+    }
+
+    values.set(
+      STORAGE.settings,
+      JSON.stringify({
+        fontSize: 34,
+        theme: "custom",
+        customTheme: { accent: "#12aBcF", canvas: "not-a-color" },
+      }),
+    );
+    assert.deepEqual(readSettings(), {
+      fontSize: 34,
+      preferredLength: "all",
+      showCodeHints: false,
+      sound: false,
+      theme: "custom",
+      customTheme: {
+        accent: "#12aBcF",
+        canvas: defaultCustomTheme.canvas,
+      },
+      autoNext: false,
+    });
+
+    values.set(
+      STORAGE.settings,
+      JSON.stringify({ theme: "unknown", customTheme: null }),
+    );
+    assert.equal(readSettings().theme, "system");
+    assert.deepEqual(readSettings().customTheme, defaultCustomTheme);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup settings preserve valid custom themes and repair invalid theme fields", () => {
+  const valid = parseBackupPayload(
+    createBackupPayload({
+      [STORAGE.settings]: {
+        theme: "custom",
+        customTheme: { accent: "#123ABC", canvas: "#abcdef" },
+      },
+    }),
+  ).data[STORAGE.settings];
+  assert.deepEqual(valid.customTheme, {
+    accent: "#123ABC",
+    canvas: "#abcdef",
+  });
+  assert.equal(valid.theme, "custom");
+
+  const oldBackup = parseBackupPayload(
+    createBackupPayload({ [STORAGE.settings]: { theme: "bamboo" } }),
+  ).data[STORAGE.settings];
+  assert.equal(oldBackup.theme, "bamboo");
+  assert.deepEqual(oldBackup.customTheme, defaultCustomTheme);
+
+  const repaired = parseBackupPayload(
+    createBackupPayload({
+      [STORAGE.settings]: {
+        fontSize: 36,
+        theme: "unsupported",
+        customTheme: { accent: "#445566", canvas: "#fff" },
+      },
+    }),
+  ).data[STORAGE.settings];
+  assert.equal(repaired.fontSize, 36);
+  assert.equal(repaired.theme, "system");
+  assert.deepEqual(repaired.customTheme, {
+    accent: "#445566",
+    canvas: defaultCustomTheme.canvas,
+  });
+});
+
+test("backup restore saves normalized custom theme settings", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    restoreBackupPayload(
+      createBackupPayload({
+        [STORAGE.settings]: {
+          theme: "custom",
+          customTheme: { accent: "invalid", canvas: "#202830" },
+        },
+      }),
+    );
+    const restored = JSON.parse(values.get(STORAGE.settings));
+    assert.equal(restored.theme, "custom");
+    assert.deepEqual(restored.customTheme, {
+      accent: defaultCustomTheme.accent,
+      canvas: "#202830",
+    });
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 test("backup validates optional typing heatmaps without changing the format version", () => {
@@ -361,6 +716,93 @@ test("local session history keeps heatmaps for only the newest 50 rounds", () =>
     assert.equal(stored.filter((item) => item.heatmap).length, 50);
     assert.equal(stored[0].id, "heatmap-54");
     assert.equal(stored[50].heatmap, undefined);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("local history readers discard malformed records and self-heal storage", () => {
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([{}, session({ id: "valid" })])],
+    [STORAGE.progress, JSON.stringify([{}, {
+      articleId: "article-1",
+      attempts: 1,
+      bestSpeed: 80,
+      completed: true,
+      lastPracticed: "2026-07-29T09:00:00.000Z",
+      errors: 0,
+    }])],
+    [STORAGE.errors, JSON.stringify([{}, {
+      text: "测",
+      code: "imj",
+      count: 1,
+      lastSeen: "2026-07-29T09:00:00.000Z",
+    }])],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(getSessions().length, 1);
+    assert.equal(getProgress().length, 1);
+    assert.equal(getErrors().length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.progress)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.errors)).length, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("session and article progress writes roll back together after storage failure", () => {
+  const oldSessions = JSON.stringify([session({ id: "old" })]);
+  const oldProgress = JSON.stringify([]);
+  const values = new Map([
+    [STORAGE.sessions, oldSessions],
+    [STORAGE.progress, oldProgress],
+  ]);
+  let failProgress = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.progress && failProgress) {
+          failProgress = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    assert.equal(saveSession(session({ id: "new", articleId: "article-1" })), false);
+    assert.equal(values.get(STORAGE.sessions), oldSessions);
+    assert.equal(values.get(STORAGE.progress), oldProgress);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("session saving reports inaccessible storage without throwing", () => {
+  let reads = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: () => {
+        reads += 1;
+        if (reads > 2) throw new Error("denied");
+        return JSON.stringify([]);
+      },
+      removeItem() {},
+      setItem() {},
+    },
+  };
+  try {
+    assert.equal(saveSession(session({ articleId: "article-1" })), false);
   } finally {
     delete globalThis.window;
   }
@@ -466,7 +908,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v07/);
+  assert.match(worker, /wubi-test-v08/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(pwa, /window\.location\.reload\(\)/);
@@ -625,7 +1067,11 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(management, /multiple/);
   assert.match(management, /取消收藏/);
   assert.match(training, /高频错题复练/);
-  assert.match(training, /智能推荐/);
+  assert.match(training, /自适应训练处方/);
+  assert.match(training, /换一组/);
+  assert.match(training, /待开始/);
+  assert.match(training, /进行中/);
+  assert.match(training, /已完成/);
   assert.match(training, /training-card-header/);
   assert.match(training, /training-card-stat/);
   assert.match(training, /连续/);
