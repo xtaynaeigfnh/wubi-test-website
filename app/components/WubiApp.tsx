@@ -13,7 +13,6 @@ import {
 } from "react";
 import Link from "next/link";
 import {
-  addError,
   applyTypingDelaySample,
   buildCommonPracticeArticle,
   buildChallengePool,
@@ -37,6 +36,8 @@ import {
   defaultSettings,
   formatDuration,
   getErrors,
+  getCommittedEditRange,
+  getHesitationLevel,
   getProgress,
   getSessions,
   isWubiLetterKey,
@@ -50,8 +51,9 @@ import {
   readLocal,
   readLocalArray,
   readSettings,
+  readTrainingPlan,
   recordKeyUsage,
-  saveSession,
+  savePracticeOutcome,
   isCommonPracticeArticle,
   isImeSelectionKey,
   selectInitialArticle,
@@ -71,6 +73,7 @@ import type {
   SessionResult,
   ThemeId,
   UserSettings,
+  WeakObservation,
   WubiEntry,
 } from "../types";
 import { downloadShareCard } from "../share-card";
@@ -507,6 +510,8 @@ function TypingView({
   const lastTimingAtRef = useRef<number | null>(null);
   const pendingTimingMsRef = useRef(0);
   const typingDelaysRef = useRef<number[]>([]);
+  const correctionPositionsRef = useRef(new Map<number, number>());
+  const wubiCodesRef = useRef(new Map<string, string>());
   const compositionCommitTimer = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
@@ -550,7 +555,14 @@ function TypingView({
     setMinimumCodeError("");
     loadWubi()
       .then((rows) => {
-        if (active) setMinimumCodeIndex(buildMinimumCodeLengthIndex(rows));
+        if (active) {
+          setMinimumCodeIndex(buildMinimumCodeLengthIndex(rows));
+          wubiCodesRef.current = new Map(
+            preferShortestWubiCodes(
+              rows.filter(([text]) => Array.from(text).length === 1),
+            ).map(([text, code]) => [text, code]),
+          );
+        }
       })
       .catch((error: unknown) => {
         if (active) {
@@ -722,6 +734,7 @@ function TypingView({
       lastTimingAtRef.current = null;
       pendingTimingMsRef.current = 0;
       typingDelaysRef.current = [];
+      correctionPositionsRef.current = new Map();
       errorPositions.current = new Set();
       setPickerOpen(false);
       window.setTimeout(() => {
@@ -952,7 +965,45 @@ function TypingView({
     const errorChars = Array.from(errorPositions.current)
       .map((index) => targetCharacters[index])
       .filter(Boolean);
-    errorChars.forEach((character) => addError(character));
+    const completedAt = new Date().toISOString();
+    const heatmap = buildTypingHeatmap(visibleText, typingDelaysRef.current);
+    const observations: WeakObservation[] = [];
+    const addObservation = (
+      character: string | undefined,
+      kind: WeakObservation["kind"],
+      severity?: 1 | 2 | 3,
+    ) => {
+      if (!character || !/\p{Script=Han}/u.test(character)) return;
+      observations.push({
+        text: character,
+        code: wubiCodesRef.current.get(character),
+        kind,
+        severity,
+        occurredAt: completedAt,
+      });
+    };
+    for (const index of errorPositions.current) {
+      addObservation(targetCharacters[index], "coding-error");
+    }
+    for (const [index, count] of correctionPositionsRef.current) {
+      for (let occurrence = 0; occurrence < count; occurrence += 1) {
+        addObservation(targetCharacters[index], "correction");
+      }
+    }
+    for (const segment of heatmap.segments) {
+      const severity = getHesitationLevel(segment.delayMs, heatmap.thresholdMs);
+      if (severity === 0) continue;
+      for (let offset = 0; offset < segment.length; offset += 1) {
+        addObservation(
+          targetCharacters[segment.start + offset],
+          "hesitation",
+          severity,
+        );
+      }
+    }
+    for (const character of new Set(targetCharacters)) {
+      addObservation(character, "correct");
+    }
     const finalMetrics = calculateTypingMetrics({
       typed,
       target: targetText,
@@ -962,17 +1013,24 @@ function TypingView({
       attemptCount,
       correctAttemptCount,
     });
+    const articleId =
+      article.kind === "custom" ||
+      article.kind === "common" ||
+      article.id.startsWith("custom-")
+        ? undefined
+        : article.id;
+    const trainingTaskId = readTrainingPlan()?.tasks.find(
+      (task) =>
+        task.type === "article" &&
+        task.status === "in-progress" &&
+        task.articleId === articleId,
+    )?.id;
     const session: SessionResult = {
       id: crypto.randomUUID(),
       type: "article",
-      articleId:
-        article.kind === "custom" ||
-        article.kind === "common" ||
-        article.id.startsWith("custom-")
-          ? undefined
-          : article.id,
+      articleId,
       title: article.title,
-      date: new Date().toISOString(),
+      date: completedAt,
       durationSeconds: finalSeconds,
       ...finalMetrics,
       theoreticalCodeLength,
@@ -995,9 +1053,10 @@ function TypingView({
       pauseCount,
       pauseSeconds,
       retryCount,
-      heatmap: buildTypingHeatmap(visibleText, typingDelaysRef.current),
+      heatmap,
+      trainingTaskId,
     };
-    if (!saveSession(session)) {
+    if (!savePracticeOutcome(session, observations)) {
       window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
     }
     setLastSession(session);
@@ -1057,6 +1116,14 @@ function TypingView({
     const edit = countCommittedEdit(previous, committed);
     if (edit.removed > 0) {
       setCorrectionCount((value) => value + edit.removed);
+      const range = getCommittedEditRange(previous, committed);
+      for (let offset = 0; offset < range.removed; offset += 1) {
+        const index = range.start + offset;
+        correctionPositionsRef.current.set(
+          index,
+          (correctionPositionsRef.current.get(index) ?? 0) + 1,
+        );
+      }
     }
     if (edit.phraseChars > 0) {
       setPhraseChars((value) => value + edit.phraseChars);
@@ -1842,6 +1909,7 @@ function ChallengeView({
   const deadlineRef = useRef(0);
   const seenQuestionsRef = useRef(new Set<string>());
   const submitLockRef = useRef(false);
+  const challengeObservationsRef = useRef<WeakObservation[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -1920,7 +1988,7 @@ function ChallengeView({
           accuracy: calculateAccuracy(correctAnswers, answered),
           errors: answered - correctAnswers,
         };
-        if (!saveSession(session)) {
+        if (!savePracticeOutcome(session, challengeObservationsRef.current)) {
           window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
         }
         setLastSession(session);
@@ -1963,6 +2031,7 @@ function ChallengeView({
     if (!pool.length) return;
     if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
     recordedRef.current = false;
+    challengeObservationsRef.current = [];
     seenQuestionsRef.current.clear();
     startedAtRef.current = Date.now();
     deadlineRef.current = startedAtRef.current + 60_000;
@@ -1995,6 +2064,11 @@ function ChallengeView({
     const isRight = input.toLowerCase() === question[1];
     setFeedback(isRight ? "right" : "wrong");
     const nextCorrect = correct + (isRight ? 1 : 0);
+    challengeObservationsRef.current.push({
+      text: question[0],
+      code: question[1],
+      kind: isRight ? "correct" : "coding-error",
+    });
     if (isRight) {
       setCorrect(nextCorrect);
       nextTimerRef.current = window.setTimeout(
@@ -2003,7 +2077,6 @@ function ChallengeView({
       );
     } else {
       setMistakes((value) => [...value, { text: question[0], code: question[1], input }]);
-      addError(question[0], question[1]);
     }
   };
 
@@ -2320,6 +2393,7 @@ function HistoryView() {
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
+    writeLocal(STORAGE.trainingPlan, null);
     setExpandedHeatmapId(null);
     refresh();
   };

@@ -3580,6 +3580,237 @@ select,
   opacity: 0.48;
 }
 
+.adaptive-plan-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.adaptive-plan-card::before {
+  content: "ER · TRAINING RX";
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  color: var(--border-strong);
+  font: 700 8px/1 var(--font-data);
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+
+.plan-message {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent-vermilion);
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent-vermilion) 7%, var(--bg-raised));
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.adaptive-plan-steps li {
+  min-height: 136px;
+  padding-block: 14px;
+  align-items: start;
+}
+
+.adaptive-plan-steps li[data-status="pending"] > span {
+  color: var(--accent-vermilion);
+  border: 1px solid var(--accent-vermilion);
+  background: transparent;
+}
+
+.adaptive-plan-steps li[data-status="in-progress"] {
+  box-shadow: inset 4px 0 0 var(--accent-bamboo);
+}
+
+.adaptive-plan-steps li[data-status="in-progress"] > span {
+  background: var(--accent-bamboo-fill);
+}
+
+.adaptive-plan-steps li[data-status="completed"] {
+  background: color-mix(in srgb, var(--state-success) 5%, transparent);
+}
+
+.adaptive-plan-steps li[data-status="completed"] > span {
+  background: var(--state-success-fill);
+}
+
+.plan-task-copy {
+  min-width: 0;
+}
+
+.plan-task-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan-task-title small {
+  color: var(--text-secondary);
+  font: 700 9px/1.2 var(--font-data);
+  white-space: nowrap;
+}
+
+.plan-task-copy em {
+  margin-top: 9px;
+  display: block;
+  overflow: hidden;
+  color: var(--accent-bamboo);
+  font: normal 700 9px/1.4 var(--font-data);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adaptive-plan-steps a,
+.adaptive-plan-steps button,
+.plan-task-done {
+  min-height: 44px;
+  align-self: center;
+}
+
+.plan-task-done {
+  padding-inline: 12px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--state-success);
+  border: 1px solid color-mix(in srgb, var(--state-success) 55%, var(--border-default));
+  border-radius: var(--radius-small);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.plan-actions {
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.plan-actions button {
+  min-height: 44px;
+  flex: none;
+}
+
+.plan-actions span {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.training-completion-summary {
+  padding-top: 18px;
+}
+
+.summary-ledger {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-block: 1px solid var(--border-default);
+}
+
+.summary-ledger span {
+  min-height: 82px;
+  padding: 14px 10px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-subtle);
+  font-size: 10px;
+  text-align: center;
+}
+
+.summary-ledger span:last-child {
+  border-right: 0;
+}
+
+.summary-ledger b {
+  color: var(--state-success);
+  font: 800 24px/1 var(--font-data);
+}
+
+.remaining-weaknesses {
+  margin-top: 18px;
+}
+
+.remaining-weaknesses h3 {
+  margin: 0 0 8px;
+  font: 650 15px/1.3 var(--font-display);
+}
+
+.remaining-weaknesses ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.remaining-weaknesses li {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.remaining-weaknesses li strong {
+  font-family: var(--font-display);
+  font-size: 17px;
+}
+
+.remaining-weaknesses li span,
+.training-completion-summary > p {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.remaining-weaknesses li b {
+  color: var(--accent-vermilion);
+  font: 700 10px/1 var(--font-data);
+  text-align: right;
+}
+
+@media (max-width: 620px) {
+  .adaptive-plan-card::before {
+    display: none;
+  }
+
+  .adaptive-plan-steps li {
+    min-height: 0;
+  }
+
+  .plan-task-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .plan-task-copy em {
+    white-space: normal;
+  }
+
+  .plan-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary-ledger {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-ledger span {
+    min-height: 64px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .summary-ledger span:last-child {
+    border-bottom: 0;
+  }
+}
+
 .root-zone-rail {
   margin-bottom: 18px;
   display: grid;

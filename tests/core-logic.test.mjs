@@ -24,6 +24,7 @@ import {
   formatCommonCharacterText,
   getCommonCharacterSlice,
   getHesitationLevel,
+  getCommittedEditRange,
   isCommonPracticeArticle,
   isWubiLetterKey,
   isImeSelectionKey,
@@ -119,6 +120,11 @@ test("typing diagnostics derive correction cost, phrase rate, and hand use", () 
     removed: 0,
     inserted: 1,
     phraseChars: 0,
+  });
+  assert.deepEqual(getCommittedEditRange("😀中国", "😀中人"), {
+    start: 2,
+    removed: 1,
+    inserted: 1,
   });
   assert.deepEqual(countCommittedEdit("中国民", "中国人民"), {
     removed: 0,

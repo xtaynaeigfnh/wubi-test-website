@@ -103,6 +103,7 @@ export interface SessionResult {
   pauseSeconds?: number;
   retryCount?: number;
   heatmap?: TypingHeatmap;
+  trainingTaskId?: string;
 }
 
 export interface ErrorStat {
@@ -112,6 +113,67 @@ export interface ErrorStat {
   lastSeen: string;
   mastery?: number;
   lastCorrect?: string;
+  codingErrors?: number;
+  hesitationPoints?: number;
+  correctionCount?: number;
+  seenCount?: number;
+  correctStreak?: number;
+}
+
+export type WeakObservationKind =
+  | "coding-error"
+  | "hesitation"
+  | "correction"
+  | "correct";
+
+export interface WeakObservation {
+  text: string;
+  code?: string;
+  kind: WeakObservationKind;
+  severity?: 1 | 2 | 3;
+  occurredAt?: string;
+}
+
+export type TrainingTaskStatus = "pending" | "in-progress" | "completed";
+export type TrainingTaskType = "article" | "review" | "roots";
+
+export interface TrainingTask {
+  id: string;
+  type: TrainingTaskType;
+  status: TrainingTaskStatus;
+  title: string;
+  reason: string;
+  estimatedMinutes: number;
+  items: WubiEntry[];
+  articleId?: string;
+  articleTitle?: string;
+  articleWordCount?: number;
+  zoneId?: string;
+  zoneKeys?: string;
+  startedAt?: string;
+  completedAt?: string;
+  sessionId?: string;
+}
+
+export interface DailyTrainingPlan {
+  version: 1;
+  date: string;
+  revision: number;
+  generatedAt: string;
+  estimatedMinutes: number;
+  tasks: TrainingTask[];
+  weakSnapshot: Record<string, number>;
+}
+
+export interface TrainingSummary {
+  durationSeconds: number;
+  rounds: number;
+  resolved: string[];
+  remaining: Array<{
+    text: string;
+    score: number;
+    reason: string;
+  }>;
 }
 
 export interface ArticleProgress {
