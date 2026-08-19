@@ -8,6 +8,7 @@ import type {
   CommonCharacterData,
   CommonCharacterPreset,
   CommonPracticeArticle,
+  CustomTheme,
   DailyGoal,
   DailyProgress,
   ErrorStat,
@@ -42,12 +43,37 @@ export const STORAGE = {
 
 export const STORAGE_KEYS = Object.values(STORAGE);
 
+export const defaultCustomTheme: CustomTheme = {
+  accent: "#B3432B",
+  canvas: "#F2EBDD",
+};
+
+export function isValidHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+export function normalizeCustomTheme(value: unknown): CustomTheme {
+  const customTheme =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<CustomTheme>)
+      : {};
+  return {
+    accent: isValidHexColor(customTheme.accent)
+      ? customTheme.accent
+      : defaultCustomTheme.accent,
+    canvas: isValidHexColor(customTheme.canvas)
+      ? customTheme.canvas
+      : defaultCustomTheme.canvas,
+  };
+}
+
 export const defaultSettings: UserSettings = {
   fontSize: 30,
   preferredLength: "all",
   showCodeHints: false,
   sound: false,
   theme: "system",
+  customTheme: defaultCustomTheme,
   autoNext: false,
 };
 
@@ -107,9 +133,13 @@ export function readSettings(): UserSettings {
         ? partial.sound
         : defaultSettings.sound,
     theme:
-      partial.theme && ["light", "dark", "system"].includes(partial.theme)
+      partial.theme &&
+      ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
+        partial.theme,
+      )
         ? partial.theme
         : defaultSettings.theme,
+    customTheme: normalizeCustomTheme(partial.customTheme),
     autoNext:
       typeof partial.autoNext === "boolean"
         ? partial.autoNext
@@ -1496,7 +1526,13 @@ function isSettings(value: unknown): value is UserSettings {
     ) &&
     typeof value.showCodeHints === "boolean" &&
     typeof value.sound === "boolean" &&
-    ["light", "dark", "system"].includes(String(value.theme)) &&
+    ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
+      String(value.theme),
+    ) &&
+    (!Object.hasOwn(value, "customTheme") ||
+      (isRecord(value.customTheme) &&
+        isValidHexColor(value.customTheme.accent) &&
+        isValidHexColor(value.customTheme.canvas))) &&
     typeof value.autoNext === "boolean"
   );
 }
@@ -1514,13 +1550,26 @@ function normalizeBackupSettings(value: unknown): UserSettings | null {
       )) ||
     (keys.has("showCodeHints") && typeof value.showCodeHints !== "boolean") ||
     (keys.has("sound") && typeof value.sound !== "boolean") ||
-    (keys.has("theme") &&
-      !["light", "dark", "system"].includes(String(value.theme))) ||
     (keys.has("autoNext") && typeof value.autoNext !== "boolean")
   ) {
     return null;
   }
-  return { ...defaultSettings, ...value } as UserSettings;
+  const theme = [
+    "light",
+    "dark",
+    "system",
+    "bamboo",
+    "qingdai",
+    "custom",
+  ].includes(String(value.theme))
+    ? (value.theme as UserSettings["theme"])
+    : defaultSettings.theme;
+  return {
+    ...defaultSettings,
+    ...value,
+    theme,
+    customTheme: normalizeCustomTheme(value.customTheme),
+  } as UserSettings;
 }
 
 function isDailyGoal(value: unknown): value is DailyGoal {

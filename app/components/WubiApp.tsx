@@ -33,6 +33,7 @@ import {
   commonCharacterPresets,
   countCommittedEdit,
   countCommittedAttempts,
+  defaultCustomTheme,
   defaultSettings,
   formatDuration,
   getErrors,
@@ -68,6 +69,7 @@ import type {
   ErrorStat,
   PracticeArticle,
   SessionResult,
+  ThemeId,
   UserSettings,
   WubiEntry,
 } from "../types";
@@ -79,6 +81,160 @@ import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
+
+const themeLabels: Record<ThemeId, string> = {
+  system: "系统",
+  light: "浅色",
+  dark: "深色",
+  bamboo: "竹纸",
+  qingdai: "青黛",
+  custom: "自定义",
+};
+
+const themeOptions: Array<{
+  id: ThemeId;
+  description: string;
+  canvas: string;
+  accent: string;
+}> = [
+  {
+    id: "system",
+    description: "随设备外观",
+    canvas: "#E7EDF0",
+    accent: "#086B66",
+  },
+  {
+    id: "light",
+    description: "清爽蓝白",
+    canvas: "#E7EDF0",
+    accent: "#086B66",
+  },
+  {
+    id: "dark",
+    description: "低亮深色",
+    canvas: "#09171A",
+    accent: "#71D0C7",
+  },
+  {
+    id: "bamboo",
+    description: "米纸竹青",
+    canvas: "#F2EBDD",
+    accent: "#B3432B",
+  },
+  {
+    id: "qingdai",
+    description: "静谧蓝灰",
+    canvas: "#DCE5E8",
+    accent: "#315C72",
+  },
+  {
+    id: "custom",
+    description: "自行配色",
+    canvas: "#F2EBDD",
+    accent: "#B3432B",
+  },
+];
+
+const basicThemeCycle: Record<"system" | "light" | "dark", ThemeId> = {
+  system: "light",
+  light: "dark",
+  dark: "system",
+};
+
+function getNextQuickTheme(theme: ThemeId): ThemeId {
+  return theme === "system" || theme === "light" || theme === "dark"
+    ? basicThemeCycle[theme]
+    : "system";
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+function rgbToHex(red: number, green: number, blue: number): string {
+  return `#${[red, green, blue]
+    .map((channel) => Math.round(channel).toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
+}
+
+function mixHex(from: string, to: string, amount: number): string {
+  const start = hexToRgb(from);
+  const end = hexToRgb(to);
+  return rgbToHex(
+    start[0] + (end[0] - start[0]) * amount,
+    start[1] + (end[1] - start[1]) * amount,
+    start[2] + (end[2] - start[2]) * amount,
+  );
+}
+
+function getRelativeLuminance(hex: string): number {
+  const channels = hexToRgb(hex).map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+function getContrastRatio(first: string, second: string): number {
+  const lighter = Math.max(
+    getRelativeLuminance(first),
+    getRelativeLuminance(second),
+  );
+  const darker = Math.min(
+    getRelativeLuminance(first),
+    getRelativeLuminance(second),
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function chooseContrastText(background: string): "#000000" | "#FFFFFF" {
+  return getContrastRatio(background, "#000000") >=
+    getContrastRatio(background, "#FFFFFF")
+    ? "#000000"
+    : "#FFFFFF";
+}
+
+function buildSecondaryText(canvas: string, text: string): string {
+  let low = 0;
+  let high = 1;
+  for (let index = 0; index < 12; index += 1) {
+    const middle = (low + high) / 2;
+    if (getContrastRatio(canvas, mixHex(canvas, text, middle)) >= 4.5) {
+      high = middle;
+    } else {
+      low = middle;
+    }
+  }
+  return mixHex(canvas, text, Math.min(1, high + 0.04));
+}
+
+function buildCustomThemeVariables(accent: string, canvas: string) {
+  const text = chooseContrastText(canvas);
+  const darkCanvas = getRelativeLuminance(canvas) < 0.3;
+  const surfaceTarget = text === "#FFFFFF" ? "#000000" : "#FFFFFF";
+  const paper = mixHex(canvas, surfaceTarget, darkCanvas ? 0.06 : 0.58);
+  const raised = mixHex(canvas, surfaceTarget, darkCanvas ? 0.1 : 0.055);
+  const key = mixHex(canvas, surfaceTarget, darkCanvas ? 0.16 : 0.1);
+  return {
+    "--custom-accent": accent,
+    "--custom-canvas": canvas,
+    "--custom-text": text,
+    "--custom-text-secondary": buildSecondaryText(canvas, text),
+    "--custom-paper": paper,
+    "--custom-raised": raised,
+    "--custom-key": key,
+    "--custom-border": mixHex(canvas, text, darkCanvas ? 0.25 : 0.2),
+    "--custom-border-strong": mixHex(canvas, text, darkCanvas ? 0.42 : 0.34),
+    "--custom-accent-text": chooseContrastText(accent),
+    "--custom-color-scheme": darkCanvas ? "dark" : "light",
+  } as const;
+}
 
 const navItems: Array<{
   view: AppView;
@@ -167,6 +323,14 @@ export function WubiApp({ view }: { view: AppView }) {
     if (!settingsReady) return;
     const root = document.documentElement;
     root.dataset.theme = settings.theme;
+    const customTheme = settings.customTheme ?? defaultCustomTheme;
+    const customVariables = buildCustomThemeVariables(
+      customTheme.accent,
+      customTheme.canvas,
+    );
+    for (const [property, value] of Object.entries(customVariables)) {
+      root.style.setProperty(property, value);
+    }
     writeLocal(STORAGE.settings, settings);
   }, [settings, settingsReady]);
 
@@ -189,20 +353,12 @@ export function WubiApp({ view }: { view: AppView }) {
     );
   }, [view]);
 
-  const themeLabels: Record<UserSettings["theme"], string> = {
-    system: "系统",
-    light: "浅色",
-    dark: "深色",
-  };
-  const nextTheme: Record<UserSettings["theme"], UserSettings["theme"]> = {
-    system: "light",
-    light: "dark",
-    dark: "system",
-  };
+  const currentThemeName = themeLabels[settings.theme];
+  const quickTheme = getNextQuickTheme(settings.theme);
   const cycleTheme = () =>
     setSettings((current) => ({
       ...current,
-      theme: nextTheme[current.theme],
+      theme: getNextQuickTheme(current.theme),
     }));
 
   return (
@@ -240,13 +396,13 @@ export function WubiApp({ view }: { view: AppView }) {
               className="theme-switch"
               type="button"
               onClick={cycleTheme}
-              aria-label={`当前${themeLabels[settings.theme]}主题，点击切换为${themeLabels[nextTheme[settings.theme]]}主题`}
-              title={`主题：${themeLabels[settings.theme]}`}
+              aria-label={`当前${currentThemeName}主题，点击切换为${themeLabels[quickTheme]}主题`}
+              title={`主题：${currentThemeName}`}
             >
               <span aria-hidden="true">{
                 settings.theme === "dark" ? "◐" : settings.theme === "light" ? "◑" : "◒"
               }</span>
-              <b>{themeLabels[settings.theme]}</b>
+              <b>{currentThemeName}</b>
             </button>
             <div className="local-badge">
               <i />
@@ -2390,6 +2546,29 @@ function SettingsView({
 }) {
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
     onChange({ ...settings, [key]: value });
+  const customTheme = settings.customTheme ?? defaultCustomTheme;
+  const customVariables = buildCustomThemeVariables(
+    customTheme.accent,
+    customTheme.canvas,
+  );
+  const canvasTextRatio = getContrastRatio(
+    customTheme.canvas,
+    customVariables["--custom-text"],
+  );
+  const accentTextRatio = getContrastRatio(
+    customTheme.accent,
+    customVariables["--custom-accent-text"],
+  );
+  const accentCanvasRatio = getContrastRatio(
+    customTheme.accent,
+    customTheme.canvas,
+  );
+  const hasLowAccentSeparation = accentCanvasRatio < 3;
+  const updateCustomTheme = (key: "accent" | "canvas", value: string) =>
+    onChange({
+      ...settings,
+      customTheme: { ...customTheme, [key]: value.toUpperCase() },
+    });
 
   return (
     <section className="subpage settings-page">
@@ -2399,20 +2578,113 @@ function SettingsView({
         <p>设置会立即生效，并保存在当前浏览器中。</p>
       </div>
       <div className="settings-grid">
-        <div className="settings-card">
+        <div className="settings-card theme-settings-card">
           <div className="settings-card-title"><span>文</span><div><h2>文字与界面</h2><p>调整跟打区的可读性</p></div></div>
-          <label className="range-row">
-            <span><strong>正文字号</strong><small>{settings.fontSize}px</small></span>
-            <input type="range" min={22} max={42} value={settings.fontSize} onChange={(event) => update("fontSize", Number(event.target.value))} />
-          </label>
-          <label>
-            默认主题
-            <select value={settings.theme} onChange={(event) => update("theme", event.target.value as UserSettings["theme"])}>
-              <option value="system">跟随系统</option>
-              <option value="light">浅色</option>
-              <option value="dark">深色</option>
-            </select>
-          </label>
+          <div className="theme-settings">
+            <div className="theme-settings-controls">
+              <label className="range-row">
+                <span><strong>正文字号</strong><small>{settings.fontSize}px</small></span>
+                <input type="range" min={22} max={42} value={settings.fontSize} onChange={(event) => update("fontSize", Number(event.target.value))} />
+              </label>
+              <fieldset className="theme-preset-fieldset">
+                <legend>主题预设</legend>
+                <div className="theme-preset-grid">
+                  {themeOptions.map((option) => {
+                    const selected = settings.theme === option.id;
+                    const swatchCanvas = option.id === "custom"
+                      ? customTheme.canvas
+                      : option.canvas;
+                    const swatchAccent = option.id === "custom"
+                      ? customTheme.accent
+                      : option.accent;
+                    const swatchText = chooseContrastText(swatchCanvas);
+                    return (
+                      <label
+                        key={option.id}
+                        className={`theme-preset-option${selected ? " is-selected" : ""}`}
+                        data-theme-option={option.id}
+                        style={{
+                          "--preset-canvas": swatchCanvas,
+                          "--preset-paper": mixHex(swatchCanvas, swatchText === "#FFFFFF" ? "#000000" : "#FFFFFF", 0.12),
+                          "--preset-text": swatchText,
+                          "--preset-accent": swatchAccent,
+                        } as CSSProperties}
+                      >
+                        <input
+                          type="radio"
+                          name="theme"
+                          value={option.id}
+                          checked={selected}
+                          onChange={() => update("theme", option.id)}
+                        />
+                        <span className="theme-preset-swatch" aria-hidden="true"><i /></span>
+                        <span><strong>{themeLabels[option.id]}</strong><small>{option.description}</small></span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              {settings.theme === "custom" && (
+                <div className="custom-theme-controls">
+                  <div className="custom-theme-heading">
+                    <div><strong>自定义配色</strong><small>语义状态色保持固定，不随这里改变。</small></div>
+                    <button
+                      className="theme-reset-button"
+                      type="button"
+                      onClick={() => update("customTheme", { ...defaultCustomTheme })}
+                    >
+                      恢复当前主题默认配色
+                    </button>
+                  </div>
+                  <div className="color-control-grid">
+                    <label className="color-control" htmlFor="custom-theme-accent">
+                      <span><strong>强调色</strong><small>{customTheme.accent}</small></span>
+                      <input
+                        id="custom-theme-accent"
+                        type="color"
+                        value={customTheme.accent}
+                        aria-describedby="theme-contrast-note"
+                        onChange={(event) => updateCustomTheme("accent", event.target.value)}
+                      />
+                    </label>
+                    <label className="color-control" htmlFor="custom-theme-canvas">
+                      <span><strong>页面背景色</strong><small>{customTheme.canvas}</small></span>
+                      <input
+                        id="custom-theme-canvas"
+                        type="color"
+                        value={customTheme.canvas}
+                        aria-describedby="theme-contrast-note"
+                        onChange={(event) => updateCustomTheme("canvas", event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <p
+                    id="theme-contrast-note"
+                    className={`theme-contrast-note${hasLowAccentSeparation ? " is-warning" : ""}`}
+                    role="status"
+                  >
+                    {hasLowAccentSeparation
+                      ? `颜色对比度不足：强调色与页面背景较接近（${accentCanvasRatio.toFixed(1)}:1），按钮已自动使用高对比度文字。`
+                      : `文字对比度已自动校准：正文 ${canvasTextRatio.toFixed(1)}:1，按钮 ${accentTextRatio.toFixed(1)}:1，达到 WCAG AA。`}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="theme-preview"
+              data-preview-theme={settings.theme}
+              aria-label={`主题即时预览：${themeLabels[settings.theme]}`}
+            >
+              <div className="theme-preview-toolbar"><span>即时预览</span><b>{themeLabels[settings.theme]}</b></div>
+              <div className="theme-preview-card">
+                <div><strong>普通文字与卡片</strong><p>保持安静、清晰，适合长时间练习。</p></div>
+                <span className="theme-preview-button">开始练习</span>
+              </div>
+              <div className="theme-preview-practice"><span>练习区域</span><strong>稳中求快，准确优先。</strong></div>
+            </div>
+          </div>
         </div>
         <div className="settings-card">
           <div className="settings-card-title"><span>键</span><div><h2>练习偏好</h2><p>控制默认训练方式</p></div></div>

@@ -335,6 +335,88 @@ test("typing offers ordered common-character ranges with explicit reshuffling", 
   assert.match(styles, /\.toolbar-actions \.shuffle-action\s*\{/);
 });
 
+test("theme settings expose six presets and accessible custom color controls", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  for (const [value, label] of [
+    ["system", "系统"],
+    ["light", "浅色"],
+    ["dark", "深色"],
+    ["bamboo", "竹纸"],
+    ["qingdai", "青黛"],
+    ["custom", "自定义"],
+  ]) {
+    assert.match(component, new RegExp(`${value}: "${label}"`));
+  }
+  assert.match(component, /主题预设/);
+  assert.match(component, /<fieldset className="theme-preset-fieldset">/);
+  assert.match(component, /<legend>主题预设<\/legend>/);
+  assert.match(component, /className=\{`theme-preset-option/);
+  assert.match(component, /type="radio"/);
+  assert.match(component, /name="theme"/);
+  assert.match(component, /data-theme-option=/);
+  assert.match(component, /settings\.theme === "custom"\s*&&/);
+  assert.match(
+    component,
+    /<label className="color-control"[^>]*>[\s\S]*?强调色[\s\S]*?<input[^>]*type="color"/,
+  );
+  assert.match(
+    component,
+    /<label className="color-control"[^>]*>[\s\S]*?页面背景色[\s\S]*?<input[^>]*type="color"/,
+  );
+  assert.equal(component.match(/type="color"/g)?.length, 2);
+  assert.match(component, /恢复当前主题默认配色/);
+});
+
+test("custom theme preview reports contrast and keeps semantic colors stable", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /function getContrastRatio\s*\(/);
+  assert.match(component, /function chooseContrastText\s*\(/);
+  assert.match(component, /4\.5/);
+  assert.match(component, /"--custom-accent":\s*accent/);
+  assert.match(component, /"--custom-canvas":\s*canvas/);
+  assert.match(component, /"--custom-text":\s*text/);
+  assert.match(component, /"--custom-accent-text":\s*chooseContrastText\(accent\)/);
+  assert.match(component, /Object\.entries\(customVariables\)/);
+  assert.match(component, /root\.style\.setProperty\(property, value\)/);
+  assert.match(component, /className="theme-preview/);
+  assert.match(component, /即时预览/);
+  assert.match(component, /className="theme-preview-button"/);
+  assert.match(component, /className="theme-preview-card"/);
+  assert.match(component, /className="theme-preview-practice"/);
+  assert.match(component, /颜色对比度不足[\s\S]*按钮已自动使用高对比度文字/);
+  assert.match(component, /达到 WCAG AA/);
+
+  assert.match(styles, /:root\[data-theme="bamboo"\]\s*\{/);
+  assert.match(styles, /:root\[data-theme="qingdai"\]\s*\{/);
+  const customThemeRule = styles.match(
+    /:root\[data-theme="custom"\]\s*\{([^}]*)\}/,
+  )?.[1];
+  assert.ok(customThemeRule);
+  assert.match(customThemeRule, /--bg-canvas:\s*var\(--custom-canvas,/);
+  assert.match(customThemeRule, /--accent-vermilion:\s*var\(--custom-accent,/);
+  assert.match(customThemeRule, /--text-primary:\s*var\(--custom-text,/);
+  assert.match(customThemeRule, /--text-on-accent:\s*var\(--custom-accent-text,/);
+  assert.doesNotMatch(customThemeRule, /--state-(?:success|error)|--heat-/);
+});
+
+test("header theme shortcut cycles basic themes and leaves presets for system", async () => {
+  const component = await readFile(componentPath, "utf8");
+
+  assert.match(component, /system:\s*"light"/);
+  assert.match(component, /light:\s*"dark"/);
+  assert.match(component, /dark:\s*"system"/);
+  assert.match(
+    component,
+    /function getNextQuickTheme[\s\S]*theme === "system" \|\| theme === "light" \|\| theme === "dark"[\s\S]*\? basicThemeCycle\[theme\][\s\S]*: "system";/,
+  );
+  assert.match(component, /aria-label=\{`当前\$\{currentThemeName\}主题，点击切换为\$\{themeLabels\[quickTheme\]\}主题`\}/);
+});
+
 test("common-character practice inherits the article reading rhythm", async () => {
   const styles = await readFile(stylesPath, "utf8");
   const commonTextRule =

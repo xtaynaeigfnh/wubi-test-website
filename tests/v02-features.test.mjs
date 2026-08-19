@@ -11,10 +11,12 @@ import {
   calculateDailyProgress,
   calculateStreak,
   createBackupPayload,
+  defaultCustomTheme,
   getErrors,
   getProgress,
   getSessions,
   parseBackupPayload,
+  readSettings,
   recordKeyUsage,
   restoreBackupPayload,
   saveSession,
@@ -231,6 +233,7 @@ test("backup format only accepts known versioned storage keys", () => {
         showCodeHints: false,
         sound: false,
         theme: "dark",
+        customTheme: defaultCustomTheme,
         autoNext: false,
       },
       [STORAGE.keyUsage]: { KeyQ: 12, KeyW: 8 },
@@ -299,9 +302,129 @@ test("backup format only accepts known versioned storage keys", () => {
       showCodeHints: false,
       sound: false,
       theme: "dark",
+      customTheme: defaultCustomTheme,
       autoNext: false,
     },
   );
+});
+
+test("settings read old and new themes while normalizing custom colors", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+    },
+  };
+  try {
+    for (const theme of [
+      "system",
+      "light",
+      "dark",
+      "bamboo",
+      "qingdai",
+    ]) {
+      values.set(STORAGE.settings, JSON.stringify({ theme }));
+      assert.equal(readSettings().theme, theme);
+      assert.deepEqual(readSettings().customTheme, defaultCustomTheme);
+    }
+
+    values.set(
+      STORAGE.settings,
+      JSON.stringify({
+        fontSize: 34,
+        theme: "custom",
+        customTheme: { accent: "#12aBcF", canvas: "not-a-color" },
+      }),
+    );
+    assert.deepEqual(readSettings(), {
+      fontSize: 34,
+      preferredLength: "all",
+      showCodeHints: false,
+      sound: false,
+      theme: "custom",
+      customTheme: {
+        accent: "#12aBcF",
+        canvas: defaultCustomTheme.canvas,
+      },
+      autoNext: false,
+    });
+
+    values.set(
+      STORAGE.settings,
+      JSON.stringify({ theme: "unknown", customTheme: null }),
+    );
+    assert.equal(readSettings().theme, "system");
+    assert.deepEqual(readSettings().customTheme, defaultCustomTheme);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup settings preserve valid custom themes and repair invalid theme fields", () => {
+  const valid = parseBackupPayload(
+    createBackupPayload({
+      [STORAGE.settings]: {
+        theme: "custom",
+        customTheme: { accent: "#123ABC", canvas: "#abcdef" },
+      },
+    }),
+  ).data[STORAGE.settings];
+  assert.deepEqual(valid.customTheme, {
+    accent: "#123ABC",
+    canvas: "#abcdef",
+  });
+  assert.equal(valid.theme, "custom");
+
+  const oldBackup = parseBackupPayload(
+    createBackupPayload({ [STORAGE.settings]: { theme: "bamboo" } }),
+  ).data[STORAGE.settings];
+  assert.equal(oldBackup.theme, "bamboo");
+  assert.deepEqual(oldBackup.customTheme, defaultCustomTheme);
+
+  const repaired = parseBackupPayload(
+    createBackupPayload({
+      [STORAGE.settings]: {
+        fontSize: 36,
+        theme: "unsupported",
+        customTheme: { accent: "#445566", canvas: "#fff" },
+      },
+    }),
+  ).data[STORAGE.settings];
+  assert.equal(repaired.fontSize, 36);
+  assert.equal(repaired.theme, "system");
+  assert.deepEqual(repaired.customTheme, {
+    accent: "#445566",
+    canvas: defaultCustomTheme.canvas,
+  });
+});
+
+test("backup restore saves normalized custom theme settings", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    restoreBackupPayload(
+      createBackupPayload({
+        [STORAGE.settings]: {
+          theme: "custom",
+          customTheme: { accent: "invalid", canvas: "#202830" },
+        },
+      }),
+    );
+    const restored = JSON.parse(values.get(STORAGE.settings));
+    assert.equal(restored.theme, "custom");
+    assert.deepEqual(restored.customTheme, {
+      accent: defaultCustomTheme.accent,
+      canvas: "#202830",
+    });
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 test("backup validates optional typing heatmaps without changing the format version", () => {
