@@ -8,6 +8,8 @@ const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesPath = new URL("../app/globals.css", import.meta.url);
 const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
 const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
+const hesitationPracticePath = new URL("../app/components/HesitationPracticeModal.tsx", import.meta.url);
+const trainingCenterPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
 
 test("recorded data renders without replay animations", async () => {
@@ -149,16 +151,18 @@ test("typing exposes every filtered article and resets timing on restart", async
 });
 
 test("typing completion and history expose an accessible hesitation heatmap", async () => {
-  const [component, heatmap, styles] = await Promise.all([
+  const [component, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(hesitationHeatmapPath, "utf8"),
+    readFile(hesitationPracticePath, "utf8"),
+    readFile(trainingCenterPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
   assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.match(
     component,
-    /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap heatmap=\{lastSession\.heatmap\}[\s\S]*<aside className="side-panel">/,
+    /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
   );
   assert.match(component, /className="session-heatmap-trigger"/);
   assert.match(component, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
@@ -167,6 +171,14 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(heatmap, /aria-label="热力等级图例"/);
   assert.match(heatmap, /最明显的五处卡顿/);
   assert.match(heatmap, /这轮节奏很稳/);
+  assert.match(heatmap, /className=\{`heatmap-segment-button/);
+  assert.match(heatmap, /加入今日加练/);
+  assert.match(practice, /第 \{currentRound\} \/ 3 轮/);
+  assert.match(practice, /shouldDeferInputCommit/);
+  assert.match(practice, /onPaste=\{\(event\) =>/);
+  assert.match(practice, /重试保存/);
+  assert.match(training, /className="hesitation-queue-card"/);
+  assert.match(training, /加练独立于上方三项处方/);
   assert.match(styles, /--heat-mild:/);
   assert.match(
     styles,

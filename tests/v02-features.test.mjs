@@ -4,6 +4,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 
 import {
+  addHesitationQueueItem,
   addError,
   buildReviewPool,
   buildRootPool,
@@ -16,12 +17,15 @@ import {
   getProgress,
   getSessions,
   parseBackupPayload,
+  readHesitationQueue,
   readSettings,
   recordKeyUsage,
   restoreBackupPayload,
+  saveHesitationPracticeOutcome,
   savePracticeOutcome,
   saveSession,
   STORAGE,
+  startHesitationQueueItem,
   updateErrorMastery,
 } from "../app/lib.ts";
 import {
@@ -61,6 +65,85 @@ function session(overrides = {}) {
     retryCount: 0,
     ...overrides,
   };
+}
+
+function hesitationTarget(overrides = {}) {
+  const target = {
+    version: 1,
+    id: "hesitation-target-a",
+    sourceSessionId: "article-source",
+    articleId: "article-a",
+    sourceTitle: "练习文章甲",
+    sourceDate: "2026-08-19T09:00:00+08:00",
+    text: "五笔输入练习需要稳定节奏",
+    sourceStart: 3,
+    focusOffset: 4,
+    focusLength: 2,
+    sourceDelayMs: 2100,
+    baselineMs: 500,
+    thresholdMs: 1000,
+    ...overrides,
+  };
+  return {
+    ...target,
+    fingerprint:
+      overrides.fingerprint ??
+      `${target.text}\u0000${target.focusOffset}\u0000${target.focusLength}`,
+  };
+}
+
+function hesitationResult(target = hesitationTarget(), overrides = {}) {
+  const completedAt = "2026-08-19T10:03:00+08:00";
+  return {
+    version: 1,
+    target,
+    attempts: [
+      {
+        round: 1,
+        durationMs: 9000,
+        errorIndexes: [4],
+        delaysMs: Array.from({ length: 12 }, () => 700),
+        completedAt: "2026-08-19T10:01:00+08:00",
+      },
+      {
+        round: 2,
+        durationMs: 7800,
+        errorIndexes: [],
+        delaysMs: Array.from({ length: 12 }, () => 600),
+        completedAt: "2026-08-19T10:02:00+08:00",
+      },
+      {
+        round: 3,
+        durationMs: 7000,
+        errorIndexes: [],
+        delaysMs: Array.from({ length: 12 }, () => 500),
+        completedAt,
+      },
+    ],
+    outcome: "mastered",
+    completedAt,
+    ...overrides,
+  };
+}
+
+function hesitationSession(target = hesitationTarget(), overrides = {}) {
+  return session({
+    id: "hesitation-result",
+    type: "hesitation",
+    articleId: target.articleId,
+    title: "卡顿片段三连练",
+    date: "2026-08-19T10:03:00+08:00",
+    durationSeconds: 23.8,
+    correctChars: 35,
+    attemptedChars: 36,
+    speed: 103,
+    kps: 0,
+    codeLength: 0,
+    accuracy: 97.2,
+    errors: 1,
+    hesitationPractice: hesitationResult(target),
+    ...overrides,
+  });
 }
 
 test("daily goals and streak use completed local sessions", () => {
@@ -477,7 +560,21 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
     /格式不正确/,
   );
 
-  const values = new Map([[STORAGE.trainingPlan, JSON.stringify(plan)]]);
+  const staleQueue = {
+    version: 1,
+    date: "2026-08-19",
+    items: [{
+      id: "hesitation-target-a",
+      target: hesitationTarget(),
+      status: "pending",
+      estimatedMinutes: 1,
+      addedAt: "2026-08-19T10:00:00+08:00",
+    }],
+  };
+  const values = new Map([
+    [STORAGE.trainingPlan, JSON.stringify(plan)],
+    [STORAGE.hesitationQueue, JSON.stringify(staleQueue)],
+  ]);
   globalThis.window = {
     localStorage: {
       getItem: (key) => values.get(key) ?? null,
@@ -488,9 +585,97 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
   try {
     restoreBackupPayload(createBackupPayload({ [STORAGE.errors]: [] }));
     assert.equal(values.has(STORAGE.trainingPlan), false);
+    assert.equal(values.has(STORAGE.hesitationQueue), false);
   } finally {
     delete globalThis.window;
   }
+});
+
+test("hesitation queue validates targets, deduplicates, caps at five and resets daily", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const now = new Date(2026, 7, 19, 10, 0);
+    assert.deepEqual(readHesitationQueue(now), {
+      version: 1,
+      date: "2026-08-19",
+      items: [],
+    });
+    const first = addHesitationQueueItem(hesitationTarget(), now);
+    assert.equal(first.result, "added");
+    assert.equal(
+      addHesitationQueueItem(hesitationTarget({ id: "other-id" }), now).result,
+      "duplicate",
+    );
+    const started = startHesitationQueueItem(first.queue.items[0].id, now);
+    assert.equal(started.items[0].status, "in-progress");
+
+    for (let index = 1; index < 5; index += 1) {
+      const target = hesitationTarget({
+        id: `hesitation-target-${index}`,
+        text: `五笔输入练习需要稳定节${index}`,
+      });
+      assert.equal(addHesitationQueueItem(target, now).result, "added");
+    }
+    assert.equal(
+      addHesitationQueueItem(
+        hesitationTarget({ id: "overflow", text: "五笔输入练习需要稳定节点" }),
+        now,
+      ).result,
+      "full",
+    );
+    assert.equal(
+      addHesitationQueueItem(
+        hesitationTarget({ text: "超过十五个字符的卡顿片段不可加入" }),
+        now,
+      ).result,
+      "invalid",
+    );
+    assert.deepEqual(
+      readHesitationQueue(new Date(2026, 7, 20, 0, 1)),
+      { version: 1, date: "2026-08-20", items: [] },
+    );
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup strictly validates hesitation queues without changing version two", () => {
+  const queue = {
+    version: 1,
+    date: "2026-08-19",
+    items: [{
+      id: "hesitation-target-a",
+      target: hesitationTarget(),
+      status: "pending",
+      estimatedMinutes: 1,
+      addedAt: "2026-08-19T10:00:00+08:00",
+    }],
+  };
+  const payload = createBackupPayload({ [STORAGE.hesitationQueue]: queue });
+  assert.equal(payload.version, 2);
+  assert.deepEqual(
+    parseBackupPayload(payload).data[STORAGE.hesitationQueue],
+    queue,
+  );
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({
+      [STORAGE.hesitationQueue]: {
+        ...queue,
+        items: [{
+          ...queue.items[0],
+          target: { ...hesitationTarget(), text: "一二三四五六七八九十甲乙丙丁戊己" },
+        }],
+      },
+    })),
+    /\u683c\u5f0f\u4e0d\u6b63\u786e/,
+  );
 });
 
 test("practice outcome saves weakness and task completion in one transaction", () => {
@@ -535,6 +720,122 @@ test("practice outcome saves weakness and task completion in one transaction", (
   } finally {
     delete globalThis.window;
   }
+});
+
+test("hesitation outcome atomically saves one idempotent session, weakness and queue", () => {
+  const now = new Date("2026-08-19T10:00:00+08:00");
+  const target = hesitationTarget();
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+  ]);
+  let failQueueOnce = false;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        if (key === STORAGE.hesitationQueue && failQueueOnce) {
+          failQueueOnce = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const added = addHesitationQueueItem(target, now);
+    const queueId = added.queue.items[0].id;
+    assert.ok(startHesitationQueueItem(queueId, now));
+    const beforeQueue = values.get(STORAGE.hesitationQueue);
+    const result = hesitationSession(target);
+    const observations = [
+      { text: "练", code: "xan", kind: "coding-error" },
+    ];
+
+    failQueueOnce = true;
+    assert.equal(
+      saveHesitationPracticeOutcome(result, observations, queueId),
+      false,
+    );
+    assert.equal(values.get(STORAGE.sessions), JSON.stringify([]));
+    assert.equal(values.get(STORAGE.errors), JSON.stringify([]));
+    assert.equal(values.get(STORAGE.hesitationQueue), beforeQueue);
+
+    assert.equal(
+      saveHesitationPracticeOutcome(result, observations, queueId),
+      true,
+    );
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.errors))[0].codingErrors, 1);
+    assert.equal(values.has(STORAGE.progress), false);
+    const completed = readHesitationQueue(now);
+    assert.equal(completed.items[0].status, "completed");
+    assert.equal(completed.items[0].sessionId, result.id);
+    assert.equal(completed.items[0].outcome, "mastered");
+
+    const restarted = startHesitationQueueItem(queueId, now);
+    assert.equal(restarted.items[0].status, "in-progress");
+    assert.equal(restarted.items[0].completedAt, undefined);
+    assert.equal(restarted.items[0].sessionId, undefined);
+    assert.equal(restarted.items[0].outcome, undefined);
+
+    assert.equal(
+      saveHesitationPracticeOutcome(result, observations, queueId),
+      true,
+    );
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.errors))[0].codingErrors, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("hesitation outcome rolls back when any participating storage key fails", () => {
+  const now = new Date("2026-08-19T10:00:00+08:00");
+  const target = hesitationTarget();
+  const result = hesitationSession(target);
+  const observations = [
+    { text: "练", code: "xan", kind: "coding-error" },
+  ];
+
+  for (const failedKey of [
+    STORAGE.sessions,
+    STORAGE.errors,
+    STORAGE.hesitationQueue,
+  ]) {
+    const values = new Map([
+      [STORAGE.sessions, JSON.stringify([])],
+      [STORAGE.errors, JSON.stringify([])],
+    ]);
+    let shouldFail = false;
+    globalThis.window = {
+      localStorage: {
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          if (key === failedKey && shouldFail) {
+            shouldFail = false;
+            throw new Error("quota");
+          }
+          values.set(key, value);
+        },
+        removeItem: (key) => values.delete(key),
+      },
+    };
+    const added = addHesitationQueueItem(target, now);
+    const queueId = added.queue.items[0].id;
+    assert.ok(startHesitationQueueItem(queueId, now));
+    const before = new Map(values);
+    shouldFail = true;
+
+    assert.equal(
+      saveHesitationPracticeOutcome(result, observations, queueId),
+      false,
+      `expected ${failedKey} to fail`,
+    );
+    assert.deepEqual(values, before);
+  }
+  delete globalThis.window;
 });
 
 test("settings read old and new themes while normalizing custom colors", () => {
@@ -908,7 +1209,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v08/);
+  assert.match(worker, /wubi-test-v09/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(pwa, /window\.location\.reload\(\)/);

@@ -4,6 +4,8 @@ import { formatDuration } from "./lib";
 import type { SessionResult } from "./types";
 
 export function downloadShareCard(session: SessionResult) {
+  const usesCharacterSpeed =
+    session.type === "article" || session.type === "hesitation";
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 675;
@@ -29,7 +31,11 @@ export function downloadShareCard(session: SessionResult) {
   context.fillStyle = "#53696f";
   context.font = '18px "PingFang SC", sans-serif';
   context.fillText(
-    session.type === "article" ? "文章测速成绩" : "专项训练成绩",
+    session.type === "article"
+      ? "文章测速成绩"
+      : session.type === "hesitation"
+        ? "卡顿片段复练成绩"
+        : "专项训练成绩",
     72,
     150,
   );
@@ -38,7 +44,7 @@ export function downloadShareCard(session: SessionResult) {
   context.fillText(session.title.slice(0, 22), 72, 210);
 
   const metrics = [
-    ["速度", session.speed.toString(), session.type === "article" ? "字/分" : "题/分"],
+    ["速度", session.speed.toString(), usesCharacterSpeed ? "字/分" : "题/分"],
     ["击键", session.type === "article" ? session.kps.toFixed(2) : "—", "次/秒"],
     ["码长", session.codeLength > 0 ? session.codeLength.toFixed(2) : "—", "键/字"],
     ["字准", session.accuracy.toFixed(1), "%"],
@@ -62,7 +68,7 @@ export function downloadShareCard(session: SessionResult) {
   context.fillStyle = "#53696f";
   context.font = '20px "Songti SC", "STSong", serif';
   const diagnosticLine = [
-    `正确 ${session.correctChars} 字/题`,
+    `正确 ${session.correctChars} ${usesCharacterSpeed ? "字" : "题"}`,
     `用时 ${formatDuration(session.durationSeconds)}`,
     session.keyAccuracy === undefined
       ? ""

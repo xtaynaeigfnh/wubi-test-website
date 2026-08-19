@@ -13,6 +13,7 @@ import {
 } from "react";
 import Link from "next/link";
 import {
+  addHesitationQueueItem,
   applyTypingDelaySample,
   buildCommonPracticeArticle,
   buildChallengePool,
@@ -50,14 +51,17 @@ import {
   preferShortestWubiCodes,
   readLocal,
   readLocalArray,
+  readHesitationQueue,
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
+  saveHesitationPracticeOutcome,
   savePracticeOutcome,
   isCommonPracticeArticle,
   isImeSelectionKey,
   selectInitialArticle,
   shouldDeferInputCommit,
+  startHesitationQueueItem,
   STORAGE,
   writeLocal,
   type MinimumCodeLengthIndex,
@@ -69,6 +73,9 @@ import type {
   CommonCharacterData,
   CommonCharacterPreset,
   ErrorStat,
+  HesitationPracticeAttempt,
+  HesitationPracticeQueue,
+  HesitationPracticeTarget,
   PracticeArticle,
   SessionResult,
   ThemeId,
@@ -76,6 +83,11 @@ import type {
   WeakObservation,
   WubiEntry,
 } from "../types";
+import {
+  buildHesitationObservations,
+  buildHesitationPracticeResult,
+  buildHesitationSession,
+} from "../hesitation-practice";
 import { downloadShareCard } from "../share-card";
 import { DataManagement } from "./DataManagement";
 import { PwaControl } from "./PwaControl";
@@ -84,6 +96,7 @@ import { TrendPanel } from "./TrendPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
+import { HesitationPracticeModal } from "./HesitationPracticeModal";
 
 const themeLabels: Record<ThemeId, string> = {
   system: "系统",
@@ -260,6 +273,17 @@ const isNavItemActive = (view: AppView, itemView: AppView) => view === itemView;
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
+type HesitationAttemptTuple = [
+  HesitationPracticeAttempt,
+  HesitationPracticeAttempt,
+  HesitationPracticeAttempt,
+];
+
+interface ActiveHesitationPractice {
+  target: HesitationPracticeTarget;
+  queueItemId?: string;
+}
+
 function useKeySound(enabled: boolean): KeySoundPlayer {
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -314,8 +338,99 @@ function useKeySound(enabled: boolean): KeySoundPlayer {
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const [hesitationQueue, setHesitationQueue] =
+    useState<HesitationPracticeQueue | null>(null);
+  const [masteredAtByFingerprint, setMasteredAtByFingerprint] = useState(
+    new Map<string, string>(),
+  );
+  const [activeHesitationPractice, setActiveHesitationPractice] =
+    useState<ActiveHesitationPractice | null>(null);
+  const [hesitationSaveRevision, setHesitationSaveRevision] = useState(0);
   const mainNavRef = useRef<HTMLElement>(null);
   const playKeySound = useKeySound(settings.sound);
+
+  const refreshHesitationState = useCallback(() => {
+    setHesitationQueue(readHesitationQueue());
+    const mastered = new Map<string, string>();
+    for (const session of getSessions()) {
+      const practice = session.hesitationPractice;
+      if (!practice || practice.outcome !== "mastered") continue;
+      const previous = mastered.get(practice.target.fingerprint);
+      if (!previous || previous < practice.completedAt) {
+        mastered.set(practice.target.fingerprint, practice.completedAt);
+      }
+    }
+    setMasteredAtByFingerprint(mastered);
+  }, []);
+
+  useEffect(refreshHesitationState, [refreshHesitationState]);
+
+  const addHesitationToQueue = useCallback(
+    (target: HesitationPracticeTarget) => {
+      const result = addHesitationQueueItem(target);
+      setHesitationQueue(result.queue);
+      if (result.result === "duplicate") {
+        window.alert("这一段已在今日加练中。");
+      } else if (result.result === "full") {
+        window.alert("今日最多加入 5 个卡顿片段，请先完成已有加练。");
+      } else if (result.result === "invalid") {
+        window.alert("这个卡顿片段已经损坏，无法加入今日加练。");
+      } else if (result.result === "storage-error") {
+        window.alert("今日加练未能保存，请检查浏览器存储空间。");
+      }
+    },
+    [],
+  );
+
+  const startQueuedHesitationPractice = useCallback(
+    (itemId: string, target: HesitationPracticeTarget) => {
+      const queue = startHesitationQueueItem(itemId);
+      if (!queue) {
+        window.alert("加练状态未能保存，请检查浏览器存储空间后再试。");
+        return;
+      }
+      setHesitationQueue(queue);
+      setActiveHesitationPractice({ target, queueItemId: itemId });
+    },
+    [],
+  );
+
+  const saveHesitationAttempts = useCallback(
+    (attempts: HesitationAttemptTuple) => {
+      if (!activeHesitationPractice) {
+        return { ok: false, message: "练习目标已经失效，请关闭后重新进入。" };
+      }
+      const result = buildHesitationPracticeResult(
+        activeHesitationPractice.target,
+        attempts,
+        attempts[2].completedAt,
+      );
+      const session = buildHesitationSession(result);
+      const saved = saveHesitationPracticeOutcome(
+        session,
+        buildHesitationObservations(result),
+        activeHesitationPractice.queueItemId,
+      );
+      if (!saved) {
+        return {
+          ok: false,
+          message: "本次结果未能保存，请检查浏览器存储空间后重试。",
+        };
+      }
+      refreshHesitationState();
+      setHesitationSaveRevision((value) => value + 1);
+      return { ok: true };
+    },
+    [activeHesitationPractice, refreshHesitationState],
+  );
+
+  const queuedFingerprints = useMemo(
+    () =>
+      new Set(
+        hesitationQueue?.items.map((item) => item.target.fingerprint) ?? [],
+      ),
+    [hesitationQueue],
+  );
 
   useEffect(() => {
     setSettings(readSettings());
@@ -421,16 +536,37 @@ export function WubiApp({ view }: { view: AppView }) {
             settings={settings}
             settingsReady={settingsReady}
             playKeySound={playKeySound}
+            onPracticeHesitation={(target) =>
+              setActiveHesitationPractice({ target })
+            }
+            onAddHesitationToQueue={addHesitationToQueue}
+            queuedFingerprints={queuedFingerprints}
+            masteredAtByFingerprint={masteredAtByFingerprint}
           />
         )}
         {view === "training" && (
-          <TrainingCenter playKeySound={playKeySound} />
+          <TrainingCenter
+            playKeySound={playKeySound}
+            hesitationQueue={hesitationQueue}
+            hesitationSaveRevision={hesitationSaveRevision}
+            onPracticeHesitation={startQueuedHesitationPractice}
+          />
         )}
         {view === "challenge" && (
           <ChallengeView playKeySound={playKeySound} />
         )}
         {view === "lookup" && <LookupView />}
-        {view === "history" && <HistoryView />}
+        {view === "history" && (
+          <HistoryView
+            onPracticeHesitation={(target) =>
+              setActiveHesitationPractice({ target })
+            }
+            onAddHesitationToQueue={addHesitationToQueue}
+            queuedFingerprints={queuedFingerprints}
+            masteredAtByFingerprint={masteredAtByFingerprint}
+            hesitationSaveRevision={hesitationSaveRevision}
+          />
+        )}
         {view === "summary" && <KeySummary />}
         {view === "settings" && (
           <SettingsView
@@ -440,6 +576,14 @@ export function WubiApp({ view }: { view: AppView }) {
           />
         )}
       </main>
+
+      {activeHesitationPractice && (
+        <HesitationPracticeModal
+          target={activeHesitationPractice.target}
+          onClose={() => setActiveHesitationPractice(null)}
+          onSave={saveHesitationAttempts}
+        />
+      )}
 
       <footer className="site-footer">
         <span><b>86 / OFFLINE</b> 慢慢练，手会记住。</span>
@@ -455,10 +599,18 @@ function TypingView({
   settings,
   settingsReady,
   playKeySound,
+  onPracticeHesitation,
+  onAddHesitationToQueue,
+  queuedFingerprints,
+  masteredAtByFingerprint,
 }: {
   settings: UserSettings;
   settingsReady: boolean;
   playKeySound: KeySoundPlayer;
+  onPracticeHesitation: (target: HesitationPracticeTarget) => void;
+  onAddHesitationToQueue: (target: HesitationPracticeTarget) => void;
+  queuedFingerprints: ReadonlySet<string>;
+  masteredAtByFingerprint: ReadonlyMap<string, string>;
 }) {
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
@@ -1606,9 +1758,6 @@ function TypingView({
                 <DiagnosticMetric label="暂停" value={`${pauseCount} / ${pauseSeconds.toFixed(1)}`} unit="次/秒" />
                 <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
               </div>
-              {lastSession?.heatmap && (
-                <HesitationHeatmap heatmap={lastSession.heatmap} />
-              )}
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
                 <button
@@ -1635,7 +1784,14 @@ function TypingView({
 
         {completed && lastSession?.heatmap && (
           <div className="post-practice-review">
-            <HesitationHeatmap heatmap={lastSession.heatmap} />
+            <HesitationHeatmap
+              heatmap={lastSession.heatmap}
+              source={lastSession}
+              onPractice={onPracticeHesitation}
+              onAddToQueue={onAddHesitationToQueue}
+              queuedFingerprints={queuedFingerprints}
+              masteredAtByFingerprint={masteredAtByFingerprint}
+            />
           </div>
         )}
 
@@ -2343,7 +2499,19 @@ function LookupView() {
   );
 }
 
-function HistoryView() {
+function HistoryView({
+  onPracticeHesitation,
+  onAddHesitationToQueue,
+  queuedFingerprints,
+  masteredAtByFingerprint,
+  hesitationSaveRevision,
+}: {
+  onPracticeHesitation: (target: HesitationPracticeTarget) => void;
+  onAddHesitationToQueue: (target: HesitationPracticeTarget) => void;
+  queuedFingerprints: ReadonlySet<string>;
+  masteredAtByFingerprint: ReadonlyMap<string, string>;
+  hesitationSaveRevision: number;
+}) {
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
@@ -2353,12 +2521,12 @@ function HistoryView() {
   >("all");
   const [expandedHeatmapId, setExpandedHeatmapId] = useState<string | null>(null);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     setSessions(getSessions());
     setProgress(getProgress());
     setErrors(getErrors());
-  };
-  useEffect(refresh, []);
+  }, []);
+  useEffect(refresh, [hesitationSaveRevision, refresh]);
   useEffect(() => {
     let active = true;
     loadArticleMetadata()
@@ -2376,7 +2544,9 @@ function HistoryView() {
       type === "all" ||
       session.type === type ||
       (type === "training" &&
-        (session.type === "review" || session.type === "roots")),
+        (session.type === "review" ||
+          session.type === "roots" ||
+          session.type === "hesitation")),
   );
   const articleSessions = sessions.filter((session) => session.type === "article");
   const totalChars = articleSessions.reduce((sum, session) => sum + session.correctChars, 0);
@@ -2394,6 +2564,7 @@ function HistoryView() {
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
     writeLocal(STORAGE.trainingPlan, null);
+    writeLocal(STORAGE.hesitationQueue, null);
     setExpandedHeatmapId(null);
     refresh();
   };
@@ -2460,7 +2631,11 @@ function HistoryView() {
                 </span>
                 <span className="session-speed">
                   {session.speed || "—"}
-                  <small>{session.type === "article" ? "字/分" : "题/分"}</small>
+                  <small>
+                    {session.type === "article" || session.type === "hesitation"
+                      ? "字/分"
+                      : "题/分"}
+                  </small>
                 </span>
                 <span className="session-kps">
                   {session.type === "article" ? session.kps.toFixed(2) : "—"}
@@ -2562,7 +2737,15 @@ function HistoryView() {
                     className="session-heatmap-detail"
                     id={`session-heatmap-${session.id}`}
                   >
-                    <HesitationHeatmap heatmap={session.heatmap} compact />
+                    <HesitationHeatmap
+                      heatmap={session.heatmap}
+                      compact
+                      source={session}
+                      onPractice={onPracticeHesitation}
+                      onAddToQueue={onAddHesitationToQueue}
+                      queuedFingerprints={queuedFingerprints}
+                      masteredAtByFingerprint={masteredAtByFingerprint}
+                    />
                   </div>
                 )}
               </div>
