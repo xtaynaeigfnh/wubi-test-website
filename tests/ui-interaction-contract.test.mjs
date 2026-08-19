@@ -165,6 +165,11 @@ test("typing completion and history expose an accessible hesitation heatmap", as
     /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
   );
   assert.match(component, /className="session-heatmap-trigger"/);
+  assert.equal(component.match(/<HesitationHeatmap\b/g)?.length, 2);
+  assert.match(
+    component,
+    /<HesitationHeatmap[\s\S]*heatmap=\{session\.heatmap\}[\s\S]*compact[\s\S]*source=\{session\}/,
+  );
   assert.match(component, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
   assert.match(component, /aria-controls=\{`session-heatmap-\$\{session\.id\}`\}/);
   assert.match(heatmap, /卡顿位置热力图/);
@@ -194,6 +199,23 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   );
   assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);
+});
+
+test("planned articles, custom text counts, and local writes keep UI state consistent", async () => {
+  const [component, training, management] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /trainingPlan\?\.date === localDateKey\(new Date\(\)\)/);
+  assert.match(component, /const currentId = trainingArticleId \?\? storedCurrentId/);
+  assert.match(component, /Boolean\(trainingArticleId\)/);
+  assert.match(component, /Array\.from\(customText\.trim\(\)\)\.length/);
+  assert.match(component, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
+  assert.match(training, /Math\.round\(value \|\| minimum\)/);
+  assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, limited\)\)/);
+  assert.match(management, /if \(!saved\) return;/);
 });
 
 test("mobile navigation scrolls the active route into view", async () => {

@@ -9,6 +9,7 @@ import {
   buildReviewPool,
   buildRootPool,
   buildTrendSeries,
+  buildCustomArticle,
   calculateDailyProgress,
   calculateStreak,
   createBackupPayload,
@@ -18,6 +19,7 @@ import {
   getSessions,
   parseBackupPayload,
   readHesitationQueue,
+  readDailyGoal,
   readSettings,
   recordKeyUsage,
   restoreBackupPayload,
@@ -172,6 +174,40 @@ test("daily goals and streak use completed local sessions", () => {
     trainingSessions: 1,
   });
   assert.equal(calculateStreak(sessions, now), 2);
+});
+
+test("daily goals normalize legacy decimal values before backup", () => {
+  const values = new Map([
+    [
+      STORAGE.dailyGoal,
+      JSON.stringify({
+        targetChars: 500.5,
+        targetMinutes: 15.4,
+        targetRounds: 2.2,
+      }),
+    ],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+    },
+  };
+  try {
+    const normalized = readDailyGoal();
+    assert.deepEqual(normalized, {
+      targetChars: 501,
+      targetMinutes: 15,
+      targetRounds: 2,
+    });
+    assert.deepEqual(
+      parseBackupPayload(
+        createBackupPayload({ [STORAGE.dailyGoal]: normalized }),
+      ).data[STORAGE.dailyGoal],
+      normalized,
+    );
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 const trainingEntries = [
@@ -347,6 +383,18 @@ test("all trend range includes sessions older than one year", () => {
   assert.equal(points.reduce((sum, point) => sum + point.sessions, 0), 1);
 });
 
+test("all trend range stays bounded for implausibly old imported sessions", () => {
+  const points = buildTrendSeries(
+    [session({ id: "old", date: "1900-01-01T00:00:00.000Z" })],
+    "all",
+    new Date("2026-07-29T12:00:00+08:00"),
+  );
+
+  assert.equal(points.length, 1);
+  assert.equal(points[0].date, "1900-01-01");
+  assert.equal(points[0].sessions, 1);
+});
+
 test("review and root pools reuse preferred Wubi codes", () => {
   const entries = [
     ["测", "imj", 200000],
@@ -480,6 +528,18 @@ test("backup format only accepts known versioned storage keys", () => {
     STORAGE.keyUsage,
   ].sort());
   assert.deepEqual(parseBackupPayload(payload), payload);
+  const validCustomText = buildCustomArticle(
+    "custom-valid",
+    "合法文章",
+    "这是至少十个字符的自定义正文。",
+  );
+  assert.ok(validCustomText);
+  assert.deepEqual(
+    parseBackupPayload(
+      createBackupPayload({ [STORAGE.customTexts]: [validCustomText] }),
+    ).data[STORAGE.customTexts],
+    [validCustomText],
+  );
   assert.throws(
     () =>
       parseBackupPayload({
@@ -496,6 +556,36 @@ test("backup format only accepts known versioned storage keys", () => {
       }),
     /格式不正确/,
   );
+  for (const customText of [
+    {
+      id: "custom-empty",
+      title: "空文章",
+      length: "short",
+      topic: "自定义",
+      wordCount: 0,
+      version: 1,
+      text: "",
+      kind: "custom",
+    },
+    {
+      id: "custom-wrong-count",
+      title: "计数错误",
+      length: "short",
+      topic: "自定义",
+      wordCount: 1,
+      version: 1,
+      text: "这是至少十个字符的自定义正文。",
+      kind: "custom",
+    },
+  ]) {
+    assert.throws(
+      () =>
+        parseBackupPayload(
+          createBackupPayload({ [STORAGE.customTexts]: [customText] }),
+        ),
+      /格式不正确/,
+    );
+  }
   assert.throws(
     () =>
       parseBackupPayload({
@@ -1210,10 +1300,12 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
   assert.match(worker, /wubi-test-v09/);
+  assert.match(worker, /\/data\/wubi86\.json/);
+  assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(pwa, /window\.location\.reload\(\)/);
-  assert.doesNotMatch(worker.match(/const PRECACHE = \[[\s\S]*?\]\.map/)?.[0] ?? "", /wubi86/);
+  assert.match(worker.match(/const PRECACHE = \[[\s\S]*?\]\.map/)?.[0] ?? "", /wubi86/);
 });
 
 test("service worker creates valid cached audio range responses", async () => {
@@ -1223,12 +1315,18 @@ test("service worker creates valid cached audio range responses", async () => {
   );
   const listeners = new Map();
   const cacheEntries = new Map();
+  let precacheRequests = [];
   const cacheKey = (request) =>
     typeof request === "string"
       ? new URL(request, "https://example.com").toString()
       : request.url;
   const cache = {
-    addAll: async () => undefined,
+    addAll: async (requests) => {
+      precacheRequests = requests;
+      for (const request of requests) {
+        cacheEntries.set(cacheKey(request), new Response("cached"));
+      }
+    },
     match: async (request) => cacheEntries.get(cacheKey(request))?.clone(),
     put: async (request, response) =>
       cacheEntries.set(cacheKey(request), response.clone()),
@@ -1260,6 +1358,22 @@ test("service worker creates valid cached audio range responses", async () => {
   };
   runInNewContext(worker, context);
 
+  let installPromise;
+  listeners.get("install")({
+    waitUntil: (promise) => {
+      installPromise = promise;
+    },
+  });
+  await installPromise;
+  assert.ok(precacheRequests.includes("/wubi/data/wubi86.json"));
+  assert.ok(precacheRequests.includes("/wubi/data/wubi86-challenge.json"));
+  assert.equal(
+    await (
+      await cache.match("https://example.com/wubi/data/wubi86.json")
+    ).text(),
+    "cached",
+  );
+
   const fullResponse = new Response(Uint8Array.from([0, 1, 2, 3, 4, 5]), {
     headers: { "Content-Type": "audio/mpeg" },
   });
@@ -1286,6 +1400,7 @@ test("service worker creates valid cached audio range responses", async () => {
     "https://example.com/wubi/history/",
     new Response("history page"),
   );
+  cacheEntries.delete("https://example.com/wubi/history");
   const cachedRoute = await context.matchNavigationCache(
     new Request("https://example.com/wubi/history"),
   );

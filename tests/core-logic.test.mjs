@@ -98,6 +98,46 @@ test("typing result metrics only credit characters that actually match", () => {
   );
 });
 
+test("typing code length ignores correctly typed punctuation in its denominator", () => {
+  const withoutPunctuation = calculateTypingMetrics({
+    typed: "中国",
+    target: "中国",
+    durationSeconds: 2,
+    keyCount: 4,
+    letterKeys: 4,
+    attemptCount: 2,
+    correctAttemptCount: 2,
+  });
+  const withPunctuation = calculateTypingMetrics({
+    typed: "中国，",
+    target: "中国，",
+    durationSeconds: 2,
+    keyCount: 5,
+    letterKeys: 4,
+    attemptCount: 3,
+    correctAttemptCount: 3,
+  });
+
+  assert.equal(withoutPunctuation.codeLength, 2);
+  assert.equal(withPunctuation.codeLength, 2);
+  assert.equal(withPunctuation.correctChars, 3);
+});
+
+test("typing code length excludes direct Latin letters in mixed custom text", () => {
+  const metrics = calculateTypingMetrics({
+    typed: "AI中国",
+    target: "AI中国",
+    durationSeconds: 2,
+    keyCount: 4,
+    letterKeys: 4,
+    attemptCount: 4,
+    correctAttemptCount: 4,
+  });
+
+  assert.equal(metrics.codeLength, 1);
+  assert.equal(metrics.correctChars, 4);
+});
+
 test("typing diagnostics derive correction cost, phrase rate, and hand use", () => {
   assert.equal(
     calculateKeyAccuracy({
@@ -354,6 +394,10 @@ test("initial article follows the preferred length without losing compatible pro
   );
   assert.equal(
     selectInitialArticle(articles, articles, short.id, "all")?.id,
+    short.id,
+  );
+  assert.equal(
+    selectInitialArticle(articles, articles, short.id, "water", true)?.id,
     short.id,
   );
 });

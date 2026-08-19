@@ -160,7 +160,10 @@ export function TrainingCenter({
     const [minimum, maximum] = limits[key];
     const next = {
       ...goal,
-      [key]: Math.min(maximum, Math.max(minimum, value || minimum)),
+      [key]: Math.min(
+        maximum,
+        Math.max(minimum, Math.round(value || minimum)),
+      ),
     };
     setGoal(next);
     writeLocal(STORAGE.dailyGoal, next);

@@ -59,6 +59,7 @@ import {
   savePracticeOutcome,
   isCommonPracticeArticle,
   isImeSelectionKey,
+  localDateKey,
   selectInitialArticle,
   shouldDeferInputCommit,
   startHesitationQueueItem,
@@ -632,6 +633,7 @@ function TypingView({
   const [commonError, setCommonError] = useState("");
   const [customTitle, setCustomTitle] = useState("我的自定义练习");
   const [customText, setCustomText] = useState("");
+  const [customError, setCustomError] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [typed, setTyped] = useState("");
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -960,12 +962,22 @@ function TypingView({
     ) {
       return;
     }
-    const currentId = readLocal<string | null>(STORAGE.current, null);
+    const storedCurrentId = readLocal<string | null>(STORAGE.current, null);
+    const trainingPlan = readTrainingPlan();
+    const trainingArticleId =
+      trainingPlan?.date === localDateKey(new Date())
+        ? trainingPlan.tasks.find(
+            (task) =>
+              task.type === "article" && task.status === "in-progress",
+          )?.articleId
+        : undefined;
+    const currentId = trainingArticleId ?? storedCurrentId;
     const initialArticle = selectInitialArticle(
       availableArticles,
       articles,
       currentId,
       settings.preferredLength,
+      Boolean(trainingArticleId),
     );
     if (initialArticle) chooseArticle(initialArticle, false);
   }, [
@@ -1353,13 +1365,20 @@ function TypingView({
       customTitle,
       customText,
     );
-    if (!custom) return;
+    if (!custom) {
+      setCustomError("正文至少需要 10 个字符。");
+      return;
+    }
     const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
     const nextCustomTexts = [
       custom,
       ...saved.filter((item) => item.id !== custom.id),
     ].slice(0, 20);
-    writeLocal(STORAGE.customTexts, nextCustomTexts);
+    if (!writeLocal(STORAGE.customTexts, nextCustomTexts)) {
+      setCustomError("自定义文章未能保存，请检查浏览器存储空间。");
+      return;
+    }
+    setCustomError("");
     setCustomTexts(nextCustomTexts);
     chooseArticle(custom);
     setCustomOpen(false);
@@ -1417,7 +1436,13 @@ function TypingView({
           <button className="button secondary common-entry" onClick={openCommonPractice}>
             常用字练习
           </button>
-          <button className="button secondary" onClick={() => setCustomOpen(true)}>
+          <button
+            className="button secondary"
+            onClick={() => {
+              setCustomError("");
+              setCustomOpen(true);
+            }}
+          >
             粘贴自己的文字
           </button>
           <button className="button primary" onClick={randomArticle}>
@@ -1938,11 +1963,15 @@ function TypingView({
         <Modal title="粘贴自定义文本" onClose={() => setCustomOpen(false)}>
           <div className="custom-form">
             <label>标题<input data-modal-autofocus value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} /></label>
-            <label>正文<textarea value={customText} onChange={(event) => setCustomText(event.target.value)} placeholder="粘贴 10–5000 字的纯文本…" /></label>
+            <label>正文<textarea value={customText} onChange={(event) => {
+              setCustomText(event.target.value);
+              setCustomError("");
+            }} placeholder="粘贴 10–5000 字的纯文本…" /></label>
             <div className="modal-actions">
-              <span>{customText.trim().length} / 5000 字</span>
-              <button className="button primary" disabled={customText.trim().length < 10} onClick={useCustomText}>开始练习</button>
+              <span>{Array.from(customText.trim()).length} / 5000 字</span>
+              <button className="button primary" disabled={Array.from(customText.trim()).length < 10} onClick={useCustomText}>开始练习</button>
             </div>
+            {customError && <p className="management-message" role="status">{customError}</p>}
           </div>
         </Modal>
       )}

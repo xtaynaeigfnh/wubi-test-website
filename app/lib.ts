@@ -157,25 +157,37 @@ export function readSettings(): UserSettings {
 
 export function readDailyGoal(): DailyGoal {
   const value = readLocal<Partial<DailyGoal>>(STORAGE.dailyGoal, {});
+  const integerInRange = (
+    candidate: unknown,
+    minimum: number,
+    maximum: number,
+    fallback: number,
+  ) =>
+    typeof candidate === "number" &&
+    Number.isFinite(candidate) &&
+    candidate >= minimum &&
+    candidate <= maximum
+      ? Math.round(candidate)
+      : fallback;
   return {
-    targetChars:
-      typeof value.targetChars === "number" &&
-      value.targetChars >= 100 &&
-      value.targetChars <= 10000
-        ? value.targetChars
-        : defaultDailyGoal.targetChars,
-    targetMinutes:
-      typeof value.targetMinutes === "number" &&
-      value.targetMinutes >= 5 &&
-      value.targetMinutes <= 180
-        ? value.targetMinutes
-        : defaultDailyGoal.targetMinutes,
-    targetRounds:
-      typeof value.targetRounds === "number" &&
-      value.targetRounds >= 1 &&
-      value.targetRounds <= 20
-        ? value.targetRounds
-        : defaultDailyGoal.targetRounds,
+    targetChars: integerInRange(
+      value.targetChars,
+      100,
+      10000,
+      defaultDailyGoal.targetChars,
+    ),
+    targetMinutes: integerInRange(
+      value.targetMinutes,
+      5,
+      180,
+      defaultDailyGoal.targetMinutes,
+    ),
+    targetRounds: integerInRange(
+      value.targetRounds,
+      1,
+      20,
+      defaultDailyGoal.targetRounds,
+    ),
   };
 }
 
@@ -184,11 +196,14 @@ export function selectInitialArticle(
   builtInArticles: PracticeArticle[],
   currentId: string | null,
   preferredLength: ArticleLength | "all",
+  prioritizeCurrent = false,
 ): PracticeArticle | null {
   const matchesPreference = (article: PracticeArticle) =>
     preferredLength === "all" || article.length === preferredLength;
   const current = availableArticles.find(
-    (article) => article.id === currentId && matchesPreference(article),
+    (article) =>
+      article.id === currentId &&
+      (prioritizeCurrent || matchesPreference(article)),
   );
   if (current) return current;
 
@@ -707,9 +722,18 @@ export function calculateTypingMetrics({
   const typedCharacters = Array.from(typed);
   const targetCharacters = Array.from(target);
   let correctChars = 0;
+  let correctHanChars = 0;
+  let correctDirectLetterKeys = 0;
   for (let index = 0; index < typedCharacters.length; index += 1) {
-    if (typedCharacters[index] === targetCharacters[index]) correctChars += 1;
+    if (typedCharacters[index] !== targetCharacters[index]) continue;
+    correctChars += 1;
+    if (hanCharacterPattern.test(targetCharacters[index])) {
+      correctHanChars += 1;
+    } else if (/^[a-y]$/i.test(targetCharacters[index])) {
+      correctDirectLetterKeys += 1;
+    }
   }
+  const wubiLetterKeys = Math.max(0, letterKeys - correctDirectLetterKeys);
   return {
     correctChars,
     attemptedChars: Math.max(targetCharacters.length, attemptCount),
@@ -718,7 +742,7 @@ export function calculateTypingMetrics({
         ? Math.round(correctChars / (durationSeconds / 60))
         : 0,
     kps: durationSeconds > 0 ? keyCount / durationSeconds : 0,
-    codeLength: correctChars > 0 ? letterKeys / correctChars : 0,
+    codeLength: correctHanChars > 0 ? wubiLetterKeys / correctHanChars : 0,
     accuracy: calculateAccuracy(correctAttemptCount, attemptCount),
   };
 }
@@ -1515,7 +1539,7 @@ export function buildTrendSeries(
     const date = new Date(session.date);
     return !result || date < result ? date : result;
   }, null);
-  const dayCount =
+  const rawDayCount =
     range === "all"
       ? Math.max(
           1,
@@ -1528,14 +1552,33 @@ export function buildTrendSeries(
             : 1,
         )
       : range;
-  return Array.from({ length: dayCount }, (_, offset) => {
-    const date = new Date(now);
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() - (dayCount - offset - 1));
-    const key = localDateKey(date);
-    const rows = articleSessions.filter(
-      (session) => localDateKey(session.date) === key,
-    );
+  const maximumContinuousDays = 3660;
+  const safeDayCount =
+    Number.isFinite(rawDayCount) && rawDayCount > 0
+      ? rawDayCount
+      : maximumContinuousDays + 1;
+  const useActiveDays = range === "all" && safeDayCount > maximumContinuousDays;
+  const dayCount = Math.min(safeDayCount, maximumContinuousDays);
+  const dateKeys = useActiveDays
+    ? Array.from(
+        new Set(articleSessions.map((session) => localDateKey(session.date))),
+      ).sort()
+    : Array.from({ length: dayCount }, (_, offset) => {
+        const date = new Date(now);
+        date.setHours(12, 0, 0, 0);
+        date.setDate(date.getDate() - (dayCount - offset - 1));
+        return localDateKey(date);
+      });
+  const sessionsByDate = new Map<string, SessionResult[]>();
+  for (const session of articleSessions) {
+    const key = localDateKey(session.date);
+    const rows = sessionsByDate.get(key) ?? [];
+    rows.push(session);
+    sessionsByDate.set(key, rows);
+  }
+  return dateKeys.map((key) => {
+    const date = new Date(`${key}T12:00:00`);
+    const rows = sessionsByDate.get(key) ?? [];
     const weightedChars = rows.reduce(
       (sum, session) => sum + session.correctChars,
       0,
@@ -1761,6 +1804,24 @@ function isHesitationPracticeQueue(
   return (
     new Set(ids).size === ids.length &&
     new Set(fingerprints).size === fingerprints.length
+  );
+}
+
+function isCustomPracticeArticle(value: unknown): value is PracticeArticle {
+  if (!isPracticeArticle(value) || value.kind !== "custom") return false;
+  const normalized = buildCustomArticle(
+    value.id,
+    value.title,
+    value.text,
+    value.version,
+  );
+  return (
+    normalized !== null &&
+    normalized.title === value.title &&
+    normalized.length === value.length &&
+    normalized.topic === value.topic &&
+    normalized.wordCount === value.wordCount &&
+    normalized.text === value.text
   );
 }
 
@@ -2104,7 +2165,7 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.progress:
       return validateArray(value, 500, isArticleProgress);
     case STORAGE.customTexts:
-      return validateArray(value, 20, isPracticeArticle);
+      return validateArray(value, 20, isCustomPracticeArticle);
     case STORAGE.recent:
       return validateArray(
         value,

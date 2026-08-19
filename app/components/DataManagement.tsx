@@ -6,6 +6,7 @@ import {
   buildCustomArticle,
   createBackupPayload,
   parseBackupPayload,
+  readDailyGoal,
   readKeyUsage,
   readLocal,
   readLocalArray,
@@ -36,6 +37,8 @@ function BackupManager() {
         key,
         key === STORAGE.keyUsage
           ? readKeyUsage()
+          : key === STORAGE.dailyGoal
+            ? readDailyGoal()
           : readLocal<unknown>(key, null),
       ]),
     );
@@ -144,8 +147,12 @@ function CustomTextManager() {
 
   const persist = (next: PracticeArticle[]) => {
     const limited = next.slice(0, 20);
+    if (!writeLocal(STORAGE.customTexts, limited)) {
+      setMessage("自定义文章未能保存，请检查浏览器存储空间。");
+      return false;
+    }
     setItems(limited);
-    writeLocal(STORAGE.customTexts, limited);
+    return true;
   };
 
   const startEdit = (item: PracticeArticle) => {
@@ -164,7 +171,7 @@ function CustomTextManager() {
       setMessage("正文至少需要 10 个字符。");
       return;
     }
-    persist(
+    const saved = persist(
       items.map((item) =>
         item.id === editingId
           ? {
@@ -174,6 +181,7 @@ function CustomTextManager() {
           : item,
       ),
     );
+    if (!saved) return;
     setEditingId("");
     setMessage("自定义文章已保存。");
   };
@@ -195,8 +203,9 @@ function CustomTextManager() {
     if (!imported.length) {
       setMessage("所选 TXT 文件都不足 10 个字符。");
     } else {
-      persist([...imported, ...items]);
-      setMessage(`已导入 ${imported.length} 篇自定义文章。`);
+      if (persist([...imported, ...items])) {
+        setMessage(`已导入 ${imported.length} 篇自定义文章。`);
+      }
     }
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -277,8 +286,9 @@ function CustomTextManager() {
                   className="danger-text"
                   onClick={() => {
                     if (!window.confirm(`确定删除《${item.title}》吗？`)) return;
-                    persist(items.filter((row) => row.id !== item.id));
-                    setMessage("自定义文章已删除。");
+                    if (persist(items.filter((row) => row.id !== item.id))) {
+                      setMessage("自定义文章已删除。");
+                    }
                   }}
                 >
                   删除

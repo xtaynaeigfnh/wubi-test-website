@@ -23,7 +23,9 @@ const PRECACHE = [
   "/data/articles-long.json",
   "/data/articles-water.json",
   "/data/common-characters.json",
-  "/data/music-catalog.json"
+  "/data/music-catalog.json",
+  "/data/wubi86.json",
+  "/data/wubi86-challenge.json"
 ].map(withBase);
 const AUDIO_PATH_PREFIX = withBase("/audio/tracks/");
 
