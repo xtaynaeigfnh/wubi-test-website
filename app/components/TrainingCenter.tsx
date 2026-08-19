@@ -458,7 +458,7 @@ function CodeDrill({
 
   const finish = (finalAnswered: number, finalCorrect: number) => {
     const durationSeconds = Math.max(1, (Date.now() - startedAt.current) / 1000);
-    saveSession({
+    const saved = saveSession({
       id: crypto.randomUUID(),
       type: sessionType,
       title,
@@ -473,6 +473,9 @@ function CodeDrill({
       errors: finalAnswered - finalCorrect,
       errorChars: mistakes.map(([text]) => text),
     });
+    if (!saved) {
+      window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+    }
     setStarted(false);
     setFinished(true);
     onSessionSaved();

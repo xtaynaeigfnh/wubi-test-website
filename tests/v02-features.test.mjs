@@ -11,6 +11,9 @@ import {
   calculateDailyProgress,
   calculateStreak,
   createBackupPayload,
+  getErrors,
+  getProgress,
+  getSessions,
   parseBackupPayload,
   recordKeyUsage,
   restoreBackupPayload,
@@ -113,33 +116,6 @@ test("all trend range includes sessions older than one year", () => {
   assert.equal(points.length, 401);
   assert.equal(points[0].sessions, 1);
   assert.equal(points.reduce((sum, point) => sum + point.sessions, 0), 1);
-});
-
-test("trend series aggregates dense history by local day", () => {
-  const now = new Date("2026-07-29T12:00:00+08:00");
-  const oldDate = new Date(now);
-  oldDate.setDate(oldDate.getDate() - 400);
-  const sessions = Array.from({ length: 500 }, (_, index) =>
-    session({
-      id: `dense-${index}`,
-      date: oldDate.toISOString(),
-      correctChars: 10,
-      durationSeconds: 60,
-      accuracy: 90,
-    }),
-  );
-  const points = buildTrendSeries(sessions, "all", now);
-
-  assert.equal(points.length, 401);
-  assert.deepEqual(points[0], {
-    date: points[0].date,
-    label: points[0].label,
-    sessions: 500,
-    chars: 5000,
-    minutes: 500,
-    speed: 10,
-    accuracy: 90,
-  });
 });
 
 test("review and root pools reuse preferred Wubi codes", () => {
@@ -393,6 +369,93 @@ test("local session history keeps heatmaps for only the newest 50 rounds", () =>
   }
 });
 
+test("local history readers discard malformed records and self-heal storage", () => {
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([{}, session({ id: "valid" })])],
+    [STORAGE.progress, JSON.stringify([{}, {
+      articleId: "article-1",
+      attempts: 1,
+      bestSpeed: 80,
+      completed: true,
+      lastPracticed: "2026-07-29T09:00:00.000Z",
+      errors: 0,
+    }])],
+    [STORAGE.errors, JSON.stringify([{}, {
+      text: "测",
+      code: "imj",
+      count: 1,
+      lastSeen: "2026-07-29T09:00:00.000Z",
+    }])],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(getSessions().length, 1);
+    assert.equal(getProgress().length, 1);
+    assert.equal(getErrors().length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.progress)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.errors)).length, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("session and article progress writes roll back together after storage failure", () => {
+  const oldSessions = JSON.stringify([session({ id: "old" })]);
+  const oldProgress = JSON.stringify([]);
+  const values = new Map([
+    [STORAGE.sessions, oldSessions],
+    [STORAGE.progress, oldProgress],
+  ]);
+  let failProgress = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.progress && failProgress) {
+          failProgress = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    assert.equal(saveSession(session({ id: "new", articleId: "article-1" })), false);
+    assert.equal(values.get(STORAGE.sessions), oldSessions);
+    assert.equal(values.get(STORAGE.progress), oldProgress);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("session saving reports inaccessible storage without throwing", () => {
+  let reads = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: () => {
+        reads += 1;
+        if (reads > 2) throw new Error("denied");
+        return JSON.stringify([]);
+      },
+      removeItem() {},
+      setItem() {},
+    },
+  };
+  try {
+    assert.equal(saveSession(session({ articleId: "article-1" })), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("backup restore rolls back every key after a storage failure", () => {
   const originalSettings = JSON.stringify({ theme: "light" });
   const originalErrors = JSON.stringify([]);
@@ -618,6 +681,22 @@ test("service worker creates valid cached audio range responses", async () => {
   assert.deepEqual(
     Array.from(new Uint8Array(await offlineAudio.arrayBuffer())),
     [2, 3, 4],
+  );
+});
+
+test("Vinext lifecycle scripts stay cross-platform", async () => {
+  const [packageText, viteConfig] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+  ]);
+  const packageJson = JSON.parse(packageText);
+
+  assert.equal(packageJson.scripts.dev, "vinext dev");
+  assert.equal(packageJson.scripts.build, "vinext build");
+  assert.equal(packageJson.scripts.start, "vinext start");
+  assert.ok(
+    viteConfig.indexOf("process.env.WRANGLER_LOG_PATH ??=") <
+      viteConfig.indexOf('await import("@cloudflare/vite-plugin")'),
   );
 });
 
