@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-86 版五笔打字练习网站，支持离线使用。提供文章测速、常用字练习、错题复练、五码根专项、字码挑战、离线查码和离线 Lo-fi 音乐播放。内置文章库包含 80 篇短文、70 篇中篇、30 篇长文和 20 篇网络聊天“水文”；文章测速会对比实际码长与当前码表下的理论下限。
+86 版五笔打字练习网站，支持离线使用。提供文章测速、今日训练中心（自适应处方）、常用字练习、错题复练与卡顿片段复练、五码根专项、字码挑战、离线查码、击键统计、成绩卡分享和离线 Lo-fi 音乐播放。内置文章库包含 120 篇短文、105 篇中篇、45 篇长文和 30 篇网络聊天“水文”（共 300 篇）；文章测速会对比实际码长与当前码表下的理论下限。
 
 ## Key Commands
 
@@ -24,24 +24,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **路由结构** (`app/`):
 - `page.tsx` → 首页文章测速（WubiApp view="typing"）
-- `training/page.tsx` → 常用字练习与智能推荐
+- `training/page.tsx` → 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练
 - `challenge/page.tsx` → 字码挑战
 - `lookup/page.tsx` → 离线查码
-- `history/page.tsx` → 成绩趋势
-- `settings/page.tsx` → 设置与数据管理
+- `history/page.tsx` → 本地成绩、卡顿热力图与文章完成度
+- `summary/page.tsx` → 击键统计（左右手、指法、键区）
+- `settings/page.tsx` → 设置、自定义文章与数据管理
 
 **核心逻辑**:
 - `app/lib.ts` — 客户端共享逻辑：localStorage 读写、文章与码表加载、成绩统计、错题管理、版本化备份校验/恢复，以及基于单字和词组最优分段的理论最小码长计算。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；恢复失败时必须保留原数据。
-- `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐等）
+- `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
+- `app/key-usage.ts` — 键盘键位定义与击键统计（左右手、指法、键区）
+- `app/hesitation-practice.ts` — 从卡顿热力图中提取片段、三连练结果判定与观察项生成
+- `app/share-card.ts` — 本地成绩卡 PNG 生成
+- `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
 - `app/music.ts` — 音乐目录解析与播放逻辑
 - `app/components/WubiApp.tsx` — 主应用组件，根据 `view` prop 渲染不同页面
-- `app/components/TrainingCenter.tsx` — 今日训练、智能推荐、错题复练和字根专项
+- `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项与卡顿片段加练
+- `app/components/HesitationHeatmap.tsx` — 卡顿热力图与片段识别
+- `app/components/HesitationPracticeModal.tsx` — 卡顿片段三连练弹窗
+- `app/components/KeySummary.tsx` — 击键统计（左右手、指法、键区）
 - `app/components/DataManagement.tsx` — 完整备份、自定义文章和 TXT 批量导入
 - `app/components/TrendPanel.tsx` — 成绩趋势序列
 - `app/components/PwaControl.tsx` — Service Worker 状态和安装提示
 - `app/components/MusicPlayer.tsx` — 跨路由保持状态的根级离线播放器
 - `app/components/Ui.tsx` — 打字练习核心 UI 组件
-- `app/share-card.ts` — 本地成绩卡 PNG 生成
 
 **数据**:
 - `public/data/` — 静态 JSON：文章索引及 short/medium/long/water 四组正文、完整五笔码表、挑战码表、常用字表和音乐目录
@@ -62,9 +69,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 测试文件统一命名 `*.test.mjs`，使用 `node:test` + `node:assert/strict`
 - 测试名称描述可观察行为，不描述实现细节
 - 统计、Unicode 字符计数、输入法按键和音乐逻辑优先补充 `tests/core-logic.test.mjs`
+- 卡顿片段复练逻辑补充 `tests/hesitation-practice.test.mjs`
 - 界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
 - 本地存储、备份恢复、PWA 和离线回退改动补充 `tests/v02-features.test.mjs`
 - 文章生成改动必须通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，并提交全部重新生成的 JSON
+- 构建产物与渲染结果在 `tests/rendered-html.test.mjs` 校验（`npm test` 的最后一步）
 - `npm test` 不包含 lint 与类型检查；交付前同时运行 `npm run lint`、`npx tsc --noEmit` 和 `npm test`。GitHub Pages 工作流也以这三项为部署门禁
 
 ## Commit Style
