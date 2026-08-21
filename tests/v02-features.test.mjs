@@ -1452,10 +1452,11 @@ test("service worker creates valid cached audio range responses", async () => {
   );
 });
 
-test("Vinext lifecycle scripts stay cross-platform", async () => {
-  const [packageText, viteConfig] = await Promise.all([
+test("build lifecycle stays cross-platform and project-rooted", async () => {
+  const [packageText, viteConfig, nextConfig] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageText);
 
@@ -1466,6 +1467,7 @@ test("Vinext lifecycle scripts stay cross-platform", async () => {
     viteConfig.indexOf("process.env.WRANGLER_LOG_PATH ??=") <
       viteConfig.indexOf('await import("@cloudflare/vite-plugin")'),
   );
+  assert.match(nextConfig, /turbopack:\s*\{\s*root: process\.cwd\(\)/);
 });
 
 test("all nine v0.2 feature surfaces stay wired into the product", async () => {
