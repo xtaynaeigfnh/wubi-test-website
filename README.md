@@ -227,10 +227,10 @@ npm test
 
 ```bash
 npm run lint
-npx tsc --noEmit
+npm run typecheck
 ```
 
-`npm test` 会运行核心逻辑、卡顿复练、内容数据和界面契约测试，完成 Vinext 生产构建，再验证渲染结果；它不包含 ESLint 和 TypeScript 检查。提交或发布前应同时运行上面的三项命令。GitHub Pages 工作流只有在这三项全部通过后才会执行静态导出和部署。
+`npm run typecheck` 会先刷新 Next.js 路由类型，再执行严格 TypeScript 检查，避免 Vinext 与 Next.js 共用 `.next/types` 时读到另一种构建残留的类型文件。`npm test` 会运行核心逻辑、卡顿复练、内容数据和界面契约测试，完成 Vinext 生产构建，再验证渲染结果；它不包含 ESLint 和 TypeScript 检查。提交或发布前应同时运行上面的三项命令。GitHub Pages 工作流只有在这三项全部通过后才会执行静态导出和部署。
 
 重新生成 300 篇练习文章、常用字表、完整 86 版五笔码表和字码挑战码表：
 

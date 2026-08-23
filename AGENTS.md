@@ -20,7 +20,7 @@
 - `npm run start`：在本地运行已完成的生产构建。
 - `npm run data:generate`：重新生成四组文章文件、文章索引、常用字数据、完整五笔码表及挑战码表。
 - `npm test`：运行逻辑与数据测试，构建应用，再验证渲染后的 HTML。
-- `npm run lint` 和 `npx tsc --noEmit`：分别执行 ESLint 与严格 TypeScript 检查。
+- `npm run lint` 和 `npm run typecheck`：分别执行 ESLint，以及刷新 Next.js 路由类型后的严格 TypeScript 检查。
 - `npm run db:generate`：仅在可选的 Drizzle/D1 schema 发生变化时生成迁移。
 
 ## 编码风格与命名约定
@@ -31,7 +31,7 @@
 
 测试使用 `node:test` 和 `node:assert/strict`。测试名称应描述可观察行为，而非内部实现。根据改动范围，将用例加入最相关的套件：`core-logic`、`content-data`、`hesitation-practice`、`ui-interaction-contract`、`v02-features` 或 `rendered-html`。码长、Unicode 字符计数和输入法按键识别需覆盖边界情况；卡顿片段提取、三连练判定和观察项生成优先放入 `hesitation-practice`；修改界面结构、文案或响应式布局时，同步更新界面契约测试；修改本地存储、备份或 PWA 时，覆盖异常输入、失败回滚、部署子路径及离线回退。不要移除 `next.config.ts` 中基于 `process.cwd()` 的 Turbopack 根目录设置，它用于保证中文路径下的静态构建稳定。修改生成逻辑后必须提交全部重新生成的数据文件，并确认文章长度、标点、唯一性、内部重复及跨文章重复度测试通过。
 
-GitHub Pages 工作流会依次运行 lint、类型检查和完整测试，全部通过后才执行静态导出与部署。`npm test` 本身不包含 lint 和 `tsc`，本地交付前需要分别运行三项检查。
+GitHub Pages 工作流会依次运行 lint、类型检查和完整测试，全部通过后才执行静态导出与部署。`npm test` 本身不包含 lint 和类型检查，本地交付前需要分别运行三项检查。
 
 ## 提交与拉取请求规范
 
