@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-**框架**: Next.js 16 + Vinext（Vite-based Next.js 运行时）。`.openai/hosting.json`、`vite.config.ts` 和 `worker/index.ts` 用于 Sites/Cloudflare Worker 部署；`next.config.ts` 与 `.github/workflows/pages.yml` 用于 GitHub Pages 静态导出。当前 hosting 配置不使用 D1 或 R2。
+**框架**: Next.js 16 + Vinext（Vite-based Next.js 运行时）。`.openai/hosting.json`、`vite.config.ts`、`build/sites-vite-plugin.ts` 和 `worker/index.ts` 用于 Sites/Cloudflare Worker 构建与部署；`next.config.ts` 与 `.github/workflows/pages.yml` 用于 GitHub Pages 静态导出。当前 hosting 配置不使用 D1 或 R2。`next.config.ts` 中基于 `process.cwd()` 的 Turbopack 根目录设置用于保证中文路径下的静态构建稳定，不要移除。
 
 **路由结构** (`app/`):
 - `page.tsx` → 首页文章测速（WubiApp view="typing"）
@@ -58,21 +58,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **PWA**: `public/sw.js` + `public/manifest.webmanifest` 提供离线缓存支持。Service Worker 必须兼容 GitHub Pages 的部署子路径，预缓存所有页面和文章目录，并在网络失败时回退到已缓存页面/数据。
 
-**数据库** (可选): `db/schema.ts` + Drizzle ORM + SQLite，用于 Cloudflare D1 部署场景。
+**数据库** (可选): `db/index.ts` 提供 Drizzle/D1 连接入口，`db/schema.ts` 默认不定义任何表；如需启用 D1，参考 `examples/d1/` 并同步更新 `.openai/hosting.json`、schema 与迁移。不要在未启用绑定时假设 `env.DB` 可用。
 
 ## Coding Conventions
 
 - 2 空格缩进、双引号、分号、多行末尾逗号
 - 组件/类型用 PascalCase，函数/变量用 camelCase，路由目录用 kebab-case
 - 浏览器端模块必须声明 `"use client"`
-- 使用 `@/*` 路径别名
+- 能提升可读性时优先使用 `@/*` 路径别名
 - 测试文件统一命名 `*.test.mjs`，使用 `node:test` + `node:assert/strict`
 - 测试名称描述可观察行为，不描述实现细节
 - 统计、Unicode 字符计数、输入法按键和音乐逻辑优先补充 `tests/core-logic.test.mjs`
 - 卡顿片段复练逻辑补充 `tests/hesitation-practice.test.mjs`
 - 界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
 - 本地存储、备份恢复、PWA 和离线回退改动补充 `tests/v02-features.test.mjs`
-- 文章生成改动必须通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，并提交全部重新生成的 JSON
+- 文章生成改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，并提交全部重新生成的 JSON
 - 构建产物与渲染结果在 `tests/rendered-html.test.mjs` 校验（`npm test` 的最后一步）
 - `npm test` 不包含 lint 与类型检查；交付前同时运行 `npm run lint`、`npx tsc --noEmit` 和 `npm test`。GitHub Pages 工作流也以这三项为部署门禁
 
