@@ -16,7 +16,10 @@ function preferEntry(
   return (
     !current ||
     candidate[1].length < current[1].length ||
-    (candidate[1].length === current[1].length && candidate[2] > current[2])
+    (candidate[1].length === current[1].length && candidate[2] > current[2]) ||
+    (candidate[1].length === current[1].length &&
+      candidate[2] === current[2] &&
+      candidate[1].localeCompare(current[1]) < 0)
   );
 }
 
@@ -77,10 +80,13 @@ export function buildPhraseTrainingPool(
           const item = missed.get(text);
           if (!item) return 0;
           const mistakes = Math.max(0, item.practiceCount - item.correctCount);
-          return Math.round(
-            ((item.opportunityCount * item.savedKeys + mistakes * 5) *
-              100_000_000) /
-              (1 + item.correctCount * 0.4),
+          const unresolvedOpportunities = Math.max(
+            0,
+            item.opportunityCount - item.correctCount,
+          );
+          return (
+            (unresolvedOpportunities * item.savedKeys + mistakes * 5) *
+            100_000_000
           );
         })() +
         (exactWeakness ? exactWeakness.count * 10_000_000 : 0) +

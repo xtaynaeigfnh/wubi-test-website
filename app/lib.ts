@@ -1208,8 +1208,26 @@ function withCompletedTrainingTask(
 export function savePracticeOutcome(
   session: SessionResult,
   observations: WeakObservation[] = [],
+  phraseOpportunities: PhraseOpportunityInput[] = [],
+  phrasePractices: PhrasePracticeInput[] = [],
 ): boolean {
-  return persistPracticeOutcome(session, observations);
+  const extraWrites = new Map<string, unknown>();
+  if (phraseOpportunities.length || phrasePractices.length) {
+    const withOpportunities = mergePhraseOpportunities(
+      getPhraseOpportunities(),
+      phraseOpportunities,
+      session.date,
+    );
+    extraWrites.set(
+      STORAGE.phraseOpportunities,
+      mergePhrasePractices(
+        withOpportunities,
+        phrasePractices,
+        session.date,
+      ),
+    );
+  }
+  return persistPracticeOutcome(session, observations, extraWrites);
 }
 
 export function saveHesitationPracticeOutcome(
@@ -1368,36 +1386,103 @@ export function addError(text: string, code?: string) {
 }
 
 export function getPhraseOpportunities(): PhraseOpportunityStat[] {
-  return readValidatedLocalArray(
+  const stored = readValidatedLocalArray(
     STORAGE.phraseOpportunities,
     120,
     isPhraseOpportunityStat,
-  ).sort(
+  );
+  const merged = mergePhraseOpportunityStats(stored);
+  if (JSON.stringify(stored) !== JSON.stringify(merged)) {
+    writeLocal(STORAGE.phraseOpportunities, merged);
+  }
+  return merged;
+}
+
+export interface PhraseOpportunityInput {
+  text: string;
+  code: string;
+  characterCount: number;
+  savedKeys: number;
+}
+
+export interface PhrasePracticeInput {
+  entry: WubiEntry;
+  correct: boolean;
+}
+
+function phraseOpportunityPriority(item: PhraseOpportunityStat): number {
+  const mistakes = Math.max(0, item.practiceCount - item.correctCount);
+  const unresolvedOpportunities = Math.max(
+    0,
+    item.opportunityCount - item.correctCount,
+  );
+  return (
+    unresolvedOpportunities * item.savedKeys +
+    mistakes * 5 +
+    (item.opportunityCount > 0 && item.practiceCount === 0 ? 1 : 0)
+  );
+}
+
+function sortPhraseOpportunities(items: PhraseOpportunityStat[]) {
+  return items.sort(
     (left, right) =>
-      right.opportunityCount * right.savedKeys -
-        left.opportunityCount * left.savedKeys ||
+      phraseOpportunityPriority(right) - phraseOpportunityPriority(left) ||
       right.lastSeen.localeCompare(left.lastSeen) ||
       left.text.localeCompare(right.text, "zh-Hans-CN-u-co-unihan"),
   );
 }
 
-export function recordPhraseOpportunities(
-  opportunities: Array<{
-    text: string;
-    code: string;
-    characterCount: number;
-    savedKeys: number;
-  }>,
-  occurredAt = new Date().toISOString(),
-): boolean {
-  const current = new Map(
-    getPhraseOpportunities().map((item) => [item.text, item]),
-  );
-  for (const opportunity of opportunities.slice(0, 5)) {
+function mergePhraseOpportunityStats(
+  items: PhraseOpportunityStat[],
+): PhraseOpportunityStat[] {
+  const merged = new Map<string, PhraseOpportunityStat>();
+  for (const item of items) {
+    const previous = merged.get(item.text);
+    if (!previous) {
+      merged.set(item.text, { ...item });
+      continue;
+    }
+    const practiceCount = Math.min(
+      1_000_000,
+      previous.practiceCount + item.practiceCount,
+    );
+    merged.set(item.text, {
+      ...previous,
+      code:
+        item.code.length < previous.code.length ||
+        (item.code.length === previous.code.length &&
+          item.code.localeCompare(previous.code) < 0)
+          ? item.code
+          : previous.code,
+      savedKeys: Math.max(previous.savedKeys, item.savedKeys),
+      opportunityCount: Math.min(
+        1_000_000,
+        previous.opportunityCount + item.opportunityCount,
+      ),
+      practiceCount,
+      correctCount: Math.min(
+        practiceCount,
+        previous.correctCount + item.correctCount,
+      ),
+      lastSeen:
+        item.lastSeen > previous.lastSeen ? item.lastSeen : previous.lastSeen,
+    });
+  }
+  return sortPhraseOpportunities(Array.from(merged.values())).slice(0, 120);
+}
+
+function mergePhraseOpportunities(
+  currentItems: PhraseOpportunityStat[],
+  opportunities: PhraseOpportunityInput[],
+  occurredAt: string,
+): PhraseOpportunityStat[] {
+  const current = new Map(currentItems.map((item) => [item.text, item]));
+  for (const opportunity of opportunities) {
     const characterCount = Array.from(opportunity.text).length;
     if (
       characterCount < 2 ||
       characterCount > 4 ||
+      !/^\p{Script=Han}{2,4}$/u.test(opportunity.text) ||
       !/^[a-y]{1,4}$/i.test(opportunity.code) ||
       !Number.isInteger(opportunity.savedKeys) ||
       opportunity.savedKeys <= 0
@@ -1419,35 +1504,86 @@ export function recordPhraseOpportunities(
       lastSeen: occurredAt,
     });
   }
-  const next = Array.from(current.values())
-    .sort(
-      (left, right) =>
-        right.opportunityCount * right.savedKeys -
-          left.opportunityCount * left.savedKeys ||
-        right.lastSeen.localeCompare(left.lastSeen),
-    )
-    .slice(0, 120);
+  return sortPhraseOpportunities(Array.from(current.values())).slice(0, 120);
+}
+
+export function recordPhraseOpportunities(
+  opportunities: PhraseOpportunityInput[],
+  occurredAt = new Date().toISOString(),
+): boolean {
+  const next = mergePhraseOpportunities(
+    getPhraseOpportunities(),
+    opportunities,
+    occurredAt,
+  );
   return writeLocal(STORAGE.phraseOpportunities, next);
 }
 
 export function recordPhrasePractice(
-  text: string,
+  phrase: string | WubiEntry,
   correct: boolean,
   occurredAt = new Date().toISOString(),
 ): boolean {
   const current = getPhraseOpportunities();
-  const index = current.findIndex((item) => item.text === text);
-  if (index < 0) return true;
-  current[index] = {
-    ...current[index],
-    practiceCount: Math.min(1_000_000, current[index].practiceCount + 1),
-    correctCount: Math.min(
+  const entry =
+    typeof phrase === "string"
+      ? current
+          .filter((item) => item.text === phrase)
+          .map((item): WubiEntry => [item.text, item.code, 0])[0]
+      : phrase;
+  if (!entry) return false;
+  return writeLocal(
+    STORAGE.phraseOpportunities,
+    mergePhrasePractices(current, [{ entry, correct }], occurredAt),
+  );
+}
+
+function mergePhrasePractices(
+  currentItems: PhraseOpportunityStat[],
+  practices: PhrasePracticeInput[],
+  occurredAt: string,
+): PhraseOpportunityStat[] {
+  const current = [...currentItems];
+  for (const { entry, correct } of practices) {
+    const text = entry[0];
+    const index = current.findIndex((item) => item.text === text);
+    if (index < 0) {
+      const characterCount = Array.from(text).length;
+      if (
+        characterCount < 2 ||
+        characterCount > 4 ||
+        !/^\p{Script=Han}{2,4}$/u.test(text) ||
+        !/^[a-y]{1,4}$/i.test(entry[1])
+      ) {
+        continue;
+      }
+      current.push({
+        text,
+        code: entry[1].toLowerCase(),
+        characterCount: characterCount as 2 | 3 | 4,
+        savedKeys: 1,
+        opportunityCount: 0,
+        practiceCount: 1,
+        correctCount: correct ? 1 : 0,
+        lastSeen: occurredAt,
+      });
+      continue;
+    }
+    const practiceCount = Math.min(
       1_000_000,
-      current[index].correctCount + (correct ? 1 : 0),
-    ),
-    lastSeen: occurredAt,
-  };
-  return writeLocal(STORAGE.phraseOpportunities, current.slice(0, 120));
+      current[index].practiceCount + 1,
+    );
+    current[index] = {
+      ...current[index],
+      practiceCount,
+      correctCount: Math.min(
+        practiceCount,
+        current[index].correctCount + (correct ? 1 : 0),
+      ),
+      lastSeen: occurredAt,
+    };
+  }
+  return sortPhraseOpportunities(current).slice(0, 120);
 }
 
 export function updateErrorMastery(
@@ -1701,7 +1837,11 @@ export function createBackupPayload(
   };
 }
 
-const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+export const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+
+export function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -2296,7 +2436,11 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.hesitationQueue:
       return isHesitationPracticeQueue(value);
     case STORAGE.phraseOpportunities:
-      return validateArray(value, 120, isPhraseOpportunityStat);
+      return (
+        validateArray(value, 120, isPhraseOpportunityStat) &&
+        new Set((value as PhraseOpportunityStat[]).map((item) => item.text))
+          .size === (value as PhraseOpportunityStat[]).length
+      );
     default:
       return false;
   }
@@ -2340,7 +2484,7 @@ export function parseBackupPayload(value: unknown): BackupPayload {
     }
     normalizedData[STORAGE.dailyGoal] = dailyGoal;
   }
-  if (JSON.stringify(normalizedData).length > MAX_BACKUP_BYTES) {
+  if (utf8ByteLength(JSON.stringify({ ...payload, data: normalizedData })) > MAX_BACKUP_BYTES) {
     throw new Error("备份文件过大，无法安全恢复");
   }
   const invalidKey = Object.entries(normalizedData).find(
@@ -2367,7 +2511,8 @@ export function restoreBackupPayload(payload: BackupPayload): void {
         window.localStorage.setItem(key, JSON.stringify(validated.data[key]));
       } else if (
         key === STORAGE.trainingPlan ||
-        key === STORAGE.hesitationQueue
+        key === STORAGE.hesitationQueue ||
+        key === STORAGE.phraseOpportunities
       ) {
         window.localStorage.removeItem(key);
       }

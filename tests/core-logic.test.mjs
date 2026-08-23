@@ -400,7 +400,10 @@ test("code length coach finds beneficial two, three, and four character opportun
       [2, 6],
     ],
   );
-  assert.equal(analysis.highestValueOpportunities.length, 3);
+  assert.deepEqual(
+    analysis.highestValueOpportunities.map(({ text, start }) => ({ text, start })),
+    [{ text: "甲乙丙丁", start: 0 }],
+  );
 });
 
 test("code length coach survives ignored text and unknown Han without inventing totals", () => {

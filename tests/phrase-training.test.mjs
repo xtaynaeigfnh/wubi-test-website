@@ -70,3 +70,16 @@ test("结算页推荐可以作为最小向后兼容接口提权", () => {
 
   assert.equal(pool[0][0], "输入法");
 });
+
+test("相同码长和权重的编码按字典序稳定选择", () => {
+  const tied = [
+    ["踊跃", "kckt", 10_400_000],
+    ["踊跃", "khkh", 10_400_000],
+  ];
+
+  assert.deepEqual(
+    buildPhraseTrainingPool(tied, { limit: 1 }),
+    buildPhraseTrainingPool([...tied].reverse(), { limit: 1 }),
+  );
+  assert.equal(buildPhraseTrainingPool(tied, { limit: 1 })[0][1], "kckt");
+});

@@ -21,12 +21,12 @@ import {
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
-  recordPhrasePractice,
   savePracticeOutcome,
   startTrainingTask,
   STORAGE,
   writeLocal,
   writeTrainingPlan,
+  type PhrasePracticeInput,
 } from "../lib";
 import type {
   DailyTrainingPlan,
@@ -50,7 +50,13 @@ import {
 import { buildPhraseTrainingPool } from "../phrase-training";
 import { ErrorState } from "./Ui";
 
-type TrainingTab = "plan" | "review" | "phrase" | "roots";
+const TRAINING_TABS = [
+  ["plan", "今日计划"],
+  ["review", "错题复练"],
+  ["phrase", "词组专项"],
+  ["roots", "五码根专项"],
+] as const;
+type TrainingTab = (typeof TRAINING_TABS)[number][0];
 
 export function TrainingCenter({
   playKeySound,
@@ -97,6 +103,12 @@ export function TrainingCenter({
   }, []);
 
   useEffect(refreshLocal, [hesitationSaveRevision, refreshLocal]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "phrase") {
+      setTab("phrase");
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -193,6 +205,17 @@ export function TrainingCenter({
     refreshLocal();
   };
 
+  const moveTrainingTab = (current: TrainingTab, direction: -1 | 1) => {
+    const currentIndex = TRAINING_TABS.findIndex(([value]) => value === current);
+    const nextIndex =
+      (currentIndex + direction + TRAINING_TABS.length) % TRAINING_TABS.length;
+    const next = TRAINING_TABS[nextIndex][0];
+    setTab(next);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`training-tab-${next}`)?.focus();
+    });
+  };
+
   const startPlanTask = (task: TrainingTask) => {
     const next = startTrainingTask(task.id);
     if (!next) {
@@ -281,18 +304,25 @@ export function TrainingCenter({
       </div>
 
       <div className="training-tabs phrase-tabs" role="tablist" aria-label="训练中心栏目">
-        {([
-          ["plan", "今日计划"],
-          ["review", "错题复练"],
-          ["phrase", "词组专项"],
-          ["roots", "五码根专项"],
-        ] as const).map(([value, label]) => (
+        {TRAINING_TABS.map(([value, label]) => (
           <button
             key={value}
+            id={`training-tab-${value}`}
             role="tab"
             aria-selected={tab === value}
+            aria-controls={`training-panel-${value}`}
+            tabIndex={tab === value ? 0 : -1}
             className={tab === value ? "active" : ""}
             onClick={() => setTab(value)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                moveTrainingTab(value, -1);
+              } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                moveTrainingTab(value, 1);
+              }
+            }}
           >
             {label}
           </button>
@@ -308,7 +338,12 @@ export function TrainingCenter({
       )}
 
       {tab === "plan" && (
-        <div className="training-plan">
+        <div
+          id="training-panel-plan"
+          className="training-plan"
+          role="tabpanel"
+          aria-labelledby="training-tab-plan"
+        >
           <div className="daily-progress-card">
             <header className="panel-title training-card-header">
               <div className="training-card-heading">
@@ -560,24 +595,35 @@ export function TrainingCenter({
       )}
 
       {tab === "review" && (
-        <CodeDrill
-          key={prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}
-          title={prescribedReview?.title ?? "高频错题复练"}
-          description={prescribedReview?.reason ?? "错误越多、掌握度越低的字会排得越靠前。连续答对会逐步提高掌握度。"}
-          emptyText="还没有可复练的错字。先完成一篇文章或一轮字码挑战。"
-          pool={prescribedReview?.items ?? reviewPool}
-          sessionType="review"
-          playKeySound={playKeySound}
-          planTask={prescribedReview}
-          onSessionSaved={() => {
-            onSessionSaved();
-            if (prescribedReview) setTab("plan");
-          }}
-        />
+        <div
+          id="training-panel-review"
+          role="tabpanel"
+          aria-labelledby="training-tab-review"
+        >
+          <CodeDrill
+            key={prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}
+            title={prescribedReview?.title ?? "高频错题复练"}
+            description={prescribedReview?.reason ?? "错误越多、掌握度越低的字会排得越靠前。连续答对会逐步提高掌握度。"}
+            emptyText="还没有可复练的错字。先完成一篇文章或一轮字码挑战。"
+            pool={prescribedReview?.items ?? reviewPool}
+            sessionType="review"
+            playKeySound={playKeySound}
+            planTask={prescribedReview}
+            onSessionSaved={() => {
+              onSessionSaved();
+              if (prescribedReview) setTab("plan");
+            }}
+          />
+        </div>
       )}
 
       {tab === "phrase" && (
-        <div className="phrase-training">
+        <div
+          id="training-panel-phrase"
+          className="phrase-training"
+          role="tabpanel"
+          aria-labelledby="training-tab-phrase"
+        >
           <aside className="phrase-training-note" aria-label="词组专项选题说明">
             <span className="eyebrow">码长教练</span>
             <strong>把单字弱项，放回常用词组里练</strong>
@@ -593,23 +639,26 @@ export function TrainingCenter({
             <small>每轮最多 20 题，同一词组不重复出现。</small>
           </aside>
           <CodeDrill
-            key={`phrase-${phrasePool.map((entry) => entry[0]).join("|")}`}
+            key="phrase-training"
             title="词组码长专项"
             description="直接输入整个词组的五笔编码，建立二字、三字和四字词的连续输入记忆。"
             emptyText={loading ? "正在整理词组题库…" : "暂时没有可用词组，请先完成一轮文章或稍后重试。"}
             pool={phrasePool}
             sessionType="review"
             playKeySound={playKeySound}
-            onAnswer={(entry, correct) => {
-              recordPhrasePractice(entry[0], correct);
-            }}
+            trackPhrasePractice
             onSessionSaved={onSessionSaved}
           />
         </div>
       )}
 
       {tab === "roots" && (
-        <div className="root-training">
+        <div
+          id="training-panel-roots"
+          className="root-training"
+          role="tabpanel"
+          aria-labelledby="training-tab-roots"
+        >
           <div className="root-zone-rail" role="tablist" aria-label="五码根区">
             {ROOT_ZONES.map((item) => (
               <button
@@ -679,7 +728,7 @@ function CodeDrill({
   sessionType,
   playKeySound,
   planTask,
-  onAnswer,
+  trackPhrasePractice = false,
   onSessionSaved,
 }: {
   title: string;
@@ -689,7 +738,7 @@ function CodeDrill({
   sessionType: "review" | "roots";
   playKeySound: () => void;
   planTask?: TrainingTask;
-  onAnswer?: (entry: WubiEntry, correct: boolean) => void;
+  trackPhrasePractice?: boolean;
   onSessionSaved: () => void;
 }) {
   const limit = planTask ? pool.length : 20;
@@ -701,10 +750,17 @@ function CodeDrill({
   const [answered, setAnswered] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState<WubiEntry[]>([]);
+  const [saveError, setSaveError] = useState("");
+  const [pendingSave, setPendingSave] = useState<{
+    session: SessionResult;
+    observations: WeakObservation[];
+    phrasePractices: PhrasePracticeInput[];
+  } | null>(null);
   const startedAt = useRef(0);
   const seen = useRef(new Set<string>());
   const orderedIndex = useRef(0);
   const observations = useRef<WeakObservation[]>([]);
+  const phrasePracticeAnswers = useRef<PhrasePracticeInput[]>([]);
   const advanceTimer = useRef<number | null>(null);
 
   const nextQuestion = useCallback(() => {
@@ -744,12 +800,15 @@ function CodeDrill({
     seen.current.clear();
     orderedIndex.current = 0;
     observations.current = [];
+    phrasePracticeAnswers.current = [];
     startedAt.current = Date.now();
     setStarted(true);
     setFinished(false);
     setAnswered(0);
     setCorrect(0);
     setMistakes([]);
+    setSaveError("");
+    setPendingSave(null);
     nextQuestion();
   };
 
@@ -773,12 +832,46 @@ function CodeDrill({
         .map((item) => item.text),
       trainingTaskId: planTask?.id,
     };
-    const saved = savePracticeOutcome(session, observations.current);
+    const savedObservations = [...observations.current];
+    const savedPhrasePractices = [...phrasePracticeAnswers.current];
+    const saved = savePracticeOutcome(
+      session,
+      savedObservations,
+      [],
+      savedPhrasePractices,
+    );
     if (!saved) {
+      setSaveError("本轮成绩尚未保存，请清理部分本机数据后重试。");
+      setPendingSave({
+        session,
+        observations: savedObservations,
+        phrasePractices: savedPhrasePractices,
+      });
       window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+    } else {
+      setSaveError("");
+      setPendingSave(null);
     }
     setStarted(false);
     setFinished(true);
+    if (saved) onSessionSaved();
+  };
+
+  const retrySave = () => {
+    if (!pendingSave) return;
+    if (
+      !savePracticeOutcome(
+        pendingSave.session,
+        pendingSave.observations,
+        [],
+        pendingSave.phrasePractices,
+      )
+    ) {
+      setSaveError("仍未能保存，请清理部分本机数据后再试。");
+      return;
+    }
+    setSaveError("");
+    setPendingSave(null);
     onSessionSaved();
   };
 
@@ -797,7 +890,9 @@ function CodeDrill({
   const submit = () => {
     if (!question || !input || feedback !== "idle") return;
     const right = input.toLowerCase() === question[1].toLowerCase();
-    onAnswer?.(question, right);
+    if (trackPhrasePractice) {
+      phrasePracticeAnswers.current.push({ entry: question, correct: right });
+    }
     setFeedback(right ? "right" : "wrong");
     observations.current.push({
       text: question[0],
@@ -829,13 +924,19 @@ function CodeDrill({
             <span>{finished ? "本轮答对" : "题库可用题目"}</span>
           </div>
           {finished && (
-            <p>
-              准确率 {calculateAccuracy(correct, answered).toFixed(1)}%，
-              {mistakes.length ? `还有 ${mistakes.length} 题需要巩固。` : "本轮全部答对。"}
-            </p>
+            <>
+              <p>
+                准确率 {calculateAccuracy(correct, answered).toFixed(1)}%，
+                {mistakes.length ? `还有 ${mistakes.length} 题需要巩固。` : "本轮全部答对。"}
+              </p>
+              {saveError && <p role="alert">{saveError}</p>}
+            </>
           )}
-          <button className="button primary" onClick={start}>
-            {finished ? "再练一轮" : "开始专项"}
+          <button
+            className="button primary"
+            onClick={saveError ? retrySave : start}
+          >
+            {saveError ? "重试保存" : finished ? "再练一轮" : "开始专项"}
           </button>
         </div>
       ) : (

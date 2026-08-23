@@ -12,6 +12,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   addHesitationQueueItem,
   applyTypingDelaySample,
@@ -55,7 +56,6 @@ import {
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
-  recordPhraseOpportunities,
   saveHesitationPracticeOutcome,
   savePracticeOutcome,
   isCommonPracticeArticle,
@@ -67,6 +67,7 @@ import {
   STORAGE,
   writeLocal,
   type MinimumCodeLengthIndex,
+  type PhraseOpportunityInput,
 } from "../lib";
 import {
   analyzeCodeLengthCoach,
@@ -619,6 +620,7 @@ function TypingView({
   queuedFingerprints: ReadonlySet<string>;
   masteredAtByFingerprint: ReadonlyMap<string, string>;
 }) {
+  const router = useRouter();
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
   const [articlesError, setArticlesError] = useState("");
@@ -662,9 +664,15 @@ function TypingView({
   const [errorCount, setErrorCount] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
+  const [sessionSaveFailed, setSessionSaveFailed] = useState(false);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
+  const pendingPracticeSave = useRef<{
+    session: SessionResult;
+    observations: WeakObservation[];
+    phraseOpportunities: PhraseOpportunityInput[];
+  } | null>(null);
   const committedValue = useRef("");
   const startedAtRef = useRef<number | null>(null);
   const lastTimingAtRef = useRef<number | null>(null);
@@ -684,6 +692,7 @@ function TypingView({
   const [codeLengthCoachIndex, setCodeLengthCoachIndex] =
     useState<CodeLengthCoachIndex | null>(null);
   const [minimumCodeError, setMinimumCodeError] = useState("");
+  const [codeLengthLoadAttempt, setCodeLengthLoadAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -737,7 +746,7 @@ function TypingView({
     return () => {
       active = false;
     };
-  }, []);
+  }, [codeLengthLoadAttempt]);
 
   useEffect(() => {
     setFilter((value) => ({
@@ -890,6 +899,8 @@ function TypingView({
       setErrorCount(0);
       setCompleted(false);
       setLastSession(null);
+      setSessionSaveFailed(false);
+      pendingPracticeSave.current = null;
       composing.current = false;
       recorded.current = false;
       committedValue.current = "";
@@ -1086,15 +1097,23 @@ function TypingView({
     codeLengthAnalysis?.highestValueOpportunities ?? [];
   const startRecommendedPhrasePractice = () => {
     if (!recommendedPhrases.length) return;
-    const practiceText = recommendedPhrases
-      .map(({ text }) => `${text}${text}${text}`)
-      .join("，");
-    const phraseArticle = buildCustomArticle(
-      `custom-phrase-${Date.now()}`,
-      "词组推荐机会专项",
-      practiceText,
+    router.push("/training?tab=phrase");
+  };
+  const retryPracticeSave = () => {
+    const pending = pendingPracticeSave.current;
+    if (!pending) return;
+    const saved = savePracticeOutcome(
+      pending.session,
+      pending.observations,
+      pending.phraseOpportunities,
     );
-    if (phraseArticle) chooseArticle(phraseArticle);
+    if (!saved) {
+      window.alert("仍未能保存，请清理部分本机数据后再试。");
+      return;
+    }
+    pendingPracticeSave.current = null;
+    setSessionSaveFailed(false);
+    setProgress(getProgress());
   };
   const progressRatio = Math.min(
     1,
@@ -1144,6 +1163,7 @@ function TypingView({
     if (
       !article ||
       completed ||
+      (!codeLengthCoachIndex && !minimumCodeError) ||
       !canCompleteTyping(typed, targetText)
     ) {
       return;
@@ -1252,39 +1272,31 @@ function TypingView({
       heatmap,
       trainingTaskId,
     };
-    if (!savePracticeOutcome(session, observations)) {
+    const phraseOpportunities =
+      codeLengthAnalysis?.highestValueOpportunities
+        .filter((opportunity) => opportunity.savedKeys > 0)
+        .map((opportunity) => ({
+          text: opportunity.text,
+          code: opportunity.code,
+          characterCount: opportunity.length,
+          savedKeys: opportunity.savedKeys,
+        })) ?? [];
+    const saved = savePracticeOutcome(
+      session,
+      observations,
+      phraseOpportunities,
+    );
+    if (!saved) {
+      pendingPracticeSave.current = {
+        session,
+        observations,
+        phraseOpportunities,
+      };
+      setSessionSaveFailed(true);
       window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
-    }
-    const directLatinLetterKeys = targetCharacters.reduce(
-      (count, character, index) =>
-        typedCharacters[index] === character && /^[a-y]$/i.test(character)
-          ? count + 1
-          : count,
-      0,
-    );
-    const actualWubiLetterKeys = Math.max(
-      0,
-      letterKeys - directLatinLetterKeys,
-    );
-    if (
-      codeLengthAnalysis?.theoreticalMinimumKeys !== null &&
-      codeLengthAnalysis?.theoreticalMinimumKeys !== undefined &&
-      actualWubiLetterKeys > codeLengthAnalysis.theoreticalMinimumKeys &&
-      codeLengthAnalysis.highestValueOpportunities.some(
-        (opportunity) => opportunity.savedKeys > 0,
-      )
-    ) {
-      recordPhraseOpportunities(
-        codeLengthAnalysis.highestValueOpportunities
-          .filter((opportunity) => opportunity.savedKeys > 0)
-          .map((opportunity) => ({
-            text: opportunity.text,
-            code: opportunity.code,
-            characterCount: opportunity.length,
-            savedKeys: opportunity.savedKeys,
-          })),
-        completedAt,
-      );
+    } else {
+      pendingPracticeSave.current = null;
+      setSessionSaveFailed(false);
     }
     setLastSession(session);
   }, [
@@ -1292,6 +1304,7 @@ function TypingView({
     attemptCount,
     backspaceCount,
     codeLengthAnalysis,
+    codeLengthCoachIndex,
     completed,
     correctionCount,
     correctAttemptCount,
@@ -1299,6 +1312,7 @@ function TypingView({
     keyCount,
     leftHandKeys,
     letterKeys,
+    minimumCodeError,
     pauseCount,
     pauseSeconds,
     pausedAt,
@@ -1815,10 +1829,18 @@ function TypingView({
           {completed && (
             <div className="completion-panel">
               <div className="completion-copy">
-                <span className="completion-icon">成</span>
+                <span className="completion-icon">
+                  {sessionSaveFailed ? "待" : "成"}
+                </span>
                 <div>
-                  <span>本次成绩已存入本机</span>
-                  <strong>完成本次练习</strong>
+                  <span>
+                    {sessionSaveFailed
+                      ? "本次成绩尚未保存"
+                      : "本次成绩已存入本机"}
+                  </span>
+                  <strong>
+                    {sessionSaveFailed ? "请重试保存" : "完成本次练习"}
+                  </strong>
                 </div>
               </div>
               <div className="completion-results" aria-label="本次练习成绩">
@@ -1933,9 +1955,23 @@ function TypingView({
                     </ol>
                   ) : (
                     <div className="code-coach-empty">
-                      {codeLengthAnalysis
-                        ? "本篇暂未发现可节省按键的二至四字词组推荐机会。"
-                        : "正在准备码长诊断数据…"}
+                      <span>
+                        {minimumCodeError
+                          ? "码表数据暂时不可用。"
+                          : codeLengthAnalysis
+                            ? "本篇暂未发现可节省按键的二至四字词组推荐机会。"
+                            : "正在准备码长诊断数据…"}
+                      </span>
+                      {minimumCodeError && (
+                        <button
+                          className="button secondary"
+                          onClick={() =>
+                            setCodeLengthLoadAttempt((value) => value + 1)
+                          }
+                        >
+                          重试加载码表
+                        </button>
+                      )}
                     </div>
                   )}
                   <div className="code-coach-actions">
@@ -1954,6 +1990,11 @@ function TypingView({
               </section>
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
+                {sessionSaveFailed && (
+                  <button className="button danger" onClick={retryPracticeSave}>
+                    重试保存
+                  </button>
+                )}
                 <button
                   className="button secondary"
                   disabled={!lastSession}

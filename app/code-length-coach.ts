@@ -107,7 +107,10 @@ export function buildCodeLengthCoachIndex(
     if (
       !current ||
       candidate.codeLength < current.codeLength ||
-      (candidate.codeLength === current.codeLength && weight > current.weight)
+      (candidate.codeLength === current.codeLength && weight > current.weight) ||
+      (candidate.codeLength === current.codeLength &&
+        weight === current.weight &&
+        candidate.code.localeCompare(current.code) < 0)
     ) {
       preferred.set(text, candidate);
     }
@@ -287,6 +290,12 @@ function selectHighestValueOpportunities(
   const selectedTexts = new Set<string>();
   for (const opportunity of opportunities) {
     if (selectedTexts.has(opportunity.text)) continue;
+    const overlaps = selected.some(
+      (current) =>
+        opportunity.start < current.start + current.length &&
+        current.start < opportunity.start + opportunity.length,
+    );
+    if (overlaps) continue;
     selected.push(opportunity);
     selectedTexts.add(opportunity.text);
     if (selected.length === limit) break;

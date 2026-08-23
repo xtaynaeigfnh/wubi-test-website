@@ -231,9 +231,15 @@ test("code length coach exposes recommendations and phrase practice on desktop a
   assert.match(component, /值得留意的推荐机会/);
   assert.match(component, /无法可靠识别你本次实际采用的分段/);
   assert.match(component, />\s*练习这些词组\s*<\/button>/);
+  assert.match(component, /router\.push\("\/training\?tab=phrase"\)/);
+  assert.match(component, /sessionSaveFailed[\s\S]*"本次成绩尚未保存"/);
+  assert.match(component, />\s*重试保存\s*<\/button>/);
   assert.match(training, /\["phrase", "词组专项"\]/);
   assert.match(training, /getPhraseOpportunities\(\)/);
-  assert.match(training, /recordPhrasePractice\(entry\[0\], correct\)/);
+  assert.match(training, /trackPhrasePractice/);
+  assert.match(training, /phrasePracticeAnswers\.current\.push/);
+  assert.match(training, /key="phrase-training"/);
+  assert.match(training, /get\("tab"\) === "phrase"/);
   assert.match(styles, /\.code-coach\s*\{[^}]*grid-template-columns:/s);
   assert.match(
     styles,
