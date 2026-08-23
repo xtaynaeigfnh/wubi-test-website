@@ -55,6 +55,7 @@ import {
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
+  recordPhraseOpportunities,
   saveHesitationPracticeOutcome,
   savePracticeOutcome,
   isCommonPracticeArticle,
@@ -67,6 +68,11 @@ import {
   writeLocal,
   type MinimumCodeLengthIndex,
 } from "../lib";
+import {
+  analyzeCodeLengthCoach,
+  buildCodeLengthCoachIndex,
+  type CodeLengthCoachIndex,
+} from "../code-length-coach";
 import type {
   AppView,
   ArticleFilter,
@@ -675,6 +681,8 @@ function TypingView({
   const [codeHintsError, setCodeHintsError] = useState("");
   const [minimumCodeIndex, setMinimumCodeIndex] =
     useState<MinimumCodeLengthIndex | null>(null);
+  const [codeLengthCoachIndex, setCodeLengthCoachIndex] =
+    useState<CodeLengthCoachIndex | null>(null);
   const [minimumCodeError, setMinimumCodeError] = useState("");
 
   useEffect(() => {
@@ -711,6 +719,7 @@ function TypingView({
       .then((rows) => {
         if (active) {
           setMinimumCodeIndex(buildMinimumCodeLengthIndex(rows));
+          setCodeLengthCoachIndex(buildCodeLengthCoachIndex(rows));
           wubiCodesRef.current = new Map(
             preferShortestWubiCodes(
               rows.filter(([text]) => Array.from(text).length === 1),
@@ -1022,6 +1031,15 @@ function TypingView({
         : null,
     [minimumCodeIndex, targetText],
   );
+  const codeLengthAnalysis = useMemo(
+    () =>
+      codeLengthCoachIndex
+        ? analyzeCodeLengthCoach(targetText, codeLengthCoachIndex, {
+            maxRecommendations: 5,
+          })
+        : null,
+    [codeLengthCoachIndex, targetText],
+  );
   const displayCharacters = useMemo(() => {
     let targetIndex = 0;
     return Array.from(visibleText).map((character, visibleIndex) => {
@@ -1064,6 +1082,20 @@ function TypingView({
     theoreticalCodeLength !== null && codeLength > 0
       ? Math.max(0, codeLength - theoreticalCodeLength)
       : null;
+  const recommendedPhrases =
+    codeLengthAnalysis?.highestValueOpportunities ?? [];
+  const startRecommendedPhrasePractice = () => {
+    if (!recommendedPhrases.length) return;
+    const practiceText = recommendedPhrases
+      .map(({ text }) => `${text}${text}${text}`)
+      .join("，");
+    const phraseArticle = buildCustomArticle(
+      `custom-phrase-${Date.now()}`,
+      "词组推荐机会专项",
+      practiceText,
+    );
+    if (phraseArticle) chooseArticle(phraseArticle);
+  };
   const progressRatio = Math.min(
     1,
     typedCharacters.length / Math.max(1, targetCharacters.length),
@@ -1223,11 +1255,43 @@ function TypingView({
     if (!savePracticeOutcome(session, observations)) {
       window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
     }
+    const directLatinLetterKeys = targetCharacters.reduce(
+      (count, character, index) =>
+        typedCharacters[index] === character && /^[a-y]$/i.test(character)
+          ? count + 1
+          : count,
+      0,
+    );
+    const actualWubiLetterKeys = Math.max(
+      0,
+      letterKeys - directLatinLetterKeys,
+    );
+    if (
+      codeLengthAnalysis?.theoreticalMinimumKeys !== null &&
+      codeLengthAnalysis?.theoreticalMinimumKeys !== undefined &&
+      actualWubiLetterKeys > codeLengthAnalysis.theoreticalMinimumKeys &&
+      codeLengthAnalysis.highestValueOpportunities.some(
+        (opportunity) => opportunity.savedKeys > 0,
+      )
+    ) {
+      recordPhraseOpportunities(
+        codeLengthAnalysis.highestValueOpportunities
+          .filter((opportunity) => opportunity.savedKeys > 0)
+          .map((opportunity) => ({
+            text: opportunity.text,
+            code: opportunity.code,
+            characterCount: opportunity.length,
+            savedKeys: opportunity.savedKeys,
+          })),
+        completedAt,
+      );
+    }
     setLastSession(session);
   }, [
     article,
     attemptCount,
     backspaceCount,
+    codeLengthAnalysis,
     completed,
     correctionCount,
     correctAttemptCount,
@@ -1248,6 +1312,7 @@ function TypingView({
     targetCharacters,
     theoreticalCodeLength,
     typed,
+    typedCharacters,
     visibleText,
   ]);
 
@@ -1783,6 +1848,110 @@ function TypingView({
                 <DiagnosticMetric label="暂停" value={`${pauseCount} / ${pauseSeconds.toFixed(1)}`} unit="次/秒" />
                 <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
               </div>
+              <section className="code-coach" aria-labelledby="code-coach-title">
+                <div className="code-coach-summary">
+                  <div className="code-coach-heading">
+                    <small>CODE LENGTH COACH</small>
+                    <h3 id="code-coach-title">码长诊断</h3>
+                    <p>
+                      {minimumCodeError
+                        ? "码表数据暂时不可用，无法生成本次建议。"
+                        : theoreticalGap !== null && theoreticalGap > 0
+                          ? `实际码长距理论下限还有 ${theoreticalGap.toFixed(2)} 键/字的空间。`
+                          : "本次实际码长已接近理论下限。"}
+                    </p>
+                  </div>
+                  <div className="code-coach-metrics" aria-label="码长对比">
+                    <CodeCoachMetric
+                      label="实际码长"
+                      value={codeLength.toFixed(2)}
+                      unit="键/字"
+                    />
+                    <CodeCoachMetric
+                      label="理论下限"
+                      value={
+                        codeLengthAnalysis?.theoreticalAverageCodeLength?.toFixed(
+                          2,
+                        ) ?? "—"
+                      }
+                      unit={
+                        (codeLengthAnalysis?.theoreticalAverageCodeLength ??
+                          null) === null
+                          ? ""
+                          : "键/字"
+                      }
+                    />
+                    <CodeCoachMetric
+                      label="单字输入基准"
+                      value={
+                        codeLengthAnalysis?.singleCharacterAverageCodeLength?.toFixed(
+                          2,
+                        ) ?? "—"
+                      }
+                      unit={
+                        (codeLengthAnalysis?.singleCharacterAverageCodeLength ??
+                          null) === null
+                          ? ""
+                          : "键/字"
+                      }
+                    />
+                    <CodeCoachMetric
+                      label="已使用词组比例"
+                      value={phraseRate.toFixed(1)}
+                      unit="%"
+                    />
+                  </div>
+                </div>
+                <div className="code-coach-opportunities">
+                  <div className="code-coach-list-heading">
+                    <strong>值得留意的推荐机会</strong>
+                    <span>
+                      {codeLengthAnalysis?.potentialSavedKeys
+                        ? `相比全部单字输入，理论可少 ${codeLengthAnalysis.potentialSavedKeys} 键`
+                        : "仅按码表提示，不判定你的实际分段"}
+                    </span>
+                  </div>
+                  {recommendedPhrases.length ? (
+                    <ol className="code-coach-list">
+                      {recommendedPhrases.map((opportunity, index) => (
+                        <li key={`${opportunity.start}-${opportunity.text}`}>
+                          <span className="code-coach-rank">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <span className="code-coach-phrase">
+                            <strong>{opportunity.text}</strong>
+                            <small>
+                              第 {opportunity.start + 1} 字起 · {opportunity.code}
+                            </small>
+                          </span>
+                          <span className="code-coach-saving">
+                            <small>推荐机会</small>
+                            <strong>可少 {opportunity.savedKeys} 键</strong>
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <div className="code-coach-empty">
+                      {codeLengthAnalysis
+                        ? "本篇暂未发现可节省按键的二至四字词组推荐机会。"
+                        : "正在准备码长诊断数据…"}
+                    </div>
+                  )}
+                  <div className="code-coach-actions">
+                    <p>
+                      推荐基于当前 86 版码表和文本位置，无法可靠识别你本次实际采用的分段。
+                    </p>
+                    <button
+                      className="button secondary"
+                      disabled={!recommendedPhrases.length}
+                      onClick={startRecommendedPhrasePractice}
+                    >
+                      练习这些词组
+                    </button>
+                  </div>
+                </div>
+              </section>
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
                 <button
@@ -2023,6 +2192,26 @@ function DiagnosticMetric({
       <small>{label}</small>
       <strong>{value}</strong>
       {unit && <i>{unit}</i>}
+    </span>
+  );
+}
+
+function CodeCoachMetric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <span className="code-coach-metric">
+      <small>{label}</small>
+      <span>
+        <strong>{value}</strong>
+        {unit && <i>{unit}</i>}
+      </span>
     </span>
   );
 }

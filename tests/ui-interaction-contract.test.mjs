@@ -218,6 +218,29 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(management, /if \(!saved\) return;/);
 });
 
+test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
+  const [component, training, styles] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(component, /analyzeCodeLengthCoach\(targetText/);
+  assert.match(component, /<h3 id="code-coach-title">码长诊断<\/h3>/);
+  assert.match(component, /label="单字输入基准"/);
+  assert.match(component, /值得留意的推荐机会/);
+  assert.match(component, /无法可靠识别你本次实际采用的分段/);
+  assert.match(component, />\s*练习这些词组\s*<\/button>/);
+  assert.match(training, /\["phrase", "词组专项"\]/);
+  assert.match(training, /getPhraseOpportunities\(\)/);
+  assert.match(training, /recordPhrasePractice\(entry\[0\], correct\)/);
+  assert.match(styles, /\.code-coach\s*\{[^}]*grid-template-columns:/s);
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.code-coach-list\s*\{[^}]*grid-template-columns:\s*1fr/s,
+  );
+});
+
 test("mobile navigation scrolls the active route into view", async () => {
   const component = await readFile(componentPath, "utf8");
 

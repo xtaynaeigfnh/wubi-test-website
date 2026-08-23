@@ -1,4 +1,4 @@
-const CACHE_NAME = "wubi-test-v09";
+const CACHE_NAME = "wubi-test-v10";
 const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${scopePath}${path}`;
 const ROUTE_PATHS = [

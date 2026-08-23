@@ -18,6 +18,7 @@ import type {
   HesitationPracticeTarget,
   HesitationSegment,
   PracticeArticle,
+  PhraseOpportunityStat,
   SessionResult,
   TypingHeatmap,
   TrendPoint,
@@ -47,6 +48,7 @@ export const STORAGE = {
   keyUsage: "wubi-test:key-usage:v1",
   trainingPlan: "wubi-test:training-plan:v1",
   hesitationQueue: "wubi-test:hesitation-queue:v1",
+  phraseOpportunities: "wubi-test:phrase-opportunities:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -1365,6 +1367,89 @@ export function addError(text: string, code?: string) {
   );
 }
 
+export function getPhraseOpportunities(): PhraseOpportunityStat[] {
+  return readValidatedLocalArray(
+    STORAGE.phraseOpportunities,
+    120,
+    isPhraseOpportunityStat,
+  ).sort(
+    (left, right) =>
+      right.opportunityCount * right.savedKeys -
+        left.opportunityCount * left.savedKeys ||
+      right.lastSeen.localeCompare(left.lastSeen) ||
+      left.text.localeCompare(right.text, "zh-Hans-CN-u-co-unihan"),
+  );
+}
+
+export function recordPhraseOpportunities(
+  opportunities: Array<{
+    text: string;
+    code: string;
+    characterCount: number;
+    savedKeys: number;
+  }>,
+  occurredAt = new Date().toISOString(),
+): boolean {
+  const current = new Map(
+    getPhraseOpportunities().map((item) => [item.text, item]),
+  );
+  for (const opportunity of opportunities.slice(0, 5)) {
+    const characterCount = Array.from(opportunity.text).length;
+    if (
+      characterCount < 2 ||
+      characterCount > 4 ||
+      !/^[a-y]{1,4}$/i.test(opportunity.code) ||
+      !Number.isInteger(opportunity.savedKeys) ||
+      opportunity.savedKeys <= 0
+    ) {
+      continue;
+    }
+    const previous = current.get(opportunity.text);
+    current.set(opportunity.text, {
+      text: opportunity.text,
+      code: opportunity.code.toLowerCase(),
+      characterCount: characterCount as 2 | 3 | 4,
+      savedKeys: Math.min(16, opportunity.savedKeys),
+      opportunityCount: Math.min(
+        1_000_000,
+        (previous?.opportunityCount ?? 0) + 1,
+      ),
+      practiceCount: previous?.practiceCount ?? 0,
+      correctCount: previous?.correctCount ?? 0,
+      lastSeen: occurredAt,
+    });
+  }
+  const next = Array.from(current.values())
+    .sort(
+      (left, right) =>
+        right.opportunityCount * right.savedKeys -
+          left.opportunityCount * left.savedKeys ||
+        right.lastSeen.localeCompare(left.lastSeen),
+    )
+    .slice(0, 120);
+  return writeLocal(STORAGE.phraseOpportunities, next);
+}
+
+export function recordPhrasePractice(
+  text: string,
+  correct: boolean,
+  occurredAt = new Date().toISOString(),
+): boolean {
+  const current = getPhraseOpportunities();
+  const index = current.findIndex((item) => item.text === text);
+  if (index < 0) return true;
+  current[index] = {
+    ...current[index],
+    practiceCount: Math.min(1_000_000, current[index].practiceCount + 1),
+    correctCount: Math.min(
+      1_000_000,
+      current[index].correctCount + (correct ? 1 : 0),
+    ),
+    lastSeen: occurredAt,
+  };
+  return writeLocal(STORAGE.phraseOpportunities, current.slice(0, 120));
+}
+
 export function updateErrorMastery(
   text: string,
   code: string,
@@ -1941,6 +2026,30 @@ function isErrorStat(value: unknown): value is ErrorStat {
   );
 }
 
+function isPhraseOpportunityStat(
+  value: unknown,
+): value is PhraseOpportunityStat {
+  if (!isRecord(value)) return false;
+  const characterCount = Array.from(String(value.text ?? "")).length;
+  return (
+    isBoundedString(value.text, 16) &&
+    characterCount >= 2 &&
+    characterCount <= 4 &&
+    isBoundedString(value.code, 4) &&
+    /^[a-y]{1,4}$/i.test(value.code) &&
+    value.characterCount === characterCount &&
+    isFiniteRange(value.savedKeys, 1, 16) &&
+    Number.isInteger(value.savedKeys) &&
+    isFiniteRange(value.opportunityCount, 0, 1_000_000) &&
+    Number.isInteger(value.opportunityCount) &&
+    isFiniteRange(value.practiceCount, 0, 1_000_000) &&
+    Number.isInteger(value.practiceCount) &&
+    isFiniteRange(value.correctCount, 0, value.practiceCount) &&
+    Number.isInteger(value.correctCount) &&
+    isDateString(value.lastSeen)
+  );
+}
+
 function isWubiEntry(value: unknown): value is WubiEntry {
   return (
     Array.isArray(value) &&
@@ -2186,6 +2295,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       return isDailyTrainingPlan(value);
     case STORAGE.hesitationQueue:
       return isHesitationPracticeQueue(value);
+    case STORAGE.phraseOpportunities:
+      return validateArray(value, 120, isPhraseOpportunityStat);
     default:
       return false;
   }

@@ -15,6 +15,7 @@ import {
   createBackupPayload,
   defaultCustomTheme,
   getErrors,
+  getPhraseOpportunities,
   getProgress,
   getSessions,
   parseBackupPayload,
@@ -22,6 +23,8 @@ import {
   readDailyGoal,
   readSettings,
   recordKeyUsage,
+  recordPhraseOpportunities,
+  recordPhrasePractice,
   restoreBackupPayload,
   saveHesitationPracticeOutcome,
   savePracticeOutcome,
@@ -1079,6 +1082,63 @@ test("backup validates optional typing heatmaps without changing the format vers
   }
 });
 
+test("phrase opportunities stay bounded, survive backup validation, and track practice", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    assert.equal(
+      recordPhraseOpportunities(
+        [
+          { text: "输入法", code: "lwy", characterCount: 3, savedKeys: 5 },
+          { text: "练习", code: "xanu", characterCount: 2, savedKeys: 2 },
+          { text: "无效五字词", code: "abcd", characterCount: 5, savedKeys: 9 },
+        ],
+        "2026-08-24T09:00:00.000Z",
+      ),
+      true,
+    );
+    assert.equal(recordPhrasePractice("输入法", true), true);
+    const stored = getPhraseOpportunities();
+    assert.equal(stored.length, 2);
+    assert.deepEqual(
+      stored.find((item) => item.text === "输入法"),
+      {
+        text: "输入法",
+        code: "lwy",
+        characterCount: 3,
+        savedKeys: 5,
+        opportunityCount: 1,
+        practiceCount: 1,
+        correctCount: 1,
+        lastSeen: stored.find((item) => item.text === "输入法").lastSeen,
+      },
+    );
+    const payload = createBackupPayload({
+      [STORAGE.phraseOpportunities]: stored,
+    });
+    assert.deepEqual(parseBackupPayload(payload), payload);
+    assert.throws(
+      () =>
+        parseBackupPayload(
+          createBackupPayload({
+            [STORAGE.phraseOpportunities]: [
+              { ...stored[0], opportunityCount: -1 },
+            ],
+          }),
+        ),
+      /格式不正确/,
+    );
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("local session history keeps heatmaps for only the newest 50 rounds", () => {
   const values = new Map();
   globalThis.window = {
@@ -1299,7 +1359,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v09/);
+  assert.match(worker, /wubi-test-v10/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

@@ -44,6 +44,10 @@ import {
   parseMusicPreferences,
   withBasePath,
 } from "../app/music.ts";
+import {
+  analyzeCodeLengthCoach,
+  buildCodeLengthCoachIndex,
+} from "../app/code-length-coach.ts";
 
 test("typing accuracy keeps corrected mistakes in the denominator", () => {
   const target = "中国";
@@ -335,6 +339,99 @@ test("theoretical minimum code length ignores non-Han text and reports gaps", ()
   assert.equal(calculateTheoreticalMinimumCodeLength("A中1国。", index), 1);
   assert.equal(calculateTheoreticalMinimumCodeLength("ABC 123", index), null);
   assert.equal(calculateTheoreticalMinimumCodeLength("中缺", index), null);
+});
+
+test("code length coach returns an optimal segmentation whose keys match the minimum", () => {
+  const index = buildCodeLengthCoachIndex([
+    ["输", "lw", 100],
+    ["入", "ty", 100],
+    ["法", "ifcy", 100],
+    ["练", "xan", 100],
+    ["习", "nud", 100],
+    ["输入", "lty", 100],
+    ["输入法", "lti", 100],
+    ["练习", "xnu", 100],
+  ]);
+  const analysis = analyzeCodeLengthCoach("输入法，练习！", index);
+
+  assert.equal(analysis.theoreticalMinimumKeys, 6);
+  assert.equal(analysis.singleCharacterBaselineKeys, 14);
+  assert.equal(analysis.potentialSavedKeys, 8);
+  assert.equal(
+    analysis.optimalSegments.reduce(
+      (total, segment) => total + segment.codeLength,
+      0,
+    ),
+    analysis.theoreticalMinimumKeys,
+  );
+  assert.deepEqual(
+    analysis.optimalSegments.map(({ text, kind }) => ({ text, kind })),
+    [
+      { text: "输入法", kind: "phrase" },
+      { text: "，", kind: "ignored" },
+      { text: "练习", kind: "phrase" },
+      { text: "！", kind: "ignored" },
+    ],
+  );
+});
+
+test("code length coach finds beneficial two, three, and four character opportunities", () => {
+  const index = buildCodeLengthCoachIndex([
+    ["甲", "aaaa", 1],
+    ["乙", "bbbb", 1],
+    ["丙", "cccc", 1],
+    ["丁", "dddd", 1],
+    ["甲乙", "ab", 1],
+    ["甲乙丙", "abc", 1],
+    ["甲乙丙丁", "abcd", 1],
+  ]);
+  const analysis = analyzeCodeLengthCoach("甲乙丙丁", index, {
+    maxRecommendations: 3,
+  });
+
+  assert.deepEqual(
+    analysis.recommendedOpportunities.map((item) => [
+      item.length,
+      item.savedKeys,
+    ]),
+    [
+      [4, 12],
+      [3, 9],
+      [2, 6],
+    ],
+  );
+  assert.equal(analysis.highestValueOpportunities.length, 3);
+});
+
+test("code length coach survives ignored text and unknown Han without inventing totals", () => {
+  const index = buildCodeLengthCoachIndex([
+    ["中", "k", 1],
+    ["国", "l", 1],
+    ["人民", "w", 1],
+    ["人", "w", 1],
+    ["民", "n", 1],
+  ]);
+  const analysis = analyzeCodeLengthCoach("AI中1缺。国人民", index);
+
+  assert.equal(analysis.complete, false);
+  assert.equal(analysis.hanCharacterCount, 5);
+  assert.equal(analysis.coveredHanCharacterCount, 4);
+  assert.equal(analysis.theoreticalMinimumKeys, null);
+  assert.equal(analysis.singleCharacterBaselineKeys, null);
+  assert.ok(
+    analysis.optimalSegments.some(
+      (segment) => segment.text === "缺" && segment.kind === "unknown",
+    ),
+  );
+  assert.deepEqual(
+    analysis.recommendedOpportunities.map((item) => item.text),
+    ["人民"],
+  );
+
+  const nonHan = analyzeCodeLengthCoach("AI 2026!", index);
+  assert.equal(nonHan.complete, false);
+  assert.equal(nonHan.theoreticalMinimumKeys, null);
+  assert.equal(nonHan.recommendedOpportunities.length, 0);
 });
 
 test("challenge countdown derives from its wall-clock deadline", () => {

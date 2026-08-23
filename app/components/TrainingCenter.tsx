@@ -11,6 +11,7 @@ import {
   calculateStreak,
   defaultDailyGoal,
   getErrors,
+  getPhraseOpportunities,
   getProgress,
   getSessions,
   loadArticles,
@@ -20,6 +21,7 @@ import {
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
+  recordPhrasePractice,
   savePracticeOutcome,
   startTrainingTask,
   STORAGE,
@@ -33,6 +35,7 @@ import type {
   HesitationPracticeQueue,
   HesitationPracticeTarget,
   PracticeArticle,
+  PhraseOpportunityStat,
   SessionResult,
   TrainingTask,
   WeakObservation,
@@ -44,15 +47,17 @@ import {
   regenerateIncompleteTasks,
   ROOT_ZONES,
 } from "../training-plan";
+import { buildPhraseTrainingPool } from "../phrase-training";
 import { ErrorState } from "./Ui";
 
-type TrainingTab = "plan" | "review" | "roots";
+type TrainingTab = "plan" | "review" | "phrase" | "roots";
 
 export function TrainingCenter({
   playKeySound,
   hesitationQueue,
   hesitationSaveRevision,
   onPracticeHesitation,
+  phraseSuggestions = [],
 }: {
   playKeySound: () => void;
   hesitationQueue: HesitationPracticeQueue | null;
@@ -61,11 +66,16 @@ export function TrainingCenter({
     itemId: string,
     target: HesitationPracticeTarget,
   ) => void;
+  /** 可由结算页传入的码长诊断推荐；未传时会从弱项统计稳定推导。 */
+  phraseSuggestions?: WubiEntry[];
 }) {
   const [tab, setTab] = useState<TrainingTab>("plan");
   const [entries, setEntries] = useState<WubiEntry[]>([]);
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
+  const [phraseOpportunities, setPhraseOpportunities] = useState<
+    PhraseOpportunityStat[]
+  >([]);
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [plan, setPlan] = useState<DailyTrainingPlan | null>(null);
   const [planMessage, setPlanMessage] = useState("");
@@ -77,6 +87,7 @@ export function TrainingCenter({
 
   const refreshLocal = useCallback(() => {
     setErrors(getErrors());
+    setPhraseOpportunities(getPhraseOpportunities());
     setSessions(getSessions());
     setGoal(readDailyGoal());
     const storedPlan = readTrainingPlan();
@@ -141,6 +152,15 @@ export function TrainingCenter({
   const rootPool = useMemo(
     () => buildRootPool(entries, zone.keys),
     [entries, zone],
+  );
+  const phrasePool = useMemo(
+    () =>
+      buildPhraseTrainingPool(entries, {
+        weakItems: errors,
+        missedPhrases: phraseOpportunities,
+        suggestedEntries: phraseSuggestions,
+      }),
+    [entries, errors, phraseOpportunities, phraseSuggestions],
   );
   const today = calculateDailyProgress(sessions);
   const streak = calculateStreak(sessions);
@@ -260,10 +280,11 @@ export function TrainingCenter({
         </div>
       </div>
 
-      <div className="training-tabs" role="tablist" aria-label="训练中心栏目">
+      <div className="training-tabs phrase-tabs" role="tablist" aria-label="训练中心栏目">
         {([
           ["plan", "今日计划"],
           ["review", "错题复练"],
+          ["phrase", "词组专项"],
           ["roots", "五码根专项"],
         ] as const).map(([value, label]) => (
           <button
@@ -555,6 +576,38 @@ export function TrainingCenter({
         />
       )}
 
+      {tab === "phrase" && (
+        <div className="phrase-training">
+          <aside className="phrase-training-note" aria-label="词组专项选题说明">
+            <span className="eyebrow">码长教练</span>
+            <strong>把单字弱项，放回常用词组里练</strong>
+            <p>
+              {phraseSuggestions.length
+                ? "本轮优先使用结算页的词组推荐，再补充包含近期弱项字的高频词。"
+                : phraseOpportunities.length
+                  ? "本轮优先复练码长诊断里经常出现、尚未练熟的词组机会。"
+                  : errors.length
+                    ? "旧记录尚无法判断实际分段；本轮展示包含近期弱项字的推荐机会。"
+                    : "还没有错题或码长诊断记录，先从高频常用词组开始。"}
+            </p>
+            <small>每轮最多 20 题，同一词组不重复出现。</small>
+          </aside>
+          <CodeDrill
+            key={`phrase-${phrasePool.map((entry) => entry[0]).join("|")}`}
+            title="词组码长专项"
+            description="直接输入整个词组的五笔编码，建立二字、三字和四字词的连续输入记忆。"
+            emptyText={loading ? "正在整理词组题库…" : "暂时没有可用词组，请先完成一轮文章或稍后重试。"}
+            pool={phrasePool}
+            sessionType="review"
+            playKeySound={playKeySound}
+            onAnswer={(entry, correct) => {
+              recordPhrasePractice(entry[0], correct);
+            }}
+            onSessionSaved={onSessionSaved}
+          />
+        </div>
+      )}
+
       {tab === "roots" && (
         <div className="root-training">
           <div className="root-zone-rail" role="tablist" aria-label="五码根区">
@@ -626,6 +679,7 @@ function CodeDrill({
   sessionType,
   playKeySound,
   planTask,
+  onAnswer,
   onSessionSaved,
 }: {
   title: string;
@@ -635,6 +689,7 @@ function CodeDrill({
   sessionType: "review" | "roots";
   playKeySound: () => void;
   planTask?: TrainingTask;
+  onAnswer?: (entry: WubiEntry, correct: boolean) => void;
   onSessionSaved: () => void;
 }) {
   const limit = planTask ? pool.length : 20;
@@ -742,6 +797,7 @@ function CodeDrill({
   const submit = () => {
     if (!question || !input || feedback !== "idle") return;
     const right = input.toLowerCase() === question[1].toLowerCase();
+    onAnswer?.(question, right);
     setFeedback(right ? "right" : "wrong");
     observations.current.push({
       text: question[0],

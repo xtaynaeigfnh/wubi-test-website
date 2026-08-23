@@ -1171,6 +1171,217 @@ a {
   background: color-mix(in srgb, var(--state-success) 5%, transparent);
 }
 
+.code-coach {
+  padding: 18px;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.78fr) minmax(360px, 1.5fr);
+  gap: 16px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--state-success) 32%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-bamboo) 7%, transparent), transparent 44%),
+    var(--bg-paper);
+}
+
+.code-coach-summary {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.code-coach-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.code-coach-heading small {
+  color: var(--accent-bamboo);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+.code-coach-heading h3,
+.code-coach-heading p {
+  margin: 0;
+}
+
+.code-coach-heading h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.code-coach-heading p {
+  max-width: 42em;
+}
+
+.code-coach-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.code-coach-metric {
+  min-width: 0;
+  padding: 10px 12px;
+  display: grid;
+  gap: 5px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.code-coach-metric:nth-child(2n) {
+  border-right: 0;
+}
+
+.code-coach-metric:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.code-coach-metric small {
+  color: var(--text-secondary);
+  font-size: 8px;
+}
+
+.code-coach-metric span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.code-coach-metric strong {
+  color: var(--text-primary);
+  font: 720 17px/1 var(--font-data);
+}
+
+.code-coach-metric i {
+  color: var(--text-secondary);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.code-coach-opportunities {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.code-coach-list-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.code-coach-list-heading strong {
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.code-coach-list-heading span {
+  color: var(--text-secondary);
+  font-size: 8px;
+  text-align: right;
+}
+
+.code-coach-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+}
+
+.code-coach-list li {
+  min-width: 0;
+  padding: 10px 11px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+}
+
+.code-coach-list li:first-child {
+  border-color: color-mix(in srgb, var(--accent-bamboo) 50%, var(--border-default));
+  box-shadow: inset 3px 0 var(--accent-bamboo);
+}
+
+.code-coach-rank {
+  color: var(--text-secondary);
+  font: 680 10px/1 var(--font-data);
+  text-align: center;
+}
+
+.code-coach-phrase {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.code-coach-phrase strong {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-coach-phrase small,
+.code-coach-saving small {
+  color: var(--text-secondary);
+  font-size: 8px;
+}
+
+.code-coach-saving {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.code-coach-saving strong {
+  color: var(--accent-vermilion);
+  font: 720 13px/1 var(--font-data);
+}
+
+.code-coach-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.code-coach-actions p {
+  max-width: 45em;
+}
+
+.code-coach-actions .button {
+  flex: none;
+}
+
+.code-coach-empty {
+  min-height: 76px;
+  padding: 14px;
+  display: grid;
+  place-content: center;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+  font-size: 10px;
+  text-align: center;
+}
+
 .completion-results > span {
   padding: 12px 10px;
   display: grid;
@@ -4913,6 +5124,10 @@ select,
     grid-template-columns: repeat(5, minmax(80px, 1fr));
   }
 
+  .code-coach {
+    grid-template-columns: 1fr;
+  }
+
   .hesitation-ranking {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -5219,6 +5434,24 @@ select,
     grid-column: 1;
     grid-row: 3;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .code-coach {
+    padding: 15px;
+    grid-row: 4;
+  }
+
+  .code-coach-list {
+    grid-template-columns: 1fr;
+  }
+
+  .code-coach-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .code-coach-actions .button {
+    width: 100%;
   }
 
   .completion-next {
@@ -5599,6 +5832,58 @@ select,
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+.training-tabs.phrase-tabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.phrase-training {
+  display: grid;
+  gap: 16px;
+}
+
+.phrase-training-note {
+  padding: 18px 22px;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.42fr) minmax(220px, 0.8fr) minmax(280px, 1.4fr) auto;
+  align-items: center;
+  gap: 14px 22px;
+  border: 1px solid var(--border-default);
+  border-left: 4px solid var(--accent-bamboo);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.phrase-training-note strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.phrase-training-note p,
+.phrase-training-note small {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.phrase-training-note small {
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .training-tabs.phrase-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .phrase-training-note {
+    grid-template-columns: 1fr;
+  }
+
+  .phrase-training-note small {
+    text-align: left;
   }
 }
 
