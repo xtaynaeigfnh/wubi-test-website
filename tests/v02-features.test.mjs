@@ -15,6 +15,7 @@ import {
   createBackupPayload,
   defaultCustomTheme,
   getErrors,
+  getPhraseOpportunities,
   getProgress,
   getSessions,
   parseBackupPayload,
@@ -22,6 +23,8 @@ import {
   readDailyGoal,
   readSettings,
   recordKeyUsage,
+  recordPhraseOpportunities,
+  recordPhrasePractice,
   restoreBackupPayload,
   saveHesitationPracticeOutcome,
   savePracticeOutcome,
@@ -1079,6 +1082,195 @@ test("backup validates optional typing heatmaps without changing the format vers
   }
 });
 
+test("phrase opportunities stay bounded, survive backup validation, and track practice", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    assert.equal(
+      recordPhraseOpportunities(
+        [
+          { text: "输入法", code: "lwy", characterCount: 3, savedKeys: 5 },
+          { text: "练习", code: "xanu", characterCount: 2, savedKeys: 2 },
+          { text: "无效五字词", code: "abcd", characterCount: 5, savedKeys: 9 },
+        ],
+        "2026-08-24T09:00:00.000Z",
+      ),
+      true,
+    );
+    assert.equal(recordPhrasePractice("输入法", true), true);
+    assert.equal(recordPhrasePractice(["效率", "uj", 0], false), true);
+    const stored = getPhraseOpportunities();
+    assert.equal(stored.length, 3);
+    assert.equal(stored.find((item) => item.text === "效率").practiceCount, 1);
+    assert.deepEqual(
+      stored.find((item) => item.text === "输入法"),
+      {
+        text: "输入法",
+        code: "lwy",
+        characterCount: 3,
+        savedKeys: 5,
+        opportunityCount: 1,
+        practiceCount: 1,
+        correctCount: 1,
+        lastSeen: stored.find((item) => item.text === "输入法").lastSeen,
+      },
+    );
+    const payload = createBackupPayload({
+      [STORAGE.phraseOpportunities]: stored,
+    });
+    assert.deepEqual(parseBackupPayload(payload), payload);
+    assert.throws(
+      () =>
+        parseBackupPayload(
+          createBackupPayload({
+            [STORAGE.phraseOpportunities]: [
+              { ...stored[0], opportunityCount: -1 },
+            ],
+          }),
+        ),
+      /格式不正确/,
+    );
+    assert.throws(
+      () =>
+        parseBackupPayload(
+          createBackupPayload({
+            [STORAGE.phraseOpportunities]: [stored[0], { ...stored[0] }],
+          }),
+        ),
+      /格式不正确/,
+    );
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("new phrase opportunities replace mastered records at the storage limit", () => {
+  const values = new Map();
+  const mastered = Array.from({ length: 120 }, (_, index) => ({
+    text: `甲${String.fromCodePoint(0x4e00 + index)}`,
+    code: "aaaa",
+    characterCount: 2,
+    savedKeys: 4,
+    opportunityCount: 100,
+    practiceCount: 100,
+    correctCount: 100,
+    lastSeen: "2026-01-01T00:00:00.000Z",
+  }));
+  values.set(STORAGE.phraseOpportunities, JSON.stringify(mastered));
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    assert.equal(
+      recordPhraseOpportunities(
+        [{ text: "输入法", code: "lty", characterCount: 3, savedKeys: 2 }],
+        "2026-08-24T10:00:00.000Z",
+      ),
+      true,
+    );
+    assert.equal(getPhraseOpportunities().length, 120);
+    assert.ok(getPhraseOpportunities().some((item) => item.text === "输入法"));
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("practice sessions and phrase opportunities save atomically", () => {
+  const oldSessions = JSON.stringify([session({ id: "old" })]);
+  const oldPhrases = JSON.stringify([]);
+  const values = new Map([
+    [STORAGE.sessions, oldSessions],
+    [STORAGE.phraseOpportunities, oldPhrases],
+  ]);
+  let failPhraseWrite = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.phraseOpportunities && failPhraseWrite) {
+          failPhraseWrite = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    assert.equal(
+      savePracticeOutcome(
+        session({ id: "new" }),
+        [],
+        [{ text: "输入法", code: "lty", characterCount: 3, savedKeys: 2 }],
+      ),
+      false,
+    );
+    assert.equal(values.get(STORAGE.sessions), oldSessions);
+    assert.equal(values.get(STORAGE.phraseOpportunities), oldPhrases);
+    assert.equal(
+      savePracticeOutcome(
+        session({ id: "phrase-round", type: "review" }),
+        [],
+        [],
+        [{ entry: ["效率", "uj", 0], correct: false }],
+      ),
+      true,
+    );
+    assert.equal(getPhraseOpportunities()[0].text, "效率");
+    assert.equal(getPhraseOpportunities()[0].practiceCount, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("old backups clear phrase opportunities and UTF-8 byte limits are enforced", () => {
+  const oversized = createBackupPayload({
+    [STORAGE.sessions]: Array.from({ length: 20 }, (_, index) =>
+      session({
+        id: `large-${index}`,
+        errorChars: Array.from({ length: 5000 }, () => "错错错错错错错错"),
+      }),
+    ),
+  });
+  assert.throws(() => parseBackupPayload(oversized), /备份文件过大/);
+
+  const values = new Map([
+    [STORAGE.phraseOpportunities, JSON.stringify([{
+      text: "输入法",
+      code: "lty",
+      characterCount: 3,
+      savedKeys: 2,
+      opportunityCount: 1,
+      practiceCount: 0,
+      correctCount: 0,
+      lastSeen: "2026-08-24T09:00:00.000Z",
+    }])],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => values.set(key, value),
+    },
+  };
+  try {
+    restoreBackupPayload(createBackupPayload({ [STORAGE.errors]: [] }));
+    assert.equal(values.has(STORAGE.phraseOpportunities), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("local session history keeps heatmaps for only the newest 50 rounds", () => {
   const values = new Map();
   globalThis.window = {
@@ -1299,7 +1491,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v09/);
+  assert.match(worker, /wubi-test-v10/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

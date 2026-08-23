@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   buildCustomArticle,
   createBackupPayload,
+  MAX_BACKUP_BYTES,
   parseBackupPayload,
   readDailyGoal,
   readKeyUsage,
@@ -46,6 +47,10 @@ function BackupManager() {
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
+    if (blob.size > MAX_BACKUP_BYTES) {
+      setMessage("本机数据已超过单个备份文件的安全大小，请先清理部分历史记录。");
+      return;
+    }
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `五笔测试网站备份-${payload.exportedAt.slice(0, 10)}.json`;
@@ -57,7 +62,7 @@ function BackupManager() {
   const inspectFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      if (file.size > 2 * 1024 * 1024) {
+      if (file.size > MAX_BACKUP_BYTES) {
         throw new Error("备份文件过大，无法安全读取");
       }
       const payload = parseBackupPayload(JSON.parse(await file.text()));

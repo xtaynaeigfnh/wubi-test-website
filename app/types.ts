@@ -158,6 +158,17 @@ export interface ErrorStat {
   correctStreak?: number;
 }
 
+export interface PhraseOpportunityStat {
+  text: string;
+  code: string;
+  characterCount: 2 | 3 | 4;
+  savedKeys: number;
+  opportunityCount: number;
+  practiceCount: number;
+  correctCount: number;
+  lastSeen: string;
+}
+
 export type WeakObservationKind =
   | "coding-error"
   | "hesitation"

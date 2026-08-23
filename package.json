@@ -10,7 +10,7 @@
     "build": "vinext build",
     "build:pages": "next build",
     "start": "vinext start",
-    "test": "node --experimental-strip-types --test tests/core-logic.test.mjs tests/v02-features.test.mjs tests/hesitation-practice.test.mjs && node --test tests/content-data.test.mjs tests/ui-interaction-contract.test.mjs && npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "node --experimental-strip-types --test tests/core-logic.test.mjs tests/v02-features.test.mjs tests/hesitation-practice.test.mjs tests/phrase-training.test.mjs && node --test tests/content-data.test.mjs tests/ui-interaction-contract.test.mjs && npm run build && node --test tests/rendered-html.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "data:generate": "node scripts/generate-articles.mjs && node scripts/generate-wubi-data.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
