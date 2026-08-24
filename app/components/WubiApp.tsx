@@ -74,6 +74,16 @@ import {
   buildCodeLengthCoachIndex,
   type CodeLengthCoachIndex,
 } from "../code-length-coach";
+import {
+  buildGhostTimeline,
+  compareGhostSegments,
+  getGhostArticleIdentity,
+  getGhostElapsedAtProgress,
+  getGhostPositionAtElapsed,
+  getGhostSampleStep,
+  selectGhostSessions,
+  type GhostProgressPoint,
+} from "../ghost-race";
 import type {
   AppView,
   ArticleFilter,
@@ -81,6 +91,7 @@ import type {
   CommonCharacterData,
   CommonCharacterPreset,
   ErrorStat,
+  GhostTimeline,
   HesitationPracticeAttempt,
   HesitationPracticeQueue,
   HesitationPracticeTarget,
@@ -114,6 +125,8 @@ const themeLabels: Record<ThemeId, string> = {
   qingdai: "青黛",
   custom: "自定义",
 };
+
+type GhostMode = "off" | "best" | "recent";
 
 const themeOptions: Array<{
   id: ThemeId;
@@ -543,6 +556,12 @@ export function WubiApp({ view }: { view: AppView }) {
           <TypingView
             settings={settings}
             settingsReady={settingsReady}
+            onShowGhostGapChange={(value) =>
+              setSettings((current) => ({
+                ...current,
+                showGhostGap: value,
+              }))
+            }
             playKeySound={playKeySound}
             onPracticeHesitation={(target) =>
               setActiveHesitationPractice({ target })
@@ -606,6 +625,7 @@ export function WubiApp({ view }: { view: AppView }) {
 function TypingView({
   settings,
   settingsReady,
+  onShowGhostGapChange,
   playKeySound,
   onPracticeHesitation,
   onAddHesitationToQueue,
@@ -614,6 +634,7 @@ function TypingView({
 }: {
   settings: UserSettings;
   settingsReady: boolean;
+  onShowGhostGapChange: (value: boolean) => void;
   playKeySound: KeySoundPlayer;
   onPracticeHesitation: (target: HesitationPracticeTarget) => void;
   onAddHesitationToQueue: (target: HesitationPracticeTarget) => void;
@@ -693,6 +714,21 @@ function TypingView({
     useState<CodeLengthCoachIndex | null>(null);
   const [minimumCodeError, setMinimumCodeError] = useState("");
   const [codeLengthLoadAttempt, setCodeLengthLoadAttempt] = useState(0);
+  const [ghostMode, setGhostMode] = useState<GhostMode>("off");
+  const [showGhostGap, setShowGhostGap] = useState(settings.showGhostGap);
+  const [ghostRevision, setGhostRevision] = useState(0);
+  const [, setClockRevision] = useState(0);
+  const [completedGhostTimeline, setCompletedGhostTimeline] =
+    useState<GhostTimeline | null>(null);
+  const [activeGhostTimelineState, setActiveGhostTimelineState] =
+    useState<GhostTimeline | null>(null);
+  const [activeGhostMode, setActiveGhostMode] =
+    useState<GhostMode>("off");
+  const ghostProgressPointsRef = useRef<GhostProgressPoint[]>([]);
+  const selectedGhostTimelineRef = useRef<GhostTimeline | null>(null);
+  const completionElapsedRef = useRef<number | null>(null);
+  const inactiveAtRef = useRef<number | null>(null);
+  const inactiveDurationMsRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -856,11 +892,18 @@ function TypingView({
     const now = Date.now();
     startedAtRef.current = now;
     lastTimingAtRef.current = now;
+    setActiveGhostTimelineState(selectedGhostTimelineRef.current);
+    setActiveGhostMode(selectedGhostTimelineRef.current ? ghostMode : "off");
     setStartedAt(now);
-  }, []);
+  }, [ghostMode]);
 
   const chooseArticle = useCallback(
-    (next: PracticeArticle, focusInput = true, nextRetryCount = 0) => {
+    (
+      next: PracticeArticle,
+      focusInput = true,
+      nextRetryCount = 0,
+      nextGhostMode: GhostMode = "off",
+    ) => {
       if (compositionCommitTimer.current !== null) {
         window.clearTimeout(compositionCommitTimer.current);
         compositionCommitTimer.current = null;
@@ -900,6 +943,10 @@ function TypingView({
       setCompleted(false);
       setLastSession(null);
       setSessionSaveFailed(false);
+      setGhostMode(nextGhostMode);
+      setCompletedGhostTimeline(null);
+      setActiveGhostTimelineState(null);
+      setActiveGhostMode("off");
       pendingPracticeSave.current = null;
       composing.current = false;
       recorded.current = false;
@@ -910,6 +957,12 @@ function TypingView({
       typingDelaysRef.current = [];
       correctionPositionsRef.current = new Map();
       errorPositions.current = new Set();
+      ghostProgressPointsRef.current = [];
+      selectedGhostTimelineRef.current = null;
+      completionElapsedRef.current = null;
+      inactiveAtRef.current = null;
+      inactiveDurationMsRef.current = 0;
+      setClockRevision((value) => value + 1);
       setPickerOpen(false);
       window.setTimeout(() => {
         articleTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -1019,12 +1072,44 @@ function TypingView({
           now: Date.now(),
           pausedDurationMs,
           pausedAt,
+          inactiveDurationMs: inactiveDurationMsRef.current,
+          inactiveAt: inactiveAtRef.current,
         }),
       );
     updateElapsed();
     const timer = window.setInterval(updateElapsed, 250);
     return () => window.clearInterval(timer);
   }, [completed, pausedAt, pausedDurationMs, startedAt]);
+
+  useEffect(() => {
+    if (!startedAt || completed) return;
+    const handleVisibilityChange = () => {
+      const now = Date.now();
+      if (document.hidden) {
+        if (pausedAt !== null || inactiveAtRef.current !== null) return;
+        pendingTimingMsRef.current = calculateTypingTransitionMs({
+          lastActiveAt: lastTimingAtRef.current,
+          now,
+          pendingMs: pendingTimingMsRef.current,
+        });
+        lastTimingAtRef.current = null;
+        inactiveAtRef.current = now;
+        setClockRevision((value) => value + 1);
+        return;
+      }
+      if (inactiveAtRef.current === null) return;
+      inactiveDurationMsRef.current += Math.max(
+        0,
+        now - inactiveAtRef.current,
+      );
+      inactiveAtRef.current = null;
+      lastTimingAtRef.current = now;
+      setClockRevision((value) => value + 1);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [completed, pausedAt, startedAt]);
 
   const visibleText = article?.text || "";
   // Paragraph breaks are presentation, not typing targets. Keeping them in the
@@ -1033,6 +1118,45 @@ function TypingView({
     () => visibleText.replace(/[\r\n]/g, ""),
     [visibleText],
   );
+  const paragraphBoundaries = useMemo(
+    () =>
+      visibleText
+      .split(/[\r\n]+/)
+      .filter((paragraph) => paragraph.length > 0)
+        .reduce<number[]>((boundaries, paragraph) => {
+          const previous = boundaries.at(-1) ?? 0;
+          return [...boundaries, previous + Array.from(paragraph).length];
+        }, []),
+    [visibleText],
+  );
+  const ghostIdentity = useMemo(
+    () => (article ? getGhostArticleIdentity(article) : null),
+    [article],
+  );
+  const ghostSessions = useMemo(
+    () => {
+      void ghostRevision;
+      return ghostIdentity
+        ? selectGhostSessions(getSessions(), ghostIdentity)
+        : { best: null, recent: null };
+    },
+    [ghostIdentity, ghostRevision],
+  );
+  const selectedGhostSession =
+    ghostMode === "best"
+      ? ghostSessions.best
+      : ghostMode === "recent"
+        ? ghostSessions.recent
+        : null;
+  const selectedGhostTimeline = selectedGhostSession?.ghostTimeline ?? null;
+  useEffect(() => {
+    if (startedAt === null) {
+      selectedGhostTimelineRef.current = selectedGhostTimeline;
+    }
+  }, [selectedGhostTimeline, startedAt]);
+  useEffect(() => {
+    if (startedAtRef.current === null) setShowGhostGap(settings.showGhostGap);
+  }, [settings.showGhostGap]);
   const targetCharacters = useMemo(() => Array.from(targetText), [targetText]);
   const typedCharacters = useMemo(() => Array.from(typed), [typed]);
   const theoreticalCodeLength = useMemo(
@@ -1114,12 +1238,49 @@ function TypingView({
     pendingPracticeSave.current = null;
     setSessionSaveFailed(false);
     setProgress(getProgress());
+    setGhostRevision((value) => value + 1);
   };
   const progressRatio = Math.min(
     1,
     typedCharacters.length / Math.max(1, targetCharacters.length),
   );
   const progressPercent = Math.round(progressRatio * 100);
+  const activeGhostTimeline =
+    startedAt !== null
+      ? activeGhostTimelineState
+      : selectedGhostTimeline;
+  const displayGhostMode = startedAt !== null ? activeGhostMode : ghostMode;
+  const ghostPosition = activeGhostTimeline
+    ? getGhostPositionAtElapsed(activeGhostTimeline, seconds * 1000)
+    : 0;
+  const ghostProgressPercent = activeGhostTimeline
+    ? Math.min(100, (ghostPosition / Math.max(1, targetCharacters.length)) * 100)
+    : 0;
+  const ghostCharacterGap = activeGhostTimeline
+    ? typedCharacters.length - ghostPosition
+    : 0;
+  const ghostTimeGapMs = activeGhostTimeline
+    ? seconds * 1000 -
+      getGhostElapsedAtProgress(activeGhostTimeline, typedCharacters.length)
+    : 0;
+  const ghostGapLabel = activeGhostTimeline
+    ? `${ghostCharacterGap >= 0 ? "领先" : "落后"} ${Math.abs(
+        ghostCharacterGap,
+      ).toFixed(1)} 字 · ${ghostTimeGapMs <= 0 ? "快" : "慢"} ${Math.abs(
+        ghostTimeGapMs / 1000,
+      ).toFixed(1)} 秒`
+    : "普通练习";
+  const ghostSegmentComparison = useMemo(
+    () =>
+      completedGhostTimeline && activeGhostTimelineState
+        ? compareGhostSegments(
+            completedGhostTimeline,
+            activeGhostTimelineState,
+            paragraphBoundaries,
+          )
+        : [],
+    [activeGhostTimelineState, completedGhostTimeline, paragraphBoundaries],
+  );
 
   useEffect(() => {
     const viewport = articleTextRef.current;
@@ -1160,23 +1321,37 @@ function TypingView({
   }, [article, targetCharacters, typed, typedCharacters]);
 
   useEffect(() => {
-    if (
-      !article ||
-      completed ||
-      (!codeLengthCoachIndex && !minimumCodeError) ||
-      !canCompleteTyping(typed, targetText)
-    ) {
-      return;
-    }
+    if (!article || completed || !canCompleteTyping(typed, targetText)) return;
     const finalSeconds = calculateActiveDurationSeconds({
       startedAt,
       now: Date.now(),
       pausedDurationMs,
       pausedAt,
+      inactiveDurationMs: inactiveDurationMsRef.current,
+      inactiveAt: inactiveAtRef.current,
     });
+    completionElapsedRef.current = finalSeconds;
     setElapsed(finalSeconds);
     setCompleted(true);
-    if (recorded.current) return;
+  }, [
+    article,
+    completed,
+    pausedAt,
+    pausedDurationMs,
+    startedAt,
+    targetText,
+    typed,
+  ]);
+
+  useEffect(() => {
+    if (
+      !article ||
+      !completed ||
+      recorded.current
+    ) {
+      return;
+    }
+    const finalSeconds = completionElapsedRef.current ?? elapsed;
     recorded.current = true;
     const errorChars = Array.from(errorPositions.current)
       .map((index) => targetCharacters[index])
@@ -1241,6 +1416,18 @@ function TypingView({
         task.status === "in-progress" &&
         task.articleId === articleId,
     )?.id;
+    let ghostTimeline: GhostTimeline | undefined;
+    if (ghostIdentity) {
+      const finalPoint = {
+        characterCount: targetCharacters.length,
+        elapsedMs: finalSeconds * 1000,
+      };
+      ghostProgressPointsRef.current.push(finalPoint);
+      ghostTimeline =
+        buildGhostTimeline(ghostIdentity, ghostProgressPointsRef.current) ??
+        undefined;
+      setCompletedGhostTimeline(ghostTimeline ?? null);
+    }
     const session: SessionResult = {
       id: crypto.randomUUID(),
       type: "article",
@@ -1270,6 +1457,7 @@ function TypingView({
       pauseSeconds,
       retryCount,
       heatmap,
+      ghostTimeline,
       trainingTaskId,
     };
     const phraseOpportunities =
@@ -1297,6 +1485,7 @@ function TypingView({
     } else {
       pendingPracticeSave.current = null;
       setSessionSaveFailed(false);
+      setGhostRevision((value) => value + 1);
     }
     setLastSession(session);
   }, [
@@ -1304,15 +1493,15 @@ function TypingView({
     attemptCount,
     backspaceCount,
     codeLengthAnalysis,
-    codeLengthCoachIndex,
     completed,
     correctionCount,
     correctAttemptCount,
+    elapsed,
     enterCount,
+    ghostIdentity,
     keyCount,
     leftHandKeys,
     letterKeys,
-    minimumCodeError,
     pauseCount,
     pauseSeconds,
     pausedAt,
@@ -1341,6 +1530,30 @@ function TypingView({
     }
     if (committed) startTimer();
     const now = Date.now();
+    const previousCharacterCount = Array.from(previous).length;
+    const committedCharacterCount = Array.from(committed).length;
+    if (ghostIdentity && committedCharacterCount > previousCharacterCount) {
+      const characterCount = committedCharacterCount;
+      const previousPoint = ghostProgressPointsRef.current.at(-1);
+      const step = getGhostSampleStep(ghostIdentity.characterCount);
+      if (
+        characterCount === ghostIdentity.characterCount ||
+        characterCount >= (previousPoint?.characterCount ?? 0) + step
+      ) {
+        ghostProgressPointsRef.current.push({
+          characterCount,
+          elapsedMs:
+            calculateActiveDurationSeconds({
+              startedAt: startedAtRef.current,
+              now,
+              pausedDurationMs,
+              pausedAt,
+              inactiveDurationMs: inactiveDurationMsRef.current,
+              inactiveAt: inactiveAtRef.current,
+            }) * 1000,
+        });
+      }
+    }
     const transitionMs = calculateTypingTransitionMs({
       lastActiveAt: lastTimingAtRef.current,
       now,
@@ -1436,6 +1649,12 @@ function TypingView({
     lastTimingAtRef.current = null;
     setPausedAt(now);
     setPauseCount((value) => value + 1);
+  };
+
+  const toggleGhostGap = () => {
+    const next = !showGhostGap;
+    setShowGhostGap(next);
+    onShowGhostGapChange(next);
   };
 
   const useCustomText = () => {
@@ -1570,6 +1789,24 @@ function TypingView({
         <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
       </section>
 
+      {activeGhostTimeline && (
+        <section className="ghost-live-card" aria-label="幽灵赛实时状态">
+          <span>
+            {displayGhostMode === "best"
+              ? "挑战个人最佳"
+              : "挑战最近一次"}
+          </span>
+          {showGhostGap ? (
+            <strong>
+              {ghostGapLabel}
+            </strong>
+          ) : (
+            <strong>实时差距已关闭</strong>
+          )}
+          <small>幽灵位置仍会显示在五区进度条上</small>
+        </section>
+      )}
+
       <section className="workspace-grid">
         <article className="typing-card">
           <div className="practice-commandbar" aria-label="练习控制">
@@ -1580,6 +1817,47 @@ function TypingView({
               <span>{lengthLabels[article.length]}</span>
               {settings.showCodeHints && <span>编码提示开启</span>}
             </div>
+            <fieldset
+              className="ghost-mode-picker"
+              disabled={startedAt !== null}
+              aria-describedby="ghost-mode-note"
+            >
+              <legend>幽灵赛</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="ghost-mode"
+                  checked={ghostMode === "off"}
+                  onChange={() => setGhostMode("off")}
+                />
+                普通
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="ghost-mode"
+                  checked={ghostMode === "best"}
+                  disabled={!ghostSessions.best}
+                  onChange={() => setGhostMode("best")}
+                />
+                个人最佳
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="ghost-mode"
+                  checked={ghostMode === "recent"}
+                  disabled={!ghostSessions.recent}
+                  onChange={() => setGhostMode("recent")}
+                />
+                最近一次
+              </label>
+            </fieldset>
+            <span id="ghost-mode-note" className="sr-only">
+              {ghostSessions.best
+                ? "输入第一个字符后将锁定本轮挑战对象"
+                : "完成一次可比较的文章练习后即可挑战"}
+            </span>
             <div className="practice-actions">
               <button onClick={() => setPickerOpen(true)}>选文章</button>
               <button onClick={randomArticle}>随机</button>
@@ -1596,6 +1874,14 @@ function TypingView({
                 onClick={() => chooseArticle(article, true, retryCount + 1)}
               >
                 重来
+              </button>
+              <button
+                className={showGhostGap ? "active" : ""}
+                disabled={!activeGhostTimeline}
+                onClick={toggleGhostGap}
+                aria-pressed={showGhostGap}
+              >
+                {showGhostGap ? "隐藏差距" : "显示差距"}
               </button>
               <button
                 className={focusMode ? "active" : ""}
@@ -1690,7 +1976,13 @@ function TypingView({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={progressPercent}
-            aria-valuetext={`已完成 ${progressPercent}%，五格依次对应撇、捺、横、竖、折区`}
+            aria-valuetext={`已完成 ${progressPercent}%${
+              activeGhostTimeline
+                ? `，幽灵 ${Math.round(ghostProgressPercent)}%${
+                    showGhostGap ? `，${ghostGapLabel}` : ""
+                  }`
+                : ""
+            }，五格依次对应撇、捺、横、竖、折区`}
           >
             {[
               ["QWERT", "撇区"],
@@ -1715,6 +2007,15 @@ function TypingView({
                 </span>
               );
             })}
+            {activeGhostTimeline && (
+              <i
+                className="ghost-progress-marker"
+                style={{
+                  "--ghost-progress": `${ghostProgressPercent}%`,
+                } as CSSProperties}
+                aria-hidden="true"
+              />
+            )}
           </div>
           <div
             key={article.id}
@@ -1988,6 +2289,36 @@ function TypingView({
                   </div>
                 </div>
               </section>
+              {ghostSegmentComparison.length > 0 && (
+                <section
+                  className="ghost-review"
+                  aria-labelledby="ghost-review-title"
+                >
+                  <div>
+                    <small>PERSONAL GHOST</small>
+                    <h3 id="ghost-review-title">幽灵赛复盘</h3>
+                    <p>{ghostGapLabel}</p>
+                  </div>
+                  <ol>
+                    {ghostSegmentComparison.map((segment, index) => (
+                      <li key={`${segment.start}-${segment.end}`}>
+                        <span>第 {index + 1} 段</span>
+                        <strong>
+                          {segment.result === "recovered"
+                            ? "追回"
+                            : segment.result === "lost"
+                              ? "丢失"
+                              : "持平"}{" "}
+                          {Math.abs(segment.changeMs / 1000).toFixed(1)} 秒
+                        </strong>
+                        <small>
+                          第 {segment.start + 1}–{segment.end} 字
+                        </small>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
               <div className="completion-next">
                 <p>练习记录只保存在当前浏览器。</p>
                 {sessionSaveFailed && (
@@ -2002,15 +2333,44 @@ function TypingView({
                 >
                   下载成绩卡
                 </button>
+                {settings.autoNext && activeGhostMode !== "off" && (
+                  <button
+                    className="button secondary"
+                    onClick={() =>
+                      chooseArticle(
+                        article,
+                        true,
+                        retryCount + 1,
+                        activeGhostMode,
+                      )
+                    }
+                  >
+                    {activeGhostMode === "best"
+                      ? "再次挑战个人最佳"
+                      : "再次挑战最近一次"}
+                  </button>
+                )}
                 <button
                   className="button primary"
                   onClick={
                     settings.autoNext
                       ? randomArticle
-                      : () => chooseArticle(article, true, retryCount + 1)
+                      : () =>
+                          chooseArticle(
+                            article,
+                            true,
+                            retryCount + 1,
+                            activeGhostMode,
+                          )
                   }
                 >
-                  {settings.autoNext ? "下一篇" : "再练一次"}
+                  {settings.autoNext
+                    ? "下一篇"
+                    : activeGhostMode === "best"
+                      ? "再次挑战个人最佳"
+                      : activeGhostMode === "recent"
+                        ? "再次挑战最近一次"
+                        : "再练一次"}
                 </button>
               </div>
             </div>

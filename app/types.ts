@@ -74,6 +74,16 @@ export interface TypingHeatmap {
   segments: HesitationSegment[];
 }
 
+export interface GhostTimeline {
+  version: 1;
+  articleKey: string;
+  articleVersion: number;
+  contentFingerprint: string;
+  characterCount: number;
+  step: number;
+  samples: Array<[characterCount: number, elapsedMs: number]>;
+}
+
 export interface HesitationPracticeTarget {
   version: 1;
   id: string;
@@ -140,6 +150,7 @@ export interface SessionResult {
   pauseSeconds?: number;
   retryCount?: number;
   heatmap?: TypingHeatmap;
+  ghostTimeline?: GhostTimeline;
   trainingTaskId?: string;
   hesitationPractice?: HesitationPracticeResult;
 }
@@ -271,6 +282,7 @@ export interface UserSettings {
   fontSize: number;
   preferredLength: ArticleLength | "all";
   showCodeHints: boolean;
+  showGhostGap: boolean;
   sound: boolean;
   theme: ThemeId;
   customTheme?: CustomTheme;

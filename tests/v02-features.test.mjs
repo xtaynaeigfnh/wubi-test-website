@@ -514,6 +514,7 @@ test("backup format only accepts known versioned storage keys", () => {
         fontSize: 30,
         preferredLength: "all",
         showCodeHints: false,
+        showGhostGap: true,
         sound: false,
         theme: "dark",
         customTheme: defaultCustomTheme,
@@ -625,6 +626,7 @@ test("backup format only accepts known versioned storage keys", () => {
       fontSize: 30,
       preferredLength: "all",
       showCodeHints: false,
+      showGhostGap: true,
       sound: false,
       theme: "dark",
       customTheme: defaultCustomTheme,
@@ -963,6 +965,7 @@ test("settings read old and new themes while normalizing custom colors", () => {
       fontSize: 34,
       preferredLength: "all",
       showCodeHints: false,
+      showGhostGap: true,
       sound: false,
       theme: "custom",
       customTheme: {
@@ -1080,6 +1083,111 @@ test("backup validates optional typing heatmaps without changing the format vers
       /格式不正确/,
     );
   }
+});
+
+test("backup accepts old sessions and strictly validates compressed ghost timelines", () => {
+  const oldPayload = createBackupPayload({
+    [STORAGE.sessions]: [session({ id: "pre-v05" })],
+  });
+  assert.equal(parseBackupPayload(oldPayload).version, 2);
+
+  const ghostTimeline = {
+    version: 1,
+    articleKey: "builtin:short-001",
+    articleVersion: 2,
+    contentFingerprint: "10-example",
+    characterCount: 10,
+    step: 5,
+    samples: [[5, 1000], [10, 2000]],
+  };
+  const payload = createBackupPayload({
+    [STORAGE.sessions]: [session({ id: "v05", durationSeconds: 2, ghostTimeline })],
+  });
+  assert.deepEqual(
+    parseBackupPayload(payload).data[STORAGE.sessions][0].ghostTimeline,
+    ghostTimeline,
+  );
+
+  for (const invalidTimeline of [
+    { ...ghostTimeline, samples: [[5, 1000], [5, 2000], [10, 3000]] },
+    { ...ghostTimeline, samples: [[5, 2000], [10, 1000]] },
+    { ...ghostTimeline, samples: [[5, 1000]] },
+    { ...ghostTimeline, samples: [[5, -1], [10, 2000]] },
+    { ...ghostTimeline, articleVersion: 0 },
+    { ...ghostTimeline, articleKey: "unknown:short-001" },
+    { ...ghostTimeline, step: 4 },
+    { ...ghostTimeline, samples: [[5, 1000], [10, 8000]] },
+  ]) {
+    assert.throws(() =>
+      parseBackupPayload(
+        createBackupPayload({
+          [STORAGE.sessions]: [session({ ghostTimeline: invalidTimeline })],
+        }),
+      ),
+    );
+  }
+  assert.throws(() =>
+    parseBackupPayload(
+      createBackupPayload({
+        [STORAGE.sessions]: [
+          session({ type: "review", durationSeconds: 2, ghostTimeline }),
+        ],
+      }),
+    ),
+  );
+});
+
+test("backup rejects noncanonical ghost retention and duplicate session IDs", () => {
+  const makeTimeline = (articleIndex) => ({
+    version: 1,
+    articleKey: `builtin:article-${articleIndex}`,
+    articleVersion: 1,
+    contentFingerprint: `10-item${articleIndex}`,
+    characterCount: 10,
+    step: 5,
+    samples: [[5, 1000], [10, 2000]],
+  });
+  const tooMany = Array.from({ length: 91 }, (_, index) =>
+    session({
+      id: `ghost-${index}`,
+      date: new Date(Date.UTC(2026, 7, 1, 0, index)).toISOString(),
+      durationSeconds: 2,
+      ghostTimeline: makeTimeline(index),
+    }),
+  );
+  assert.throws(() =>
+    parseBackupPayload(
+      createBackupPayload({ [STORAGE.sessions]: tooMany }),
+    ),
+  );
+
+  const sameArticle = Array.from({ length: 4 }, (_, index) =>
+    session({
+      id: `same-${index}`,
+      date: new Date(Date.UTC(2026, 7, 20 + index)).toISOString(),
+      durationSeconds: 2 + index,
+      speed: 100 - index,
+      ghostTimeline: {
+        ...makeTimeline("same"),
+        samples: [[5, 1000], [10, (2 + index) * 1000]],
+      },
+    }),
+  );
+  assert.throws(() =>
+    parseBackupPayload(
+      createBackupPayload({ [STORAGE.sessions]: sameArticle }),
+    ),
+  );
+  assert.throws(() =>
+    parseBackupPayload(
+      createBackupPayload({
+        [STORAGE.sessions]: [
+          session({ id: "duplicate" }),
+          session({ id: "duplicate" }),
+        ],
+      }),
+    ),
+  );
 });
 
 test("phrase opportunities stay bounded, survive backup validation, and track practice", () => {
@@ -1491,7 +1599,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v10/);
+  assert.match(worker, /wubi-test-v11/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

@@ -13,6 +13,7 @@ import type {
   DailyGoal,
   DailyProgress,
   ErrorStat,
+  GhostTimeline,
   HesitationQueueItem,
   HesitationPracticeQueue,
   HesitationPracticeTarget,
@@ -26,6 +27,13 @@ import type {
   WeakObservation,
   WubiEntry,
 } from "./types";
+import {
+  ghostTimelineByteLength,
+  getGhostSampleStep,
+  MAX_GHOST_SAMPLES,
+  MAX_GHOST_TIMELINE_BYTES,
+  pruneGhostTimelines,
+} from "./ghost-race.ts";
 import { applyWeakObservations } from "./training-plan.ts";
 import {
   incrementKeyUsage,
@@ -81,6 +89,7 @@ export const defaultSettings: UserSettings = {
   fontSize: 30,
   preferredLength: "all",
   showCodeHints: false,
+  showGhostGap: true,
   sound: false,
   theme: "system",
   customTheme: defaultCustomTheme,
@@ -138,6 +147,10 @@ export function readSettings(): UserSettings {
       typeof partial.showCodeHints === "boolean"
         ? partial.showCodeHints
         : defaultSettings.showCodeHints,
+    showGhostGap:
+      typeof partial.showGhostGap === "boolean"
+        ? partial.showGhostGap
+        : defaultSettings.showGhostGap,
     sound:
       typeof partial.sound === "boolean"
         ? partial.sound
@@ -991,15 +1004,30 @@ export function calculateActiveDurationSeconds({
   now,
   pausedDurationMs,
   pausedAt,
+  inactiveDurationMs = 0,
+  inactiveAt = null,
 }: {
   startedAt: number | null;
   now: number;
   pausedDurationMs: number;
   pausedAt: number | null;
+  inactiveDurationMs?: number;
+  inactiveAt?: number | null;
 }): number {
   if (startedAt === null) return 0;
   const currentPause = pausedAt === null ? 0 : Math.max(0, now - pausedAt);
-  return Math.max(0, (now - startedAt - pausedDurationMs - currentPause) / 1000);
+  const currentInactive =
+    inactiveAt === null ? 0 : Math.max(0, now - inactiveAt);
+  return Math.max(
+    0,
+    (now -
+      startedAt -
+      pausedDurationMs -
+      currentPause -
+      inactiveDurationMs -
+      currentInactive) /
+      1000,
+  );
 }
 
 export function calculateRemainingSeconds(
@@ -1064,7 +1092,18 @@ export async function loadWubiChallenge(): Promise<WubiEntry[]> {
 }
 
 export function getSessions() {
-  return readValidatedLocalArray(STORAGE.sessions, 500, isSessionResult);
+  const stored = readValidatedLocalArray(STORAGE.sessions, 500, isSessionResult);
+  const ids = new Set<string>();
+  const unique = stored.filter((session) => {
+    if (ids.has(session.id)) return false;
+    ids.add(session.id);
+    return true;
+  });
+  const pruned = pruneGhostTimelines(unique);
+  if (JSON.stringify(pruned) !== JSON.stringify(stored)) {
+    writeLocal(STORAGE.sessions, pruned);
+  }
+  return pruned;
 }
 
 export function getProgress() {
@@ -1286,7 +1325,9 @@ function persistPracticeOutcome(
   const currentSessions = getSessions();
   if (currentSessions.some((item) => item.id === session.id)) return true;
   let retainedHeatmaps = 0;
-  const sessions = [session, ...currentSessions].slice(0, 500).map((item) => {
+  const sessions = pruneGhostTimelines(
+    [session, ...currentSessions].slice(0, 500),
+  ).map((item) => {
     if (!item.heatmap) return item;
     retainedHeatmaps += 1;
     if (retainedHeatmaps <= 50) return item;
@@ -2103,12 +2144,74 @@ function isSessionResult(value: unknown): value is SessionResult {
         value.errorChars.length <= 5000 &&
         value.errorChars.every((item) => isBoundedString(item, 8)))) &&
     (value.heatmap === undefined || isTypingHeatmap(value.heatmap)) &&
+    (value.ghostTimeline === undefined ||
+      (value.type === "article" &&
+        isGhostTimelineForSession(value.ghostTimeline, value.durationSeconds))) &&
     (value.hesitationPractice === undefined ||
       isHesitationPracticeResult(value.hesitationPractice)) &&
     (value.type === "hesitation"
       ? value.hesitationPractice !== undefined
       : value.hesitationPractice === undefined)
   );
+}
+
+function isGhostTimeline(value: unknown): value is GhostTimeline {
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    !isBoundedString(value.articleKey, 240) ||
+    value.articleKey.length === 0 ||
+    !/^(?:builtin|custom):.{1,160}$/.test(value.articleKey) ||
+    !Number.isInteger(value.articleVersion) ||
+    !isFiniteRange(value.articleVersion, 1, 1_000_000) ||
+    !isBoundedString(value.contentFingerprint, 100) ||
+    !/^\d{1,4}-[0-9a-z]+$/.test(value.contentFingerprint) ||
+    !Number.isInteger(value.characterCount) ||
+    !isFiniteRange(value.characterCount, 1, 5000) ||
+    !Number.isInteger(value.step) ||
+    !isFiniteRange(value.step, 1, 5000) ||
+    value.step !== getGhostSampleStep(Number(value.characterCount)) ||
+    !Array.isArray(value.samples) ||
+    value.samples.length === 0 ||
+    value.samples.length > MAX_GHOST_SAMPLES
+  ) {
+    return false;
+  }
+  let previousCharacters = 0;
+  let previousElapsedMs = 0;
+  for (const sample of value.samples) {
+    if (
+      !Array.isArray(sample) ||
+      sample.length !== 2 ||
+      !Number.isInteger(sample[0]) ||
+      !isFiniteRange(sample[0], 1, value.characterCount) ||
+      !Number.isInteger(sample[1]) ||
+      !isFiniteRange(sample[1], 0, 86_400_000) ||
+      sample[0] <= previousCharacters ||
+      sample[1] < previousElapsedMs
+    ) {
+      return false;
+    }
+    previousCharacters = sample[0];
+    previousElapsedMs = sample[1];
+  }
+  const last = value.samples.at(-1);
+  return (
+    last?.[0] === value.characterCount &&
+    ghostTimelineByteLength(value as unknown as GhostTimeline) <=
+      MAX_GHOST_TIMELINE_BYTES
+  );
+}
+
+function isGhostTimelineForSession(
+  value: unknown,
+  durationSeconds: unknown,
+): value is GhostTimeline {
+  if (!isGhostTimeline(value) || typeof durationSeconds !== "number") {
+    return false;
+  }
+  const finalElapsedMs = value.samples.at(-1)?.[1] ?? 0;
+  return Math.abs(finalElapsedMs - durationSeconds * 1000) <= 1000;
 }
 
 function isTypingHeatmap(value: unknown): value is TypingHeatmap {
@@ -2313,6 +2416,7 @@ function isSettings(value: unknown): value is UserSettings {
       String(value.preferredLength),
     ) &&
     typeof value.showCodeHints === "boolean" &&
+    typeof value.showGhostGap === "boolean" &&
     typeof value.sound === "boolean" &&
     ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
       String(value.theme),
@@ -2337,6 +2441,7 @@ function normalizeBackupSettings(value: unknown): UserSettings | null {
         String(value.preferredLength),
       )) ||
     (keys.has("showCodeHints") && typeof value.showCodeHints !== "boolean") ||
+    (keys.has("showGhostGap") && typeof value.showGhostGap !== "boolean") ||
     (keys.has("sound") && typeof value.sound !== "boolean") ||
     (keys.has("autoNext") && typeof value.autoNext !== "boolean")
   ) {
@@ -2408,7 +2513,7 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.settings:
       return isSettings(value);
     case STORAGE.sessions:
-      return validateArray(value, 500, isSessionResult);
+      return isValidSessionCollection(value);
     case STORAGE.errors:
       return validateArray(value, 300, isErrorStat);
     case STORAGE.progress:
@@ -2444,6 +2549,15 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     default:
       return false;
   }
+}
+
+function isValidSessionCollection(value: unknown): value is SessionResult[] {
+  if (!validateArray(value, 500, isSessionResult)) return false;
+  const sessions = value as SessionResult[];
+  if (new Set(sessions.map((session) => session.id)).size !== sessions.length) {
+    return false;
+  }
+  return JSON.stringify(pruneGhostTimelines(sessions)) === JSON.stringify(sessions);
 }
 
 export function parseBackupPayload(value: unknown): BackupPayload {

@@ -150,6 +150,48 @@ test("typing exposes every filtered article and resets timing on restart", async
   );
 });
 
+test("personal ghost races expose selection, live distance, replay, and responsive review", async () => {
+  const [component, styles, ghostLogic] = await Promise.all([
+    readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/ghost-race.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /name="ghost-mode"/);
+  assert.match(component, /个人最佳/);
+  assert.match(component, /最近一次/);
+  assert.match(component, /disabled=\{!ghostSessions\.best\}/);
+  assert.match(component, /aria-pressed=\{showGhostGap\}/);
+  assert.match(component, /className="ghost-progress-marker"/);
+  assert.match(component, /幽灵赛复盘/);
+  assert.match(component, /再次挑战个人最佳/);
+  assert.match(component, /\[selectedGhostTimeline, startedAt\]/);
+  assert.match(component, /settings\.autoNext && activeGhostMode !== "off"/);
+  assert.match(component, /showGhostGap \? `，\$\{ghostGapLabel\}` : ""/);
+  assert.match(component, /onShowGhostGapChange\(next\)/);
+  assert.match(component, /split\(\/\[\\r\\n\]\+\//);
+  assert.match(component, /paragraphBoundaries/);
+  assert.doesNotMatch(component, /ghostGapLabel\}[\s\S]{0,80}aria-live=/);
+  assert.match(component, /document\.addEventListener\("visibilitychange"/);
+  assert.match(component, /inactiveDurationMsRef/);
+  assert.match(component, /completionElapsedRef\.current/);
+  assert.match(ghostLogic, /MAX_GHOST_TIMELINES = 90/);
+  assert.match(ghostLogic, /articleVersion === identity\.articleVersion/);
+  assert.match(styles, /\.ghost-progress-marker\s*\{/);
+  assert.match(styles, /\.ghost-review\s*\{/);
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.ghost-review ol\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 780px\)[\s\S]*\.practice-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
+  );
+  assert.match(
+    styles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*transition-duration:\s*0\.01ms !important/s,
+  );
+});
+
 test("typing completion and history expose an accessible hesitation heatmap", async () => {
   const [component, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
