@@ -110,22 +110,25 @@ export function calculateAbilityDimensions(
       session.theoreticalCodeLength !== undefined &&
       session.theoreticalCodeLength !== null &&
       session.theoreticalCodeLength > 0 &&
-      session.codeLength > 0,
+      session.codeLength > 0 &&
+      (session.correctHanChars ?? session.correctChars) > 0,
   );
-  const codeWeight = codeRows.reduce(
-    (sum, session) => sum + Math.max(1, session.correctChars),
+  const theoreticalKeys = codeRows.reduce(
+    (sum, session) =>
+      sum +
+      (session.theoreticalCodeLength ?? 0) *
+        (session.correctHanChars ?? session.correctChars),
     0,
   );
-  const codeEfficiency = codeWeight > 0
-    ? codeRows.reduce(
-        (sum, session) =>
-          sum +
-          Math.min(
-            1,
-            (session.theoreticalCodeLength ?? 0) / session.codeLength,
-          ) * Math.max(1, session.correctChars),
-        0,
-      ) / codeWeight
+  const actualKeys = codeRows.reduce(
+    (sum, session) =>
+      sum +
+      session.codeLength *
+        (session.correctHanChars ?? session.correctChars),
+    0,
+  );
+  const codeEfficiency = actualKeys > 0
+    ? Math.min(1, theoreticalKeys / actualKeys)
     : null;
   const phraseRows = articles.filter((session) => session.phraseRate !== undefined);
   const phraseWeight = phraseRows.reduce(
@@ -239,10 +242,14 @@ function weakestPhraseType(
 ): string | null {
   const scores = new Map<number, number>();
   for (const item of opportunities.filter((row) => inRange(row.lastSeen, start, end))) {
-    const missed = Math.max(0, item.opportunityCount - item.correctCount);
+    const unresolved = Math.max(0, item.opportunityCount - item.correctCount);
+    const practiceMistakes = Math.max(0, item.practiceCount - item.correctCount);
+    const score =
+      unresolved * Math.max(1, item.savedKeys) + practiceMistakes * 5;
+    if (score <= 0) continue;
     scores.set(
       item.characterCount,
-      (scores.get(item.characterCount) ?? 0) + missed * Math.max(1, item.savedKeys),
+      (scores.get(item.characterCount) ?? 0) + score,
     );
   }
   const length = [...scores].sort((left, right) => right[1] - left[1] || left[0] - right[0])[0]?.[0];
@@ -308,6 +315,8 @@ export function buildWeeklyReport({
   const previousAbilities = calculateAbilityDimensions(previousSessions);
   const currentMinutes = currentSessions.reduce((sum, item) => sum + item.durationSeconds / 60, 0);
   const previousMinutes = previousSessions.reduce((sum, item) => sum + item.durationSeconds / 60, 0);
+  const roundedCurrentMinutes = Math.round(currentMinutes);
+  const roundedPreviousMinutes = Math.round(previousMinutes);
   const currentCharacters = currentSessions.reduce((sum, item) => sum + item.correctChars, 0);
   const previousCharacters = previousSessions.reduce((sum, item) => sum + item.correctChars, 0);
   const { weakestKey, weakestZone } = weakAreas(
@@ -343,13 +352,16 @@ export function buildWeeklyReport({
     }),
   );
 
+  const inclusiveWeekEnd = new Date(current.end);
+  inclusiveWeekEnd.setDate(inclusiveWeekEnd.getDate() - 1);
+
   return {
     version: 1,
     weekStart: localDateKey(current.start),
-    weekEnd: localDateKey(new Date(current.end.getTime() - DAY_MS)),
+    weekEnd: localDateKey(inclusiveWeekEnd),
     sessions: currentSessions.length,
     characters: currentCharacters,
-    minutes: Math.round(currentMinutes),
+    minutes: roundedCurrentMinutes,
     activeDays: activeDayKeys(currentSessions).length,
     streakDays: longestStreak(activeDayKeys(currentSessions)),
     masteredWeaknesses,
@@ -361,7 +373,7 @@ export function buildWeeklyReport({
     comparison: {
       sessions: currentSessions.length - previousSessions.length,
       characters: currentCharacters - previousCharacters,
-      minutes: Math.round(currentMinutes - previousMinutes),
+      minutes: roundedCurrentMinutes - roundedPreviousMinutes,
       abilities: abilityChanges,
     },
     recommendations: recommendations(abilities, weakestKey, weakestZone, phraseType),

@@ -346,6 +346,7 @@ test("typing result metrics only credit characters that actually match", () => {
     }),
     {
       correctChars: 1,
+      correctHanChars: 1,
       attemptedChars: 2,
       speed: 30,
       kps: 3,
@@ -378,6 +379,7 @@ test("typing code length ignores correctly typed punctuation in its denominator"
   assert.equal(withoutPunctuation.codeLength, 2);
   assert.equal(withPunctuation.codeLength, 2);
   assert.equal(withPunctuation.correctChars, 3);
+  assert.equal(withPunctuation.correctHanChars, 2);
 });
 
 test("typing code length excludes direct Latin letters in mixed custom text", () => {
@@ -554,6 +556,7 @@ test("typing logic counts non-BMP characters as single characters", () => {
     }),
     {
       correctChars: 1,
+      correctHanChars: 0,
       attemptedChars: 2,
       speed: 30,
       kps: 1,

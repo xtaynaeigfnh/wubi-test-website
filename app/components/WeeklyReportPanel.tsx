@@ -55,7 +55,7 @@ function RadarChart({
           {[0.25, 0.5, 0.75, 1].map((ratio) => (
             <polygon
               key={ratio}
-              className="weekly-radar-grid"
+              className={`weekly-radar-grid${ratio === 1 ? " is-outer" : ""}`}
               points={abilities.map((_, index) => radarPoint(index, ratio)).join(" ")}
             />
           ))}
@@ -241,8 +241,8 @@ const weeklyReportStyles = `
   .weekly-radar-figure { text-align: center; }
   .weekly-radar { width: min(100%, 360px); margin: auto; overflow: visible; }
   .weekly-radar-note { margin: -10px 0 8px; color: var(--text-secondary); font-size: 9px; }
-  .weekly-radar-grid, .weekly-radar-axis { fill: none; stroke: var(--border-default); stroke-width: .8; vector-effect: non-scaling-stroke; }
-  .weekly-radar-grid:not(:last-of-type) { stroke: var(--border-subtle); }
+  .weekly-radar-grid, .weekly-radar-axis { fill: none; stroke: var(--border-subtle); stroke-width: .8; vector-effect: non-scaling-stroke; }
+  .weekly-radar-grid.is-outer { stroke: var(--border-default); }
   .weekly-radar-area { fill: color-mix(in srgb, var(--accent-bamboo) 20%, transparent); stroke: var(--accent-bamboo); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
   .weekly-radar-dot { fill: var(--bg-paper); stroke: var(--accent-bamboo); stroke-width: 2; vector-effect: non-scaling-stroke; }
   .weekly-ability-list { display: grid; }

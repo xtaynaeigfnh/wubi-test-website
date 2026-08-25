@@ -129,6 +129,7 @@ export interface SessionResult {
   date: string;
   durationSeconds: number;
   correctChars: number;
+  correctHanChars?: number;
   attemptedChars: number;
   speed: number;
   kps: number;

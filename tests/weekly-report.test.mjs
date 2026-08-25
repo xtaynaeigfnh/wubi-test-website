@@ -98,6 +98,28 @@ test("稳定性按文章速度变异系数计算", () => {
   assert.equal(stability.rawLabel, "速度波动 11.1%");
 });
 
+test("码长能力按总理论键数与实际键数聚合", () => {
+  const codeLength = calculateAbilityDimensions([
+    session({
+      id: "inefficient",
+      correctChars: 100,
+      correctHanChars: 100,
+      theoreticalCodeLength: 2,
+      codeLength: 4,
+    }),
+    session({
+      id: "efficient",
+      correctChars: 100,
+      correctHanChars: 100,
+      theoreticalCodeLength: 2,
+      codeLength: 2,
+    }),
+  ]).find((item) => item.id === "codeLength");
+
+  assert.equal(codeLength.rawLabel, "66.7% 理论效率");
+  assert.equal(codeLength.score, 5);
+});
+
 test("周报统计练习量、周内最长连续天数及上周变化", () => {
   const report = buildWeeklyReport({
     sessions: [
@@ -176,6 +198,65 @@ test("弱项汇总识别最弱键位、字根区、词组类型与掌握状态",
   assert.deepEqual(report.newWeaknesses, ["丙", "乙", "甲", "己"]);
   assert.deepEqual(report.masteredWeaknesses, ["戊", "己"]);
   assert.ok(report.recommendations.some((item) => item.includes("横区")));
+});
+
+test("完全解决的词组不会继续被标记为最需留意", () => {
+  const report = buildWeeklyReport({
+    sessions: [],
+    errors: [],
+    phraseOpportunities: [
+      {
+        text: "中国",
+        code: "kl",
+        characterCount: 2,
+        savedKeys: 3,
+        opportunityCount: 5,
+        practiceCount: 5,
+        correctCount: 5,
+        lastSeen: "2026-08-25T10:00:00",
+      },
+    ],
+    now: new Date("2026-08-25T12:00:00"),
+  });
+
+  assert.equal(report.weakestPhraseType, null);
+});
+
+test("分钟同比等于本周与上周展示值之差", () => {
+  const report = buildWeeklyReport({
+    sessions: [
+      session({ id: "current", date: "2026-08-25T09:00:00", durationSeconds: 89.4 }),
+      session({ id: "previous", date: "2026-08-18T09:00:00", durationSeconds: 30.6 }),
+    ],
+    errors: [],
+    phraseOpportunities: [],
+    now: new Date("2026-08-25T12:00:00"),
+  });
+
+  assert.equal(report.minutes, 1);
+  assert.equal(report.comparison.minutes, 0);
+});
+
+test("夏令时开始周仍显示完整的周日结束日期", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "America/New_York";
+  try {
+    const report = buildWeeklyReport({
+      sessions: [
+        session({ id: "sunday", date: "2026-03-08T12:00:00-04:00" }),
+      ],
+      errors: [],
+      phraseOpportunities: [],
+      now: new Date("2026-03-08T18:00:00-04:00"),
+    });
+
+    assert.equal(report.weekStart, "2026-03-02");
+    assert.equal(report.weekEnd, "2026-03-08");
+    assert.equal(report.sessions, 1);
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
 });
 
 test("空数据稳定降级为无能力分数的首次周报", () => {

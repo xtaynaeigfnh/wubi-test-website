@@ -31,6 +31,7 @@ import {
   calculateTypingTransitionMs,
   calculateTypingMetrics,
   canCompleteTyping,
+  clearPracticeHistory,
   classifyWubiHand,
   commonCharacterPresets,
   countCommittedEdit,
@@ -3225,12 +3226,10 @@ function HistoryView({
 
   const clearResults = () => {
     if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
-    writeLocal(STORAGE.sessions, []);
-    writeLocal(STORAGE.progress, []);
-    writeLocal(STORAGE.errors, []);
-    writeLocal(STORAGE.phraseOpportunities, []);
-    writeLocal(STORAGE.trainingPlan, null);
-    writeLocal(STORAGE.hesitationQueue, null);
+    if (!clearPracticeHistory()) {
+      window.alert("清除未完成，本机数据已恢复到操作前的状态，请稍后重试。");
+      return;
+    }
     setExpandedHeatmapId(null);
     refresh();
   };

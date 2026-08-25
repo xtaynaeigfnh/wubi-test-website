@@ -13,6 +13,7 @@ import {
   buildCustomArticle,
   calculateDailyProgress,
   calculateStreak,
+  clearPracticeHistory,
   createBackupPayload,
   defaultCustomTheme,
   getErrors,
@@ -1529,6 +1530,39 @@ test("session and article progress writes roll back together after storage failu
     assert.equal(saveSession(session({ id: "new", articleId: "article-1" })), false);
     assert.equal(values.get(STORAGE.sessions), oldSessions);
     assert.equal(values.get(STORAGE.progress), oldProgress);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("clearing practice history rolls back every key after storage failure", () => {
+  const keys = [
+    STORAGE.sessions,
+    STORAGE.progress,
+    STORAGE.errors,
+    STORAGE.phraseOpportunities,
+    STORAGE.trainingPlan,
+    STORAGE.hesitationQueue,
+  ];
+  const values = new Map(keys.map((key, index) => [key, `old-${index}`]));
+  const before = new Map(values);
+  let failOnce = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.errors && failOnce) {
+          failOnce = false;
+          throw new Error("denied");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    assert.equal(clearPracticeHistory(), false);
+    assert.deepEqual(values, before);
   } finally {
     delete globalThis.window;
   }

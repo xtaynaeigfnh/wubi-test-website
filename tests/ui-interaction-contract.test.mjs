@@ -420,8 +420,12 @@ test("history exposes an accessible weekly report and local image download", asy
   assert.match(weekly, /aria-live="polite"/);
   assert.match(weekly, /下载本地周报图片/);
   assert.match(weekly, /!missingCount && <polygon/);
+  assert.match(weekly, /ratio === 1 \? " is-outer"/);
+  assert.match(weekly, /\.weekly-radar-grid\.is-outer/);
   assert.match(card, /canvas\.toBlob/);
   assert.match(card, /anchor\.download = `五笔周报-/);
+  assert.match(card, /window\.setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 1000\)/);
+  assert.match(component, /if \(!clearPracticeHistory\(\)\)/);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {

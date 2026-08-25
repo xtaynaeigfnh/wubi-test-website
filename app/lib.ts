@@ -770,6 +770,7 @@ export function calculateTypingMetrics({
   const wubiLetterKeys = Math.max(0, letterKeys - correctDirectLetterKeys);
   return {
     correctChars,
+    correctHanChars,
     attemptedChars: Math.max(targetCharacters.length, attemptCount),
     speed:
       durationSeconds > 0
@@ -1421,6 +1422,19 @@ function commitLocalWrites(writes: Map<string, unknown>): boolean {
     }
     return false;
   }
+}
+
+export function clearPracticeHistory(): boolean {
+  return commitLocalWrites(
+    new Map<string, unknown>([
+      [STORAGE.sessions, []],
+      [STORAGE.progress, []],
+      [STORAGE.errors, []],
+      [STORAGE.phraseOpportunities, []],
+      [STORAGE.trainingPlan, null],
+      [STORAGE.hesitationQueue, null],
+    ]),
+  );
 }
 
 export function saveSession(session: SessionResult): boolean {
@@ -2128,6 +2142,7 @@ function isSessionResult(value: unknown): value is SessionResult {
     "errors",
   ];
   const optionalNumericFields = [
+    "correctHanChars",
     "keyCount",
     "backspaceCount",
     "correctionCount",
