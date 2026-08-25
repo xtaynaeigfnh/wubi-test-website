@@ -113,7 +113,10 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(component, /label="打词"/);
   assert.match(component, /label="左右手"/);
   assert.match(component, /aria-pressed=\{pausedAt !== null\}/);
-  assert.match(component, /chooseArticle\(article, true, retryCount \+ 1\)/);
+  assert.match(
+    component,
+    /retryCount \+ 1,[\s\S]{0,100}startedAt !== null \? activeGhostMode : ghostMode/,
+  );
   assert.doesNotMatch(component, /<Metric\s+label="理论最小码长"/);
   assert.match(component, /theoreticalValue=\{theoreticalCodeLength\}/);
   assert.match(component, /theoreticalValue\.toFixed\(2\)/);
@@ -164,6 +167,10 @@ test("personal ghost races expose selection, live distance, replay, and responsi
   assert.match(component, /className="ghost-progress-marker"/);
   assert.match(component, /幽灵赛复盘/);
   assert.match(component, /再次挑战个人最佳/);
+  assert.match(
+    component,
+    /startedAt !== null \? activeGhostMode : ghostMode/,
+  );
   assert.match(component, /\[selectedGhostTimeline, startedAt\]/);
   assert.match(component, /settings\.autoNext && activeGhostMode !== "off"/);
   assert.match(component, /showGhostGap \? `，\$\{ghostGapLabel\}` : ""/);
@@ -256,8 +263,22 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(component, /Array\.from\(customText\.trim\(\)\)\.length/);
   assert.match(component, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
   assert.match(training, /Math\.round\(value \|\| minimum\)/);
-  assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, limited\)\)/);
+  assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
   assert.match(management, /if \(!saved\) return;/);
+  assert.match(management, /addCustomArticlesWithinLimit\(items, imported\)/);
+  assert.match(management, /自定义文章已满 20 篇/);
+});
+
+test("training tabs keep their URL state in sync", async () => {
+  const training = await readFile(
+    new URL("../app/components/TrainingCenter.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(training, /window\.addEventListener\("popstate"/);
+  assert.match(training, /window\.history\.replaceState/);
+  assert.match(training, /url\.searchParams\.delete\("tab"\)/);
+  assert.match(training, /url\.searchParams\.set\("tab", next\)/);
+  assert.match(training, /onClick=\{\(\) => selectTrainingTab\(value\)\}/);
 });
 
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
@@ -281,7 +302,7 @@ test("code length coach exposes recommendations and phrase practice on desktop a
   assert.match(training, /trackPhrasePractice/);
   assert.match(training, /phrasePracticeAnswers\.current\.push/);
   assert.match(training, /key="phrase-training"/);
-  assert.match(training, /get\("tab"\) === "phrase"/);
+  assert.match(training, /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/);
   assert.match(styles, /\.code-coach\s*\{[^}]*grid-template-columns:/s);
   assert.match(
     styles,

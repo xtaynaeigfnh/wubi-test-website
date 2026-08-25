@@ -105,9 +105,16 @@ export function TrainingCenter({
   useEffect(refreshLocal, [hesitationSaveRevision, refreshLocal]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("tab") === "phrase") {
-      setTab("phrase");
-    }
+    const syncTabFromLocation = () => {
+      const requested = new URLSearchParams(window.location.search).get("tab");
+      const next = TRAINING_TABS.some(([value]) => value === requested)
+        ? (requested as TrainingTab)
+        : "plan";
+      setTab(next);
+    };
+    syncTabFromLocation();
+    window.addEventListener("popstate", syncTabFromLocation);
+    return () => window.removeEventListener("popstate", syncTabFromLocation);
   }, []);
 
   useEffect(() => {
@@ -205,12 +212,24 @@ export function TrainingCenter({
     refreshLocal();
   };
 
+  const selectTrainingTab = (next: TrainingTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === "plan") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  };
+
   const moveTrainingTab = (current: TrainingTab, direction: -1 | 1) => {
     const currentIndex = TRAINING_TABS.findIndex(([value]) => value === current);
     const nextIndex =
       (currentIndex + direction + TRAINING_TABS.length) % TRAINING_TABS.length;
     const next = TRAINING_TABS[nextIndex][0];
-    setTab(next);
+    selectTrainingTab(next);
     window.requestAnimationFrame(() => {
       document.getElementById(`training-tab-${next}`)?.focus();
     });
@@ -228,11 +247,11 @@ export function TrainingCenter({
       writeLocal(STORAGE.current, task.articleId);
       writeLocal(STORAGE.currentGenerated, null);
     } else if (task.type === "review") {
-      setTab("review");
+      selectTrainingTab("review");
     } else if (task.type === "roots") {
       const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
       if (nextZone) setZone(nextZone);
-      setTab("roots");
+      selectTrainingTab("roots");
     }
     return true;
   };
@@ -313,7 +332,7 @@ export function TrainingCenter({
             aria-controls={`training-panel-${value}`}
             tabIndex={tab === value ? 0 : -1}
             className={tab === value ? "active" : ""}
-            onClick={() => setTab(value)}
+            onClick={() => selectTrainingTab(value)}
             onKeyDown={(event) => {
               if (event.key === "ArrowLeft") {
                 event.preventDefault();
@@ -611,7 +630,7 @@ export function TrainingCenter({
             planTask={prescribedReview}
             onSessionSaved={() => {
               onSessionSaved();
-              if (prescribedReview) setTab("plan");
+              if (prescribedReview) selectTrainingTab("plan");
             }}
           />
         </div>
@@ -686,7 +705,7 @@ export function TrainingCenter({
             planTask={prescribedRoots}
             onSessionSaved={() => {
               onSessionSaved();
-              if (prescribedRoots) setTab("plan");
+              if (prescribedRoots) selectTrainingTab("plan");
             }}
           />
         </div>

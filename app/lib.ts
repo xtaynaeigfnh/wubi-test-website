@@ -96,6 +96,25 @@ export const defaultSettings: UserSettings = {
   autoNext: false,
 };
 
+export const MAX_CUSTOM_ARTICLES = 20;
+
+export function addCustomArticlesWithinLimit(
+  existing: PracticeArticle[],
+  incoming: PracticeArticle[],
+): {
+  articles: PracticeArticle[];
+  added: PracticeArticle[];
+  rejected: PracticeArticle[];
+} {
+  const available = Math.max(0, MAX_CUSTOM_ARTICLES - existing.length);
+  const added = incoming.slice(0, available);
+  return {
+    articles: [...added, ...existing],
+    added,
+    rejected: incoming.slice(available),
+  };
+}
+
 export const defaultDailyGoal: DailyGoal = {
   targetChars: 500,
   targetMinutes: 15,
@@ -2519,7 +2538,7 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.progress:
       return validateArray(value, 500, isArticleProgress);
     case STORAGE.customTexts:
-      return validateArray(value, 20, isCustomPracticeArticle);
+      return validateArray(value, MAX_CUSTOM_ARTICLES, isCustomPracticeArticle);
     case STORAGE.recent:
       return validateArray(
         value,

@@ -4,6 +4,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 
 import {
+  addCustomArticlesWithinLimit,
   addHesitationQueueItem,
   addError,
   buildReviewPool,
@@ -96,6 +97,36 @@ function hesitationTarget(overrides = {}) {
       `${target.text}\u0000${target.focusOffset}\u0000${target.focusLength}`,
   };
 }
+
+test("custom article capacity never evicts existing content silently", () => {
+  const existing = Array.from({ length: 20 }, (_, index) =>
+    buildCustomArticle(
+      `custom-existing-${index}`,
+      `已有文章 ${index + 1}`,
+      `这是第${index + 1}篇已有自定义文章的有效正文内容。`,
+    ),
+  ).filter(Boolean);
+  const incoming = buildCustomArticle(
+    "custom-incoming",
+    "新文章",
+    "这是准备新增的一篇自定义文章有效正文。",
+  );
+  assert.ok(incoming);
+
+  const full = addCustomArticlesWithinLimit(existing, [incoming]);
+  assert.deepEqual(full.articles, existing);
+  assert.deepEqual(full.added, []);
+  assert.deepEqual(full.rejected, [incoming]);
+
+  const partial = addCustomArticlesWithinLimit(existing.slice(0, 19), [
+    incoming,
+    { ...incoming, id: "custom-incoming-2" },
+  ]);
+  assert.equal(partial.articles.length, 20);
+  assert.deepEqual(partial.articles.slice(1), existing.slice(0, 19));
+  assert.equal(partial.added[0].id, incoming.id);
+  assert.equal(partial.rejected[0].id, "custom-incoming-2");
+});
 
 function hesitationResult(target = hesitationTarget(), overrides = {}) {
   const completedAt = "2026-08-19T10:03:00+08:00";

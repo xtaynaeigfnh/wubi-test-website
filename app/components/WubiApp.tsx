@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  addCustomArticlesWithinLimit,
   addHesitationQueueItem,
   applyTypingDelaySample,
   buildCommonPracticeArticle,
@@ -1668,10 +1669,12 @@ function TypingView({
       return;
     }
     const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
-    const nextCustomTexts = [
-      custom,
-      ...saved.filter((item) => item.id !== custom.id),
-    ].slice(0, 20);
+    const merged = addCustomArticlesWithinLimit(saved, [custom]);
+    if (!merged.added.length) {
+      setCustomError("自定义文章已满 20 篇，请先到设置页删除一篇。");
+      return;
+    }
+    const nextCustomTexts = merged.articles;
     if (!writeLocal(STORAGE.customTexts, nextCustomTexts)) {
       setCustomError("自定义文章未能保存，请检查浏览器存储空间。");
       return;
@@ -1871,7 +1874,14 @@ function TypingView({
               </button>
               <button
                 disabled={startedAt === null && !inputValue}
-                onClick={() => chooseArticle(article, true, retryCount + 1)}
+                onClick={() =>
+                  chooseArticle(
+                    article,
+                    true,
+                    retryCount + 1,
+                    startedAt !== null ? activeGhostMode : ghostMode,
+                  )
+                }
               >
                 重来
               </button>
@@ -1961,7 +1971,14 @@ function TypingView({
                   )}
                   <button
                     className="restart-action"
-                    onClick={() => chooseArticle(article)}
+                    onClick={() =>
+                      chooseArticle(
+                        article,
+                        true,
+                        retryCount + 1,
+                        startedAt !== null ? activeGhostMode : ghostMode,
+                      )
+                    }
                   >
                     重新开始
                   </button>
