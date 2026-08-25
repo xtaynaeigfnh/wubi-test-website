@@ -41,6 +41,7 @@ import {
   getErrors,
   getCommittedEditRange,
   getHesitationLevel,
+  getPhraseOpportunities,
   getProgress,
   getSessions,
   isWubiLetterKey,
@@ -97,6 +98,7 @@ import type {
   HesitationPracticeQueue,
   HesitationPracticeTarget,
   PracticeArticle,
+  PhraseOpportunityStat,
   SessionResult,
   ThemeId,
   UserSettings,
@@ -113,10 +115,12 @@ import { DataManagement } from "./DataManagement";
 import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
 import { TrendPanel } from "./TrendPanel";
+import { WeeklyReportPanel } from "./WeeklyReportPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
 import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
+import { buildWeeklyReport } from "../weekly-report";
 
 const themeLabels: Record<ThemeId, string> = {
   system: "系统",
@@ -3151,6 +3155,8 @@ function HistoryView({
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
+  const [phraseOpportunities, setPhraseOpportunities] = useState<PhraseOpportunityStat[]>([]);
+  const [reportNow, setReportNow] = useState<Date | null>(null);
   const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training"
@@ -3161,8 +3167,25 @@ function HistoryView({
     setSessions(getSessions());
     setProgress(getProgress());
     setErrors(getErrors());
+    setPhraseOpportunities(getPhraseOpportunities());
   }, []);
   useEffect(refresh, [hesitationSaveRevision, refresh]);
+  useEffect(() => {
+    let timer = 0;
+    const refreshReportClock = () => {
+      const now = new Date();
+      setReportNow(now);
+      const nextDay = new Date(now);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(0, 0, 0, 50);
+      timer = window.setTimeout(
+        refreshReportClock,
+        Math.max(1000, nextDay.getTime() - now.getTime()),
+      );
+    };
+    refreshReportClock();
+    return () => window.clearTimeout(timer);
+  }, []);
   useEffect(() => {
     let active = true;
     loadArticleMetadata()
@@ -3193,12 +3216,19 @@ function HistoryView({
   const completedArticleCount = progress.filter(
     (item) => item.completed,
   ).length;
+  const weeklyReport = useMemo(
+    () => reportNow
+      ? buildWeeklyReport({ sessions, errors, phraseOpportunities, now: reportNow })
+      : null,
+    [errors, phraseOpportunities, reportNow, sessions],
+  );
 
   const clearResults = () => {
     if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
     writeLocal(STORAGE.sessions, []);
     writeLocal(STORAGE.progress, []);
     writeLocal(STORAGE.errors, []);
+    writeLocal(STORAGE.phraseOpportunities, []);
     writeLocal(STORAGE.trainingPlan, null);
     writeLocal(STORAGE.hesitationQueue, null);
     setExpandedHeatmapId(null);
@@ -3225,6 +3255,14 @@ function HistoryView({
         <SummaryCard label="累计字数" value={totalChars.toLocaleString("zh-CN")} note="正确完成字符" />
         <SummaryCard label="平均字准" value={averageAccuracy.toFixed(1)} unit="%" note="仅统计文章测速" />
       </div>
+      {weeklyReport ? (
+        <WeeklyReportPanel report={weeklyReport} />
+      ) : (
+        <section className="trend-panel" aria-label="能力周报加载中">
+          <span className="eyebrow">能力周报 · V0.6</span>
+          <p className="trend-empty">正在读取本机数据并生成本周周报…</p>
+        </section>
+      )}
       <TrendPanel sessions={sessions} />
       <div className="history-grid">
         <div className="history-panel">

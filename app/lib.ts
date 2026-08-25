@@ -1702,6 +1702,12 @@ function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
       existing.lastSeen = error.lastSeen;
     }
     if (
+      error.firstSeen &&
+      (!existing.firstSeen || error.firstSeen < existing.firstSeen)
+    ) {
+      existing.firstSeen = error.firstSeen;
+    }
+    if (
       error.lastCorrect &&
       (!existing.lastCorrect || error.lastCorrect > existing.lastCorrect)
     ) {
@@ -2276,6 +2282,7 @@ function isErrorStat(value: unknown): value is ErrorStat {
     isFiniteRange(value.count, 0, 1_000_000) &&
     Number.isInteger(value.count) &&
     isDateString(value.lastSeen) &&
+    (value.firstSeen === undefined || isDateString(value.firstSeen)) &&
     (value.mastery === undefined ||
       (isFiniteRange(value.mastery, 0, 5) && Number.isInteger(value.mastery))) &&
     (value.lastCorrect === undefined || isDateString(value.lastCorrect)) &&

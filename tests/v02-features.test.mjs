@@ -717,6 +717,30 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
   }
 });
 
+test("backup accepts optional weakness first-seen dates and rejects malformed values", () => {
+  const legacy = {
+    text: "旧",
+    code: "hjx",
+    count: 2,
+    lastSeen: "2026-08-20T09:00:00.000Z",
+  };
+  const current = {
+    ...legacy,
+    text: "新",
+    code: "us",
+    firstSeen: "2026-08-24T09:00:00.000Z",
+    lastSeen: "2026-08-25T09:00:00.000Z",
+  };
+  const payload = createBackupPayload({ [STORAGE.errors]: [legacy, current] });
+  assert.deepEqual(parseBackupPayload(payload).data[STORAGE.errors], [legacy, current]);
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({
+      [STORAGE.errors]: [{ ...current, firstSeen: "not-a-date" }],
+    })),
+    /格式不正确/,
+  );
+});
+
 test("hesitation queue validates targets, deduplicates, caps at five and resets daily", () => {
   const values = new Map();
   globalThis.window = {
@@ -1630,7 +1654,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v11/);
+  assert.match(worker, /wubi-test-v12/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

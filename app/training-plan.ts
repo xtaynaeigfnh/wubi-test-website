@@ -425,6 +425,7 @@ export function applyWeakObservations(
     item ??= {
       text,
       count: 0,
+      firstSeen: now.toISOString(),
       lastSeen: now.toISOString(),
       mastery: 0,
     };

@@ -159,6 +159,7 @@ export interface ErrorStat {
   text: string;
   code?: string;
   count: number;
+  firstSeen?: string;
   lastSeen: string;
   mastery?: number;
   lastCorrect?: string;
@@ -312,6 +313,46 @@ export interface TrendPoint {
   minutes: number;
   speed: number;
   accuracy: number;
+}
+
+export type AbilityDimensionId =
+  | "speed"
+  | "characterAccuracy"
+  | "keyAccuracy"
+  | "codeLength"
+  | "phrase"
+  | "stability";
+
+export interface AbilityDimension {
+  id: AbilityDimensionId;
+  label: string;
+  score: number | null;
+  rawLabel: string;
+  normalization: string;
+}
+
+export interface WeeklyReport {
+  version: 1;
+  weekStart: string;
+  weekEnd: string;
+  sessions: number;
+  characters: number;
+  minutes: number;
+  activeDays: number;
+  streakDays: number;
+  masteredWeaknesses: string[];
+  newWeaknesses: string[];
+  weakestKey: string | null;
+  weakestZone: string | null;
+  weakestPhraseType: string | null;
+  abilities: AbilityDimension[];
+  comparison: {
+    sessions: number;
+    characters: number;
+    minutes: number;
+    abilities: Partial<Record<AbilityDimensionId, number>>;
+  };
+  recommendations: string[];
 }
 
 export interface BackupPayload {

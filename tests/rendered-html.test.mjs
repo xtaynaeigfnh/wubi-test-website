@@ -60,6 +60,14 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   assert.match(html, /窄屏可左右滑动查看完整键盘/);
 });
 
+test("history route server-renders the weekly report shell", async () => {
+  const response = await render("/history");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /能力周报 · V0\.6/);
+  assert.match(html, /正在读取本机数据并生成本周周报/);
+});
+
 test("settings route server-renders every theme preset", async () => {
   const response = await render("/settings");
   assert.equal(response.status, 200);

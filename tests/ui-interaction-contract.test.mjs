@@ -406,6 +406,24 @@ test("typing surfaces record physical keys and the summary exposes the reference
   );
 });
 
+test("history exposes an accessible weekly report and local image download", async () => {
+  const [component, weekly, card] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/weekly-report-card.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /<WeeklyReportPanel report=\{weeklyReport\}/);
+  assert.match(weekly, /能力周报 · V0\.6/);
+  assert.match(weekly, /role="img"/);
+  assert.match(weekly, /aria-labelledby=\{`\$\{titleId\} \$\{descriptionId\}`\}/);
+  assert.match(weekly, /aria-live="polite"/);
+  assert.match(weekly, /下载本地周报图片/);
+  assert.match(weekly, /!missingCount && <polygon/);
+  assert.match(card, /canvas\.toBlob/);
+  assert.match(card, /anchor\.download = `五笔周报-/);
+});
+
 test("code hint pairs the current character with a compact toolbar code card", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
