@@ -297,11 +297,14 @@ export function compareGhostSegments(
     .filter((value) => value < current.characterCount)
     .slice(0, 9);
   normalizedBoundaries.push(current.characterCount);
+  const fallbackSegmentCount = Math.min(5, current.characterCount);
   const boundaries =
     normalizedBoundaries.length > 1
       ? normalizedBoundaries
-      : Array.from({ length: 5 }, (_, index) =>
-          Math.round((current.characterCount * (index + 1)) / 5),
+      : Array.from({ length: fallbackSegmentCount }, (_, index) =>
+          Math.round(
+            (current.characterCount * (index + 1)) / fallbackSegmentCount,
+          ),
         );
   let previousGap = 0;
   let previousEnd = 0;

@@ -11,6 +11,7 @@ const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx",
 const hesitationPracticePath = new URL("../app/components/HesitationPracticeModal.tsx", import.meta.url);
 const trainingCenterPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
+const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.url);
 
 test("recorded data renders without replay animations", async () => {
   const [component, trendPanel, styles] = await Promise.all([
@@ -41,6 +42,45 @@ test("challenge keeps wrong answers visible until the user advances", async () =
   assert.match(component, /正确编码/);
   assert.match(component, /下一题（回车）/);
   assert.match(component, /role="alert"/);
+  assert.match(component, /const advanceLockRef = useRef\(false\)/);
+  assert.match(
+    component,
+    /if \(advanceLockRef\.current \|\| recordedRef\.current\) return;/,
+  );
+});
+
+test("training drills lock repeated submit and advance actions", async () => {
+  const training = await readFile(trainingCenterPath, "utf8");
+
+  assert.match(training, /const submitLock = useRef\(false\)/);
+  assert.match(training, /const advanceLock = useRef\(false\)/);
+  assert.match(training, /const finishedLock = useRef\(false\)/);
+  assert.match(
+    training,
+    /if \(advanceLock\.current \|\| finishedLock\.current\) return;/,
+  );
+  assert.match(training, /if \(finishedLock\.current\) return;/);
+  assert.match(training, /submitLock\.current = true;/);
+  assert.match(
+    training,
+    /文章选择未能保存，请检查浏览器存储空间后重试/,
+  );
+});
+
+test("custom text limits and install failures are visible instead of silent", async () => {
+  const [component, management, pwa] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+    readFile(pwaControlPath, "utf8"),
+  ]);
+
+  assert.match(component, /length > MAX_CUSTOM_TEXT_LENGTH/);
+  assert.match(management, /length > MAX_CUSTOM_TEXT_LENGTH/);
+  assert.match(component, /hesitationPracticeOpen=\{Boolean\(activeHesitationPractice\)\}/);
+  assert.match(component, /!hesitationPracticeOpen/);
+  assert.match(pwa, /catch \{/);
+  assert.match(pwa, /安装提示未能打开/);
+  assert.match(pwa, /finally \{[\s\S]*setPromptEvent\(null\)/);
 });
 
 test("history filters are visually separate and expose pressed state", async () => {

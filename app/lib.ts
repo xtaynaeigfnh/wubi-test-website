@@ -97,6 +97,7 @@ export const defaultSettings: UserSettings = {
 };
 
 export const MAX_CUSTOM_ARTICLES = 20;
+export const MAX_CUSTOM_TEXT_LENGTH = 5000;
 
 export function addCustomArticlesWithinLimit(
   existing: PracticeArticle[],
@@ -497,7 +498,11 @@ export function shuffleCharacters(
 ): string[] {
   const shuffled = [...characters];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(random() * (index + 1));
+    const sample = random();
+    const boundedSample = Number.isFinite(sample)
+      ? Math.min(1 - Number.EPSILON, Math.max(0, sample))
+      : 0;
+    const swapIndex = Math.floor(boundedSample * (index + 1));
     [shuffled[index], shuffled[swapIndex]] = [
       shuffled[swapIndex],
       shuffled[index],
@@ -909,7 +914,8 @@ export function buildTypingHeatmap(
   text: string,
   delays: number[],
 ): TypingHeatmap {
-  const targetLength = Array.from(text.replace(/[\r\n]/g, "")).length;
+  const storedText = Array.from(text).slice(0, MAX_CUSTOM_TEXT_LENGTH).join("");
+  const targetLength = Array.from(storedText.replace(/[\r\n]/g, "")).length;
   const normalizedDelays = Array.from(
     { length: targetLength },
     (_, index) =>
@@ -952,7 +958,7 @@ export function buildTypingHeatmap(
 
   return {
     version: 1,
-    text: Array.from(text).slice(0, 5000).join(""),
+    text: storedText,
     baselineMs,
     thresholdMs,
     segments,
@@ -1066,7 +1072,7 @@ export function normalizeCustomText(value: string): string {
   const normalized = value
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
     .trim();
-  return Array.from(normalized).slice(0, 5000).join("");
+  return Array.from(normalized).slice(0, MAX_CUSTOM_TEXT_LENGTH).join("");
 }
 
 export function buildCustomArticle(
@@ -1075,14 +1081,19 @@ export function buildCustomArticle(
   text: string,
   version = 1,
 ): PracticeArticle | null {
-  const clean = normalizeCustomText(text);
-  const characterCount = Array.from(clean).length;
+  const sanitizedText = text
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .trim();
+  const characterCount = Array.from(sanitizedText).length;
+  if (characterCount < 10 || characterCount > MAX_CUSTOM_TEXT_LENGTH) {
+    return null;
+  }
+  const clean = sanitizedText;
   const cleanTitle = Array.from(
     normalizeCustomText(title).replace(/\s+/g, " "),
   )
     .slice(0, 80)
     .join("");
-  if (characterCount < 10) return null;
   return {
     id,
     title: cleanTitle || "我的自定义练习",

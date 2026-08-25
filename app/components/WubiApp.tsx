@@ -52,6 +52,7 @@ import {
   loadCommonCharacters,
   loadWubi,
   loadWubiChallenge,
+  MAX_CUSTOM_TEXT_LENGTH,
   preferShortestWubiCodes,
   readLocal,
   readLocalArray,
@@ -575,6 +576,7 @@ export function WubiApp({ view }: { view: AppView }) {
             onAddHesitationToQueue={addHesitationToQueue}
             queuedFingerprints={queuedFingerprints}
             masteredAtByFingerprint={masteredAtByFingerprint}
+            hesitationPracticeOpen={Boolean(activeHesitationPractice)}
           />
         )}
         {view === "training" && (
@@ -637,6 +639,7 @@ function TypingView({
   onAddHesitationToQueue,
   queuedFingerprints,
   masteredAtByFingerprint,
+  hesitationPracticeOpen,
 }: {
   settings: UserSettings;
   settingsReady: boolean;
@@ -646,6 +649,7 @@ function TypingView({
   onAddHesitationToQueue: (target: HesitationPracticeTarget) => void;
   queuedFingerprints: ReadonlySet<string>;
   masteredAtByFingerprint: ReadonlyMap<string, string>;
+  hesitationPracticeOpen: boolean;
 }) {
   const router = useRouter();
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
@@ -808,7 +812,8 @@ function TypingView({
         focusMode &&
         !pickerOpen &&
         !customOpen &&
-        !commonOpen
+        !commonOpen &&
+        !hesitationPracticeOpen
       ) {
         setFocusMode(false);
       }
@@ -818,7 +823,7 @@ function TypingView({
       document.removeEventListener("keydown", exitFocusMode);
       delete root.dataset.focusMode;
     };
-  }, [commonOpen, customOpen, focusMode, pickerOpen]);
+  }, [commonOpen, customOpen, focusMode, hesitationPracticeOpen, pickerOpen]);
 
   useEffect(() => {
     if (!settings.showCodeHints) {
@@ -1383,7 +1388,7 @@ function TypingView({
       addObservation(targetCharacters[index], "coding-error");
     }
     for (const [index, count] of correctionPositionsRef.current) {
-      for (let occurrence = 0; occurrence < count; occurrence += 1) {
+      for (let occurrence = 0; occurrence < Math.min(count, 3); occurrence += 1) {
         addObservation(targetCharacters[index], "correction");
       }
     }
@@ -1670,7 +1675,7 @@ function TypingView({
       customText,
     );
     if (!custom) {
-      setCustomError("正文至少需要 10 个字符。");
+      setCustomError(`正文长度需要在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`);
       return;
     }
     const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
@@ -1691,7 +1696,9 @@ function TypingView({
   };
 
   const pickMostDifficult = () => {
+    const articleIds = new Set(articles.map((item) => item.id));
     const target = [...getProgress()]
+      .filter((item) => articleIds.has(item.articleId))
       .sort((a, b) => b.errors - a.errors)
       .find((item) => item.errors > 0);
     const found = articles.find((item) => item.id === target?.articleId);
@@ -2560,8 +2567,19 @@ function TypingView({
               setCustomError("");
             }} placeholder="粘贴 10–5000 字的纯文本…" /></label>
             <div className="modal-actions">
-              <span>{Array.from(customText.trim()).length} / 5000 字</span>
-              <button className="button primary" disabled={Array.from(customText.trim()).length < 10} onClick={useCustomText}>开始练习</button>
+              <span>
+                {Array.from(customText.trim()).length} / {MAX_CUSTOM_TEXT_LENGTH} 字
+              </span>
+              <button
+                className="button primary"
+                disabled={
+                  Array.from(customText.trim()).length < 10 ||
+                  Array.from(customText.trim()).length > MAX_CUSTOM_TEXT_LENGTH
+                }
+                onClick={useCustomText}
+              >
+                开始练习
+              </button>
             </div>
             {customError && <p className="management-message" role="status">{customError}</p>}
           </div>
@@ -2706,6 +2724,7 @@ function ChallengeView({
   const deadlineRef = useRef(0);
   const seenQuestionsRef = useRef(new Set<string>());
   const submitLockRef = useRef(false);
+  const advanceLockRef = useRef(false);
   const challengeObservationsRef = useRef<WeakObservation[]>([]);
 
   useEffect(() => {
@@ -2750,6 +2769,7 @@ function ChallengeView({
     setInput("");
     setFeedback("idle");
     submitLockRef.current = false;
+    advanceLockRef.current = false;
   }, [pool]);
 
   const finishChallenge = useCallback(
@@ -2828,6 +2848,7 @@ function ChallengeView({
     if (!pool.length) return;
     if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
     recordedRef.current = false;
+    advanceLockRef.current = false;
     challengeObservationsRef.current = [];
     seenQuestionsRef.current.clear();
     startedAtRef.current = Date.now();
@@ -2844,6 +2865,8 @@ function ChallengeView({
 
   const advanceQuestion = useCallback(
     (correctAnswers = correct) => {
+      if (advanceLockRef.current || recordedRef.current) return;
+      advanceLockRef.current = true;
       const nextIndex = index + 1;
       setIndex(nextIndex);
       if (nextIndex >= limit) {

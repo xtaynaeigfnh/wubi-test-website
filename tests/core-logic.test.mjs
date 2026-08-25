@@ -168,6 +168,31 @@ test("ghost timelines stay compressed, cover the finish, and interpolate", () =>
   assert.equal(getGhostPositionAtElapsed(phraseCommitTimeline, 1000), 10);
 });
 
+test("short ghost races use non-empty, strictly increasing segments", () => {
+  for (let characterCount = 1; characterCount <= 4; characterCount += 1) {
+    const identity = {
+      articleKey: `builtin:short-${characterCount}`,
+      articleVersion: 1,
+      contentFingerprint: `${characterCount}-short`,
+      characterCount,
+    };
+    const current = buildGhostTimeline(identity, [
+      { characterCount, elapsedMs: characterCount * 1000 },
+    ]);
+    const ghost = buildGhostTimeline(identity, [
+      { characterCount, elapsedMs: characterCount * 1200 },
+    ]);
+    const comparison = compareGhostSegments(current, ghost);
+
+    assert.equal(comparison.length, characterCount);
+    assert.ok(comparison.every((segment) => segment.start < segment.end));
+    assert.deepEqual(
+      comparison.map((segment) => segment.end),
+      Array.from({ length: characterCount }, (_, index) => index + 1),
+    );
+  }
+});
+
 test("ghost selection matches exact versions and keeps best plus two recent runs", () => {
   const identity = {
     articleKey: "builtin:test",
@@ -518,6 +543,23 @@ test("typing heatmap retains only the 32 strongest separated segments", () => {
   assert.equal(Math.max(...heatmap.segments.map((segment) => segment.delayMs)), 8128);
 });
 
+test("typing heatmap drops delays beyond its stored text boundary", () => {
+  const heatmap = buildTypingHeatmap(
+    "字".repeat(5001),
+    Array.from({ length: 5001 }, (_, index) =>
+      index === 5000 ? 10_000 : 100,
+    ),
+  );
+
+  assert.equal(Array.from(heatmap.text).length, 5000);
+  assert.deepEqual(heatmap.segments, []);
+  assert.ok(
+    heatmap.segments.every(
+      (segment) => segment.start + segment.length <= 5000,
+    ),
+  );
+});
+
 test("active typing duration excludes completed and current pauses", () => {
   assert.equal(
     calculateActiveDurationSeconds({
@@ -719,6 +761,20 @@ test("custom articles share one normalized construction path", () => {
     kind: "custom",
   });
   assert.equal(buildCustomArticle("custom-2", "", "太短"), null);
+  assert.equal(
+    buildCustomArticle("custom-3", "超长", "字".repeat(5001)),
+    null,
+  );
+});
+
+test("character shuffling clamps invalid random samples without changing membership", () => {
+  const source = ["甲", "乙", "丙"];
+  for (const sample of [1, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const shuffled = shuffleCharacters(source, () => sample);
+    assert.equal(shuffled.length, source.length);
+    assert.deepEqual([...shuffled].sort(), [...source].sort());
+    assert.ok(shuffled.every((item) => typeof item === "string"));
+  }
 });
 
 test("initial article follows the preferred length without losing compatible progress", () => {
