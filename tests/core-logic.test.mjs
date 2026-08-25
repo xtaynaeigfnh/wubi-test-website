@@ -48,6 +48,36 @@ import {
   analyzeCodeLengthCoach,
   buildCodeLengthCoachIndex,
 } from "../app/code-length-coach.ts";
+import {
+  buildGhostTimeline,
+  compareGhostSegments,
+  getGhostArticleIdentity,
+  getGhostElapsedAtProgress,
+  getGhostPositionAtElapsed,
+  ghostTimelineByteLength,
+  MAX_GHOST_TIMELINE_STORAGE_BYTES,
+  MAX_GHOST_TIMELINES,
+  pruneGhostTimelines,
+  selectGhostSessions,
+} from "../app/ghost-race.ts";
+
+function ghostSession(id, date, durationSeconds, ghostTimeline) {
+  return {
+    id,
+    type: "article",
+    title: "幽灵测试",
+    date,
+    durationSeconds,
+    correctChars: ghostTimeline.characterCount,
+    attemptedChars: ghostTimeline.characterCount,
+    speed: Math.round(ghostTimeline.characterCount / (durationSeconds / 60)),
+    kps: 2,
+    codeLength: 2.5,
+    accuracy: 100,
+    errors: 0,
+    ghostTimeline,
+  };
+}
 
 test("typing accuracy keeps corrected mistakes in the denominator", () => {
   const target = "中国";
@@ -78,6 +108,229 @@ test("typing completes at full length even when answers contain mistakes", () =>
   assert.equal(canCompleteTyping("中错", "中国"), true);
   assert.equal(canCompleteTyping("中", "中国"), false);
   assert.equal(canCompleteTyping("", ""), false);
+});
+
+test("ghost identities exclude generated practice and invalidate changed content", () => {
+  const builtIn = {
+    id: "short-001",
+    title: "内置",
+    length: "short",
+    topic: "测试",
+    wordCount: 10,
+    version: 2,
+    text: "一二三四五六七八九十",
+  };
+  const identity = getGhostArticleIdentity(builtIn);
+  assert.equal(identity.articleKey, "builtin:short-001");
+  assert.equal(identity.articleVersion, 2);
+  assert.equal(
+    getGhostArticleIdentity({ ...builtIn, kind: "common" }),
+    null,
+  );
+  assert.notEqual(
+    getGhostArticleIdentity({ ...builtIn, text: "一二三四五六七八九甲" })
+      .contentFingerprint,
+    identity.contentFingerprint,
+  );
+  assert.equal(
+    getGhostArticleIdentity({ ...builtIn, id: "custom-1", kind: "custom" })
+      .articleKey,
+    "custom:custom-1",
+  );
+});
+
+test("ghost timelines stay compressed, cover the finish, and interpolate", () => {
+  const identity = {
+    articleKey: "builtin:test",
+    articleVersion: 1,
+    contentFingerprint: "20-test",
+    characterCount: 20,
+  };
+  const timeline = buildGhostTimeline(identity, [
+    { characterCount: 3, elapsedMs: 700 },
+    { characterCount: 6, elapsedMs: 1200 },
+    { characterCount: 12, elapsedMs: 2500 },
+    { characterCount: 10, elapsedMs: 2200 },
+    { characterCount: 20, elapsedMs: 5000 },
+  ]);
+  assert.ok(timeline);
+  assert.deepEqual(timeline.samples.at(-1), [20, 5000]);
+  assert.ok(timeline.samples.length < 5);
+  assert.ok(Math.abs(getGhostPositionAtElapsed(timeline, 2500) - 12) < 0.001);
+  assert.ok(Math.abs(getGhostElapsedAtProgress(timeline, 12) - 2500) < 0.001);
+  assert.equal(getGhostPositionAtElapsed(timeline, 999999), 20);
+  assert.equal(buildGhostTimeline(identity, [{ characterCount: 10, elapsedMs: 1 }]), null);
+  const phraseCommitTimeline = buildGhostTimeline(identity, [
+    { characterCount: 5, elapsedMs: 1000 },
+    { characterCount: 10, elapsedMs: 1000 },
+    { characterCount: 20, elapsedMs: 3000 },
+  ]);
+  assert.equal(getGhostPositionAtElapsed(phraseCommitTimeline, 1000), 10);
+});
+
+test("ghost selection matches exact versions and keeps best plus two recent runs", () => {
+  const identity = {
+    articleKey: "builtin:test",
+    articleVersion: 1,
+    contentFingerprint: "10-test",
+    characterCount: 10,
+  };
+  const timeline = buildGhostTimeline(identity, [
+    { characterCount: 5, elapsedMs: 2000 },
+    { characterCount: 10, elapsedMs: 4000 },
+  ]);
+  const sessions = [
+    ghostSession("old-best", "2026-08-20T10:00:00Z", 4, timeline),
+    ghostSession("recent-1", "2026-08-23T10:00:00Z", 6, timeline),
+    ghostSession("recent-2", "2026-08-22T10:00:00Z", 5, timeline),
+    ghostSession("old", "2026-08-19T10:00:00Z", 8, timeline),
+  ];
+  const selected = selectGhostSessions(sessions, identity);
+  assert.equal(selected.best.id, "old-best");
+  assert.equal(selected.recent.id, "recent-1");
+  const retained = pruneGhostTimelines(sessions);
+  assert.deepEqual(
+    retained.filter((item) => item.ghostTimeline).map((item) => item.id).sort(),
+    ["old-best", "recent-1", "recent-2"],
+  );
+  assert.equal(
+    selectGhostSessions(sessions, { ...identity, articleVersion: 2 }).best,
+    null,
+  );
+  const mixedTimezone = [
+    ghostSession("local", "2026-08-25T00:30:00+08:00", 4, timeline),
+    ghostSession("utc", "2026-08-24T20:00:00Z", 5, timeline),
+  ];
+  assert.equal(selectGhostSessions(mixedTimezone, identity).recent.id, "utc");
+});
+
+test("ghost timelines have a deterministic global cap and explain segment changes", () => {
+  const sessions = Array.from({ length: MAX_GHOST_TIMELINES + 5 }, (_, index) => {
+    const identity = {
+      articleKey: `builtin:${index}`,
+      articleVersion: 1,
+      contentFingerprint: `10-${index}`,
+      characterCount: 10,
+    };
+    const timeline = buildGhostTimeline(identity, [
+      { characterCount: 5, elapsedMs: 1000 },
+      { characterCount: 10, elapsedMs: 2000 },
+    ]);
+    return ghostSession(
+      `session-${index}`,
+      new Date(Date.UTC(2026, 7, 1, 0, index)).toISOString(),
+      2,
+      timeline,
+    );
+  });
+  const pruned = pruneGhostTimelines(sessions);
+  assert.equal(
+    pruned.filter((item) => item.ghostTimeline).length,
+    MAX_GHOST_TIMELINES,
+  );
+  assert.ok(
+    pruned
+      .filter((item) => item.ghostTimeline)
+      .reduce(
+        (sum, item) => sum + ghostTimelineByteLength(item.ghostTimeline),
+        0,
+      ) <= MAX_GHOST_TIMELINE_STORAGE_BYTES,
+  );
+
+  const ghost = sessions.at(-1).ghostTimeline;
+  const current = buildGhostTimeline(
+    { ...ghost, samples: undefined },
+    [
+      { characterCount: 5, elapsedMs: 1400 },
+      { characterCount: 10, elapsedMs: 2100 },
+    ],
+  );
+  const comparison = compareGhostSegments(current, ghost, [5, 10]);
+  assert.equal(comparison[0].result, "lost");
+  assert.equal(comparison[1].result, "recovered");
+});
+
+test("global ghost eviction keeps each retained article's best timeline", () => {
+  const sessions = [];
+  for (let articleIndex = 0; articleIndex < 31; articleIndex += 1) {
+    const identity = {
+      articleKey: `builtin:group-${articleIndex}`,
+      articleVersion: 1,
+      contentFingerprint: `10-group${articleIndex}`,
+      characterCount: 10,
+    };
+    const timeline = buildGhostTimeline(identity, [
+      { characterCount: 5, elapsedMs: 1000 },
+      { characterCount: 10, elapsedMs: 2000 },
+    ]);
+    sessions.push(
+      ghostSession(
+        `best-${articleIndex}`,
+        `2026-08-01T00:${String(articleIndex).padStart(2, "0")}:00Z`,
+        2,
+        timeline,
+      ),
+      ghostSession(
+        `recent-a-${articleIndex}`,
+        `2026-08-23T00:${String(articleIndex).padStart(2, "0")}:00Z`,
+        4,
+        timeline,
+      ),
+      ghostSession(
+        `recent-b-${articleIndex}`,
+        `2026-08-22T00:${String(articleIndex).padStart(2, "0")}:00Z`,
+        3,
+        timeline,
+      ),
+    );
+  }
+  const pruned = pruneGhostTimelines(sessions);
+  for (let articleIndex = 0; articleIndex < 31; articleIndex += 1) {
+    const identity = sessions[articleIndex * 3].ghostTimeline;
+    const selected = selectGhostSessions(pruned, identity);
+    if (selected.recent) {
+      assert.equal(selected.best.id, `best-${articleIndex}`);
+    }
+  }
+
+  const duplicateIdTimeline = sessions[0].ghostTimeline;
+  const duplicateIds = Array.from({ length: 4 }, (_, index) =>
+    ghostSession(
+      "duplicate",
+      `2026-08-${20 + index}T00:00:00Z`,
+      2 + index,
+      duplicateIdTimeline,
+    ),
+  );
+  assert.equal(
+    pruneGhostTimelines(duplicateIds).filter((item) => item.ghostTimeline).length,
+    3,
+  );
+});
+
+test("active duration excludes overlapping browser inactivity", () => {
+  assert.equal(
+    calculateActiveDurationSeconds({
+      startedAt: 1000,
+      now: 11000,
+      pausedDurationMs: 2000,
+      pausedAt: null,
+      inactiveDurationMs: 3000,
+      inactiveAt: null,
+    }),
+    5,
+  );
+  assert.equal(
+    calculateActiveDurationSeconds({
+      startedAt: 1000,
+      now: 11000,
+      pausedDurationMs: 0,
+      pausedAt: null,
+      inactiveDurationMs: 2000,
+      inactiveAt: 9000,
+    }),
+    6,
+  );
 });
 
 test("typing result metrics only credit characters that actually match", () => {

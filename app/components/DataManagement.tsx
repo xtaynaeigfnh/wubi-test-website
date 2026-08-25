@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  addCustomArticlesWithinLimit,
   buildCustomArticle,
   createBackupPayload,
   MAX_BACKUP_BYTES,
@@ -151,12 +152,11 @@ function CustomTextManager() {
   }, []);
 
   const persist = (next: PracticeArticle[]) => {
-    const limited = next.slice(0, 20);
-    if (!writeLocal(STORAGE.customTexts, limited)) {
+    if (!writeLocal(STORAGE.customTexts, next)) {
       setMessage("自定义文章未能保存，请检查浏览器存储空间。");
       return false;
     }
-    setItems(limited);
+    setItems(next);
     return true;
   };
 
@@ -208,8 +208,15 @@ function CustomTextManager() {
     if (!imported.length) {
       setMessage("所选 TXT 文件都不足 10 个字符。");
     } else {
-      if (persist([...imported, ...items])) {
-        setMessage(`已导入 ${imported.length} 篇自定义文章。`);
+      const merged = addCustomArticlesWithinLimit(items, imported);
+      if (!merged.added.length) {
+        setMessage("自定义文章已满 20 篇，请先删除一篇再导入。");
+      } else if (persist(merged.articles)) {
+        setMessage(
+          merged.rejected.length
+            ? `已导入 ${merged.added.length} 篇；另有 ${merged.rejected.length} 篇因容量已满未导入。`
+            : `已导入 ${merged.added.length} 篇自定义文章。`,
+        );
       }
     }
     if (fileRef.current) fileRef.current.value = "";
