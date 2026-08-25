@@ -11,6 +11,7 @@ const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx",
 const hesitationPracticePath = new URL("../app/components/HesitationPracticeModal.tsx", import.meta.url);
 const trainingCenterPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
+const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.url);
 
 test("recorded data renders without replay animations", async () => {
   const [component, trendPanel, styles] = await Promise.all([
@@ -41,6 +42,45 @@ test("challenge keeps wrong answers visible until the user advances", async () =
   assert.match(component, /正确编码/);
   assert.match(component, /下一题（回车）/);
   assert.match(component, /role="alert"/);
+  assert.match(component, /const advanceLockRef = useRef\(false\)/);
+  assert.match(
+    component,
+    /if \(advanceLockRef\.current \|\| recordedRef\.current\) return;/,
+  );
+});
+
+test("training drills lock repeated submit and advance actions", async () => {
+  const training = await readFile(trainingCenterPath, "utf8");
+
+  assert.match(training, /const submitLock = useRef\(false\)/);
+  assert.match(training, /const advanceLock = useRef\(false\)/);
+  assert.match(training, /const finishedLock = useRef\(false\)/);
+  assert.match(
+    training,
+    /if \(advanceLock\.current \|\| finishedLock\.current\) return;/,
+  );
+  assert.match(training, /if \(finishedLock\.current\) return;/);
+  assert.match(training, /submitLock\.current = true;/);
+  assert.match(
+    training,
+    /文章选择未能保存，请检查浏览器存储空间后重试/,
+  );
+});
+
+test("custom text limits and install failures are visible instead of silent", async () => {
+  const [component, management, pwa] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+    readFile(pwaControlPath, "utf8"),
+  ]);
+
+  assert.match(component, /length > MAX_CUSTOM_TEXT_LENGTH/);
+  assert.match(management, /length > MAX_CUSTOM_TEXT_LENGTH/);
+  assert.match(component, /hesitationPracticeOpen=\{Boolean\(activeHesitationPractice\)\}/);
+  assert.match(component, /!hesitationPracticeOpen/);
+  assert.match(pwa, /catch \{/);
+  assert.match(pwa, /安装提示未能打开/);
+  assert.match(pwa, /finally \{[\s\S]*setPromptEvent\(null\)/);
 });
 
 test("history filters are visually separate and expose pressed state", async () => {
@@ -404,6 +444,28 @@ test("typing surfaces record physical keys and the summary exposes the reference
     styles,
     /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.key-summary-page \*[\s\S]*animation-delay:\s*0\.01ms !important/s,
   );
+});
+
+test("history exposes an accessible weekly report and local image download", async () => {
+  const [component, weekly, card] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/weekly-report-card.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /<WeeklyReportPanel report=\{weeklyReport\}/);
+  assert.match(weekly, /能力周报 · V0\.6/);
+  assert.match(weekly, /role="img"/);
+  assert.match(weekly, /aria-labelledby=\{`\$\{titleId\} \$\{descriptionId\}`\}/);
+  assert.match(weekly, /aria-live="polite"/);
+  assert.match(weekly, /下载本地周报图片/);
+  assert.match(weekly, /!missingCount && <polygon/);
+  assert.match(weekly, /ratio === 1 \? " is-outer"/);
+  assert.match(weekly, /\.weekly-radar-grid\.is-outer/);
+  assert.match(card, /canvas\.toBlob/);
+  assert.match(card, /anchor\.download = `五笔周报-/);
+  assert.match(card, /window\.setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 1000\)/);
+  assert.match(component, /if \(!clearPracticeHistory\(\)\)/);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {

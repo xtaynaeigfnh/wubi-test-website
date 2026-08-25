@@ -18,6 +18,7 @@ import {
   loadWubiChallenge,
   localDateKey,
   readDailyGoal,
+  readLocal,
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
@@ -236,17 +237,34 @@ export function TrainingCenter({
   };
 
   const startPlanTask = (task: TrainingTask) => {
+    const previousCurrent = readLocal<string | null>(STORAGE.current, null);
+    const previousGenerated = readLocal<PracticeArticle | null>(
+      STORAGE.currentGenerated,
+      null,
+    );
+    if (
+      task.type === "article" &&
+      task.articleId &&
+      (!writeLocal(STORAGE.current, task.articleId) ||
+        !writeLocal(STORAGE.currentGenerated, null))
+    ) {
+      writeLocal(STORAGE.current, previousCurrent);
+      writeLocal(STORAGE.currentGenerated, previousGenerated);
+      setPlanMessage("文章选择未能保存，请检查浏览器存储空间后重试。");
+      return false;
+    }
     const next = startTrainingTask(task.id);
     if (!next) {
+      if (task.type === "article" && task.articleId) {
+        writeLocal(STORAGE.current, previousCurrent);
+        writeLocal(STORAGE.currentGenerated, previousGenerated);
+      }
       setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
       return false;
     }
     setPlan(next);
     setPlanMessage("");
-    if (task.type === "article" && task.articleId) {
-      writeLocal(STORAGE.current, task.articleId);
-      writeLocal(STORAGE.currentGenerated, null);
-    } else if (task.type === "review") {
+    if (task.type === "review") {
       selectTrainingTab("review");
     } else if (task.type === "roots") {
       const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
@@ -781,6 +799,9 @@ function CodeDrill({
   const observations = useRef<WeakObservation[]>([]);
   const phrasePracticeAnswers = useRef<PhrasePracticeInput[]>([]);
   const advanceTimer = useRef<number | null>(null);
+  const submitLock = useRef(false);
+  const advanceLock = useRef(false);
+  const finishedLock = useRef(false);
 
   const nextQuestion = useCallback(() => {
     if (planTask) {
@@ -790,6 +811,8 @@ function CodeDrill({
       setQuestion(next);
       setInput("");
       setFeedback("idle");
+      submitLock.current = false;
+      advanceLock.current = false;
       return;
     }
     let candidates = pool.filter(([text]) => !seen.current.has(text));
@@ -804,6 +827,8 @@ function CodeDrill({
     setQuestion(next);
     setInput("");
     setFeedback("idle");
+    submitLock.current = false;
+    advanceLock.current = false;
   }, [planTask, pool]);
 
   useEffect(
@@ -816,10 +841,17 @@ function CodeDrill({
   );
 
   const start = () => {
+    if (advanceTimer.current !== null) {
+      window.clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
     seen.current.clear();
     orderedIndex.current = 0;
     observations.current = [];
     phrasePracticeAnswers.current = [];
+    submitLock.current = false;
+    advanceLock.current = false;
+    finishedLock.current = false;
     startedAt.current = Date.now();
     setStarted(true);
     setFinished(false);
@@ -832,6 +864,12 @@ function CodeDrill({
   };
 
   const finish = (finalAnswered: number, finalCorrect: number) => {
+    if (finishedLock.current) return;
+    finishedLock.current = true;
+    if (advanceTimer.current !== null) {
+      window.clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
     const durationSeconds = Math.max(1, (Date.now() - startedAt.current) / 1000);
     const session: SessionResult = {
       id: crypto.randomUUID(),
@@ -895,6 +933,8 @@ function CodeDrill({
   };
 
   const advance = (wasCorrect: boolean) => {
+    if (advanceLock.current || finishedLock.current) return;
+    advanceLock.current = true;
     const nextAnswered = answered + 1;
     const nextCorrect = correct + (wasCorrect ? 1 : 0);
     setAnswered(nextAnswered);
@@ -907,7 +947,16 @@ function CodeDrill({
   };
 
   const submit = () => {
-    if (!question || !input || feedback !== "idle") return;
+    if (
+      !question ||
+      !input ||
+      feedback !== "idle" ||
+      submitLock.current ||
+      finishedLock.current
+    ) {
+      return;
+    }
+    submitLock.current = true;
     const right = input.toLowerCase() === question[1].toLowerCase();
     if (trackPhrasePractice) {
       phrasePracticeAnswers.current.push({ entry: question, correct: right });
@@ -921,6 +970,9 @@ function CodeDrill({
     if (!right) {
       setMistakes((rows) => [...rows, question]);
       return;
+    }
+    if (advanceTimer.current !== null) {
+      window.clearTimeout(advanceTimer.current);
     }
     advanceTimer.current = window.setTimeout(() => advance(true), 420);
   };

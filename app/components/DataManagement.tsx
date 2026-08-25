@@ -7,6 +7,7 @@ import {
   buildCustomArticle,
   createBackupPayload,
   MAX_BACKUP_BYTES,
+  MAX_CUSTOM_TEXT_LENGTH,
   parseBackupPayload,
   readDailyGoal,
   readKeyUsage,
@@ -173,7 +174,7 @@ function CustomTextManager() {
       ? buildCustomArticle(current.id, title, text, current.version + 1)
       : null;
     if (!current || !updated) {
-      setMessage("正文至少需要 10 个字符。");
+      setMessage(`正文长度需要在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`);
       return;
     }
     const saved = persist(
@@ -206,7 +207,9 @@ function CustomTextManager() {
       )
     ).filter((item): item is PracticeArticle => Boolean(item));
     if (!imported.length) {
-      setMessage("所选 TXT 文件都不足 10 个字符。");
+      setMessage(
+        `所选 TXT 文件的正文长度都不在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`,
+      );
     } else {
       const merged = addCustomArticlesWithinLimit(items, imported);
       if (!merged.added.length) {
@@ -258,11 +261,20 @@ function CustomTextManager() {
                 <textarea value={text} onChange={(event) => setText(event.target.value)} />
               </label>
               <div>
-                <span>{Array.from(text.trim()).length} / 5000 字</span>
+                <span>
+                  {Array.from(text.trim()).length} / {MAX_CUSTOM_TEXT_LENGTH} 字
+                </span>
                 <button className="button secondary" onClick={() => setEditingId("")}>
                   取消
                 </button>
-                <button className="button primary" onClick={saveEdit}>
+                <button
+                  className="button primary"
+                  disabled={
+                    Array.from(text.trim()).length < 10 ||
+                    Array.from(text.trim()).length > MAX_CUSTOM_TEXT_LENGTH
+                  }
+                  onClick={saveEdit}
+                >
                   保存修改
                 </button>
               </div>

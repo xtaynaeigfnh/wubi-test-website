@@ -90,14 +90,19 @@ export function PwaControl() {
 
   const install = async () => {
     if (!promptEvent) return;
-    await promptEvent.prompt();
-    const choice = await promptEvent.userChoice;
-    setStatus(
-      choice.outcome === "accepted"
-        ? "网站已加入应用列表。"
-        : "已取消安装，随时可以再试。",
-    );
-    setPromptEvent(null);
+    try {
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      setStatus(
+        choice.outcome === "accepted"
+          ? "网站已加入应用列表。"
+          : "已取消安装，随时可以再试。",
+      );
+    } catch {
+      setStatus("安装提示未能打开，请使用浏览器菜单重新尝试。");
+    } finally {
+      setPromptEvent(null);
+    }
   };
 
   return (

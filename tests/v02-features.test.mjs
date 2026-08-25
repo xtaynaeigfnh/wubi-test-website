@@ -13,6 +13,7 @@ import {
   buildCustomArticle,
   calculateDailyProgress,
   calculateStreak,
+  clearPracticeHistory,
   createBackupPayload,
   defaultCustomTheme,
   getErrors,
@@ -715,6 +716,30 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
   } finally {
     delete globalThis.window;
   }
+});
+
+test("backup accepts optional weakness first-seen dates and rejects malformed values", () => {
+  const legacy = {
+    text: "旧",
+    code: "hjx",
+    count: 2,
+    lastSeen: "2026-08-20T09:00:00.000Z",
+  };
+  const current = {
+    ...legacy,
+    text: "新",
+    code: "us",
+    firstSeen: "2026-08-24T09:00:00.000Z",
+    lastSeen: "2026-08-25T09:00:00.000Z",
+  };
+  const payload = createBackupPayload({ [STORAGE.errors]: [legacy, current] });
+  assert.deepEqual(parseBackupPayload(payload).data[STORAGE.errors], [legacy, current]);
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({
+      [STORAGE.errors]: [{ ...current, firstSeen: "not-a-date" }],
+    })),
+    /格式不正确/,
+  );
 });
 
 test("hesitation queue validates targets, deduplicates, caps at five and resets daily", () => {
@@ -1510,6 +1535,39 @@ test("session and article progress writes roll back together after storage failu
   }
 });
 
+test("clearing practice history rolls back every key after storage failure", () => {
+  const keys = [
+    STORAGE.sessions,
+    STORAGE.progress,
+    STORAGE.errors,
+    STORAGE.phraseOpportunities,
+    STORAGE.trainingPlan,
+    STORAGE.hesitationQueue,
+  ];
+  const values = new Map(keys.map((key, index) => [key, `old-${index}`]));
+  const before = new Map(values);
+  let failOnce = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.errors && failOnce) {
+          failOnce = false;
+          throw new Error("denied");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    assert.equal(clearPracticeHistory(), false);
+    assert.deepEqual(values, before);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("session saving reports inaccessible storage without throwing", () => {
   let reads = 0;
   globalThis.window = {
@@ -1630,7 +1688,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v11/);
+  assert.match(worker, /wubi-test-v12/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);
