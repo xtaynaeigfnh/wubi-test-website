@@ -1543,6 +1543,7 @@ test("clearing practice history rolls back every key after storage failure", () 
     STORAGE.phraseOpportunities,
     STORAGE.trainingPlan,
     STORAGE.hesitationQueue,
+    STORAGE.advancedSeason,
   ];
   const values = new Map(keys.map((key, index) => [key, `old-${index}`]));
   const before = new Map(values);
@@ -1675,6 +1676,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.equal(manifest.start_url, ".");
   assert.match(worker, /"\/training"/);
   assert.match(worker, /"\/summary"/);
+  assert.match(worker, /"\/advanced"/);
   assert.match(worker, /\[path, `\$\{path\}\/`\]/);
   assert.match(worker, /\/data\/common-characters\.json/);
   assert.match(worker, /\/data\/music-catalog\.json/);
@@ -1688,7 +1690,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v12/);
+  assert.match(worker, /wubi-test-v13/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

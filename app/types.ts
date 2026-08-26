@@ -2,6 +2,7 @@ export type ArticleLength = "short" | "medium" | "long" | "water";
 export type AppView =
   | "typing"
   | "training"
+  | "advanced"
   | "challenge"
   | "lookup"
   | "history"
@@ -74,6 +75,81 @@ export interface TypingHeatmap {
   segments: HesitationSegment[];
 }
 
+export type ScenarioCategory = "daily" | "office" | "literature";
+
+export interface RhythmCurvePoint {
+  characterCount: number;
+  intervalMs: number;
+}
+
+export interface RhythmWeakSegment {
+  start: number;
+  text: string;
+  delayMs: number;
+}
+
+export interface RhythmSummary {
+  version: 1;
+  characterCount: number;
+  startupMs: number | null;
+  medianIntervalMs: number | null;
+  p90IntervalMs: number | null;
+  fastestTenCpm: number | null;
+  variationPercent: number | null;
+  recoveryMs: number | null;
+  firstHalfMedianMs: number | null;
+  secondHalfMedianMs: number | null;
+  sameHandMedianMs: number | null;
+  crossHandMedianMs: number | null;
+  curve: RhythmCurvePoint[];
+  weakSegments: RhythmWeakSegment[];
+}
+
+export interface AdvancedScenario {
+  id: string;
+  version: 1;
+  category: ScenarioCategory;
+  title: string;
+  text: string;
+  suggestedMinutes: number;
+}
+
+export type AdvancedSeasonStatus = "active" | "completed" | "expired";
+
+export interface AdvancedSeasonDay {
+  day: number;
+  focus: "baseline" | "startup" | "stability" | "switching" | "recovery" | "retest" | ScenarioCategory | "adaptive" | "restore" | "integrated" | "prepare" | "final";
+  title: string;
+  completedAt?: string;
+  sessionId?: string;
+}
+
+export interface AdvancedSeasonBaseline {
+  speed: number;
+  accuracy: number;
+  variationPercent: number | null;
+  startupMs: number | null;
+  recoveryMs: number | null;
+}
+
+export interface AdvancedSeason {
+  version: 1;
+  id: string;
+  status: AdvancedSeasonStatus;
+  startedAt: string;
+  expiresAt: string;
+  currentDay: number;
+  days: AdvancedSeasonDay[];
+  baseline?: AdvancedSeasonBaseline;
+  completedAt?: string;
+}
+
+export interface AdvancedSeasonArchive {
+  version: 1;
+  active: AdvancedSeason | null;
+  history: AdvancedSeason[];
+}
+
 export interface GhostTimeline {
   version: 1;
   articleKey: string;
@@ -123,7 +199,7 @@ export interface HesitationPracticeResult {
 
 export interface SessionResult {
   id: string;
-  type: "article" | "challenge" | "review" | "roots" | "hesitation";
+  type: "article" | "challenge" | "review" | "roots" | "hesitation" | "rhythm" | "scenario";
   articleId?: string;
   title: string;
   date: string;
@@ -154,6 +230,10 @@ export interface SessionResult {
   ghostTimeline?: GhostTimeline;
   trainingTaskId?: string;
   hesitationPractice?: HesitationPracticeResult;
+  rhythmSummary?: RhythmSummary;
+  scenarioId?: string;
+  seasonId?: string;
+  seasonDay?: number;
 }
 
 export interface ErrorStat {

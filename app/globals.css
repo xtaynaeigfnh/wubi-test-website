@@ -2559,7 +2559,7 @@ select,
 
 .segmented.small.history-filter {
   width: min(320px, 100%);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   padding: 0;
   border: 0;
@@ -6018,6 +6018,479 @@ select,
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+.advanced-page {
+  display: grid;
+  gap: 20px;
+}
+
+.advanced-heading {
+  margin-bottom: 0;
+}
+
+.advanced-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.advanced-tabs button {
+  min-height: 86px;
+  padding: 18px;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+  cursor: pointer;
+}
+
+.advanced-tabs button.active {
+  color: var(--text-on-accent);
+  border-color: var(--accent-bamboo-fill);
+  background: var(--accent-bamboo-fill);
+}
+
+.advanced-tabs strong {
+  font: 700 18px/1.2 var(--font-display);
+}
+
+.advanced-tabs span {
+  opacity: 0.76;
+  font-size: 11px;
+}
+
+.advanced-preview-card {
+  min-height: 330px;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+  align-items: center;
+  gap: 40px;
+  border: 1px solid var(--border-default);
+  border-top: 3px solid var(--accent-bamboo);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.advanced-preview-card h2 {
+  margin: 8px 0 12px;
+  font: 700 30px/1.3 var(--font-display);
+}
+
+.advanced-preview-card p {
+  max-width: 520px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.advanced-rhythm-placeholder {
+  height: 190px;
+  padding: 18px;
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-raised);
+}
+
+.advanced-rhythm-placeholder i {
+  flex: 1;
+  min-width: 4px;
+  background: color-mix(in srgb, var(--accent-bamboo) 68%, transparent);
+}
+
+@media (max-width: 780px) {
+  .advanced-tabs,
+  .advanced-preview-card {
+    grid-template-columns: 1fr;
+  }
+
+  .advanced-preview-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 520px) {
+  .advanced-tabs {
+    gap: 8px;
+  }
+
+  .advanced-tabs button {
+    min-height: 72px;
+    padding: 12px;
+  }
+}
+
+.advanced-module,
+.advanced-practice,
+.rhythm-result {
+  padding: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.advanced-module {
+  border-top: 3px solid var(--accent-bamboo);
+}
+
+.advanced-module-heading {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.advanced-module-heading h2,
+.advanced-practice h2,
+.rhythm-result h2 {
+  margin: 6px 0 0;
+  font: 700 26px/1.3 var(--font-display);
+}
+
+.advanced-empty,
+.season-intro {
+  min-height: 220px;
+  padding: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.8;
+  border: 1px dashed var(--border-default);
+  background: var(--bg-raised);
+}
+
+.rhythm-result {
+  margin-top: 20px;
+  box-shadow: none;
+}
+
+.rhythm-metric-grid {
+  margin: 20px 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border-default);
+}
+
+.rhythm-metric-grid > div {
+  min-height: 92px;
+  padding: 16px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rhythm-metric-grid span,
+.rhythm-hand-note,
+.scenario-card small,
+.season-day-list small {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.rhythm-metric-grid strong {
+  font: 700 18px/1.2 var(--font-data);
+}
+
+.advanced-rhythm-curve {
+  height: 190px;
+  padding: 18px;
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    var(--bg-raised);
+  background-size: 100% 25%;
+}
+
+.advanced-rhythm-curve i {
+  flex: 1;
+  min-width: 3px;
+  background: var(--accent-bamboo-fill);
+}
+
+.advanced-rhythm-curve span {
+  margin: auto;
+  color: var(--text-secondary);
+}
+
+.rhythm-hand-note {
+  padding: 14px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.rhythm-weak-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rhythm-weak-list h3 {
+  font: 700 16px/1.3 var(--font-display);
+}
+
+.rhythm-weak-list button {
+  min-height: 62px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-primary);
+  text-align: left;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  cursor: pointer;
+}
+
+.rhythm-weak-list small {
+  color: var(--text-secondary);
+}
+
+.scenario-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.advanced-scenario-result {
+  margin-bottom: 1.25rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+
+.advanced-scenario-result .rhythm-result {
+  margin-top: 1rem;
+}
+
+.scenario-card {
+  min-height: 250px;
+  padding: 20px;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+}
+
+.scenario-card > span {
+  padding: 5px 8px;
+  color: var(--accent-bamboo);
+  border: 1px solid var(--border-default);
+  font: 700 10px/1 var(--font-data);
+}
+
+.scenario-card h3 {
+  margin: 22px 0 8px;
+  font: 700 20px/1.35 var(--font-display);
+}
+
+.scenario-card p {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.scenario-card .button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.advanced-practice .panel-title {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.advanced-practice-text {
+  min-height: 250px;
+  max-height: 48vh;
+  margin: 20px 0 0;
+  padding: 26px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  font-family: var(--font-reading);
+  font-size: clamp(21px, 3vw, 30px);
+  line-height: 2;
+}
+
+.advanced-practice-text span.correct {
+  color: var(--state-success);
+}
+
+.advanced-practice-text span.wrong {
+  color: var(--state-error);
+  text-decoration: underline;
+}
+
+.advanced-practice-text span.current {
+  color: var(--text-on-accent);
+  background: var(--accent-vermilion-fill);
+}
+
+.advanced-practice textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 16px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-top: 0;
+  background: var(--bg-paper);
+  font: 18px/1.7 var(--font-reading);
+}
+
+.advanced-practice-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.advanced-save-error {
+  color: var(--state-error);
+}
+
+.season-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.season-progress-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+}
+
+.season-progress-card > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.season-progress-card > strong {
+  margin: 18px 0;
+  color: var(--accent-bamboo);
+  font: 800 58px/1 var(--font-data);
+}
+
+.season-progress-card strong small {
+  font-size: 16px;
+}
+
+.season-progress-card p {
+  line-height: 1.6;
+}
+
+.season-progress-card .button {
+  margin-top: auto;
+}
+
+.season-day-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  border: 1px solid var(--border-default);
+}
+
+.season-day-list li {
+  min-height: 68px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.season-day-list li > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  font: 700 11px/1 var(--font-data);
+}
+
+.season-day-list li.current {
+  background: color-mix(in srgb, var(--accent-bamboo) 8%, var(--bg-raised));
+}
+
+.season-day-list li.completed > span {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+.season-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .scenario-grid,
+  .season-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .advanced-module,
+  .advanced-practice,
+  .rhythm-result {
+    padding: 16px;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .advanced-module-heading,
+  .rhythm-weak-list button {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .advanced-module-heading {
+    padding-bottom: 16px;
+  }
+
+  .rhythm-metric-grid,
+  .season-day-list {
+    grid-template-columns: 1fr;
+  }
+
+  .advanced-practice-text {
+    min-height: 210px;
+    padding: 16px;
+  }
+
+  .advanced-practice-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 

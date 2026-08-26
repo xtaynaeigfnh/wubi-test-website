@@ -94,7 +94,7 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(styles, /\.segmented\.small\.history-filter\s*\{[^}]*gap:\s*6px/s);
   assert.match(
     styles,
-    /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+    /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
   );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(component, />\s*清除成绩与错题\s*</);

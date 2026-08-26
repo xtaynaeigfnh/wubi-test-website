@@ -101,6 +101,7 @@ import type {
   HesitationPracticeTarget,
   PracticeArticle,
   PhraseOpportunityStat,
+  RhythmWeakSegment,
   SessionResult,
   ThemeId,
   UserSettings,
@@ -116,6 +117,7 @@ import { downloadShareCard } from "../share-card";
 import { DataManagement } from "./DataManagement";
 import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
+import { AdvancedCenter, RhythmSummaryView } from "./AdvancedCenter";
 import { TrendPanel } from "./TrendPanel";
 import { WeeklyReportPanel } from "./WeeklyReportPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
@@ -123,6 +125,10 @@ import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
 import { buildWeeklyReport } from "../weekly-report";
+import {
+  buildRhythmSummary,
+  type PhysicalRhythmSample,
+} from "../rhythm-lab";
 
 const themeLabels: Record<ThemeId, string> = {
   system: "系统",
@@ -132,6 +138,16 @@ const themeLabels: Record<ThemeId, string> = {
   qingdai: "青黛",
   custom: "自定义",
 };
+
+const PENDING_RHYTHM_SEGMENT_KEY = "wubi-test:pending-rhythm-segment:v1";
+
+function openRhythmSegmentPractice(
+  router: ReturnType<typeof useRouter>,
+  segment: RhythmWeakSegment,
+) {
+  window.sessionStorage.setItem(PENDING_RHYTHM_SEGMENT_KEY, JSON.stringify(segment));
+  router.push("/advanced");
+}
 
 type GhostMode = "off" | "best" | "recent";
 
@@ -288,6 +304,7 @@ const navItems: Array<{
 }> = [
   { view: "typing", href: "/", label: "文章测速", coordinate: "QW" },
   { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
+  { view: "advanced", href: "/advanced", label: "进阶", coordinate: "DF" },
   { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
   { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
@@ -587,6 +604,7 @@ export function WubiApp({ view }: { view: AppView }) {
             onPracticeHesitation={startQueuedHesitationPractice}
           />
         )}
+        {view === "advanced" && <AdvancedCenter />}
         {view === "challenge" && (
           <ChallengeView playKeySound={playKeySound} />
         )}
@@ -709,6 +727,7 @@ function TypingView({
   const lastTimingAtRef = useRef<number | null>(null);
   const pendingTimingMsRef = useRef(0);
   const typingDelaysRef = useRef<number[]>([]);
+  const physicalRhythmSamplesRef = useRef<PhysicalRhythmSample[]>([]);
   const correctionPositionsRef = useRef(new Map<number, number>());
   const wubiCodesRef = useRef(new Map<string, string>());
   const compositionCommitTimer = useRef<number | null>(null);
@@ -966,6 +985,7 @@ function TypingView({
       lastTimingAtRef.current = null;
       pendingTimingMsRef.current = 0;
       typingDelaysRef.current = [];
+      physicalRhythmSamplesRef.current = [];
       correctionPositionsRef.current = new Map();
       errorPositions.current = new Set();
       ghostProgressPointsRef.current = [];
@@ -1369,6 +1389,11 @@ function TypingView({
       .filter(Boolean);
     const completedAt = new Date().toISOString();
     const heatmap = buildTypingHeatmap(visibleText, typingDelaysRef.current);
+    const rhythmSummary = buildRhythmSummary({
+      text: visibleText,
+      delays: typingDelaysRef.current,
+      physicalSamples: physicalRhythmSamplesRef.current,
+    });
     const observations: WeakObservation[] = [];
     const addObservation = (
       character: string | undefined,
@@ -1468,6 +1493,7 @@ function TypingView({
       pauseSeconds,
       retryCount,
       heatmap,
+      rhythmSummary,
       ghostTimeline,
       trainingTaskId,
     };
@@ -1634,6 +1660,19 @@ function TypingView({
     if (isWubiLetterKey(event.key, event.code)) {
       setLetterKeys((value) => value + 1);
       const hand = classifyWubiHand(event.key, event.code);
+      if (hand) {
+        physicalRhythmSamplesRef.current.push({
+          elapsedMs: calculateActiveDurationSeconds({
+            startedAt: startedAtRef.current,
+            now: Date.now(),
+            pausedDurationMs,
+            pausedAt,
+            inactiveDurationMs: inactiveDurationMsRef.current,
+            inactiveAt: inactiveAtRef.current,
+          }) * 1000,
+          hand,
+        });
+      }
       if (hand === "left") setLeftHandKeys((value) => value + 1);
       if (hand === "right") setRightHandKeys((value) => value + 1);
     }
@@ -2406,6 +2445,15 @@ function TypingView({
           )}
         </article>
 
+        {completed && lastSession?.rhythmSummary && (
+          <div className="post-practice-review">
+            <RhythmSummaryView
+              summary={lastSession.rhythmSummary}
+              onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
+            />
+          </div>
+        )}
+
         {completed && lastSession?.heatmap && (
           <div className="post-practice-review">
             <HesitationHeatmap
@@ -3176,6 +3224,7 @@ function HistoryView({
   masteredAtByFingerprint: ReadonlyMap<string, string>;
   hesitationSaveRevision: number;
 }) {
+  const router = useRouter();
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
@@ -3183,7 +3232,7 @@ function HistoryView({
   const [reportNow, setReportNow] = useState<Date | null>(null);
   const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
   const [type, setType] = useState<
-    "all" | "article" | "challenge" | "training"
+    "all" | "article" | "challenge" | "training" | "advanced"
   >("all");
   const [expandedHeatmapId, setExpandedHeatmapId] = useState<string | null>(null);
 
@@ -3229,7 +3278,9 @@ function HistoryView({
       (type === "training" &&
         (session.type === "review" ||
           session.type === "roots" ||
-          session.type === "hesitation")),
+          session.type === "hesitation")) ||
+      (type === "advanced" &&
+        (session.type === "rhythm" || session.type === "scenario")),
   );
   const articleSessions = sessions.filter((session) => session.type === "article");
   const totalChars = articleSessions.reduce((sum, session) => sum + session.correctChars, 0);
@@ -3291,7 +3342,7 @@ function HistoryView({
           <div className="panel-title">
             <h2>最近练习</h2>
             <div className="segmented small history-filter" aria-label="练习类型筛选">
-              {(["all", "article", "challenge", "training"] as const).map((value) => (
+              {(["all", "article", "challenge", "training", "advanced"] as const).map((value) => (
                 <button
                   key={value}
                   className={type === value ? "active" : ""}
@@ -3304,7 +3355,9 @@ function HistoryView({
                       ? "文章"
                       : value === "challenge"
                         ? "字码"
-                        : "专项"}
+                        : value === "training"
+                          ? "专项"
+                          : "进阶"}
                 </button>
               ))}
             </div>
@@ -3328,13 +3381,13 @@ function HistoryView({
                 <span className="session-speed">
                   {session.speed || "—"}
                   <small>
-                    {session.type === "article" || session.type === "hesitation"
+                    {session.type === "article" || session.type === "hesitation" || session.type === "rhythm" || session.type === "scenario"
                       ? "字/分"
                       : "题/分"}
                   </small>
                 </span>
                 <span className="session-kps">
-                  {session.type === "article" ? session.kps.toFixed(2) : "—"}
+                  {["article", "rhythm", "scenario"].includes(session.type) ? session.kps.toFixed(2) : "—"}
                   <small>次/秒</small>
                 </span>
                 <span className="session-code-length">
@@ -3372,6 +3425,20 @@ function HistoryView({
                       }
                     >
                       卡顿图
+                    </button>
+                  )}
+                  {session.rhythmSummary && (
+                    <button
+                      className="session-heatmap-trigger"
+                      aria-expanded={expandedHeatmapId === session.id}
+                      aria-controls={`session-heatmap-${session.id}`}
+                      onClick={() =>
+                        setExpandedHeatmapId((current) =>
+                          current === session.id ? null : session.id,
+                        )
+                      }
+                    >
+                      节奏
                     </button>
                   )}
                   <button
@@ -3428,20 +3495,28 @@ function HistoryView({
                     <DiagnosticMetric label="重打" value={session.retryCount?.toString() ?? "—"} unit="" />
                   </div>
                 )}
-                {session.heatmap && expandedHeatmapId === session.id && (
+                {(session.heatmap || session.rhythmSummary) && expandedHeatmapId === session.id && (
                   <div
                     className="session-heatmap-detail"
                     id={`session-heatmap-${session.id}`}
                   >
-                    <HesitationHeatmap
-                      heatmap={session.heatmap}
-                      compact
-                      source={session}
-                      onPractice={onPracticeHesitation}
-                      onAddToQueue={onAddHesitationToQueue}
-                      queuedFingerprints={queuedFingerprints}
-                      masteredAtByFingerprint={masteredAtByFingerprint}
-                    />
+                    {session.rhythmSummary && (
+                      <RhythmSummaryView
+                        summary={session.rhythmSummary}
+                        onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
+                      />
+                    )}
+                    {session.heatmap && (
+                      <HesitationHeatmap
+                        heatmap={session.heatmap}
+                        compact
+                        source={session}
+                        onPractice={onPracticeHesitation}
+                        onAddToQueue={onAddHesitationToQueue}
+                        queuedFingerprints={queuedFingerprints}
+                        masteredAtByFingerprint={masteredAtByFingerprint}
+                      />
+                    )}
                   </div>
                 )}
               </div>
