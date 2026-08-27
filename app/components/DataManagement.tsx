@@ -20,6 +20,8 @@ import {
 } from "../lib";
 import type { BackupPayload, PracticeArticle } from "../types";
 
+const MAX_CUSTOM_TEXT_FILE_BYTES = MAX_CUSTOM_TEXT_LENGTH * 4 + 1024;
+
 export function DataManagement() {
   return (
     <div className="data-management">
@@ -31,7 +33,9 @@ export function DataManagement() {
 
 function BackupManager() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const inspectRequestRef = useRef(0);
   const [pending, setPending] = useState<BackupPayload | null>(null);
+  const [inspecting, setInspecting] = useState(false);
   const [message, setMessage] = useState("");
 
   const exportBackup = () => {
@@ -63,23 +67,33 @@ function BackupManager() {
 
   const inspectFile = async (file: File | undefined) => {
     if (!file) return;
+    const requestId = inspectRequestRef.current + 1;
+    inspectRequestRef.current = requestId;
+    setPending(null);
+    setInspecting(true);
+    setMessage("正在检查备份文件…");
     try {
       if (file.size > MAX_BACKUP_BYTES) {
         throw new Error("备份文件过大，无法安全读取");
       }
       const payload = parseBackupPayload(JSON.parse(await file.text()));
+      if (requestId !== inspectRequestRef.current) return;
       setPending(payload);
       setMessage("");
     } catch (error) {
+      if (requestId !== inspectRequestRef.current) return;
       setPending(null);
       setMessage(error instanceof Error ? error.message : "无法读取备份文件");
     } finally {
-      if (fileRef.current) fileRef.current.value = "";
+      if (requestId === inspectRequestRef.current) {
+        setInspecting(false);
+        if (fileRef.current) fileRef.current.value = "";
+      }
     }
   };
 
   const restore = () => {
-    if (!pending) return;
+    if (!pending || inspecting) return;
     try {
       restoreBackupPayload(pending);
       setMessage("恢复完成，正在重新载入页面。");
@@ -135,13 +149,15 @@ function BackupManager() {
           </button>
         </div>
       )}
-      {message && <p className="management-message" role="status">{message}</p>}
+      {inspecting && <p className="management-message" role="status">正在检查备份文件…</p>}
+      {!inspecting && message && <p className="management-message" role="status">{message}</p>}
     </section>
   );
 }
 
 function CustomTextManager() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const importingRef = useRef(false);
   const [items, setItems] = useState<PracticeArticle[]>([]);
   const [editingId, setEditingId] = useState("");
   const [title, setTitle] = useState("");
@@ -195,34 +211,47 @@ function CustomTextManager() {
   const importTextFiles = async (files: FileList | null) => {
     const selected = Array.from(files ?? []).slice(0, 20);
     if (!selected.length) return;
-    const imported = (
-      await Promise.all(
-        selected.map(async (file, index): Promise<PracticeArticle | null> => {
-          return buildCustomArticle(
-            `custom-${Date.now()}-${index}`,
-            file.name.replace(/\.txt$/i, "") || "导入的文章",
-            await file.text(),
-          );
-        }),
-      )
-    ).filter((item): item is PracticeArticle => Boolean(item));
-    if (!imported.length) {
-      setMessage(
-        `所选 TXT 文件的正文长度都不在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`,
-      );
-    } else {
-      const merged = addCustomArticlesWithinLimit(items, imported);
-      if (!merged.added.length) {
-        setMessage("自定义文章已满 20 篇，请先删除一篇再导入。");
-      } else if (persist(merged.articles)) {
-        setMessage(
-          merged.rejected.length
-            ? `已导入 ${merged.added.length} 篇；另有 ${merged.rejected.length} 篇因容量已满未导入。`
-            : `已导入 ${merged.added.length} 篇自定义文章。`,
-        );
-      }
+    if (importingRef.current) {
+      setMessage("正在导入上一批文件，请稍候再试。");
+      return;
     }
-    if (fileRef.current) fileRef.current.value = "";
+    importingRef.current = true;
+    try {
+      const imported = (
+        await Promise.all(
+          selected.map(async (file, index): Promise<PracticeArticle | null> => {
+            if (file.size > MAX_CUSTOM_TEXT_FILE_BYTES) return null;
+            return buildCustomArticle(
+              `custom-${Date.now()}-${index}`,
+              file.name.replace(/\.txt$/i, "") || "导入的文章",
+              await file.text(),
+            );
+          }),
+        )
+      ).filter((item): item is PracticeArticle => Boolean(item));
+      if (!imported.length) {
+        setMessage(
+          `所选 TXT 文件的正文长度都不在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`,
+        );
+      } else {
+        const currentItems = readLocalArray<PracticeArticle>(STORAGE.customTexts);
+        const merged = addCustomArticlesWithinLimit(currentItems, imported);
+        if (!merged.added.length) {
+          setMessage("自定义文章已满 20 篇，请先删除一篇再导入。");
+        } else if (persist(merged.articles)) {
+          setMessage(
+            merged.rejected.length
+              ? `已导入 ${merged.added.length} 篇；另有 ${merged.rejected.length} 篇因容量已满未导入。`
+              : `已导入 ${merged.added.length} 篇自定义文章。`,
+          );
+        }
+      }
+    } catch {
+      setMessage("TXT 文件读取失败，请重新选择后再试。");
+    } finally {
+      importingRef.current = false;
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   return (

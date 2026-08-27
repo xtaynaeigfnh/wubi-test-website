@@ -127,6 +127,7 @@ import { HesitationPracticeModal } from "./HesitationPracticeModal";
 import { buildWeeklyReport } from "../weekly-report";
 import {
   buildRhythmSummary,
+  MAX_PHYSICAL_RHYTHM_SAMPLES,
   type PhysicalRhythmSample,
 } from "../rhythm-lab";
 
@@ -1632,6 +1633,10 @@ function TypingView({
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completed) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+      event.preventDefault();
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (
       event.key.length === 1 ||
       event.key === "Process" ||
@@ -1660,7 +1665,10 @@ function TypingView({
     if (isWubiLetterKey(event.key, event.code)) {
       setLetterKeys((value) => value + 1);
       const hand = classifyWubiHand(event.key, event.code);
-      if (hand) {
+      if (
+        hand &&
+        physicalRhythmSamplesRef.current.length < MAX_PHYSICAL_RHYTHM_SAMPLES
+      ) {
         physicalRhythmSamplesRef.current.push({
           elapsedMs: calculateActiveDurationSeconds({
             startedAt: startedAtRef.current,
@@ -1675,9 +1683,6 @@ function TypingView({
       }
       if (hand === "left") setLeftHandKeys((value) => value + 1);
       if (hand === "right") setRightHandKeys((value) => value + 1);
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-      event.preventDefault();
     }
   };
 
@@ -2404,6 +2409,7 @@ function TypingView({
                 {settings.autoNext && activeGhostMode !== "off" && (
                   <button
                     className="button secondary"
+                    disabled={sessionSaveFailed}
                     onClick={() =>
                       chooseArticle(
                         article,
@@ -2420,6 +2426,7 @@ function TypingView({
                 )}
                 <button
                   className="button primary"
+                  disabled={sessionSaveFailed}
                   onClick={
                     settings.autoNext
                       ? randomArticle
@@ -2766,6 +2773,7 @@ function ChallengeView({
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
   const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
+  const [challengeSaveFailed, setChallengeSaveFailed] = useState(false);
   const startedAtRef = useRef(0);
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
@@ -2774,6 +2782,10 @@ function ChallengeView({
   const submitLockRef = useRef(false);
   const advanceLockRef = useRef(false);
   const challengeObservationsRef = useRef<WeakObservation[]>([]);
+  const pendingChallengeSaveRef = useRef<{
+    session: SessionResult;
+    observations: WeakObservation[];
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -2853,8 +2865,17 @@ function ChallengeView({
           accuracy: calculateAccuracy(correctAnswers, answered),
           errors: answered - correctAnswers,
         };
-        if (!savePracticeOutcome(session, challengeObservationsRef.current)) {
+        const pending = {
+          session,
+          observations: [...challengeObservationsRef.current],
+        };
+        pendingChallengeSaveRef.current = pending;
+        if (!savePracticeOutcome(session, pending.observations)) {
+          setChallengeSaveFailed(true);
           window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+        } else {
+          pendingChallengeSaveRef.current = null;
+          setChallengeSaveFailed(false);
         }
         setLastSession(session);
       }
@@ -2893,7 +2914,7 @@ function ChallengeView({
   );
 
   const start = () => {
-    if (!pool.length) return;
+    if (!pool.length || challengeSaveFailed) return;
     if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
     recordedRef.current = false;
     advanceLockRef.current = false;
@@ -2909,6 +2930,17 @@ function ChallengeView({
     setFinishedReason("");
     setLastSession(null);
     nextQuestion();
+  };
+
+  const retryChallengeSave = () => {
+    const pending = pendingChallengeSaveRef.current;
+    if (!pending) return;
+    if (!savePracticeOutcome(pending.session, pending.observations)) {
+      window.alert("仍未能保存，请清理部分本机数据后再试。");
+      return;
+    }
+    pendingChallengeSaveRef.current = null;
+    setChallengeSaveFailed(false);
   };
 
   const advanceQuestion = useCallback(
@@ -2987,7 +3019,19 @@ function ChallengeView({
                   下载本轮成绩卡
                 </button>
               )}
-              <button className="button primary" disabled={loading || !pool.length} onClick={start}>
+              {challengeSaveFailed && (
+                <p role="alert">本轮成绩尚未保存，请先重试保存。</p>
+              )}
+              {challengeSaveFailed && (
+                <button className="button danger" onClick={retryChallengeSave}>
+                  重试保存
+                </button>
+              )}
+              <button
+                className="button primary"
+                disabled={loading || !pool.length || challengeSaveFailed}
+                onClick={start}
+              >
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
             </div>
@@ -3299,7 +3343,7 @@ function HistoryView({
   );
 
   const clearResults = () => {
-    if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
+    if (!window.confirm("确定清除全部本地成绩、错题、今日训练与十四日计划吗？此操作无法撤销。")) return;
     if (!clearPracticeHistory()) {
       window.alert("清除未完成，本机数据已恢复到操作前的状态，请稍后重试。");
       return;
@@ -3318,7 +3362,7 @@ function HistoryView({
         </div>
         <div className="heading-actions">
           <button className="button danger" onClick={clearResults}>
-            清除成绩与错题
+            清除练习数据与计划
           </button>
         </div>
       </div>

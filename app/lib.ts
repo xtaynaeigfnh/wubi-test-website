@@ -2702,12 +2702,7 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     for (const key of STORAGE_KEYS) {
       if (key in validated.data) {
         window.localStorage.setItem(key, JSON.stringify(validated.data[key]));
-      } else if (
-        key === STORAGE.trainingPlan ||
-        key === STORAGE.hesitationQueue ||
-        key === STORAGE.phraseOpportunities ||
-        key === STORAGE.advancedSeason
-      ) {
+      } else {
         window.localStorage.removeItem(key);
       }
     }

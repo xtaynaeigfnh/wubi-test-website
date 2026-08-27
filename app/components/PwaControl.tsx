@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -87,12 +88,18 @@ export function PwaControl() {
   const context = useContext(PwaContext);
   if (!context) throw new Error("PwaControl 必须在 PwaProvider 中使用");
   const { promptEvent, setPromptEvent, status, setStatus } = context;
+  const installLockRef = useRef(false);
+  const [installing, setInstalling] = useState(false);
 
   const install = async () => {
-    if (!promptEvent) return;
+    if (!promptEvent || installLockRef.current) return;
+    installLockRef.current = true;
+    setInstalling(true);
+    const currentPrompt = promptEvent;
+    setPromptEvent(null);
     try {
-      await promptEvent.prompt();
-      const choice = await promptEvent.userChoice;
+      await currentPrompt.prompt();
+      const choice = await currentPrompt.userChoice;
       setStatus(
         choice.outcome === "accepted"
           ? "网站已加入应用列表。"
@@ -101,7 +108,8 @@ export function PwaControl() {
     } catch {
       setStatus("安装提示未能打开，请使用浏览器菜单重新尝试。");
     } finally {
-      setPromptEvent(null);
+      installLockRef.current = false;
+      setInstalling(false);
     }
   };
 
@@ -111,7 +119,7 @@ export function PwaControl() {
         <span className="eyebrow">离线安装</span>
         <h2 id="pwa-title">把网站放到桌面</h2>
         <p>{status}</p>
-        {!promptEvent && (
+        {!promptEvent && !installing && (
           <small>
             如果没有安装按钮，请使用浏览器菜单中的“安装应用”或“添加到主屏幕”。
           </small>
@@ -119,10 +127,10 @@ export function PwaControl() {
       </div>
       <button
         className="button primary"
-        disabled={!promptEvent}
+        disabled={installing || !promptEvent}
         onClick={() => void install()}
       >
-        安装到这台设备
+        {installing ? "正在打开安装提示…" : "安装到这台设备"}
       </button>
     </section>
   );

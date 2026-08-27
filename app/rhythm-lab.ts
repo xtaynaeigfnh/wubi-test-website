@@ -11,10 +11,12 @@ export interface PhysicalRhythmSample {
 
 const MAX_CURVE_POINTS = 32;
 const MAX_INTERVAL_MS = 10 * 60 * 1000;
+export const MAX_PHYSICAL_RHYTHM_SAMPLES = 10_000;
 export const MAX_RHYTHM_CURVE_SESSIONS = 120;
 export const MAX_RHYTHM_CURVE_BYTES = 384 * 1024;
 
 function bounded(value: number): number {
+  if (!Number.isFinite(value)) return 0;
   return Math.round(Math.max(0, Math.min(MAX_INTERVAL_MS, value)));
 }
 
@@ -76,7 +78,9 @@ function fastestTen(delays: number[]): number | null {
   if (delays.length < 10) return null;
   let fastest = Number.POSITIVE_INFINITY;
   for (let index = 0; index <= delays.length - 10; index += 1) {
-    const duration = delays.slice(index, index + 10).reduce((sum, value) => sum + value, 0);
+    const window = delays.slice(index, index + 10);
+    if (window.some((value) => value <= 0)) continue;
+    const duration = window.reduce((sum, value) => sum + value, 0);
     if (duration > 0) fastest = Math.min(fastest, duration);
   }
   return Number.isFinite(fastest) ? Math.round(600_000 / fastest) : null;
@@ -91,7 +95,10 @@ function recovery(delays: number[], baseline: number | null, p90: number | null)
     for (let cursor = index + 1; cursor < delays.length; cursor += 1) {
       total += delays[cursor];
       const window = delays.slice(cursor, cursor + 3);
-      if (window.length === 3 && window.every((value) => value <= baseline * 1.35)) {
+      if (
+        window.length === 3 &&
+        window.every((value) => value > 0 && value <= baseline * 1.35)
+      ) {
         recoveries.push(total);
         break;
       }
@@ -189,14 +196,16 @@ export function isRhythmSummary(value: unknown): value is RhythmSummary {
     finiteOrNull(summary.sameHandMedianMs) &&
     finiteOrNull(summary.crossHandMedianMs) &&
     Array.isArray(summary.curve) && summary.curve.length <= MAX_CURVE_POINTS &&
-    summary.curve.every((point) =>
+    summary.curve.every((point, index) =>
       Number.isInteger(point.characterCount) && point.characterCount >= 1 && point.characterCount <= summary.characterCount &&
+      (index === 0 || point.characterCount > summary.curve[index - 1].characterCount) &&
       Number.isInteger(point.intervalMs) && point.intervalMs >= 0 && point.intervalMs <= MAX_INTERVAL_MS,
     ) &&
     Array.isArray(summary.weakSegments) && summary.weakSegments.length <= 3 &&
     summary.weakSegments.every((segment) =>
       Number.isInteger(segment.start) && segment.start >= 0 && segment.start < summary.characterCount &&
       typeof segment.text === "string" && Array.from(segment.text).length >= 8 && Array.from(segment.text).length <= 15 &&
+      segment.start + Array.from(segment.text).length <= summary.characterCount &&
       Number.isInteger(segment.delayMs) && segment.delayMs >= 0 && segment.delayMs <= MAX_INTERVAL_MS,
     )
   );

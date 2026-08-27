@@ -699,6 +699,7 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
     }],
   };
   const values = new Map([
+    [STORAGE.sessions, JSON.stringify([session({ id: "stale-session" })])],
     [STORAGE.trainingPlan, JSON.stringify(plan)],
     [STORAGE.hesitationQueue, JSON.stringify(staleQueue)],
   ]);
@@ -711,6 +712,7 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
   };
   try {
     restoreBackupPayload(createBackupPayload({ [STORAGE.errors]: [] }));
+    assert.equal(values.has(STORAGE.sessions), false);
     assert.equal(values.has(STORAGE.trainingPlan), false);
     assert.equal(values.has(STORAGE.hesitationQueue), false);
   } finally {

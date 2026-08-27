@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   buildRhythmSummary,
   isRhythmSummary,
+  MAX_PHYSICAL_RHYTHM_SAMPLES,
   MAX_RHYTHM_CURVE_SESSIONS,
   pruneRhythmCurves,
 } from "../app/rhythm-lab.ts";
@@ -86,6 +87,33 @@ test("empty and single timing samples degrade without invented values", () => {
   const one = buildRhythmSummary({ text: "安静", delays: [800] });
   assert.equal(one.startupMs, 800);
   assert.equal(one.fastestTenCpm, null);
+
+  const sparse = buildRhythmSummary({
+    text: "安静练习保持节奏完成",
+    delays: [Number.NaN, 800],
+  });
+  assert.equal(sparse.startupMs, 800);
+  assert.equal(sparse.fastestTenCpm, null);
+  assert.ok(sparse.curve.every((point) => Number.isFinite(point.intervalMs)));
+  assert.equal(MAX_PHYSICAL_RHYTHM_SAMPLES, 10_000);
+});
+
+test("rhythm summary rejects duplicate curve indexes and weak segments past the text", () => {
+  const summary = buildRhythmSummary({
+    text: "安静练习保持节奏完成",
+    delays: Array.from({ length: 10 }, () => 200),
+  });
+  assert.equal(isRhythmSummary({
+    ...summary,
+    curve: [
+      { characterCount: 2, intervalMs: 200 },
+      { characterCount: 2, intervalMs: 210 },
+    ],
+  }), false);
+  assert.equal(isRhythmSummary({
+    ...summary,
+    weakSegments: [{ start: 3, text: "安静练习保持节奏", delayMs: 500 }],
+  }), false);
 });
 
 test("rhythm curves are pruned before summaries", () => {
@@ -243,5 +271,19 @@ test("advanced page exposes accessible tabs and quiet copy", async () => {
   assert.match(component, /不催促，只看见节奏/);
   assert.match(component, /日常、办公与文学/);
   assert.match(component, /十四日静流计划/);
+  assert.match(component, /onPaste=\{\(event\) => event\.preventDefault\(\)\}/);
+  assert.match(component, /value=\{inputValue\}/);
+  assert.match(component, /shouldDeferInputCommit\([\s\S]*composingRef\.current,[\s\S]*nativeEvent\.isComposing/);
+  assert.match(component, /setInputValue\(next\);[\s\S]*return;/);
+  assert.match(component, /compositionCommitTimerRef\.current = window\.setTimeout/);
+  assert.match(component, /commitValue\(inputRef\.current\?\.value \?\? endedValue\)/);
+  assert.match(component, /countCommittedAttempts\(previous, committed, cleanTarget\)/);
+  assert.match(component, /physicalRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
+  assert.match(component, /if \(event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey\) return;/);
+  assert.match(component, />重试保存<\/button>/);
+  assert.match(component, /retrySaveLockRef/);
+  assert.match(component, /disabled=\{paused \|\| saveFailed\}/);
+  assert.doesNotMatch(component, /if \(!onSave\(session\)\) \{\s*finishedRef\.current = false;/);
+  assert.match(component, /startedAtRef\.current === null \|\|[\s\S]*pauseAtRef\.current !== null/);
   assert.doesNotMatch(component, /排行榜|段位|失败动画|强制连击/);
 });

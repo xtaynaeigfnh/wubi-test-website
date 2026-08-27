@@ -13,12 +13,14 @@ import {
   applyTypingDelaySample,
   calculateTypingMetrics,
   classifyWubiHand,
+  countCommittedAttempts,
   getSessions,
   isWubiLetterKey,
   loadArticles,
   readLocal,
   saveAdvancedPracticeOutcome,
   savePracticeOutcome,
+  shouldDeferInputCommit,
   STORAGE,
   writeLocal,
 } from "../lib";
@@ -34,6 +36,7 @@ import {
 } from "../advanced-training";
 import {
   buildRhythmSummary,
+  MAX_PHYSICAL_RHYTHM_SAMPLES,
   type PhysicalRhythmSample,
 } from "../rhythm-lab";
 import type {
@@ -173,7 +176,9 @@ function AdvancedPractice({
     [target.category, target.text],
   );
   const [typed, setTyped] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [paused, setPaused] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const startedAtRef = useRef<number | null>(null);
   const lastCommitAtRef = useRef<number | null>(null);
@@ -185,8 +190,15 @@ function AdvancedPractice({
   const physicalRef = useRef<PhysicalRhythmSample[]>([]);
   const keyCountRef = useRef(0);
   const letterKeysRef = useRef(0);
+  const attemptCountRef = useRef(0);
+  const correctAttemptCountRef = useRef(0);
+  const pendingSaveRef = useRef<SessionResult | null>(null);
+  const retrySaveLockRef = useRef(false);
   const finishedRef = useRef(false);
   const composingRef = useRef(false);
+  const committedRef = useRef("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const compositionCommitTimerRef = useRef<number | null>(null);
 
   const activeElapsed = useCallback((now: number) => {
     if (startedAtRef.current === null) return 0;
@@ -202,6 +214,11 @@ function AdvancedPractice({
     const onVisibility = () => {
       const now = performance.now();
       if (document.visibilityState === "hidden") {
+        if (
+          startedAtRef.current === null ||
+          pauseAtRef.current !== null ||
+          inactiveAtRef.current !== null
+        ) return;
         inactiveAtRef.current = now;
       } else if (inactiveAtRef.current !== null) {
         inactiveMsRef.current += Math.max(0, now - inactiveAtRef.current);
@@ -213,23 +230,34 @@ function AdvancedPractice({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [activeElapsed]);
 
+  useEffect(
+    () => () => {
+      if (compositionCommitTimerRef.current !== null) {
+        window.clearTimeout(compositionCommitTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const startTimer = () => {
+    if (startedAtRef.current !== null) return;
+    startedAtRef.current = performance.now();
+    setHasStarted(true);
+  };
+
   const finish = (committed: string) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     const now = performance.now();
     const durationSeconds = Math.max(0.1, activeElapsed(now) / 1000);
-    const correct = targetCharacters.reduce(
-      (count, character, index) => count + (Array.from(committed)[index] === character ? 1 : 0),
-      0,
-    );
     const metrics = calculateTypingMetrics({
       typed: committed,
       target: cleanTarget,
       durationSeconds,
       keyCount: keyCountRef.current,
       letterKeys: letterKeysRef.current,
-      attemptCount: targetCharacters.length,
-      correctAttemptCount: correct,
+      attemptCount: attemptCountRef.current,
+      correctAttemptCount: correctAttemptCountRef.current,
     });
     const rhythmSummary = buildRhythmSummary({
       text: cleanTarget,
@@ -243,31 +271,59 @@ function AdvancedPractice({
       date: new Date().toISOString(),
       durationSeconds,
       ...metrics,
-      errors: Math.max(0, targetCharacters.length - correct),
+      errors: Math.max(
+        0,
+        attemptCountRef.current - correctAttemptCountRef.current,
+      ),
       keyCount: keyCountRef.current,
       rhythmSummary,
       scenarioId: target.type === "scenario" ? target.id : undefined,
       seasonId: target.season?.id,
       seasonDay: target.seasonDay,
     };
+    pendingSaveRef.current = session;
     if (!onSave(session)) {
-      finishedRef.current = false;
       setSaveFailed(true);
       return;
     }
+    pendingSaveRef.current = null;
     onComplete(session);
   };
 
-  const onChange = (value: string) => {
-    if (paused || finishedRef.current || composingRef.current) return;
+  const retrySave = () => {
+    const session = pendingSaveRef.current;
+    if (!session || retrySaveLockRef.current) return;
+    retrySaveLockRef.current = true;
+    if (!onSave(session)) {
+      retrySaveLockRef.current = false;
+      return;
+    }
+    pendingSaveRef.current = null;
+    retrySaveLockRef.current = false;
+    setSaveFailed(false);
+    onComplete(session);
+  };
+
+  const commitValue = (value: string) => {
+    if (paused || finishedRef.current) return;
     const committed = Array.from(value.replace(/[\r\n\s]/g, ""))
       .slice(0, targetCharacters.length)
       .join("");
-    const previous = typed;
+    const previous = committedRef.current;
+    if (committed === previous) {
+      setInputValue(committed);
+      return;
+    }
     const now = performance.now();
-    if (committed && startedAtRef.current === null) startedAtRef.current = now;
+    if (committed && startedAtRef.current === null) {
+      startedAtRef.current = now;
+      setHasStarted(true);
+    }
     const elapsed = activeElapsed(now);
     const transition = lastCommitAtRef.current === null ? elapsed : Math.max(0, elapsed - lastCommitAtRef.current);
+    const attempt = countCommittedAttempts(previous, committed, cleanTarget);
+    attemptCountRef.current += attempt.attempts;
+    correctAttemptCountRef.current += attempt.correct;
     if (Array.from(committed).length >= Array.from(previous).length) {
       delaysRef.current = applyTypingDelaySample({
         previous,
@@ -278,25 +334,36 @@ function AdvancedPractice({
       });
       lastCommitAtRef.current = elapsed;
     }
+    committedRef.current = committed;
+    setInputValue(committed);
     setTyped(committed);
     if (Array.from(committed).length >= targetCharacters.length) finish(committed);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (paused || finishedRef.current) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     const now = performance.now();
-    if (startedAtRef.current === null) startedAtRef.current = now;
+    if (
+      startedAtRef.current === null &&
+      (event.key.length === 1 || event.key === "Process" || event.key === "Unidentified")
+    ) {
+      startTimer();
+    }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       keyCountRef.current += 1;
     }
     if (isWubiLetterKey(event.key, event.code)) {
       letterKeysRef.current += 1;
       const hand = classifyWubiHand(event.key, event.code);
-      if (hand) physicalRef.current.push({ elapsedMs: activeElapsed(now), hand });
+      if (hand && physicalRef.current.length < MAX_PHYSICAL_RHYTHM_SAMPLES) {
+        physicalRef.current.push({ elapsedMs: activeElapsed(now), hand });
+      }
     }
   };
 
   const togglePause = () => {
+    if (startedAtRef.current === null) return;
     const now = performance.now();
     if (paused) {
       if (pauseAtRef.current !== null) pausedMsRef.current += Math.max(0, now - pauseAtRef.current);
@@ -350,23 +417,61 @@ function AdvancedPractice({
         })}
       </div>
       <textarea
+        ref={inputRef}
         autoFocus
-        value={typed}
-        disabled={paused}
+        value={inputValue}
+        disabled={paused || saveFailed}
         aria-label="进阶训练输入区"
         placeholder={paused ? "练习已暂停" : "在这里开始输入"}
         onKeyDown={onKeyDown}
-        onChange={(event) => onChange(event.target.value)}
-        onCompositionStart={() => { composingRef.current = true; }}
+        onPaste={(event) => event.preventDefault()}
+        onChange={(event) => {
+          const next = event.target.value;
+          const nativeEvent = event.nativeEvent as InputEvent;
+          if (
+            shouldDeferInputCommit(
+              composingRef.current,
+              nativeEvent.isComposing,
+            )
+          ) {
+            setInputValue(next);
+            return;
+          }
+          commitValue(next);
+        }}
+        onCompositionStart={() => {
+          composingRef.current = true;
+          startTimer();
+        }}
         onCompositionEnd={(event) => {
           composingRef.current = false;
-          onChange(event.currentTarget.value);
+          const endedValue = event.currentTarget.value;
+          if (compositionCommitTimerRef.current !== null) {
+            window.clearTimeout(compositionCommitTimerRef.current);
+          }
+          compositionCommitTimerRef.current = window.setTimeout(() => {
+            compositionCommitTimerRef.current = null;
+            commitValue(inputRef.current?.value ?? endedValue);
+          }, 0);
         }}
       />
-      {saveFailed && <p className="advanced-save-error">本次成绩未保存，请检查浏览器存储空间后重试。</p>}
+      {saveFailed && (
+        <div className="advanced-save-error" role="alert">
+          <p>本次成绩未保存，请检查浏览器存储空间后重试。</p>
+          <button className="button danger" onClick={retrySave}>重试保存</button>
+        </div>
+      )}
       <div className="advanced-practice-actions">
-        <button className="button secondary" onClick={onCancel}>退出本次练习</button>
-        <button className="button secondary" onClick={togglePause}>{paused ? "继续" : "暂停"}</button>
+        <button className="button secondary" disabled={saveFailed} onClick={onCancel}>
+          退出本次练习
+        </button>
+        <button
+          className="button secondary"
+          disabled={!hasStarted || saveFailed}
+          onClick={togglePause}
+        >
+          {paused ? "继续" : "暂停"}
+        </button>
       </div>
     </section>
   );
@@ -417,10 +522,10 @@ export function AdvancedCenter() {
       .then((articles) => setScenarios(buildAdvancedScenarioLibrary(articles)))
       .catch(() => setScenarios([]));
     setLatestSession(getSessions().find((session) => session.rhythmSummary) ?? null);
-    const stored = readLocal<unknown>(STORAGE.advancedSeason, EMPTY_ARCHIVE);
-    if (!isAdvancedSeasonArchive(stored)) {
+    const rawStored = readLocal<unknown>(STORAGE.advancedSeason, EMPTY_ARCHIVE);
+    const stored = isAdvancedSeasonArchive(rawStored) ? rawStored : EMPTY_ARCHIVE;
+    if (!isAdvancedSeasonArchive(rawStored)) {
       writeLocal(STORAGE.advancedSeason, EMPTY_ARCHIVE);
-      return;
     }
     if (stored.active) {
       const active = expireAdvancedSeason(stored.active);
@@ -438,7 +543,15 @@ export function AdvancedCenter() {
       if (pending) {
         const segment = JSON.parse(pending) as Partial<RhythmWeakSegment>;
         const length = typeof segment.text === "string" ? Array.from(segment.text).length : 0;
-        if (Number.isInteger(segment.start) && length >= 8 && length <= 15 && Number.isFinite(segment.delayMs)) {
+        if (
+          Number.isInteger(segment.start) &&
+          Number(segment.start) >= 0 &&
+          length >= 8 &&
+          length <= 15 &&
+          Number.isInteger(segment.delayMs) &&
+          Number(segment.delayMs) >= 0 &&
+          Number(segment.delayMs) <= 10 * 60 * 1000
+        ) {
           const target: PracticeTarget = {
             id: `weak-${segment.start}`,
             title: "弱节奏片段三连练",
