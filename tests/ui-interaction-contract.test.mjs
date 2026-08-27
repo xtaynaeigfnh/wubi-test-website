@@ -12,6 +12,24 @@ const hesitationPracticePath = new URL("../app/components/HesitationPracticeModa
 const trainingCenterPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
 const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.url);
+const hydrationBoundaryPath = new URL("../app/components/HydrationBoundary.tsx", import.meta.url);
+
+test("interactive controls stay hidden and inert until hydration completes", async () => {
+  const [boundary, layout, styles] = await Promise.all([
+    readFile(hydrationBoundaryPath, "utf8"),
+    readFile(layoutPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(boundary, /const \[ready, setReady\] = useState\(false\)/);
+  assert.match(boundary, /useEffect\(\(\) => \{\s*setReady\(true\);/s);
+  assert.match(boundary, /aria-hidden=\{!ready\}/);
+  assert.match(boundary, /inert=\{ready \? undefined : true\}/);
+  assert.match(boundary, /正在准备练习界面/);
+  assert.match(layout, /<HydrationBoundary>[\s\S]*<PwaProvider>[\s\S]*<MusicProvider>/);
+  assert.match(styles, /\.hydration-content\[aria-hidden="true"\]\s*\{[^}]*visibility:\s*hidden/s);
+  assert.match(styles, /\.hydration-status\s*\{[^}]*position:\s*fixed[^}]*z-index:\s*200/s);
+});
 
 test("recorded data renders without replay animations", async () => {
   const [component, trendPanel, styles] = await Promise.all([

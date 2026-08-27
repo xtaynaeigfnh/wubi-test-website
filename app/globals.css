@@ -152,6 +152,70 @@ a {
   text-decoration: none;
 }
 
+.hydration-boundary,
+.hydration-content {
+  min-height: 100dvh;
+}
+
+.hydration-content[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+.hydration-status {
+  min-height: 100dvh;
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+}
+
+.hydration-status > div {
+  padding: 28px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.hydration-status span {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  grid-template-columns: 1fr 18px;
+  place-items: center;
+  color: var(--text-on-accent);
+  border-radius: var(--radius-small);
+  background: var(--accent-vermilion-fill);
+  box-shadow: 0 3px 0 var(--accent-vermilion-dark);
+  font-family: var(--font-reading);
+  font-size: 25px;
+}
+
+.hydration-status small {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  font: 700 8px/1 var(--font-data);
+  writing-mode: vertical-rl;
+}
+
+.hydration-status strong {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+}
+
+.hydration-status p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .app-shell {
   min-height: 100dvh;
   display: flex;

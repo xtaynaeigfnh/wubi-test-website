@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { HydrationBoundary } from "./components/HydrationBoundary";
 import { MusicProvider } from "./components/MusicPlayer";
 import { PwaProvider } from "./components/PwaControl";
 import "./globals.css";
@@ -47,9 +48,11 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        <PwaProvider>
-          <MusicProvider>{children}</MusicProvider>
-        </PwaProvider>
+        <HydrationBoundary>
+          <PwaProvider>
+            <MusicProvider>{children}</MusicProvider>
+          </PwaProvider>
+        </HydrationBoundary>
       </body>
     </html>
   );
