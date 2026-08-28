@@ -5,7 +5,10 @@ import type { SessionResult } from "./types";
 
 export function downloadShareCard(session: SessionResult) {
   const usesCharacterSpeed =
-    session.type === "article" || session.type === "hesitation";
+    session.type === "article" ||
+    session.type === "hesitation" ||
+    session.type === "rhythm" ||
+    session.type === "scenario";
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 675;
@@ -45,7 +48,7 @@ export function downloadShareCard(session: SessionResult) {
 
   const metrics = [
     ["速度", session.speed.toString(), usesCharacterSpeed ? "字/分" : "题/分"],
-    ["击键", session.type === "article" ? session.kps.toFixed(2) : "—", "次/秒"],
+    ["击键", usesCharacterSpeed ? session.kps.toFixed(2) : "—", "次/秒"],
     ["码长", session.codeLength > 0 ? session.codeLength.toFixed(2) : "—", "键/字"],
     ["字准", session.accuracy.toFixed(1), "%"],
   ];

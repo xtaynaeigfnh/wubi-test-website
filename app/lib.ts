@@ -4,6 +4,7 @@ import type {
   ArticleLength,
   ArticleMetadata,
   ArticleProgress,
+  AdvancedSeasonArchive,
   BackupPayload,
   CommonCharacterData,
   CommonCharacterPreset,
@@ -35,6 +36,8 @@ import {
   pruneGhostTimelines,
 } from "./ghost-race.ts";
 import { applyWeakObservations } from "./training-plan.ts";
+import { isAdvancedSeasonArchive } from "./advanced-training.ts";
+import { isRhythmSummary, pruneRhythmCurves } from "./rhythm-lab.ts";
 import {
   incrementKeyUsage,
   isValidKeyUsage,
@@ -57,6 +60,7 @@ export const STORAGE = {
   trainingPlan: "wubi-test:training-plan:v1",
   hesitationQueue: "wubi-test:hesitation-queue:v1",
   phraseOpportunities: "wubi-test:phrase-opportunities:v1",
+  advancedSeason: "wubi-test:advanced-season:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -1130,11 +1134,29 @@ export function getSessions() {
     ids.add(session.id);
     return true;
   });
-  const pruned = pruneGhostTimelines(unique);
+  const pruned = pruneRhythmCurves(pruneGhostTimelines(unique));
   if (JSON.stringify(pruned) !== JSON.stringify(stored)) {
     writeLocal(STORAGE.sessions, pruned);
   }
   return pruned;
+}
+
+export function getCustomArticles(): PracticeArticle[] {
+  const stored = readValidatedLocalArray(
+    STORAGE.customTexts,
+    MAX_CUSTOM_ARTICLES,
+    isCustomPracticeArticle,
+  );
+  const ids = new Set<string>();
+  const unique = stored.filter((article) => {
+    if (ids.has(article.id)) return false;
+    ids.add(article.id);
+    return true;
+  });
+  if (unique.length !== stored.length) {
+    writeLocal(STORAGE.customTexts, unique);
+  }
+  return unique;
 }
 
 export function getProgress() {
@@ -1300,6 +1322,18 @@ export function savePracticeOutcome(
   return persistPracticeOutcome(session, observations, extraWrites);
 }
 
+export function saveAdvancedPracticeOutcome(
+  session: SessionResult,
+  archive: AdvancedSeasonArchive,
+): boolean {
+  if (!isAdvancedSeasonArchive(archive)) return false;
+  return persistPracticeOutcome(
+    session,
+    [],
+    new Map([[STORAGE.advancedSeason, archive]]),
+  );
+}
+
 export function saveHesitationPracticeOutcome(
   session: SessionResult,
   observations: WeakObservation[] = [],
@@ -1356,9 +1390,9 @@ function persistPracticeOutcome(
   const currentSessions = getSessions();
   if (currentSessions.some((item) => item.id === session.id)) return true;
   let retainedHeatmaps = 0;
-  const sessions = pruneGhostTimelines(
+  const sessions = pruneRhythmCurves(pruneGhostTimelines(
     [session, ...currentSessions].slice(0, 500),
-  ).map((item) => {
+  )).map((item) => {
     if (!item.heatmap) return item;
     retainedHeatmaps += 1;
     if (retainedHeatmaps <= 50) return item;
@@ -1444,6 +1478,7 @@ export function clearPracticeHistory(): boolean {
       [STORAGE.phraseOpportunities, []],
       [STORAGE.trainingPlan, null],
       [STORAGE.hesitationQueue, null],
+      [STORAGE.advancedSeason, null],
     ]),
   );
 }
@@ -2169,12 +2204,16 @@ function isSessionResult(value: unknown): value is SessionResult {
   return (
     isBoundedString(value.id, 160) &&
     value.id.length > 0 &&
-    ["article", "challenge", "review", "roots", "hesitation"].includes(
+    ["article", "challenge", "review", "roots", "hesitation", "rhythm", "scenario"].includes(
       String(value.type),
     ) &&
     (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
     (value.trainingTaskId === undefined ||
       isBoundedString(value.trainingTaskId, 200)) &&
+    (value.scenarioId === undefined || isBoundedString(value.scenarioId, 160)) &&
+    (value.seasonId === undefined || isBoundedString(value.seasonId, 160)) &&
+    (value.seasonDay === undefined ||
+      (Number.isInteger(value.seasonDay) && isFiniteRange(value.seasonDay, 1, 14))) &&
     isBoundedString(value.title, 200) &&
     isDateString(value.date) &&
     numericFields.every((field) => isFiniteRange(value[field], 0, 1_000_000_000)) &&
@@ -2195,6 +2234,7 @@ function isSessionResult(value: unknown): value is SessionResult {
         value.errorChars.length <= 5000 &&
         value.errorChars.every((item) => isBoundedString(item, 8)))) &&
     (value.heatmap === undefined || isTypingHeatmap(value.heatmap)) &&
+    (value.rhythmSummary === undefined || isRhythmSummary(value.rhythmSummary)) &&
     (value.ghostTimeline === undefined ||
       (value.type === "article" &&
         isGhostTimelineForSession(value.ghostTimeline, value.durationSeconds))) &&
@@ -2202,7 +2242,10 @@ function isSessionResult(value: unknown): value is SessionResult {
       isHesitationPracticeResult(value.hesitationPractice)) &&
     (value.type === "hesitation"
       ? value.hesitationPractice !== undefined
-      : value.hesitationPractice === undefined)
+      : value.hesitationPractice === undefined) &&
+    (value.type === "scenario" ? value.scenarioId !== undefined : value.scenarioId === undefined) &&
+    ((value.seasonId === undefined && value.seasonDay === undefined) ||
+      (value.seasonId !== undefined && value.seasonDay !== undefined))
   );
 }
 
@@ -2571,7 +2614,11 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.progress:
       return validateArray(value, 500, isArticleProgress);
     case STORAGE.customTexts:
-      return validateArray(value, MAX_CUSTOM_ARTICLES, isCustomPracticeArticle);
+      return (
+        validateArray(value, MAX_CUSTOM_ARTICLES, isCustomPracticeArticle) &&
+        new Set((value as PracticeArticle[]).map((article) => article.id)).size ===
+          (value as PracticeArticle[]).length
+      );
     case STORAGE.recent:
       return validateArray(
         value,
@@ -2598,6 +2645,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
         new Set((value as PhraseOpportunityStat[]).map((item) => item.text))
           .size === (value as PhraseOpportunityStat[]).length
       );
+    case STORAGE.advancedSeason:
+      return isAdvancedSeasonArchive(value as AdvancedSeasonArchive);
     default:
       return false;
   }
@@ -2609,7 +2658,7 @@ function isValidSessionCollection(value: unknown): value is SessionResult[] {
   if (new Set(sessions.map((session) => session.id)).size !== sessions.length) {
     return false;
   }
-  return JSON.stringify(pruneGhostTimelines(sessions)) === JSON.stringify(sessions);
+  return JSON.stringify(pruneRhythmCurves(pruneGhostTimelines(sessions))) === JSON.stringify(sessions);
 }
 
 export function parseBackupPayload(value: unknown): BackupPayload {
@@ -2675,11 +2724,7 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     for (const key of STORAGE_KEYS) {
       if (key in validated.data) {
         window.localStorage.setItem(key, JSON.stringify(validated.data[key]));
-      } else if (
-        key === STORAGE.trainingPlan ||
-        key === STORAGE.hesitationQueue ||
-        key === STORAGE.phraseOpportunities
-      ) {
+      } else {
         window.localStorage.removeItem(key);
       }
     }

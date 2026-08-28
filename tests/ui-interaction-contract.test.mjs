@@ -12,6 +12,24 @@ const hesitationPracticePath = new URL("../app/components/HesitationPracticeModa
 const trainingCenterPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
 const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.url);
+const hydrationBoundaryPath = new URL("../app/components/HydrationBoundary.tsx", import.meta.url);
+
+test("interactive controls stay hidden and inert until hydration completes", async () => {
+  const [boundary, layout, styles] = await Promise.all([
+    readFile(hydrationBoundaryPath, "utf8"),
+    readFile(layoutPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(boundary, /const \[ready, setReady\] = useState\(false\)/);
+  assert.match(boundary, /useEffect\(\(\) => \{\s*setReady\(true\);/s);
+  assert.match(boundary, /aria-hidden=\{!ready\}/);
+  assert.match(boundary, /inert=\{ready \? undefined : true\}/);
+  assert.match(boundary, /正在准备练习界面/);
+  assert.match(layout, /<HydrationBoundary>[\s\S]*<PwaProvider>[\s\S]*<MusicProvider>/);
+  assert.match(styles, /\.hydration-content\[aria-hidden="true"\]\s*\{[^}]*visibility:\s*hidden/s);
+  assert.match(styles, /\.hydration-status\s*\{[^}]*position:\s*fixed[^}]*z-index:\s*200/s);
+});
 
 test("recorded data renders without replay animations", async () => {
   const [component, trendPanel, styles] = await Promise.all([
@@ -47,6 +65,9 @@ test("challenge keeps wrong answers visible until the user advances", async () =
     component,
     /if \(advanceLockRef\.current \|\| recordedRef\.current\) return;/,
   );
+  assert.match(component, /pendingChallengeSaveRef/);
+  assert.match(component, /challengeSaveFailed/);
+  assert.match(component, />\s*重试保存\s*<\/button>/);
 });
 
 test("training drills lock repeated submit and advance actions", async () => {
@@ -80,7 +101,7 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(component, /!hesitationPracticeOpen/);
   assert.match(pwa, /catch \{/);
   assert.match(pwa, /安装提示未能打开/);
-  assert.match(pwa, /finally \{[\s\S]*setPromptEvent\(null\)/);
+  assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
 });
 
 test("history filters are visually separate and expose pressed state", async () => {
@@ -94,10 +115,10 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(styles, /\.segmented\.small\.history-filter\s*\{[^}]*gap:\s*6px/s);
   assert.match(
     styles,
-    /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+    /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
   );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
-  assert.match(component, />\s*清除成绩与错题\s*</);
+  assert.match(component, />\s*清除练习数据与计划\s*</);
   const clearResults = component.match(
     /const clearResults = \(\) => \{[\s\S]*?\n  \};/,
   )?.[0];
@@ -302,11 +323,29 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(component, /Boolean\(trainingArticleId\)/);
   assert.match(component, /Array\.from\(customText\.trim\(\)\)\.length/);
   assert.match(component, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
+  assert.match(component, /if \(customSaveLock\.current\) return;/);
+  assert.match(component, /custom-\$\{crypto\.randomUUID\(\)\}/);
   assert.match(training, /Math\.round\(value \|\| minimum\)/);
   assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
   assert.match(management, /if \(!saved\) return;/);
-  assert.match(management, /addCustomArticlesWithinLimit\(items, imported\)/);
+  assert.match(management, /addCustomArticlesWithinLimit\(currentItems, imported\)/);
+  assert.match(management, /inspectRequestRef/);
+  assert.match(management, /setPending\(null\);[\s\S]*setInspecting\(true\);[\s\S]*await file\.text\(\)/);
+  assert.match(management, /importingRef/);
+  assert.match(management, /MAX_CUSTOM_TEXT_FILE_BYTES/);
   assert.match(management, /自定义文章已满 20 篇/);
+});
+
+test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {
+  const [component, pwa] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(pwaControlPath, "utf8"),
+  ]);
+  assert.match(component, /physicalRhythmSamplesRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
+  assert.match(component, /if \(event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey\) return;/);
+  assert.match(component, /disabled=\{sessionSaveFailed\}/);
+  assert.match(pwa, /installLockRef\.current/);
+  assert.match(pwa, /disabled=\{installing \|\| !promptEvent\}/);
 });
 
 test("training tabs keep their URL state in sync", async () => {

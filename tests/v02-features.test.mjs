@@ -16,6 +16,7 @@ import {
   clearPracticeHistory,
   createBackupPayload,
   defaultCustomTheme,
+  getCustomArticles,
   getErrors,
   getPhraseOpportunities,
   getProgress,
@@ -127,6 +128,36 @@ test("custom article capacity never evicts existing content silently", () => {
   assert.deepEqual(partial.articles.slice(1), existing.slice(0, 19));
   assert.equal(partial.added[0].id, incoming.id);
   assert.equal(partial.rejected[0].id, "custom-incoming-2");
+});
+
+test("custom article reader removes malformed, duplicate, and overflowing local data", () => {
+  const valid = Array.from({ length: 22 }, (_, index) =>
+    buildCustomArticle(
+      `custom-${index}`,
+      `自定义文章 ${index + 1}`,
+      `这是第${index + 1}篇用于校验本地数据边界的自定义文章。`,
+    ),
+  );
+  assert.ok(valid.every(Boolean));
+  const stored = [null, valid[0], valid[0], ...valid.slice(1)];
+  let current = JSON.stringify(stored);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => key === STORAGE.customTexts ? current : null,
+      setItem: (key, value) => {
+        if (key === STORAGE.customTexts) current = value;
+      },
+      removeItem: () => {},
+    },
+  };
+  try {
+    const articles = getCustomArticles();
+    assert.equal(articles.length, 18);
+    assert.equal(new Set(articles.map((article) => article.id)).size, articles.length);
+    assert.deepEqual(JSON.parse(current), articles);
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 function hesitationResult(target = hesitationTarget(), overrides = {}) {
@@ -578,6 +609,15 @@ test("backup format only accepts known versioned storage keys", () => {
   );
   assert.throws(
     () =>
+      parseBackupPayload(
+        createBackupPayload({
+          [STORAGE.customTexts]: [validCustomText, validCustomText],
+        }),
+      ),
+    /格式不正确/,
+  );
+  assert.throws(
+    () =>
       parseBackupPayload({
         ...payload,
         data: { ...payload.data, "unknown:key": true },
@@ -699,6 +739,7 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
     }],
   };
   const values = new Map([
+    [STORAGE.sessions, JSON.stringify([session({ id: "stale-session" })])],
     [STORAGE.trainingPlan, JSON.stringify(plan)],
     [STORAGE.hesitationQueue, JSON.stringify(staleQueue)],
   ]);
@@ -711,6 +752,7 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
   };
   try {
     restoreBackupPayload(createBackupPayload({ [STORAGE.errors]: [] }));
+    assert.equal(values.has(STORAGE.sessions), false);
     assert.equal(values.has(STORAGE.trainingPlan), false);
     assert.equal(values.has(STORAGE.hesitationQueue), false);
   } finally {
@@ -1543,6 +1585,7 @@ test("clearing practice history rolls back every key after storage failure", () 
     STORAGE.phraseOpportunities,
     STORAGE.trainingPlan,
     STORAGE.hesitationQueue,
+    STORAGE.advancedSeason,
   ];
   const values = new Map(keys.map((key, index) => [key, `old-${index}`]));
   const before = new Map(values);
@@ -1675,6 +1718,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.equal(manifest.start_url, ".");
   assert.match(worker, /"\/training"/);
   assert.match(worker, /"\/summary"/);
+  assert.match(worker, /"\/advanced"/);
   assert.match(worker, /\[path, `\$\{path\}\/`\]/);
   assert.match(worker, /\/data\/common-characters\.json/);
   assert.match(worker, /\/data\/music-catalog\.json/);
@@ -1688,7 +1732,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v12/);
+  assert.match(worker, /wubi-test-v13/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

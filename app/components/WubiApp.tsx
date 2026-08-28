@@ -39,6 +39,7 @@ import {
   defaultCustomTheme,
   defaultSettings,
   formatDuration,
+  getCustomArticles,
   getErrors,
   getCommittedEditRange,
   getHesitationLevel,
@@ -101,6 +102,7 @@ import type {
   HesitationPracticeTarget,
   PracticeArticle,
   PhraseOpportunityStat,
+  RhythmWeakSegment,
   SessionResult,
   ThemeId,
   UserSettings,
@@ -116,6 +118,7 @@ import { downloadShareCard } from "../share-card";
 import { DataManagement } from "./DataManagement";
 import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
+import { AdvancedCenter, RhythmSummaryView } from "./AdvancedCenter";
 import { TrendPanel } from "./TrendPanel";
 import { WeeklyReportPanel } from "./WeeklyReportPanel";
 import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
@@ -123,6 +126,11 @@ import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
 import { buildWeeklyReport } from "../weekly-report";
+import {
+  buildRhythmSummary,
+  MAX_PHYSICAL_RHYTHM_SAMPLES,
+  type PhysicalRhythmSample,
+} from "../rhythm-lab";
 
 const themeLabels: Record<ThemeId, string> = {
   system: "系统",
@@ -132,6 +140,16 @@ const themeLabels: Record<ThemeId, string> = {
   qingdai: "青黛",
   custom: "自定义",
 };
+
+const PENDING_RHYTHM_SEGMENT_KEY = "wubi-test:pending-rhythm-segment:v1";
+
+function openRhythmSegmentPractice(
+  router: ReturnType<typeof useRouter>,
+  segment: RhythmWeakSegment,
+) {
+  window.sessionStorage.setItem(PENDING_RHYTHM_SEGMENT_KEY, JSON.stringify(segment));
+  router.push("/advanced");
+}
 
 type GhostMode = "off" | "best" | "recent";
 
@@ -288,6 +306,7 @@ const navItems: Array<{
 }> = [
   { view: "typing", href: "/", label: "文章测速", coordinate: "QW" },
   { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
+  { view: "advanced", href: "/advanced", label: "进阶", coordinate: "DF" },
   { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
   { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
@@ -587,6 +606,7 @@ export function WubiApp({ view }: { view: AppView }) {
             onPracticeHesitation={startQueuedHesitationPractice}
           />
         )}
+        {view === "advanced" && <AdvancedCenter />}
         {view === "challenge" && (
           <ChallengeView playKeySound={playKeySound} />
         )}
@@ -709,6 +729,7 @@ function TypingView({
   const lastTimingAtRef = useRef<number | null>(null);
   const pendingTimingMsRef = useRef(0);
   const typingDelaysRef = useRef<number[]>([]);
+  const physicalRhythmSamplesRef = useRef<PhysicalRhythmSample[]>([]);
   const correctionPositionsRef = useRef(new Map<number, number>());
   const wubiCodesRef = useRef(new Map<string, string>());
   const compositionCommitTimer = useRef<number | null>(null);
@@ -716,6 +737,7 @@ function TypingView({
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
+  const customSaveLock = useRef(false);
   const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
   const [codeHintsError, setCodeHintsError] = useState("");
   const [minimumCodeIndex, setMinimumCodeIndex] =
@@ -764,7 +786,7 @@ function TypingView({
   }, [loadAttempt]);
 
   useEffect(() => {
-    setCustomTexts(readLocalArray<PracticeArticle>(STORAGE.customTexts));
+    setCustomTexts(getCustomArticles());
   }, []);
 
   useEffect(() => {
@@ -966,6 +988,7 @@ function TypingView({
       lastTimingAtRef.current = null;
       pendingTimingMsRef.current = 0;
       typingDelaysRef.current = [];
+      physicalRhythmSamplesRef.current = [];
       correctionPositionsRef.current = new Map();
       errorPositions.current = new Set();
       ghostProgressPointsRef.current = [];
@@ -1369,6 +1392,11 @@ function TypingView({
       .filter(Boolean);
     const completedAt = new Date().toISOString();
     const heatmap = buildTypingHeatmap(visibleText, typingDelaysRef.current);
+    const rhythmSummary = buildRhythmSummary({
+      text: visibleText,
+      delays: typingDelaysRef.current,
+      physicalSamples: physicalRhythmSamplesRef.current,
+    });
     const observations: WeakObservation[] = [];
     const addObservation = (
       character: string | undefined,
@@ -1468,6 +1496,7 @@ function TypingView({
       pauseSeconds,
       retryCount,
       heatmap,
+      rhythmSummary,
       ghostTimeline,
       trainingTaskId,
     };
@@ -1606,6 +1635,10 @@ function TypingView({
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completed) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+      event.preventDefault();
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (
       event.key.length === 1 ||
       event.key === "Process" ||
@@ -1634,11 +1667,24 @@ function TypingView({
     if (isWubiLetterKey(event.key, event.code)) {
       setLetterKeys((value) => value + 1);
       const hand = classifyWubiHand(event.key, event.code);
+      if (
+        hand &&
+        physicalRhythmSamplesRef.current.length < MAX_PHYSICAL_RHYTHM_SAMPLES
+      ) {
+        physicalRhythmSamplesRef.current.push({
+          elapsedMs: calculateActiveDurationSeconds({
+            startedAt: startedAtRef.current,
+            now: Date.now(),
+            pausedDurationMs,
+            pausedAt,
+            inactiveDurationMs: inactiveDurationMsRef.current,
+            inactiveAt: inactiveAtRef.current,
+          }) * 1000,
+          hand,
+        });
+      }
       if (hand === "left") setLeftHandKeys((value) => value + 1);
       if (hand === "right") setRightHandKeys((value) => value + 1);
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-      event.preventDefault();
     }
   };
 
@@ -1669,24 +1715,29 @@ function TypingView({
   };
 
   const useCustomText = () => {
+    if (customSaveLock.current) return;
+    customSaveLock.current = true;
     const custom = buildCustomArticle(
-      `custom-${Date.now()}`,
+      `custom-${crypto.randomUUID()}`,
       customTitle,
       customText,
     );
     if (!custom) {
       setCustomError(`正文长度需要在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`);
+      customSaveLock.current = false;
       return;
     }
-    const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
+    const saved = getCustomArticles();
     const merged = addCustomArticlesWithinLimit(saved, [custom]);
     if (!merged.added.length) {
       setCustomError("自定义文章已满 20 篇，请先到设置页删除一篇。");
+      customSaveLock.current = false;
       return;
     }
     const nextCustomTexts = merged.articles;
     if (!writeLocal(STORAGE.customTexts, nextCustomTexts)) {
       setCustomError("自定义文章未能保存，请检查浏览器存储空间。");
+      customSaveLock.current = false;
       return;
     }
     setCustomError("");
@@ -1752,6 +1803,7 @@ function TypingView({
           <button
             className="button secondary"
             onClick={() => {
+              customSaveLock.current = false;
               setCustomError("");
               setCustomOpen(true);
             }}
@@ -2365,6 +2417,7 @@ function TypingView({
                 {settings.autoNext && activeGhostMode !== "off" && (
                   <button
                     className="button secondary"
+                    disabled={sessionSaveFailed}
                     onClick={() =>
                       chooseArticle(
                         article,
@@ -2381,6 +2434,7 @@ function TypingView({
                 )}
                 <button
                   className="button primary"
+                  disabled={sessionSaveFailed}
                   onClick={
                     settings.autoNext
                       ? randomArticle
@@ -2405,6 +2459,15 @@ function TypingView({
             </div>
           )}
         </article>
+
+        {completed && lastSession?.rhythmSummary && (
+          <div className="post-practice-review">
+            <RhythmSummaryView
+              summary={lastSession.rhythmSummary}
+              onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
+            />
+          </div>
+        )}
 
         {completed && lastSession?.heatmap && (
           <div className="post-practice-review">
@@ -2718,6 +2781,7 @@ function ChallengeView({
   const [mistakes, setMistakes] = useState<Array<{ text: string; code: string; input: string }>>([]);
   const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
+  const [challengeSaveFailed, setChallengeSaveFailed] = useState(false);
   const startedAtRef = useRef(0);
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
@@ -2726,6 +2790,10 @@ function ChallengeView({
   const submitLockRef = useRef(false);
   const advanceLockRef = useRef(false);
   const challengeObservationsRef = useRef<WeakObservation[]>([]);
+  const pendingChallengeSaveRef = useRef<{
+    session: SessionResult;
+    observations: WeakObservation[];
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -2805,8 +2873,17 @@ function ChallengeView({
           accuracy: calculateAccuracy(correctAnswers, answered),
           errors: answered - correctAnswers,
         };
-        if (!savePracticeOutcome(session, challengeObservationsRef.current)) {
+        const pending = {
+          session,
+          observations: [...challengeObservationsRef.current],
+        };
+        pendingChallengeSaveRef.current = pending;
+        if (!savePracticeOutcome(session, pending.observations)) {
+          setChallengeSaveFailed(true);
           window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+        } else {
+          pendingChallengeSaveRef.current = null;
+          setChallengeSaveFailed(false);
         }
         setLastSession(session);
       }
@@ -2845,7 +2922,7 @@ function ChallengeView({
   );
 
   const start = () => {
-    if (!pool.length) return;
+    if (!pool.length || challengeSaveFailed) return;
     if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
     recordedRef.current = false;
     advanceLockRef.current = false;
@@ -2861,6 +2938,17 @@ function ChallengeView({
     setFinishedReason("");
     setLastSession(null);
     nextQuestion();
+  };
+
+  const retryChallengeSave = () => {
+    const pending = pendingChallengeSaveRef.current;
+    if (!pending) return;
+    if (!savePracticeOutcome(pending.session, pending.observations)) {
+      window.alert("仍未能保存，请清理部分本机数据后再试。");
+      return;
+    }
+    pendingChallengeSaveRef.current = null;
+    setChallengeSaveFailed(false);
   };
 
   const advanceQuestion = useCallback(
@@ -2939,7 +3027,19 @@ function ChallengeView({
                   下载本轮成绩卡
                 </button>
               )}
-              <button className="button primary" disabled={loading || !pool.length} onClick={start}>
+              {challengeSaveFailed && (
+                <p role="alert">本轮成绩尚未保存，请先重试保存。</p>
+              )}
+              {challengeSaveFailed && (
+                <button className="button danger" onClick={retryChallengeSave}>
+                  重试保存
+                </button>
+              )}
+              <button
+                className="button primary"
+                disabled={loading || !pool.length || challengeSaveFailed}
+                onClick={start}
+              >
                 {loading ? "正在加载离线码表…" : index ? "再来一轮" : "开始挑战"}
               </button>
             </div>
@@ -3176,6 +3276,7 @@ function HistoryView({
   masteredAtByFingerprint: ReadonlyMap<string, string>;
   hesitationSaveRevision: number;
 }) {
+  const router = useRouter();
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [errors, setErrors] = useState<ErrorStat[]>([]);
@@ -3183,7 +3284,7 @@ function HistoryView({
   const [reportNow, setReportNow] = useState<Date | null>(null);
   const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
   const [type, setType] = useState<
-    "all" | "article" | "challenge" | "training"
+    "all" | "article" | "challenge" | "training" | "advanced"
   >("all");
   const [expandedHeatmapId, setExpandedHeatmapId] = useState<string | null>(null);
 
@@ -3229,7 +3330,9 @@ function HistoryView({
       (type === "training" &&
         (session.type === "review" ||
           session.type === "roots" ||
-          session.type === "hesitation")),
+          session.type === "hesitation")) ||
+      (type === "advanced" &&
+        (session.type === "rhythm" || session.type === "scenario")),
   );
   const articleSessions = sessions.filter((session) => session.type === "article");
   const totalChars = articleSessions.reduce((sum, session) => sum + session.correctChars, 0);
@@ -3248,7 +3351,7 @@ function HistoryView({
   );
 
   const clearResults = () => {
-    if (!window.confirm("确定清除全部本地成绩和错题记录吗？此操作无法撤销。")) return;
+    if (!window.confirm("确定清除全部本地成绩、错题、今日训练与十四日计划吗？此操作无法撤销。")) return;
     if (!clearPracticeHistory()) {
       window.alert("清除未完成，本机数据已恢复到操作前的状态，请稍后重试。");
       return;
@@ -3267,7 +3370,7 @@ function HistoryView({
         </div>
         <div className="heading-actions">
           <button className="button danger" onClick={clearResults}>
-            清除成绩与错题
+            清除练习数据与计划
           </button>
         </div>
       </div>
@@ -3291,7 +3394,7 @@ function HistoryView({
           <div className="panel-title">
             <h2>最近练习</h2>
             <div className="segmented small history-filter" aria-label="练习类型筛选">
-              {(["all", "article", "challenge", "training"] as const).map((value) => (
+              {(["all", "article", "challenge", "training", "advanced"] as const).map((value) => (
                 <button
                   key={value}
                   className={type === value ? "active" : ""}
@@ -3304,7 +3407,9 @@ function HistoryView({
                       ? "文章"
                       : value === "challenge"
                         ? "字码"
-                        : "专项"}
+                        : value === "training"
+                          ? "专项"
+                          : "进阶"}
                 </button>
               ))}
             </div>
@@ -3328,13 +3433,13 @@ function HistoryView({
                 <span className="session-speed">
                   {session.speed || "—"}
                   <small>
-                    {session.type === "article" || session.type === "hesitation"
+                    {session.type === "article" || session.type === "hesitation" || session.type === "rhythm" || session.type === "scenario"
                       ? "字/分"
                       : "题/分"}
                   </small>
                 </span>
                 <span className="session-kps">
-                  {session.type === "article" ? session.kps.toFixed(2) : "—"}
+                  {["article", "rhythm", "scenario"].includes(session.type) ? session.kps.toFixed(2) : "—"}
                   <small>次/秒</small>
                 </span>
                 <span className="session-code-length">
@@ -3372,6 +3477,20 @@ function HistoryView({
                       }
                     >
                       卡顿图
+                    </button>
+                  )}
+                  {session.rhythmSummary && (
+                    <button
+                      className="session-heatmap-trigger"
+                      aria-expanded={expandedHeatmapId === session.id}
+                      aria-controls={`session-heatmap-${session.id}`}
+                      onClick={() =>
+                        setExpandedHeatmapId((current) =>
+                          current === session.id ? null : session.id,
+                        )
+                      }
+                    >
+                      节奏
                     </button>
                   )}
                   <button
@@ -3428,20 +3547,28 @@ function HistoryView({
                     <DiagnosticMetric label="重打" value={session.retryCount?.toString() ?? "—"} unit="" />
                   </div>
                 )}
-                {session.heatmap && expandedHeatmapId === session.id && (
+                {(session.heatmap || session.rhythmSummary) && expandedHeatmapId === session.id && (
                   <div
                     className="session-heatmap-detail"
                     id={`session-heatmap-${session.id}`}
                   >
-                    <HesitationHeatmap
-                      heatmap={session.heatmap}
-                      compact
-                      source={session}
-                      onPractice={onPracticeHesitation}
-                      onAddToQueue={onAddHesitationToQueue}
-                      queuedFingerprints={queuedFingerprints}
-                      masteredAtByFingerprint={masteredAtByFingerprint}
-                    />
+                    {session.rhythmSummary && (
+                      <RhythmSummaryView
+                        summary={session.rhythmSummary}
+                        onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
+                      />
+                    )}
+                    {session.heatmap && (
+                      <HesitationHeatmap
+                        heatmap={session.heatmap}
+                        compact
+                        source={session}
+                        onPractice={onPracticeHesitation}
+                        onAddToQueue={onAddHesitationToQueue}
+                        queuedFingerprints={queuedFingerprints}
+                        masteredAtByFingerprint={masteredAtByFingerprint}
+                      />
+                    )}
                   </div>
                 )}
               </div>

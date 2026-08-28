@@ -40,12 +40,21 @@ test("server-renders the finished Chinese product shell", async () => {
 });
 
 test("all planned routes render successfully", async () => {
-  for (const pathname of ["/training", "/challenge", "/lookup", "/history", "/summary", "/settings"]) {
+  for (const pathname of ["/training", "/advanced", "/challenge", "/lookup", "/history", "/summary", "/settings"]) {
     const response = await render(pathname);
     assert.equal(response.status, 200, pathname);
     const html = await response.text();
     assert.match(html, /五笔测试网站/, pathname);
   }
+});
+
+test("advanced route server-renders the quiet training shell", async () => {
+  const response = await render("/advanced");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /静流 · 高手进阶/);
+  assert.match(html, /不催促，只看见节奏/);
+  assert.match(html, /进阶训练模块/);
 });
 
 test("keyboard summary route server-renders its analysis shell", async () => {
