@@ -9673,3 +9673,89 @@ textarea {
     transition: none !important;
   }
 }
+
+/* Restrained motion: progress settles, tabs respond, rhythm reveals in sequence. */
+
+.training-tabs button,
+.advanced-tabs button {
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 180ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .training-tabs button:hover:not(.active),
+  .advanced-tabs button:hover:not(.active) {
+    transform: translateY(-1px);
+  }
+}
+
+.training-tabs button.active,
+.advanced-tabs button.active {
+  animation: tab-settle-in 220ms var(--ease-out) both;
+}
+
+.goal-row > i {
+  position: relative;
+}
+
+.goal-row > i b {
+  transform-origin: left center;
+  animation: goal-fill-in 520ms var(--ease-out) both;
+}
+
+.goal-row[data-complete="true"] > i::after {
+  content: "";
+  width: 32%;
+  position: absolute;
+  inset: 0 auto 0 -32%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-on-accent) 55%, transparent), transparent);
+  animation: goal-complete-sheen 460ms 180ms var(--ease-out) both;
+}
+
+.advanced-rhythm-curve i {
+  transform-origin: center bottom;
+  animation: rhythm-bar-rise 420ms calc(70ms + var(--rhythm-index) * 24ms) var(--ease-out) both;
+}
+
+@keyframes tab-settle-in {
+  from {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes goal-fill-in {
+  from {
+    opacity: 0.55;
+    transform: scaleX(0);
+  }
+}
+
+@keyframes goal-complete-sheen {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(412.5%);
+  }
+}
+
+@keyframes rhythm-bar-rise {
+  from {
+    opacity: 0.2;
+    transform: scaleY(0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .training-tabs button,
+  .advanced-tabs button,
+  .goal-row > i b,
+  .goal-row[data-complete="true"] > i::after,
+  .advanced-rhythm-curve i {
+    animation: none !important;
+    transition: none !important;
+  }
+}

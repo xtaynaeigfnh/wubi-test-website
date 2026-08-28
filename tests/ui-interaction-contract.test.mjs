@@ -10,6 +10,7 @@ const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.u
 const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
 const hesitationPracticePath = new URL("../app/components/HesitationPracticeModal.tsx", import.meta.url);
 const trainingCenterPath = new URL("../app/components/TrainingCenter.tsx", import.meta.url);
+const advancedCenterPath = new URL("../app/components/AdvancedCenter.tsx", import.meta.url);
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
 const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.url);
 const hydrationBoundaryPath = new URL("../app/components/HydrationBoundary.tsx", import.meta.url);
@@ -358,6 +359,24 @@ test("training tabs keep their URL state in sync", async () => {
   assert.match(training, /url\.searchParams\.delete\("tab"\)/);
   assert.match(training, /url\.searchParams\.set\("tab", next\)/);
   assert.match(training, /onClick=\{\(\) => selectTrainingTab\(value\)\}/);
+});
+
+test("restrained motion connects progress, tabs, and rhythm without ignoring reduced motion", async () => {
+  const [training, advanced, styles] = await Promise.all([
+    readFile(trainingCenterPath, "utf8"),
+    readFile(advancedCenterPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(training, /data-complete=\{rate === 1\}/);
+  assert.match(advanced, /"--rhythm-index": index/);
+  assert.match(styles, /@keyframes goal-fill-in/);
+  assert.match(styles, /@keyframes rhythm-bar-rise/);
+  assert.match(styles, /@keyframes tab-settle-in/);
+  assert.match(
+    styles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.goal-row > i b,[\s\S]*\.advanced-rhythm-curve i[\s\S]*animation:\s*none !important/s,
+  );
 });
 
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {

@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
 } from "react";
 import {
@@ -91,10 +92,13 @@ function RhythmCurve({ summary }: { summary: RhythmSummary }) {
   const max = Math.max(1, ...summary.curve.map((point) => point.intervalMs));
   return (
     <div className="advanced-rhythm-curve" aria-label="压缩节奏曲线">
-      {summary.curve.map((point) => (
+      {summary.curve.map((point, index) => (
         <i
           key={point.characterCount}
-          style={{ height: `${Math.max(8, (point.intervalMs / max) * 100)}%` }}
+          style={{
+            "--rhythm-index": index,
+            height: `${Math.max(8, (point.intervalMs / max) * 100)}%`,
+          } as CSSProperties}
           title={`第 ${point.characterCount} 字附近 ${point.intervalMs} 毫秒`}
         />
       ))}
