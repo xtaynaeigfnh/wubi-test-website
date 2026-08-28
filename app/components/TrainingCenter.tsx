@@ -745,7 +745,7 @@ function GoalRow({
 }) {
   const rate = Math.min(1, value / Math.max(1, target));
   return (
-    <div className="goal-row">
+    <div className="goal-row" data-complete={rate === 1}>
       <span>{label}</span>
       <i aria-hidden="true">
         <b style={{ width: `${rate * 100}%` }} />
