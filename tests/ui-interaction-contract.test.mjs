@@ -323,6 +323,8 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(component, /Boolean\(trainingArticleId\)/);
   assert.match(component, /Array\.from\(customText\.trim\(\)\)\.length/);
   assert.match(component, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
+  assert.match(component, /if \(customSaveLock\.current\) return;/);
+  assert.match(component, /custom-\$\{crypto\.randomUUID\(\)\}/);
   assert.match(training, /Math\.round\(value \|\| minimum\)/);
   assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
   assert.match(management, /if \(!saved\) return;/);

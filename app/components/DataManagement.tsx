@@ -6,13 +6,13 @@ import {
   addCustomArticlesWithinLimit,
   buildCustomArticle,
   createBackupPayload,
+  getCustomArticles,
   MAX_BACKUP_BYTES,
   MAX_CUSTOM_TEXT_LENGTH,
   parseBackupPayload,
   readDailyGoal,
   readKeyUsage,
   readLocal,
-  readLocalArray,
   restoreBackupPayload,
   STORAGE,
   STORAGE_KEYS,
@@ -165,7 +165,7 @@ function CustomTextManager() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setItems(readLocalArray<PracticeArticle>(STORAGE.customTexts));
+    setItems(getCustomArticles());
   }, []);
 
   const persist = (next: PracticeArticle[]) => {
@@ -234,7 +234,7 @@ function CustomTextManager() {
           `所选 TXT 文件的正文长度都不在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`,
         );
       } else {
-        const currentItems = readLocalArray<PracticeArticle>(STORAGE.customTexts);
+        const currentItems = getCustomArticles();
         const merged = addCustomArticlesWithinLimit(currentItems, imported);
         if (!merged.added.length) {
           setMessage("自定义文章已满 20 篇，请先删除一篇再导入。");

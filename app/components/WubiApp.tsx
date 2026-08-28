@@ -39,6 +39,7 @@ import {
   defaultCustomTheme,
   defaultSettings,
   formatDuration,
+  getCustomArticles,
   getErrors,
   getCommittedEditRange,
   getHesitationLevel,
@@ -736,6 +737,7 @@ function TypingView({
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
+  const customSaveLock = useRef(false);
   const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
   const [codeHintsError, setCodeHintsError] = useState("");
   const [minimumCodeIndex, setMinimumCodeIndex] =
@@ -784,7 +786,7 @@ function TypingView({
   }, [loadAttempt]);
 
   useEffect(() => {
-    setCustomTexts(readLocalArray<PracticeArticle>(STORAGE.customTexts));
+    setCustomTexts(getCustomArticles());
   }, []);
 
   useEffect(() => {
@@ -1713,24 +1715,29 @@ function TypingView({
   };
 
   const useCustomText = () => {
+    if (customSaveLock.current) return;
+    customSaveLock.current = true;
     const custom = buildCustomArticle(
-      `custom-${Date.now()}`,
+      `custom-${crypto.randomUUID()}`,
       customTitle,
       customText,
     );
     if (!custom) {
       setCustomError(`正文长度需要在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`);
+      customSaveLock.current = false;
       return;
     }
-    const saved = readLocalArray<PracticeArticle>(STORAGE.customTexts);
+    const saved = getCustomArticles();
     const merged = addCustomArticlesWithinLimit(saved, [custom]);
     if (!merged.added.length) {
       setCustomError("自定义文章已满 20 篇，请先到设置页删除一篇。");
+      customSaveLock.current = false;
       return;
     }
     const nextCustomTexts = merged.articles;
     if (!writeLocal(STORAGE.customTexts, nextCustomTexts)) {
       setCustomError("自定义文章未能保存，请检查浏览器存储空间。");
+      customSaveLock.current = false;
       return;
     }
     setCustomError("");
@@ -1796,6 +1803,7 @@ function TypingView({
           <button
             className="button secondary"
             onClick={() => {
+              customSaveLock.current = false;
               setCustomError("");
               setCustomOpen(true);
             }}

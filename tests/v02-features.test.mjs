@@ -16,6 +16,7 @@ import {
   clearPracticeHistory,
   createBackupPayload,
   defaultCustomTheme,
+  getCustomArticles,
   getErrors,
   getPhraseOpportunities,
   getProgress,
@@ -127,6 +128,36 @@ test("custom article capacity never evicts existing content silently", () => {
   assert.deepEqual(partial.articles.slice(1), existing.slice(0, 19));
   assert.equal(partial.added[0].id, incoming.id);
   assert.equal(partial.rejected[0].id, "custom-incoming-2");
+});
+
+test("custom article reader removes malformed, duplicate, and overflowing local data", () => {
+  const valid = Array.from({ length: 22 }, (_, index) =>
+    buildCustomArticle(
+      `custom-${index}`,
+      `自定义文章 ${index + 1}`,
+      `这是第${index + 1}篇用于校验本地数据边界的自定义文章。`,
+    ),
+  );
+  assert.ok(valid.every(Boolean));
+  const stored = [null, valid[0], valid[0], ...valid.slice(1)];
+  let current = JSON.stringify(stored);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => key === STORAGE.customTexts ? current : null,
+      setItem: (key, value) => {
+        if (key === STORAGE.customTexts) current = value;
+      },
+      removeItem: () => {},
+    },
+  };
+  try {
+    const articles = getCustomArticles();
+    assert.equal(articles.length, 18);
+    assert.equal(new Set(articles.map((article) => article.id)).size, articles.length);
+    assert.deepEqual(JSON.parse(current), articles);
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 function hesitationResult(target = hesitationTarget(), overrides = {}) {
@@ -575,6 +606,15 @@ test("backup format only accepts known versioned storage keys", () => {
       createBackupPayload({ [STORAGE.customTexts]: [validCustomText] }),
     ).data[STORAGE.customTexts],
     [validCustomText],
+  );
+  assert.throws(
+    () =>
+      parseBackupPayload(
+        createBackupPayload({
+          [STORAGE.customTexts]: [validCustomText, validCustomText],
+        }),
+      ),
+    /格式不正确/,
   );
   assert.throws(
     () =>

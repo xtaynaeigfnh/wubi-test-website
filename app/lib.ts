@@ -1141,6 +1141,24 @@ export function getSessions() {
   return pruned;
 }
 
+export function getCustomArticles(): PracticeArticle[] {
+  const stored = readValidatedLocalArray(
+    STORAGE.customTexts,
+    MAX_CUSTOM_ARTICLES,
+    isCustomPracticeArticle,
+  );
+  const ids = new Set<string>();
+  const unique = stored.filter((article) => {
+    if (ids.has(article.id)) return false;
+    ids.add(article.id);
+    return true;
+  });
+  if (unique.length !== stored.length) {
+    writeLocal(STORAGE.customTexts, unique);
+  }
+  return unique;
+}
+
 export function getProgress() {
   return readValidatedLocalArray(STORAGE.progress, 500, isArticleProgress);
 }
@@ -2596,7 +2614,11 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.progress:
       return validateArray(value, 500, isArticleProgress);
     case STORAGE.customTexts:
-      return validateArray(value, MAX_CUSTOM_ARTICLES, isCustomPracticeArticle);
+      return (
+        validateArray(value, MAX_CUSTOM_ARTICLES, isCustomPracticeArticle) &&
+        new Set((value as PracticeArticle[]).map((article) => article.id)).size ===
+          (value as PracticeArticle[]).length
+      );
     case STORAGE.recent:
       return validateArray(
         value,
