@@ -2,6 +2,30 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
+export function usePendingSaveGuard(blocked: boolean) {
+  useEffect(() => {
+    if (!blocked) return;
+    const message = "本次成绩尚未保存，请先重试保存。";
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = message;
+    };
+    const onDocumentClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      if (!event.target.closest("a[href]")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.alert(message);
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onDocumentClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onDocumentClick, true);
+    };
+  }, [blocked]);
+}
+
 export function SummaryCard({
   label,
   value,
@@ -112,6 +136,7 @@ export function Modal({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (event.isComposing || event.keyCode === 229) return;
         event.preventDefault();
         onCloseRef.current();
         return;

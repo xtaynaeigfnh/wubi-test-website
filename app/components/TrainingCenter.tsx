@@ -9,6 +9,7 @@ import {
   calculateAccuracy,
   calculateDailyProgress,
   calculateStreak,
+  createLocalId,
   defaultDailyGoal,
   getErrors,
   getPhraseOpportunities,
@@ -49,7 +50,7 @@ import {
   ROOT_ZONES,
 } from "../training-plan";
 import { buildPhraseTrainingPool } from "../phrase-training";
-import { ErrorState } from "./Ui";
+import { ErrorState, usePendingSaveGuard } from "./Ui";
 
 const TRAINING_TABS = [
   ["plan", "今日计划"],
@@ -793,7 +794,10 @@ function CodeDrill({
     observations: WeakObservation[];
     phrasePractices: PhrasePracticeInput[];
   } | null>(null);
+  usePendingSaveGuard(Boolean(pendingSave));
   const startedAt = useRef(0);
+  const hiddenAt = useRef<number | null>(null);
+  const inactiveMs = useRef(0);
   const seen = useRef(new Set<string>());
   const orderedIndex = useRef(0);
   const observations = useRef<WeakObservation[]>([]);
@@ -840,6 +844,21 @@ function CodeDrill({
     [],
   );
 
+  useEffect(() => {
+    if (!started) return;
+    const onVisibilityChange = () => {
+      const now = Date.now();
+      if (document.visibilityState === "hidden") {
+        if (hiddenAt.current === null) hiddenAt.current = now;
+      } else if (hiddenAt.current !== null) {
+        inactiveMs.current += now - hiddenAt.current;
+        hiddenAt.current = null;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [started]);
+
   const start = () => {
     if (advanceTimer.current !== null) {
       window.clearTimeout(advanceTimer.current);
@@ -853,6 +872,8 @@ function CodeDrill({
     advanceLock.current = false;
     finishedLock.current = false;
     startedAt.current = Date.now();
+    hiddenAt.current = null;
+    inactiveMs.current = 0;
     setStarted(true);
     setFinished(false);
     setAnswered(0);
@@ -870,9 +891,15 @@ function CodeDrill({
       window.clearTimeout(advanceTimer.current);
       advanceTimer.current = null;
     }
-    const durationSeconds = Math.max(1, (Date.now() - startedAt.current) / 1000);
+    const now = Date.now();
+    const hiddenDuration =
+      hiddenAt.current === null ? 0 : now - hiddenAt.current;
+    const durationSeconds = Math.max(
+      1,
+      (now - startedAt.current - inactiveMs.current - hiddenDuration) / 1000,
+    );
     const session: SessionResult = {
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       type: sessionType,
       title,
       date: new Date().toISOString(),
@@ -1040,6 +1067,7 @@ function CodeDrill({
               )
             }
             onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.keyCode === 229) return;
               if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
                 recordKeyUsage(event.code);
                 playKeySound();

@@ -9,10 +9,9 @@ import {
   getCustomArticles,
   MAX_BACKUP_BYTES,
   MAX_CUSTOM_TEXT_LENGTH,
+  localDateKey,
   parseBackupPayload,
-  readDailyGoal,
-  readKeyUsage,
-  readLocal,
+  readLocalForBackup,
   restoreBackupPayload,
   STORAGE,
   STORAGE_KEYS,
@@ -39,30 +38,29 @@ function BackupManager() {
   const [message, setMessage] = useState("");
 
   const exportBackup = () => {
-    const data = Object.fromEntries(
-      STORAGE_KEYS.map((key) => [
-        key,
-        key === STORAGE.keyUsage
-          ? readKeyUsage()
-          : key === STORAGE.dailyGoal
-            ? readDailyGoal()
-          : readLocal<unknown>(key, null),
-      ]),
-    );
-    const payload = createBackupPayload(data);
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    if (blob.size > MAX_BACKUP_BYTES) {
-      setMessage("本机数据已超过单个备份文件的安全大小，请先清理部分历史记录。");
-      return;
+    try {
+      const data = Object.fromEntries(
+        STORAGE_KEYS.map((key) => [key, readLocalForBackup(key)]),
+      );
+      const payload = parseBackupPayload(createBackupPayload(data));
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      if (blob.size > MAX_BACKUP_BYTES) {
+        setMessage("本机数据已超过单个备份文件的安全大小，请先清理部分历史记录。");
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `五笔测试网站备份-${localDateKey(new Date())}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setMessage("备份文件已导出并通过恢复校验。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "备份导出失败");
     }
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `五笔测试网站备份-${payload.exportedAt.slice(0, 10)}.json`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    setMessage("备份文件已导出。");
   };
 
   const inspectFile = async (file: File | undefined) => {
@@ -287,7 +285,17 @@ function CustomTextManager() {
               </label>
               <label>
                 正文
-                <textarea value={text} onChange={(event) => setText(event.target.value)} />
+                <textarea
+                  value={text}
+                  maxLength={MAX_CUSTOM_TEXT_LENGTH * 2}
+                  onChange={(event) =>
+                    setText(
+                      Array.from(event.target.value)
+                        .slice(0, MAX_CUSTOM_TEXT_LENGTH)
+                        .join(""),
+                    )
+                  }
+                />
               </label>
               <div>
                 <span>

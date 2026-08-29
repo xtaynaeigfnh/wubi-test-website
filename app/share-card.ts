@@ -94,6 +94,8 @@ export function downloadShareCard(session: SessionResult) {
   const link = document.createElement("a");
   link.download = `五笔成绩-${session.date.slice(0, 10)}.png`;
   link.href = canvas.toDataURL("image/png");
+  document.body.appendChild(link);
   link.click();
+  link.remove();
   return true;
 }
