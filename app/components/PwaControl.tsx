@@ -37,6 +37,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
     const hadController = Boolean(navigator.serviceWorker.controller);
     let isReloading = false;
+    let active = true;
+    let readyTimer: number | null = null;
     const onControllerChange = () => {
       if (!hadController || isReloading) return;
       isReloading = true;
@@ -58,10 +60,24 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         } catch {
           // 离线时继续使用已激活的缓存，不影响应用启动。
         }
-        return navigator.serviceWorker.ready;
+        return new Promise<ServiceWorkerRegistration>((resolve, reject) => {
+          readyTimer = window.setTimeout(
+            () => reject(new Error("offline-cache-timeout")),
+            15_000,
+          );
+          void navigator.serviceWorker.ready.then((readyRegistration) => {
+            if (readyTimer !== null) window.clearTimeout(readyTimer);
+            readyTimer = null;
+            resolve(readyRegistration);
+          });
+        });
       })
-      .then(() => setStatus("离线缓存已启用，断网后仍可打开。"))
-      .catch(() => setStatus("离线缓存注册失败，请刷新页面重试。"));
+      .then(() => {
+        if (active) setStatus("离线缓存已启用，断网后仍可打开。");
+      })
+      .catch(() => {
+        if (active) setStatus("离线缓存准备失败，请联网后刷新页面重试。");
+      });
 
     const onPrompt = (event: Event) => {
       event.preventDefault();
@@ -69,6 +85,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => {
+      active = false;
+      if (readyTimer !== null) window.clearTimeout(readyTimer);
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         onControllerChange,

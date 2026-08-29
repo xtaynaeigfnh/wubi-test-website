@@ -15,6 +15,7 @@ import {
   calculateStreak,
   clearPracticeHistory,
   createBackupPayload,
+  createLocalId,
   defaultCustomTheme,
   getCustomArticles,
   getErrors,
@@ -22,6 +23,7 @@ import {
   getProgress,
   getSessions,
   parseBackupPayload,
+  readLocalForBackup,
   readHesitationQueue,
   readDailyGoal,
   readSettings,
@@ -34,7 +36,9 @@ import {
   saveSession,
   STORAGE,
   startHesitationQueueItem,
+  takeSessionValue,
   updateErrorMastery,
+  writeSessionValue,
 } from "../app/lib.ts";
 import {
   applyWeakObservations,
@@ -99,6 +103,68 @@ function hesitationTarget(overrides = {}) {
       `${target.text}\u0000${target.focusOffset}\u0000${target.focusLength}`,
   };
 }
+
+test("local IDs and temporary session values survive restricted browser capabilities", () => {
+  assert.match(createLocalId(), /^[a-z0-9-]{8,}$/i);
+  const values = new Map();
+  globalThis.window = {
+    sessionStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(writeSessionValue("pending", "value"), true);
+    assert.equal(takeSessionValue("pending"), "value");
+    assert.equal(takeSessionValue("pending"), null);
+    window.sessionStorage.setItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    assert.equal(writeSessionValue("pending", "value"), false);
+    window.sessionStorage.getItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    assert.equal(takeSessionValue("pending"), null);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup reads distinguish missing, damaged, and inaccessible local data", () => {
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) =>
+        key === "missing"
+          ? null
+          : key === "damaged"
+            ? "{"
+            : key === STORAGE.dailyGoal
+              ? JSON.stringify({
+                  targetChars: 500.5,
+                  targetMinutes: 15.4,
+                  targetRounds: 2.2,
+                })
+              : JSON.stringify({ ok: true }),
+    },
+  };
+  try {
+    assert.deepEqual(readLocalForBackup("valid"), { ok: true });
+    assert.equal(readLocalForBackup("missing"), null);
+    assert.throws(() => readLocalForBackup("damaged"), /本机数据已损坏/);
+    assert.deepEqual(readLocalForBackup(STORAGE.dailyGoal), {
+      targetChars: 501,
+      targetMinutes: 15,
+      targetRounds: 2,
+    });
+    window.localStorage.getItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    assert.throws(() => readLocalForBackup("valid"), /浏览器拒绝读取/);
+  } finally {
+    delete globalThis.window;
+  }
+});
 
 test("custom article capacity never evicts existing content silently", () => {
   const existing = Array.from({ length: 20 }, (_, index) =>

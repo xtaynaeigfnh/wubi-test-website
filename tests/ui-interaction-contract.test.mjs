@@ -14,6 +14,8 @@ const advancedCenterPath = new URL("../app/components/AdvancedCenter.tsx", impor
 const trendPanelPath = new URL("../app/components/TrendPanel.tsx", import.meta.url);
 const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.url);
 const hydrationBoundaryPath = new URL("../app/components/HydrationBoundary.tsx", import.meta.url);
+const uiPath = new URL("../app/components/Ui.tsx", import.meta.url);
+const dataManagementPath = new URL("../app/components/DataManagement.tsx", import.meta.url);
 
 test("interactive controls stay hidden and inert until hydration completes", async () => {
   const [boundary, layout, styles] = await Promise.all([
@@ -325,7 +327,7 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(component, /Array\.from\(customText\.trim\(\)\)\.length/);
   assert.match(component, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
   assert.match(component, /if \(customSaveLock\.current\) return;/);
-  assert.match(component, /custom-\$\{crypto\.randomUUID\(\)\}/);
+  assert.match(component, /custom-\$\{createLocalId\(\)\}/);
   assert.match(training, /Math\.round\(value \|\| minimum\)/);
   assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
   assert.match(management, /if \(!saved\) return;/);
@@ -335,6 +337,38 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(management, /importingRef/);
   assert.match(management, /MAX_CUSTOM_TEXT_FILE_BYTES/);
   assert.match(management, /自定义文章已满 20 篇/);
+});
+
+test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
+  const [component, training, advanced, hesitation, ui, management, pwa, music] =
+    await Promise.all([
+      readFile(componentPath, "utf8"),
+      readFile(trainingCenterPath, "utf8"),
+      readFile(advancedCenterPath, "utf8"),
+      readFile(hesitationPracticePath, "utf8"),
+      readFile(uiPath, "utf8"),
+      readFile(dataManagementPath, "utf8"),
+      readFile(pwaControlPath, "utf8"),
+      readFile(musicPath, "utf8"),
+    ]);
+
+  assert.match(ui, /event\.isComposing \|\| event\.keyCode === 229/);
+  assert.match(ui, /usePendingSaveGuard/);
+  assert.match(ui, /addEventListener\("beforeunload"/);
+  assert.match(training, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
+  assert.match(component, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
+  for (const source of [component, advanced, hesitation]) {
+    assert.match(source, /onDrop=\{/);
+    assert.match(source, /insertFromDrop/);
+  }
+  assert.match(advanced, /takeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY\)/);
+  assert.match(component, /writeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY/);
+  assert.match(management, /readLocalForBackup/);
+  assert.match(management, /parseBackupPayload\(createBackupPayload\(data\)\)/);
+  assert.match(management, /document\.body\.appendChild\(link\)/);
+  assert.match(pwa, /offline-cache-timeout/);
+  assert.match(music, /volumeControlUnavailable/);
+  assert.match(hesitation, /document\.addEventListener\("visibilitychange"/);
 });
 
 test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {

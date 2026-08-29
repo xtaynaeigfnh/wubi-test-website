@@ -20,7 +20,7 @@ import type {
   HesitationPracticeAttempt,
   HesitationPracticeTarget,
 } from "../types";
-import { Modal } from "./Ui";
+import { Modal, usePendingSaveGuard } from "./Ui";
 
 type PracticeAttempts = [
   HesitationPracticeAttempt,
@@ -65,11 +65,14 @@ export function HesitationPracticeModal({
   const [liveErrorCount, setLiveErrorCount] = useState(0);
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState("");
+  usePendingSaveGuard(phase === "save-error");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const compositionCommitTimerRef = useRef<number | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const lastTimingAtRef = useRef<number | null>(null);
+  const hiddenAtRef = useRef<number | null>(null);
+  const inactiveMsRef = useRef(0);
   const delaysRef = useRef<number[]>([]);
   const errorsRef = useRef(new Set<number>());
   const committedRef = useRef("");
@@ -96,13 +99,48 @@ export function HesitationPracticeModal({
   );
 
   useEffect(() => {
-    if (phase !== "running" || startedAtRef.current === null) return;
+    if (phase !== "running") return;
     const update = () => {
-      setElapsedMs(Math.max(0, Date.now() - (startedAtRef.current ?? Date.now())));
+      if (startedAtRef.current === null) {
+        setElapsedMs(0);
+        return;
+      }
+      const now = performance.now();
+      const hiddenMs =
+        hiddenAtRef.current === null ? 0 : now - hiddenAtRef.current;
+      setElapsedMs(
+        Math.max(
+          0,
+          now -
+            (startedAtRef.current ?? now) -
+            inactiveMsRef.current -
+            hiddenMs,
+        ),
+      );
     };
     update();
     const timer = window.setInterval(update, 100);
     return () => window.clearInterval(timer);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "running") return;
+    const onVisibilityChange = () => {
+      const now = performance.now();
+      if (document.visibilityState === "hidden") {
+        if (startedAtRef.current !== null && hiddenAtRef.current === null) {
+          hiddenAtRef.current = now;
+        }
+        return;
+      }
+      if (hiddenAtRef.current !== null) {
+        inactiveMsRef.current += now - hiddenAtRef.current;
+        hiddenAtRef.current = null;
+        lastTimingAtRef.current = now;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [phase]);
 
   const resetRound = () => {
@@ -114,6 +152,8 @@ export function HesitationPracticeModal({
     committedRef.current = "";
     startedAtRef.current = null;
     lastTimingAtRef.current = null;
+    hiddenAtRef.current = null;
+    inactiveMsRef.current = 0;
     delaysRef.current = [];
     errorsRef.current = new Set();
     completingRef.current = false;
@@ -128,9 +168,10 @@ export function HesitationPracticeModal({
 
   const startTimer = () => {
     if (startedAtRef.current !== null) return;
-    const now = Date.now();
+    const now = performance.now();
     startedAtRef.current = now;
     lastTimingAtRef.current = now;
+    if (document.visibilityState === "hidden") hiddenAtRef.current = now;
   };
 
   const persistAttempts = async (rows: PracticeAttempts) => {
@@ -160,13 +201,21 @@ export function HesitationPracticeModal({
     const round = (attempts.length + 1) as 1 | 2 | 3;
     const attempt: HesitationPracticeAttempt = {
       round,
-      durationMs: Math.max(1, completedAtMs - (startedAtRef.current ?? completedAtMs)),
+      durationMs: Math.max(
+        1,
+        completedAtMs -
+          (startedAtRef.current ?? completedAtMs) -
+          inactiveMsRef.current -
+          (hiddenAtRef.current === null
+            ? 0
+            : completedAtMs - hiddenAtRef.current),
+      ),
       errorIndexes: [...errorsRef.current].sort((left, right) => left - right),
       delaysMs: Array.from(
         { length: targetCharacters.length },
         (_, index) => Math.round(delaysRef.current[index] ?? 0),
       ),
-      completedAt: new Date(completedAtMs).toISOString(),
+      completedAt: new Date().toISOString(),
     };
     const nextAttempts = [...attempts, attempt];
     setAttempts(nextAttempts);
@@ -188,7 +237,7 @@ export function HesitationPracticeModal({
       return;
     }
     if (committed) startTimer();
-    const now = Date.now();
+    const now = performance.now();
     const transitionMs = calculateTypingTransitionMs({
       lastActiveAt: lastTimingAtRef.current,
       now,
@@ -332,6 +381,16 @@ export function HesitationPracticeModal({
               onPaste={(event) => {
                 event.preventDefault();
                 setNotice("为了公平统计，三连练不支持粘贴。");
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setNotice("为了公平统计，三连练不支持拖入文字。");
+              }}
+              onBeforeInput={(event) => {
+                const inputType = (event.nativeEvent as InputEvent).inputType;
+                if (inputType === "insertFromPaste" || inputType === "insertFromDrop") {
+                  event.preventDefault();
+                }
               }}
               aria-label={`第 ${currentRound} 轮跟打输入区`}
               autoComplete="off"

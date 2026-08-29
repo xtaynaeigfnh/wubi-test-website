@@ -35,6 +35,7 @@ export interface MusicPlayerContextValue {
   duration: number;
   volume: number;
   muted: boolean;
+  volumeControlUnavailable: boolean;
   notice: string;
   error: string;
   play: () => Promise<void>;
@@ -50,6 +51,7 @@ export interface MusicPlayerContextValue {
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null);
 const MUSIC_DOCK_COLLAPSE_DELAY = 5500;
+const SYSTEM_VOLUME_NOTICE = "当前浏览器请使用系统音量键，静音按钮仍可用。";
 
 export function useMusicPlayer(): MusicPlayerContextValue {
   const value = useContext(MusicPlayerContext);
@@ -72,6 +74,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     DEFAULT_MUSIC_PREFERENCES.volume,
   );
   const [muted, setMutedState] = useState(DEFAULT_MUSIC_PREFERENCES.muted);
+  const [volumeControlUnavailable, setVolumeControlUnavailable] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [preferencesReady, setPreferencesReady] = useState(false);
@@ -133,7 +136,21 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!audioRef.current) return;
-    audioRef.current.volume = volume;
+    try {
+      audioRef.current.volume = volume;
+      const unavailable = Math.abs(audioRef.current.volume - volume) > 0.01;
+      setVolumeControlUnavailable(unavailable);
+      setNotice((current) =>
+        unavailable
+          ? SYSTEM_VOLUME_NOTICE
+          : current === SYSTEM_VOLUME_NOTICE
+            ? ""
+            : current,
+      );
+    } catch {
+      setVolumeControlUnavailable(true);
+      setNotice(SYSTEM_VOLUME_NOTICE);
+    }
     audioRef.current.muted = muted;
   }, [currentTrack?.id, muted, volume]);
 
@@ -226,6 +243,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       duration,
       volume,
       muted,
+      volumeControlUnavailable,
       notice,
       error,
       play,
@@ -259,6 +277,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setVolume,
       toggle,
       volume,
+      volumeControlUnavailable,
     ],
   );
 
@@ -319,6 +338,7 @@ function MusicDock() {
     currentTime,
     duration,
     volume,
+    volumeControlUnavailable,
     muted,
     notice,
     error,
@@ -416,13 +436,18 @@ function MusicDock() {
               />
             </label>
             <label>
-              <span>音量 {Math.round(volume * 100)}%</span>
+              <span>
+                {volumeControlUnavailable
+                  ? "音量请用系统音量键"
+                  : `音量 ${Math.round(volume * 100)}%`}
+              </span>
               <input
                 type="range"
                 min={0}
                 max={1}
                 step={0.01}
                 value={volume}
+                disabled={volumeControlUnavailable}
                 onChange={(event) => setVolume(Number(event.target.value))}
               />
             </label>
@@ -580,7 +605,7 @@ function MusicDock() {
               max={1}
               step={0.01}
               value={volume}
-              disabled={unavailable}
+              disabled={unavailable || volumeControlUnavailable}
               onChange={(event) => setVolume(Number(event.target.value))}
             />
           </label>

@@ -15,6 +15,7 @@ import {
   calculateTypingMetrics,
   classifyWubiHand,
   countCommittedAttempts,
+  createLocalId,
   getSessions,
   isWubiLetterKey,
   loadArticles,
@@ -23,6 +24,7 @@ import {
   savePracticeOutcome,
   shouldDeferInputCommit,
   STORAGE,
+  takeSessionValue,
   writeLocal,
 } from "../lib";
 import {
@@ -49,6 +51,7 @@ import type {
   ScenarioCategory,
   SessionResult,
 } from "../types";
+import { usePendingSaveGuard } from "./Ui";
 
 type AdvancedTab = "rhythm" | "scenario" | "season";
 
@@ -184,6 +187,7 @@ function AdvancedPractice({
   const [paused, setPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  usePendingSaveGuard(saveFailed);
   const startedAtRef = useRef<number | null>(null);
   const lastCommitAtRef = useRef<number | null>(null);
   const inactiveAtRef = useRef<number | null>(null);
@@ -269,7 +273,7 @@ function AdvancedPractice({
       physicalSamples: physicalRef.current,
     });
     const session: SessionResult = {
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       type: target.type,
       title: target.title,
       date: new Date().toISOString(),
@@ -429,6 +433,13 @@ function AdvancedPractice({
         placeholder={paused ? "练习已暂停" : "在这里开始输入"}
         onKeyDown={onKeyDown}
         onPaste={(event) => event.preventDefault()}
+        onDrop={(event) => event.preventDefault()}
+        onBeforeInput={(event) => {
+          const inputType = (event.nativeEvent as InputEvent).inputType;
+          if (inputType === "insertFromPaste" || inputType === "insertFromDrop") {
+            event.preventDefault();
+          }
+        }}
         onChange={(event) => {
           const next = event.target.value;
           const nativeEvent = event.nativeEvent as InputEvent;
@@ -542,8 +553,7 @@ export function AdvancedCenter() {
       setArchive(stored);
     }
     try {
-      const pending = window.sessionStorage.getItem(PENDING_RHYTHM_SEGMENT_KEY);
-      window.sessionStorage.removeItem(PENDING_RHYTHM_SEGMENT_KEY);
+      const pending = takeSessionValue(PENDING_RHYTHM_SEGMENT_KEY);
       if (pending) {
         const segment = JSON.parse(pending) as Partial<RhythmWeakSegment>;
         const length = typeof segment.text === "string" ? Array.from(segment.text).length : 0;
@@ -568,7 +578,7 @@ export function AdvancedCenter() {
         }
       }
     } catch {
-      window.sessionStorage.removeItem(PENDING_RHYTHM_SEGMENT_KEY);
+      // Malformed cross-route data is ignored; takeSessionValue already removes it safely.
     }
   }, []);
 
@@ -618,7 +628,7 @@ export function AdvancedCenter() {
   };
 
   const startSeason = () => {
-    const season = createAdvancedSeason(crypto.randomUUID());
+    const season = createAdvancedSeason(createLocalId());
     const next = { ...archive, active: season };
     if (writeLocal(STORAGE.advancedSeason, next)) {
       setArchive(next);

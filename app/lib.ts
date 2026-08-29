@@ -65,6 +65,72 @@ export const STORAGE = {
 
 export const STORAGE_KEYS = Object.values(STORAGE);
 
+let localIdCounter = 0;
+
+export function createLocalId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  localIdCounter = (localIdCounter + 1) % Number.MAX_SAFE_INTEGER;
+  let random = "";
+  try {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.getRandomValues === "function"
+    ) {
+      random = Array.from(crypto.getRandomValues(new Uint32Array(2)))
+        .map((value) => value.toString(36))
+        .join("");
+    }
+  } catch {
+    // Restricted WebViews can expose crypto while rejecting random access.
+  }
+  if (!random) random = Math.random().toString(36).slice(2, 12);
+  return `${Date.now().toString(36)}-${localIdCounter.toString(36)}-${random || "local"}`;
+}
+
+export function writeSessionValue(key: string, value: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function takeSessionValue(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+export function readLocalForBackup(key: string): unknown | null {
+  if (typeof window === "undefined") {
+    throw new Error("只能在浏览器中导出备份");
+  }
+  let raw: string | null;
+  try {
+    raw = window.localStorage.getItem(key);
+  } catch {
+    throw new Error("浏览器拒绝读取本机数据，备份未导出");
+  }
+  if (raw === null) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (key === STORAGE.keyUsage) return normalizeKeyUsage(parsed);
+    if (key === STORAGE.dailyGoal) return normalizeDailyGoalValue(parsed);
+    return parsed;
+  } catch {
+    throw new Error(`本机数据已损坏，备份未导出：${key}`);
+  }
+}
+
 export const defaultCustomTheme: CustomTheme = {
   accent: "#B3432B",
   canvas: "#F2EBDD",
@@ -194,8 +260,11 @@ export function readSettings(): UserSettings {
   };
 }
 
-export function readDailyGoal(): DailyGoal {
-  const value = readLocal<Partial<DailyGoal>>(STORAGE.dailyGoal, {});
+function normalizeDailyGoalValue(value: unknown): DailyGoal {
+  const partial =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<DailyGoal>)
+      : {};
   const integerInRange = (
     candidate: unknown,
     minimum: number,
@@ -210,24 +279,28 @@ export function readDailyGoal(): DailyGoal {
       : fallback;
   return {
     targetChars: integerInRange(
-      value.targetChars,
+      partial.targetChars,
       100,
       10000,
       defaultDailyGoal.targetChars,
     ),
     targetMinutes: integerInRange(
-      value.targetMinutes,
+      partial.targetMinutes,
       5,
       180,
       defaultDailyGoal.targetMinutes,
     ),
     targetRounds: integerInRange(
-      value.targetRounds,
+      partial.targetRounds,
       1,
       20,
       defaultDailyGoal.targetRounds,
     ),
   };
+}
+
+export function readDailyGoal(): DailyGoal {
+  return normalizeDailyGoalValue(readLocal<unknown>(STORAGE.dailyGoal, {}));
 }
 
 export function selectInitialArticle(

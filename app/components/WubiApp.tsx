@@ -36,6 +36,7 @@ import {
   commonCharacterPresets,
   countCommittedEdit,
   countCommittedAttempts,
+  createLocalId,
   defaultCustomTheme,
   defaultSettings,
   formatDuration,
@@ -70,6 +71,7 @@ import {
   shouldDeferInputCommit,
   startHesitationQueueItem,
   STORAGE,
+  writeSessionValue,
   writeLocal,
   type MinimumCodeLengthIndex,
   type PhraseOpportunityInput,
@@ -121,7 +123,13 @@ import { TrainingCenter } from "./TrainingCenter";
 import { AdvancedCenter, RhythmSummaryView } from "./AdvancedCenter";
 import { TrendPanel } from "./TrendPanel";
 import { WeeklyReportPanel } from "./WeeklyReportPanel";
-import { ErrorState, Modal, SummaryCard, Toggle } from "./Ui";
+import {
+  ErrorState,
+  Modal,
+  SummaryCard,
+  Toggle,
+  usePendingSaveGuard,
+} from "./Ui";
 import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
@@ -147,7 +155,10 @@ function openRhythmSegmentPractice(
   router: ReturnType<typeof useRouter>,
   segment: RhythmWeakSegment,
 ) {
-  window.sessionStorage.setItem(PENDING_RHYTHM_SEGMENT_KEY, JSON.stringify(segment));
+  if (!writeSessionValue(PENDING_RHYTHM_SEGMENT_KEY, JSON.stringify(segment))) {
+    window.alert("浏览器不允许临时保存该片段，请关闭隐私限制后再试。");
+    return;
+  }
   router.push("/advanced");
 }
 
@@ -716,6 +727,7 @@ function TypingView({
   const [completed, setCompleted] = useState(false);
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const [sessionSaveFailed, setSessionSaveFailed] = useState(false);
+  usePendingSaveGuard(sessionSaveFailed);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
@@ -1468,7 +1480,7 @@ function TypingView({
       setCompletedGhostTimeline(ghostTimeline ?? null);
     }
     const session: SessionResult = {
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       type: "article",
       articleId,
       title: article.title,
@@ -1718,7 +1730,7 @@ function TypingView({
     if (customSaveLock.current) return;
     customSaveLock.current = true;
     const custom = buildCustomArticle(
-      `custom-${crypto.randomUUID()}`,
+      `custom-${createLocalId()}`,
       customTitle,
       customText,
     );
@@ -2187,6 +2199,13 @@ function TypingView({
             }}
             onKeyDown={onKeyDown}
             onPaste={(event) => event.preventDefault()}
+            onDrop={(event) => event.preventDefault()}
+            onBeforeInput={(event) => {
+              const inputType = (event.nativeEvent as InputEvent).inputType;
+              if (inputType === "insertFromPaste" || inputType === "insertFromDrop") {
+                event.preventDefault();
+              }
+            }}
             disabled={completed || pausedAt !== null}
             placeholder={
               completed
@@ -2625,8 +2644,12 @@ function TypingView({
         <Modal title="粘贴自定义文本" onClose={() => setCustomOpen(false)}>
           <div className="custom-form">
             <label>标题<input data-modal-autofocus value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} /></label>
-            <label>正文<textarea value={customText} onChange={(event) => {
-              setCustomText(event.target.value);
+            <label>正文<textarea value={customText} maxLength={MAX_CUSTOM_TEXT_LENGTH * 2} onChange={(event) => {
+              setCustomText(
+                Array.from(event.target.value)
+                  .slice(0, MAX_CUSTOM_TEXT_LENGTH)
+                  .join(""),
+              );
               setCustomError("");
             }} placeholder="粘贴 10–5000 字的纯文本…" /></label>
             <div className="modal-actions">
@@ -2782,7 +2805,10 @@ function ChallengeView({
   const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const [challengeSaveFailed, setChallengeSaveFailed] = useState(false);
+  usePendingSaveGuard(challengeSaveFailed);
   const startedAtRef = useRef(0);
+  const challengeHiddenAtRef = useRef<number | null>(null);
+  const challengeInactiveMsRef = useRef(0);
   const recordedRef = useRef(false);
   const nextTimerRef = useRef<number | null>(null);
   const deadlineRef = useRef(0);
@@ -2848,16 +2874,23 @@ function ChallengeView({
     ) => {
       if (recordedRef.current) return;
       recordedRef.current = true;
+      const now = Date.now();
       const elapsedSeconds = Math.max(
         0,
-        (Date.now() - startedAtRef.current) / 1000,
+        (now -
+          startedAtRef.current -
+          (timed ? 0 : challengeInactiveMsRef.current) -
+          (timed || challengeHiddenAtRef.current === null
+            ? 0
+            : now - challengeHiddenAtRef.current)) /
+          1000,
       );
       const durationSeconds = timed
         ? Math.min(60, elapsedSeconds)
         : elapsedSeconds;
       if (answered > 0) {
         const session: SessionResult = {
-          id: crypto.randomUUID(),
+          id: createLocalId(),
           type: "challenge",
           title: `${mode === "char" ? "单字" : "词组"}挑战${timed ? " · 60 秒" : ""}`,
           date: new Date().toISOString(),
@@ -2908,6 +2941,23 @@ function ChallengeView({
   }, [started, timed]);
 
   useEffect(() => {
+    if (!started || timed) return;
+    const onVisibilityChange = () => {
+      const now = Date.now();
+      if (document.visibilityState === "hidden") {
+        if (challengeHiddenAtRef.current === null) {
+          challengeHiddenAtRef.current = now;
+        }
+      } else if (challengeHiddenAtRef.current !== null) {
+        challengeInactiveMsRef.current += now - challengeHiddenAtRef.current;
+        challengeHiddenAtRef.current = null;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [started, timed]);
+
+  useEffect(() => {
     if (started && timed && remaining <= 0) {
       const answered = index + (feedback === "idle" ? 0 : 1);
       finishChallenge(answered, correct, "timeout");
@@ -2929,6 +2979,8 @@ function ChallengeView({
     challengeObservationsRef.current = [];
     seenQuestionsRef.current.clear();
     startedAtRef.current = Date.now();
+    challengeHiddenAtRef.current = null;
+    challengeInactiveMsRef.current = 0;
     deadlineRef.current = startedAtRef.current + 60_000;
     setStarted(true);
     setIndex(0);
@@ -3071,9 +3123,20 @@ function ChallengeView({
                 className={`code-input ${feedback}`}
                 value={input}
                 maxLength={question?.[1].length ?? 4}
-                onChange={(event) => setInput(event.target.value.replace(/[^a-y]/gi, "").toLowerCase())}
+                onChange={(event) =>
+                  setInput(
+                    event.target.value.replace(/[^a-y]/gi, "").toLowerCase(),
+                  )
+                }
                 onKeyDown={(event) => {
-                  if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
+                  if (event.nativeEvent.isComposing || event.keyCode === 229) {
+                    return;
+                  }
+                  if (
+                    !["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(
+                      event.key,
+                    )
+                  ) {
                     recordKeyUsage(event.code);
                     playKeySound();
                   }
