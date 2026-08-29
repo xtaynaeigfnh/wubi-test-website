@@ -5,6 +5,7 @@ import type {
   ErrorStat,
   PhraseOpportunityStat,
   SessionResult,
+  WeeklyRecommendation,
   WeeklyReport,
 } from "./types.ts";
 
@@ -261,26 +262,52 @@ function recommendations(
   weakestKey: string | null,
   weakestZone: string | null,
   weakestPhrase: string | null,
-): string[] {
-  const copy: Record<AbilityDimensionId, string> = {
-    speed: "下周先保持准确率，完成 3 次匀速文章测速。",
-    characterAccuracy: "下周把字准维持在 95% 以上，再逐步提速。",
-    keyAccuracy: weakestKey
-      ? `下周重点复练 ${weakestKey} 键，减少回改后再提速。`
-      : "下周优先减少退格和重复回改。",
-    codeLength: "下周完成 2 轮码长诊断，优先采用推荐分段。",
-    phrase: weakestPhrase
-      ? `下周安排 ${weakestPhrase} 专项，巩固高收益词组。`
-      : "下周从二字词组开始，提高连续打词比例。",
-    stability: "下周使用固定节奏完成 3 次同长度文章测速。",
+): WeeklyRecommendation[] {
+  const copy: Record<AbilityDimensionId, WeeklyRecommendation> = {
+    speed: {
+      text: "下周先保持准确率，完成 3 次匀速文章测速。",
+      target: "typing",
+    },
+    characterAccuracy: {
+      text: "下周把字准维持在 95% 以上，再逐步提速。",
+      target: "review",
+    },
+    keyAccuracy: {
+      text: weakestKey
+        ? `下周重点复练 ${weakestKey} 键，减少回改后再提速。`
+        : "下周优先减少退格和重复回改。",
+      target: "review",
+    },
+    codeLength: {
+      text: "下周完成 2 轮词组专项，优先采用推荐分段。",
+      target: "phrase",
+    },
+    phrase: {
+      text: weakestPhrase
+        ? `下周安排 ${weakestPhrase} 专项，巩固高收益词组。`
+        : "下周从二字词组开始，提高连续打词比例。",
+      target: "phrase",
+    },
+    stability: {
+      text: "下周使用固定节奏完成 3 次同长度文章测速。",
+      target: "rhythm",
+    },
   };
   const ranked = abilities
     .filter((item): item is AbilityDimension & { score: number } => item.score !== null)
     .sort((left, right) => left.score - right.score);
   const result = ranked.slice(0, 2).map((item) => copy[item.id]);
-  if (!result.length) result.push("先完成 2 次文章测速，建立可比较的周报基线。");
-  if (weakestZone && !result.some((item) => item.includes(weakestZone))) {
-    result.push(`穿插一轮${weakestZone}字根练习，控制在 5 分钟内。`);
+  if (!result.length) {
+    result.push({
+      text: "先完成 2 次文章测速，建立可比较的周报基线。",
+      target: "typing",
+    });
+  }
+  if (weakestZone && !result.some((item) => item.text.includes(weakestZone))) {
+    result.push({
+      text: `穿插一轮${weakestZone}字根练习，控制在 5 分钟内。`,
+      target: "roots",
+    });
   }
   return result.slice(0, 3);
 }

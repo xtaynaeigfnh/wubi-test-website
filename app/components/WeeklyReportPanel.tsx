@@ -1,12 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState } from "react";
-import type { AbilityDimension, WeeklyReport } from "../types";
+import type {
+  AbilityDimension,
+  WeeklyRecommendationTarget,
+  WeeklyReport,
+} from "../types";
 import { downloadWeeklyReportCard } from "../weekly-report-card";
 
 export interface WeeklyReportPanelProps {
   report: WeeklyReport;
 }
+
+const recommendationEntries: Record<
+  WeeklyRecommendationTarget,
+  { href: string; label: string }
+> = {
+  typing: { href: "/", label: "去文章测速" },
+  review: { href: "/training?tab=review", label: "去错题复练" },
+  phrase: { href: "/training?tab=phrase", label: "去词组专项" },
+  roots: { href: "/training?tab=roots", label: "去五码根专项" },
+  rhythm: { href: "/advanced", label: "去节奏实验室" },
+};
 
 function deltaLabel(value: number, suffix = ""): string {
   if (value === 0) return "持平";
@@ -203,7 +219,22 @@ export function WeeklyReportPanel({ report }: WeeklyReportPanelProps) {
           <div><span>03</span><h3>下周推荐目标</h3></div>
         </div>
         {report.recommendations.length ? (
-          <ol>{report.recommendations.map((item) => <li key={item}>{item}</li>)}</ol>
+          <>
+            <ol>
+              {report.recommendations.map((item) => {
+                const entry = recommendationEntries[item.target];
+                return (
+                  <li key={`${item.target}:${item.text}`}>
+                    <span>{item.text}</span>
+                    <Link href={entry.href} aria-label={`${entry.label}：${item.text}`}>
+                      {entry.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="weekly-goal-note">进入专项只切换训练入口，不会替换今天的训练处方。</p>
+          </>
         ) : (
           <p className="weekly-missing">暂无推荐；完成至少 2 次文章测速后再来看。</p>
         )}
@@ -271,9 +302,12 @@ const weeklyReportStyles = `
   .weekly-goals { margin-top: 28px; padding: 4px 20px 18px; border-left: 3px solid var(--accent-bamboo); border-radius: 0 var(--radius-medium) var(--radius-medium) 0; background: color-mix(in srgb, var(--accent-bamboo) 7%, var(--bg-raised)); }
   .weekly-goals .weekly-section-heading { margin-top: 16px; }
   .weekly-goals ol { margin: 0; padding: 0 0 0 30px; counter-reset: goal; list-style: none; }
-  .weekly-goals li { min-height: 32px; position: relative; font-size: 11px; line-height: 1.65; }
+  .weekly-goals li { min-height: 40px; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 14px; font-size: 11px; line-height: 1.65; }
   .weekly-goals li::before { content: counter(goal); counter-increment: goal; width: 18px; height: 18px; position: absolute; left: -28px; top: 0; display: grid; place-items: center; color: var(--text-on-accent); border-radius: 50%; background: var(--accent-bamboo-fill); font: 700 9px/1 var(--font-data); }
+  .weekly-goals li a { min-height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent-bamboo); border: 1px solid var(--accent-bamboo); border-radius: var(--radius-small); background: var(--bg-paper); font-size: 10px; font-weight: 750; text-decoration: none; white-space: nowrap; }
+  .weekly-goals li a:hover { color: var(--text-on-accent); background: var(--accent-bamboo-fill); }
+  .weekly-goal-note { margin: 8px 0 0; color: var(--text-secondary); font-size: 9px; line-height: 1.6; }
   @media (max-width: 780px) { .weekly-report { padding: 18px; } .weekly-report-header { display: grid; } .weekly-download-wrap { justify-items: start; } .weekly-volume { grid-template-columns: repeat(2, 1fr); } .weekly-volume > div:nth-child(2) { border-right: 0; } .weekly-volume > div:nth-child(-n + 2) { border-bottom: 1px solid var(--border-default); } .weekly-radar-wrap { grid-template-columns: 1fr; } .weekly-observations { grid-template-columns: 1fr; } }
-  @media (max-width: 440px) { .weekly-report { padding: 14px; } .weekly-section-heading { align-items: flex-start; flex-direction: column; } .weekly-radar-wrap { padding: 10px; } .weekly-ability { grid-template-columns: 1fr 64px; } .weekly-delta { grid-column: 1 / -1; text-align: left; } .weekly-weakest dl { grid-template-columns: 1fr; } .weekly-weakest dl > div { padding: 10px 0; border-right: 0; border-bottom: 1px solid var(--border-default); } .weekly-weakest dl > div:last-child { border-bottom: 0; } }
+  @media (max-width: 440px) { .weekly-report { padding: 14px; } .weekly-section-heading { align-items: flex-start; flex-direction: column; } .weekly-radar-wrap { padding: 10px; } .weekly-ability { grid-template-columns: 1fr 64px; } .weekly-delta { grid-column: 1 / -1; text-align: left; } .weekly-weakest dl { grid-template-columns: 1fr; } .weekly-weakest dl > div { padding: 10px 0; border-right: 0; border-bottom: 1px solid var(--border-default); } .weekly-weakest dl > div:last-child { border-bottom: 0; } .weekly-goals li { grid-template-columns: 1fr; gap: 7px; } .weekly-goals li a { justify-self: start; } }
   @media (prefers-reduced-motion: reduce) { .weekly-report * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 `;

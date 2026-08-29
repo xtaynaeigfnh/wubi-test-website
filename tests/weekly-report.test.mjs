@@ -197,7 +197,9 @@ test("弱项汇总识别最弱键位、字根区、词组类型与掌握状态",
   assert.equal(report.weakestPhraseType, "3 字词组");
   assert.deepEqual(report.newWeaknesses, ["丙", "乙", "甲", "己"]);
   assert.deepEqual(report.masteredWeaknesses, ["戊", "己"]);
-  assert.ok(report.recommendations.some((item) => item.includes("横区")));
+  assert.ok(report.recommendations.some((item) =>
+    item.target === "roots" && item.text.includes("横区"),
+  ));
 });
 
 test("完全解决的词组不会继续被标记为最需留意", () => {
@@ -279,5 +281,10 @@ test("空数据稳定降级为无能力分数的首次周报", () => {
   assert.equal(report.weakestPhraseType, null);
   assert.ok(report.abilities.every((item) => item.score === null));
   assert.deepEqual(report.comparison.abilities, {});
-  assert.deepEqual(report.recommendations, ["先完成 2 次文章测速，建立可比较的周报基线。"]);
+  assert.deepEqual(report.recommendations, [
+    {
+      text: "先完成 2 次文章测速，建立可比较的周报基线。",
+      target: "typing",
+    },
+  ]);
 });

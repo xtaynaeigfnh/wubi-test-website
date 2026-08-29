@@ -290,7 +290,7 @@ export function renderWeeklyReportCard(report: WeeklyReport): HTMLCanvasElement 
   context.fillStyle = INK;
   context.font = "500 23px sans-serif";
   let recommendationY = 1200;
-  safeItems(report.recommendations).slice(0, 3).forEach((item, index) => {
+  safeItems(report.recommendations.map((item) => item.text)).slice(0, 3).forEach((item, index) => {
     context.fillStyle = VERMILION;
     context.fillText(`${index + 1}`, 120, recommendationY);
     context.fillStyle = INK;

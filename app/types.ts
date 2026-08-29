@@ -412,6 +412,18 @@ export interface AbilityDimension {
   normalization: string;
 }
 
+export type WeeklyRecommendationTarget =
+  | "typing"
+  | "review"
+  | "phrase"
+  | "roots"
+  | "rhythm";
+
+export interface WeeklyRecommendation {
+  text: string;
+  target: WeeklyRecommendationTarget;
+}
+
 export interface WeeklyReport {
   version: 1;
   weekStart: string;
@@ -433,7 +445,7 @@ export interface WeeklyReport {
     minutes: number;
     abilities: Partial<Record<AbilityDimensionId, number>>;
   };
-  recommendations: string[];
+  recommendations: WeeklyRecommendation[];
 }
 
 export interface BackupPayload {
