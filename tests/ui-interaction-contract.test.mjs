@@ -393,6 +393,10 @@ test("training tabs keep their URL state in sync", async () => {
   assert.match(training, /url\.searchParams\.delete\("tab"\)/);
   assert.match(training, /url\.searchParams\.set\("tab", next\)/);
   assert.match(training, /onClick=\{\(\) => selectTrainingTab\(value\)\}/);
+  assert.match(
+    training,
+    /if \(loading \|\| loadError \|\| plan \|\| !entries\.length \|\| !articles\.length\)/,
+  );
 });
 
 test("restrained motion connects progress, tabs, and rhythm without ignoring reduced motion", async () => {
@@ -551,6 +555,14 @@ test("history exposes an accessible weekly report and local image download", asy
   assert.match(weekly, /aria-labelledby=\{`\$\{titleId\} \$\{descriptionId\}`\}/);
   assert.match(weekly, /aria-live="polite"/);
   assert.match(weekly, /下载本地周报图片/);
+  assert.match(weekly, /import Link from "next\/link"/);
+  assert.match(weekly, /typing: \{ href: "\/", label: "去文章测速" \}/);
+  assert.match(weekly, /review: \{ href: "\/training\?tab=review", label: "去错题复练" \}/);
+  assert.match(weekly, /phrase: \{ href: "\/training\?tab=phrase", label: "去词组专项" \}/);
+  assert.match(weekly, /roots: \{ href: "\/training\?tab=roots", label: "去五码根专项" \}/);
+  assert.match(weekly, /rhythm: \{ href: "\/advanced", label: "去节奏实验室" \}/);
+  assert.match(weekly, /进入专项只切换训练入口，不会替换今天的训练处方/);
+  assert.match(weekly, /aria-label=\{`\$\{entry\.label\}：\$\{item\.text\}`\}/);
   assert.match(weekly, /!missingCount && <polygon/);
   assert.match(weekly, /ratio === 1 \? " is-outer"/);
   assert.match(weekly, /\.weekly-radar-grid\.is-outer/);
