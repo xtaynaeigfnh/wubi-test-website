@@ -1,14 +1,20 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useMemo, useState } from "react";
-import { buildTrendSeries } from "../lib";
+import { useEffect, useMemo, useState } from "react";
+import { buildTrendSeries, localDateKey } from "../lib";
 import type { SessionResult } from "../types";
 
 export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
   const [range, setRange] = useState<7 | 30 | "all">(7);
+  const [today, setToday] = useState("");
+  useEffect(() => setToday(localDateKey(new Date())), []);
   const points = useMemo(
-    () => buildTrendSeries(sessions, range),
-    [range, sessions],
+    () =>
+      today
+        ? buildTrendSeries(sessions, range, new Date(`${today}T12:00:00`))
+        : [],
+    [range, sessions, today],
   );
   const maxSpeed = Math.max(1, ...points.map((point) => point.speed));
   const width = 700;

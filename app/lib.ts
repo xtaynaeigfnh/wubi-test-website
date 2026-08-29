@@ -106,6 +106,10 @@ export function createLocalId(): string {
   return `${Date.now().toString(36)}-${localIdCounter.toString(36)}-${random || "local"}`;
 }
 
+export function truncateUnicode(value: string, maximumCharacters: number): string {
+  return Array.from(value).slice(0, Math.max(0, maximumCharacters)).join("");
+}
+
 export function writeSessionValue(key: string, value: string): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -195,11 +199,21 @@ export function addCustomArticlesWithinLimit(
   rejected: PracticeArticle[];
 } {
   const available = Math.max(0, MAX_CUSTOM_ARTICLES - existing.length);
-  const added = incoming.slice(0, available);
+  const knownIds = new Set(existing.map((article) => article.id));
+  const added: PracticeArticle[] = [];
+  const rejected: PracticeArticle[] = [];
+  for (const article of incoming) {
+    if (knownIds.has(article.id) || added.length >= available) {
+      rejected.push(article);
+      continue;
+    }
+    knownIds.add(article.id);
+    added.push(article);
+  }
   return {
     articles: [...added, ...existing],
     added,
-    rejected: incoming.slice(available),
+    rejected,
   };
 }
 
@@ -464,12 +478,13 @@ export function recordKeyUsage(code: string): void {
   keyUsageTimer = window.setTimeout(flushPendingKeyUsage, 180);
 }
 
-export function clearKeyUsage(): void {
-  if (typeof window === "undefined") return;
+export function clearKeyUsage(): boolean {
+  if (typeof window === "undefined") return false;
   if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
-  pendingKeyUsage = null;
   keyUsageTimer = null;
-  writeLocal(STORAGE.keyUsage, {});
+  if (!writeLocal(STORAGE.keyUsage, {})) return false;
+  pendingKeyUsage = null;
+  return true;
 }
 
 async function fetchJson<T>(url: string, label: string): Promise<T> {
@@ -2734,7 +2749,7 @@ function isWubiEntry(value: unknown): value is WubiEntry {
 
 function isTrainingTask(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  return (
+  if (!(
     isBoundedString(value.id, 200) &&
     value.id.length > 0 &&
     ["article", "review", "roots"].includes(String(value.type)) &&
@@ -2758,7 +2773,70 @@ function isTrainingTask(value: unknown): boolean {
     (value.startedAt === undefined || isDateString(value.startedAt)) &&
     (value.completedAt === undefined || isDateString(value.completedAt)) &&
     (value.sessionId === undefined || isBoundedString(value.sessionId, 160))
-  );
+  )) {
+    return false;
+  }
+
+  const status = String(value.status);
+  const hasStartedAt = value.startedAt !== undefined;
+  const hasCompletedAt = value.completedAt !== undefined;
+  const hasSessionId =
+    isBoundedString(value.sessionId, 160) && value.sessionId.length > 0;
+  if (
+    (status === "pending" && (hasStartedAt || hasCompletedAt || hasSessionId)) ||
+    (status === "in-progress" &&
+      (!hasStartedAt || hasCompletedAt || hasSessionId)) ||
+    (status === "completed" && (!hasStartedAt || !hasCompletedAt || !hasSessionId))
+  ) {
+    return false;
+  }
+  if (
+    status === "completed" &&
+    new Date(String(value.completedAt)).getTime() <
+      new Date(String(value.startedAt)).getTime()
+  ) {
+    return false;
+  }
+
+  const type = String(value.type);
+  const hasArticleId =
+    isBoundedString(value.articleId, 160) && value.articleId.length > 0;
+  const hasArticleTitle =
+    isBoundedString(value.articleTitle, 80) && value.articleTitle.length > 0;
+  const hasArticleWordCount =
+    isFiniteRange(value.articleWordCount, 1, 5000) &&
+    Number.isInteger(value.articleWordCount);
+  const rootZones: Record<string, string> = {
+    pie: "QWERT",
+    dian: "YUIOP",
+    heng: "ASDFG",
+    shu: "HJKLM",
+    zhe: "XCVBN",
+  };
+  const zoneId = typeof value.zoneId === "string" ? value.zoneId : "";
+  const hasRootZone =
+    rootZones[zoneId] !== undefined &&
+    typeof value.zoneKeys === "string" &&
+    value.zoneKeys.toUpperCase() === rootZones[zoneId];
+  const hasArticleFields =
+    value.articleId !== undefined ||
+    value.articleTitle !== undefined ||
+    value.articleWordCount !== undefined;
+  const hasRootFields = value.zoneId !== undefined || value.zoneKeys !== undefined;
+
+  if (type === "article") {
+    return (
+      value.items.length === 0 &&
+      hasArticleId &&
+      hasArticleTitle &&
+      hasArticleWordCount &&
+      !hasRootFields
+    );
+  }
+  if (type === "review") {
+    return value.items.length > 0 && !hasArticleFields && !hasRootFields;
+  }
+  return value.items.length > 0 && !hasArticleFields && hasRootZone;
 }
 
 function isDailyTrainingPlan(value: unknown): value is DailyTrainingPlan {

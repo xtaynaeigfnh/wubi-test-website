@@ -105,6 +105,8 @@ export function TrainingCenter({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [pendingDrillSave, setPendingDrillSave] = useState(false);
+  usePendingSaveGuard(pendingDrillSave);
 
   const refreshLocal = useCallback(() => {
     setErrors(getErrors());
@@ -251,15 +253,23 @@ export function TrainingCenter({
         Math.max(minimum, Math.round(value || minimum)),
       ),
     };
+    if (!writeLocal(STORAGE.dailyGoal, next)) {
+      setPlanMessage("每日目标未能保存，原目标保持不变。");
+      return;
+    }
     setGoal(next);
-    writeLocal(STORAGE.dailyGoal, next);
+    setPlanMessage("");
   };
 
   const onSessionSaved = () => {
     refreshLocal();
   };
 
-  const selectTrainingTab = (next: TrainingTab) => {
+  const selectTrainingTab = (next: TrainingTab, force = false) => {
+    if (!force && pendingDrillSave && next !== tab) {
+      window.alert("本轮成绩尚未保存，请先重试保存。");
+      return false;
+    }
     setTab(next);
     const url = new URL(window.location.href);
     if (next === "plan") url.searchParams.delete("tab");
@@ -269,6 +279,7 @@ export function TrainingCenter({
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
+    return true;
   };
 
   const moveTrainingTab = (current: TrainingTab, direction: -1 | 1) => {
@@ -276,7 +287,7 @@ export function TrainingCenter({
     const nextIndex =
       (currentIndex + direction + TRAINING_TABS.length) % TRAINING_TABS.length;
     const next = TRAINING_TABS[nextIndex][0];
-    selectTrainingTab(next);
+    if (!selectTrainingTab(next)) return;
     window.requestAnimationFrame(() => {
       document.getElementById(`training-tab-${next}`)?.focus();
     });
@@ -823,10 +834,11 @@ export function TrainingCenter({
             planTask={activeDueReview?.targetType === "character"
               ? undefined
               : prescribedReview}
+            onPendingSaveChange={setPendingDrillSave}
             onSessionSaved={() => {
               setActiveDueReview(null);
               onSessionSaved();
-              if (prescribedReview) selectTrainingTab("plan");
+              if (prescribedReview) selectTrainingTab("plan", true);
             }}
           />
         </div>
@@ -870,6 +882,7 @@ export function TrainingCenter({
             sessionType="review"
             playKeySound={playKeySound}
             trackPhrasePractice
+            onPendingSaveChange={setPendingDrillSave}
             onSessionSaved={() => {
               setActiveDueReview(null);
               onSessionSaved();
@@ -892,7 +905,7 @@ export function TrainingCenter({
                 role="tab"
                 aria-selected={zone.id === item.id}
                 className={zone.id === item.id ? "active" : ""}
-                disabled={Boolean(prescribedRoots)}
+                disabled={Boolean(prescribedRoots) || pendingDrillSave}
                 onClick={() => setZone(item)}
               >
                 <b>{item.keys}</b>
@@ -910,9 +923,10 @@ export function TrainingCenter({
             sessionType="roots"
             playKeySound={playKeySound}
             planTask={prescribedRoots}
+            onPendingSaveChange={setPendingDrillSave}
             onSessionSaved={() => {
               onSessionSaved();
-              if (prescribedRoots) selectTrainingTab("plan");
+              if (prescribedRoots) selectTrainingTab("plan", true);
             }}
           />
         </div>
@@ -981,6 +995,7 @@ function CodeDrill({
   playKeySound,
   planTask,
   trackPhrasePractice = false,
+  onPendingSaveChange,
   onSessionSaved,
 }: {
   title: string;
@@ -991,6 +1006,7 @@ function CodeDrill({
   playKeySound: () => void;
   planTask?: TrainingTask;
   trackPhrasePractice?: boolean;
+  onPendingSaveChange: (pending: boolean) => void;
   onSessionSaved: () => void;
 }) {
   const limit = planTask ? pool.length : 20;
@@ -1008,7 +1024,6 @@ function CodeDrill({
     observations: WeakObservation[];
     phrasePractices: PhrasePracticeInput[];
   } | null>(null);
-  usePendingSaveGuard(Boolean(pendingSave));
   const startedAt = useRef(0);
   const hiddenAt = useRef<number | null>(null);
   const inactiveMs = useRef(0);
@@ -1095,6 +1110,7 @@ function CodeDrill({
     setMistakes([]);
     setSaveError("");
     setPendingSave(null);
+    onPendingSaveChange(false);
     nextQuestion();
   };
 
@@ -1145,10 +1161,12 @@ function CodeDrill({
         observations: savedObservations,
         phrasePractices: savedPhrasePractices,
       });
+      onPendingSaveChange(true);
       window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
     } else {
       setSaveError("");
       setPendingSave(null);
+      onPendingSaveChange(false);
     }
     setStarted(false);
     setFinished(true);
@@ -1170,6 +1188,7 @@ function CodeDrill({
     }
     setSaveError("");
     setPendingSave(null);
+    onPendingSaveChange(false);
     onSessionSaved();
   };
 

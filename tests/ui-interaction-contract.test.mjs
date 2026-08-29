@@ -47,6 +47,9 @@ test("recorded data renders without replay animations", async () => {
     styles,
     /metric-tick|goal-ring-fill|usage-bar-fill|chart-line-draw/,
   );
+  assert.match(trendPanel, /const \[today, setToday\] = useState\(""\)/);
+  assert.match(trendPanel, /useEffect\(\(\) => setToday\(localDateKey\(new Date\(\)\)\), \[\]\)/);
+  assert.match(trendPanel, /today\s*\? buildTrendSeries/);
 });
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
@@ -371,6 +374,41 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(hesitation, /document\.addEventListener\("visibilitychange"/);
 });
 
+test("failed local saves cannot be discarded or shown as successful", async () => {
+  const [component, training, summary, advanced, management] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(trainingCenterPath, "utf8"),
+    readFile(keySummaryPath, "utf8"),
+    readFile(advancedCenterPath, "utf8"),
+    readFile(dataManagementPath, "utf8"),
+  ]);
+
+  assert.match(
+    component,
+    /if \(pendingPracticeSave\.current\) \{\s*window\.alert\("本次成绩尚未保存，请先重试保存。"\);\s*return;/s,
+  );
+  assert.match(
+    component,
+    /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*pendingPracticeSave\.current[\s\S]*router\.push/,
+  );
+  assert.match(component, /if \(!writeLocal\(STORAGE\.settings, next\)\)/);
+  assert.match(component, /设置未能保存，原设置保持不变/);
+
+  assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
+  assert.match(training, /if \(!force && pendingDrillSave && next !== tab\)/);
+  assert.match(training, /onPendingSaveChange\(true\)/);
+  assert.match(training, /disabled=\{Boolean\(prescribedRoots\) \|\| pendingDrillSave\}/);
+  assert.match(training, /if \(!writeLocal\(STORAGE\.dailyGoal, next\)\)/);
+  assert.match(training, /每日目标未能保存，原目标保持不变/);
+
+  assert.match(summary, /if \(!clearKeyUsage\(\)\)/);
+  assert.match(summary, /按键记录未能清空/);
+  assert.match(advanced, /scenarioLoadError/);
+  assert.match(advanced, /setScenarioLoadAttempt\(\(value\) => value \+ 1\)/);
+  assert.match(management, /custom-\$\{createLocalId\(\)\}/);
+  assert.match(management, /truncateUnicode\(item\.text\.replace/);
+});
+
 test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {
   const [component, pwa] = await Promise.all([
     readFile(componentPath, "utf8"),
@@ -512,7 +550,7 @@ test("key sound is shared by typing, challenge, and the settings preview", async
   assert.match(component, /context\.resume\(\)\.then\(emit/);
   assert.match(component, /<TypingView[\s\S]*playKeySound=\{playKeySound\}/);
   assert.match(component, /<ChallengeView playKeySound=\{playKeySound\}/);
-  assert.match(component, /if \(value\) playKeySound\(\{ force: true \}\)/);
+  assert.match(component, /if \(update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
   assert.match(
     component,
     /文章测速和字码挑战输入时播放轻提示音/,

@@ -13,6 +13,7 @@ import {
   buildCustomArticle,
   calculateDailyProgress,
   calculateStreak,
+  clearKeyUsage,
   clearPracticeHistory,
   createBackupPayload,
   createLocalId,
@@ -41,6 +42,7 @@ import {
   startHesitationQueueItem,
   syncSpacedReviewState,
   takeSessionValue,
+  truncateUnicode,
   updateErrorMastery,
   writeSessionValue,
 } from "../app/lib.ts";
@@ -216,6 +218,26 @@ test("custom article capacity never evicts existing content silently", () => {
   assert.deepEqual(partial.articles.slice(1), existing.slice(0, 19));
   assert.equal(partial.added[0].id, incoming.id);
   assert.equal(partial.rejected[0].id, "custom-incoming-2");
+
+  const duplicate = addCustomArticlesWithinLimit(existing.slice(0, 1), [
+    { ...incoming, id: existing[0].id },
+    incoming,
+    { ...incoming },
+  ]);
+  assert.deepEqual(duplicate.added.map((article) => article.id), [incoming.id]);
+  assert.deepEqual(
+    duplicate.rejected.map((article) => article.id),
+    [existing[0].id, incoming.id],
+  );
+  assert.equal(new Set(duplicate.articles.map((article) => article.id)).size, 2);
+});
+
+test("unicode previews never split non-BMP characters", () => {
+  const value = `${"中".repeat(71)}😀末`;
+  const truncated = truncateUnicode(value, 72);
+  assert.equal(Array.from(truncated).length, 72);
+  assert.equal(truncated.endsWith("😀"), true);
+  assert.equal(truncated.isWellFormed(), true);
 });
 
 test("custom article reader removes malformed, duplicate, and overflowing local data", () => {
@@ -1036,6 +1058,38 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
     /格式不正确/,
   );
 
+  const invalidPlans = [
+    (candidate) => {
+      delete candidate.tasks.find((task) => task.type === "article").articleId;
+    },
+    (candidate) => {
+      candidate.tasks.find((task) => task.type === "review").items = [];
+    },
+    (candidate) => {
+      delete candidate.tasks.find((task) => task.type === "roots").zoneKeys;
+    },
+    (candidate) => {
+      candidate.tasks[0].startedAt = "2026-08-19T10:01:00.000Z";
+    },
+    (candidate) => {
+      candidate.tasks[1].status = "in-progress";
+    },
+    (candidate) => {
+      candidate.tasks[2].status = "completed";
+      candidate.tasks[2].startedAt = "2026-08-19T10:02:00.000Z";
+      candidate.tasks[2].completedAt = "2026-08-19T10:01:00.000Z";
+      candidate.tasks[2].sessionId = "roots-session";
+    },
+  ];
+  for (const corrupt of invalidPlans) {
+    const candidate = structuredClone(plan);
+    corrupt(candidate);
+    assert.throws(
+      () => parseBackupPayload(createBackupPayload({ [STORAGE.trainingPlan]: candidate })),
+      /格式不正确/,
+    );
+  }
+
   const staleQueue = {
     version: 1,
     date: "2026-08-19",
@@ -1064,6 +1118,22 @@ test("backup validates daily prescriptions and old restores clear stale plans", 
     assert.equal(values.has(STORAGE.sessions), false);
     assert.equal(values.has(STORAGE.trainingPlan), false);
     assert.equal(values.has(STORAGE.hesitationQueue), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("clearing key usage reports storage failures without pretending success", () => {
+  globalThis.window = {
+    localStorage: {
+      getItem: () => JSON.stringify({ KeyA: 3 }),
+      setItem: () => {
+        throw new DOMException("full", "QuotaExceededError");
+      },
+    },
+  };
+  try {
+    assert.equal(clearKeyUsage(), false);
   } finally {
     delete globalThis.window;
   }
@@ -1193,6 +1263,7 @@ test("practice outcome saves weakness and task completion in one transaction", (
   });
   const review = plan.tasks.find((task) => task.type === "review");
   review.status = "in-progress";
+  review.startedAt = "2026-08-19T10:00:00+08:00";
   const values = new Map([
     [STORAGE.sessions, JSON.stringify([])],
     [STORAGE.errors, JSON.stringify([])],

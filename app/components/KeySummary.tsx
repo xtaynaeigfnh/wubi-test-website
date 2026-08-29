@@ -207,13 +207,18 @@ function FingerDistributionChart({
 
 export function KeySummary() {
   const [usage, setUsage] = useState<KeyUsageMap>({});
+  const [resetError, setResetError] = useState("");
   useEffect(() => setUsage(readKeyUsage()), []);
   const summary = useMemo(() => summarizeKeyUsage(usage), [usage]);
   const maxCount = Math.max(1, ...KEYBOARD_KEYS.map((item) => usage[item.code] ?? 0));
 
   const reset = () => {
     if (!window.confirm("确定清空全部按键使用记录吗？练习成绩和错题不会受到影响。")) return;
-    clearKeyUsage();
+    if (!clearKeyUsage()) {
+      setResetError("按键记录未能清空，请检查浏览器存储空间后重试。");
+      return;
+    }
+    setResetError("");
     setUsage({});
   };
 
@@ -229,6 +234,7 @@ export function KeySummary() {
           <button className="button danger" type="button" disabled={!summary.total} onClick={reset}>清空按键记录</button>
         </div>
       </header>
+      {resetError && <p className="plan-message" role="alert">{resetError}</p>}
 
       <section className="keyboard-heatmap-card" aria-labelledby="keyboard-heatmap-title">
         <div className="summary-card-heading keyboard-card-heading">
