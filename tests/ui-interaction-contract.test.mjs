@@ -48,7 +48,9 @@ test("recorded data renders without replay animations", async () => {
     /metric-tick|goal-ring-fill|usage-bar-fill|chart-line-draw/,
   );
   assert.match(trendPanel, /const \[today, setToday\] = useState\(""\)/);
-  assert.match(trendPanel, /useEffect\(\(\) => setToday\(localDateKey\(new Date\(\)\)\), \[\]\)/);
+  assert.match(trendPanel, /const syncToday = \(\) => \{/);
+  assert.match(trendPanel, /nextMidnight\.setHours\(0, 0, 0, 50\)/);
+  assert.match(trendPanel, /addEventListener\("visibilitychange", onVisibilityChange\)/);
   assert.match(trendPanel, /today\s*\? buildTrendSeries/);
 });
 
@@ -358,6 +360,10 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(ui, /event\.isComposing \|\| event\.keyCode === 229/);
   assert.match(ui, /usePendingSaveGuard/);
   assert.match(ui, /addEventListener\("beforeunload"/);
+  assert.match(ui, /PENDING_SAVE_HISTORY_KEY/);
+  assert.match(ui, /addEventListener\("navigate", onNavigate\)/);
+  assert.match(ui, /addEventListener\("popstate", onPopState\)/);
+  assert.match(ui, /window\.history\.forward\(\)/);
   assert.match(training, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   assert.match(component, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   for (const source of [component, advanced, hesitation]) {
