@@ -4142,6 +4142,7 @@ select,
 
 .daily-progress-card,
 .smart-plan-card,
+.due-review-card,
 .hesitation-queue-card,
 .code-drill,
 .management-card,
@@ -4154,12 +4155,14 @@ select,
 
 .daily-progress-card,
 .smart-plan-card,
+.due-review-card,
 .hesitation-queue-card {
   padding: 24px;
 }
 
 .daily-progress-card .panel-title,
 .smart-plan-card .panel-title,
+.due-review-card .panel-title,
 .hesitation-queue-card .panel-title,
 .trend-panel .panel-title {
   min-height: auto;
@@ -4169,6 +4172,7 @@ select,
 
 .daily-progress-card .training-card-header,
 .smart-plan-card .training-card-header,
+.due-review-card .training-card-header,
 .hesitation-queue-card .training-card-header {
   min-height: 104px;
   padding: 4px 0 24px;
@@ -4221,6 +4225,7 @@ select,
 
 .daily-progress-card h2,
 .smart-plan-card h2,
+.due-review-card h2,
 .hesitation-queue-card h2,
 .code-drill h2,
 .management-card h2,
@@ -4366,6 +4371,128 @@ select,
   font: 700 8px/1 var(--font-data);
   letter-spacing: 0.12em;
   pointer-events: none;
+}
+
+.due-review-card {
+  grid-column: 1 / -1;
+  border-top: 3px solid var(--accent-bamboo);
+}
+
+.due-review-card .training-card-stat strong small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.due-review-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+}
+
+.due-review-list li {
+  min-width: 0;
+  min-height: 156px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-bamboo);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.due-review-copy {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.due-review-copy > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.due-review-copy > div span,
+.due-review-copy time,
+.due-review-copy small {
+  color: var(--text-secondary);
+  font: 700 9px/1.4 var(--font-data);
+}
+
+.due-review-copy > div span {
+  padding: 4px 7px;
+  color: var(--accent-bamboo);
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--bg-paper);
+}
+
+.due-review-copy time {
+  color: var(--accent-vermilion);
+}
+
+.due-review-copy strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-reading);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.due-review-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.due-review-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.due-review-actions .button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.review-queue-message {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--accent-vermilion);
+  background: color-mix(in srgb, var(--accent-vermilion) 7%, var(--bg-raised));
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.due-review-empty {
+  min-height: 104px;
+  padding: 18px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  text-align: center;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.due-review-empty span,
+.due-review-note {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.due-review-note {
+  margin: 14px 0 0;
 }
 
 .hesitation-queue-card {
@@ -6028,7 +6155,9 @@ select,
   }
 
   .daily-progress-card,
-  .smart-plan-card {
+  .smart-plan-card,
+  .due-review-card,
+  .hesitation-queue-card {
     padding: 17px;
   }
 
@@ -7661,6 +7790,8 @@ body::before {
 .trend-panel,
 .daily-progress-card,
 .smart-plan-card,
+.due-review-card,
+.hesitation-queue-card,
 .management-card,
 .pwa-card {
   border-color: var(--border-default);
@@ -8446,7 +8577,8 @@ textarea {
 }
 
 .daily-progress-card,
-.smart-plan-card {
+.smart-plan-card,
+.due-review-card {
   border-top: 3px solid var(--accent-bamboo);
 }
 
@@ -8890,6 +9022,8 @@ textarea {
   .trend-panel,
   .daily-progress-card,
   .smart-plan-card,
+  .due-review-card,
+  .hesitation-queue-card,
   .management-card,
   .pwa-card,
   .code-drill {
@@ -8941,7 +9075,9 @@ textarea {
   }
 
   .daily-progress-card .training-card-header,
-  .smart-plan-card .training-card-header {
+  .smart-plan-card .training-card-header,
+  .due-review-card .training-card-header,
+  .hesitation-queue-card .training-card-header {
     min-height: auto;
     padding-bottom: 20px;
     grid-template-columns: 1fr;
@@ -9596,6 +9732,10 @@ textarea {
   .theme-preset-grid {
     grid-template-columns: 1fr;
   }
+
+  .due-review-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -9605,14 +9745,21 @@ textarea {
 }
 
 @media (max-width: 620px) {
+  .due-review-list,
   .hesitation-queue-list {
     grid-template-columns: 1fr;
   }
 
+  .due-review-list li,
   .hesitation-queue-list li {
     grid-template-columns: 1fr;
   }
 
+  .due-review-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .due-review-actions .button,
   .hesitation-queue-list .button {
     width: 100%;
   }

@@ -10,6 +10,7 @@ import type {
 
 const DEFAULT_EXCERPT_LENGTH = 12;
 const MAX_EXCERPT_LENGTH = 15;
+const MAX_TYPING_DELAY_MS = 10 * 60 * 1000;
 
 type HesitationSourceSession = Pick<
   SessionResult,
@@ -17,6 +18,59 @@ type HesitationSourceSession = Pick<
 >;
 
 type WeakCodeLookup = ReadonlyMap<string, string> | Record<string, string>;
+
+function isBoundedString(value: unknown, maximum: number): value is string {
+  return typeof value === "string" && value.length <= maximum;
+}
+
+function isFiniteRange(value: unknown, minimum: number, maximum: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= minimum &&
+    value <= maximum
+  );
+}
+
+export function isValidHesitationPracticeTarget(
+  value: unknown,
+): value is HesitationPracticeTarget {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const target = value as Partial<HesitationPracticeTarget>;
+  const textLength = typeof target.text === "string"
+    ? Array.from(target.text).length
+    : 0;
+  return (
+    target.version === 1 &&
+    isBoundedString(target.id, 160) &&
+    target.id.length > 0 &&
+    isBoundedString(target.fingerprint, 200) &&
+    target.fingerprint.length > 0 &&
+    isBoundedString(target.sourceSessionId, 160) &&
+    target.sourceSessionId.length > 0 &&
+    (target.articleId === undefined || isBoundedString(target.articleId, 160)) &&
+    isBoundedString(target.sourceTitle, 200) &&
+    target.sourceTitle.length > 0 &&
+    isBoundedString(target.sourceDate, 40) &&
+    target.sourceDate.length > 0 &&
+    Number.isFinite(Date.parse(target.sourceDate)) &&
+    isBoundedString(target.text, MAX_EXCERPT_LENGTH) &&
+    textLength > 0 &&
+    !/[\r\n]/.test(target.text) &&
+    Number.isInteger(target.sourceStart) &&
+    isFiniteRange(target.sourceStart, 0, 5000) &&
+    Number.isInteger(target.focusOffset) &&
+    isFiniteRange(target.focusOffset, 0, textLength - 1) &&
+    Number.isInteger(target.focusLength) &&
+    isFiniteRange(target.focusLength, 1, textLength) &&
+    (target.focusOffset ?? 0) + (target.focusLength ?? 0) <= textLength &&
+    target.fingerprint ===
+      `${target.text}\u0000${target.focusOffset}\u0000${target.focusLength}` &&
+    isFiniteRange(target.sourceDelayMs, 0, MAX_TYPING_DELAY_MS) &&
+    isFiniteRange(target.baselineMs, 0, MAX_TYPING_DELAY_MS) &&
+    isFiniteRange(target.thresholdMs, 1000, MAX_TYPING_DELAY_MS)
+  );
+}
 
 export interface HesitationPracticeExcerpt {
   text: string;

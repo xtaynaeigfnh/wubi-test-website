@@ -17,15 +17,18 @@ import {
   createBackupPayload,
   createLocalId,
   defaultCustomTheme,
+  deferSpacedReviewTarget,
   getCustomArticles,
   getErrors,
   getPhraseOpportunities,
   getProgress,
   getSessions,
+  MAX_SPACED_REVIEW_STATE_BYTES,
   parseBackupPayload,
   readLocalForBackup,
   readHesitationQueue,
   readDailyGoal,
+  readSpacedReviewState,
   readSettings,
   recordKeyUsage,
   recordPhraseOpportunities,
@@ -36,6 +39,7 @@ import {
   saveSession,
   STORAGE,
   startHesitationQueueItem,
+  syncSpacedReviewState,
   takeSessionValue,
   updateErrorMastery,
   writeSessionValue,
@@ -47,6 +51,24 @@ import {
   regenerateIncompleteTasks,
   scoreWeakItem,
 } from "../app/training-plan.ts";
+
+function reviewItem(overrides = {}) {
+  return {
+    targetType: "character",
+    targetId: "测",
+    text: "测",
+    code: "imyt",
+    dueAt: "2026-08-29T00:00:00.000Z",
+    intervalDays: 1,
+    level: 0,
+    lastOutcome: null,
+    severity: 2,
+    expectedBenefit: 4,
+    correctStreak: 0,
+    createdAt: "2026-08-29T00:00:00.000Z",
+    ...overrides,
+  };
+}
 
 function session(overrides = {}) {
   return {
@@ -436,6 +458,37 @@ test("daily training plans are deterministic and provide a complete first-use pr
   assert.ok(first.estimatedMinutes >= 3);
 });
 
+test("daily training plans place due characters and phrases before ordinary weak items", () => {
+  const plan = generateDailyTrainingPlan({
+    date: "2026-08-19",
+    now: new Date("2026-08-19T10:00:00+08:00"),
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [{
+      text: "我",
+      code: "q",
+      count: 5,
+      lastSeen: "2026-08-19T09:00:00+08:00",
+    }],
+    entries: trainingEntries,
+    preferredLength: "all",
+    dueReviewItems: [
+      ["输入法", "lyif", 88],
+      ["人", "w", 77],
+      ["人", "ww", 20],
+    ],
+  });
+
+  const review = plan.tasks.find((task) => task.type === "review");
+  assert.deepEqual(review.items.slice(0, 2), [
+    ["输入法", "lyif", 88],
+    ["人", "w", 77],
+  ]);
+  assert.equal(review.items.filter(([text]) => text === "人").length, 1);
+  assert.match(review.reason, /2 个到期字词优先/);
+});
+
 test("regrouping preserves completed tasks and training summaries compare snapshots", () => {
   const weakItems = [{
     text: "我",
@@ -773,6 +826,196 @@ test("backup format only accepts known versioned storage keys", () => {
   );
 });
 
+test("spaced review state is versioned, bounded and strictly validated in backups", () => {
+  const state = { version: 1, items: [reviewItem()] };
+  const payload = createBackupPayload({ [STORAGE.reviewState]: state });
+  assert.deepEqual(parseBackupPayload(payload).data[STORAGE.reviewState], state);
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({
+      [STORAGE.reviewState]: {
+        version: 1,
+        items: [reviewItem(), reviewItem({ dueAt: "2026-08-30T00:00:00.000Z" })],
+      },
+    })),
+    /格式不正确/,
+  );
+  for (const invalid of [
+    { ...state, version: 2 },
+    { version: 1, items: [reviewItem({ dueAt: "not-a-date" })] },
+    { version: 1, items: [reviewItem({ intervalDays: 0 })] },
+    { version: 1, items: [reviewItem({ targetType: "phrase", text: "单" })] },
+  ]) {
+    assert.throws(
+      () => parseBackupPayload(createBackupPayload({ [STORAGE.reviewState]: invalid })),
+      /格式不正确/,
+    );
+  }
+  const tooMany = {
+    version: 1,
+    items: Array.from({ length: 361 }, (_, index) =>
+      reviewItem({ targetId: `字-${index}`, text: String.fromCodePoint(0x4e00 + index) }),
+    ),
+  };
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({ [STORAGE.reviewState]: tooMany })),
+    /格式不正确/,
+  );
+
+  const largeTarget = {
+    version: 1,
+    id: "target-id",
+    fingerprint: "片".repeat(500),
+    sourceSessionId: "session-id",
+    sourceTitle: "来".repeat(200),
+    sourceDate: "2026-08-29T00:00:00.000Z",
+    text: "一二三四五六七八九十甲乙丙丁戊",
+    sourceStart: 0,
+    focusOffset: 0,
+    focusLength: 1,
+    sourceDelayMs: 2000,
+    baselineMs: 500,
+    thresholdMs: 1000,
+  };
+  const oversized = {
+    version: 1,
+    items: Array.from({ length: 360 }, (_, index) =>
+      reviewItem({
+        targetType: "hesitation",
+        targetId: `${index}-${"片".repeat(490)}`,
+        text: largeTarget.text,
+        code: undefined,
+        hesitationTarget: {
+          ...largeTarget,
+          id: `target-${index}`,
+          fingerprint: `${index}-${"段".repeat(490)}`,
+        },
+      }),
+    ),
+  };
+  assert.ok(Buffer.byteLength(JSON.stringify(oversized), "utf8") > MAX_SPACED_REVIEW_STATE_BYTES);
+  assert.throws(
+    () => parseBackupPayload(createBackupPayload({ [STORAGE.reviewState]: oversized })),
+    /格式不正确/,
+  );
+});
+
+test("spaced review storage migrates legacy weaknesses and reports failed writes", () => {
+  const values = new Map([
+    [STORAGE.errors, JSON.stringify([{
+      text: "测",
+      code: "imyt",
+      count: 3,
+      lastSeen: "2026-08-28T08:00:00.000Z",
+    }])],
+    [STORAGE.phraseOpportunities, JSON.stringify([{
+      text: "输入法",
+      code: "lty",
+      characterCount: 3,
+      savedKeys: 2,
+      opportunityCount: 2,
+      practiceCount: 0,
+      correctCount: 0,
+      lastSeen: "2026-08-28T08:00:00.000Z",
+    }])],
+  ]);
+  let rejectReviewWrite = false;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.reviewState && rejectReviewWrite) throw new Error("quota");
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    const migrated = syncSpacedReviewState(new Date("2026-08-29T09:00:00.000Z"));
+    assert.ok(migrated);
+    assert.deepEqual(
+      migrated.items.map((item) => [item.targetType, item.targetId]),
+      [["character", "测"], ["phrase", "输入法"]],
+    );
+    assert.deepEqual(readSpacedReviewState(), migrated);
+    values.delete(STORAGE.reviewState);
+    rejectReviewWrite = true;
+    assert.equal(syncSpacedReviewState(new Date("2026-08-29T09:00:00.000Z")), null);
+    assert.equal(values.has(STORAGE.reviewState), false);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("deferring a due item atomically reconciles or regenerates the pending review task", () => {
+  const now = new Date("2026-08-29T09:00:00.000Z");
+  const state = {
+    version: 1,
+    items: [
+      reviewItem(),
+      reviewItem({ targetId: "人", text: "人", code: "w" }),
+    ],
+  };
+  const plan = generateDailyTrainingPlan({
+    date: "2026-08-29",
+    now,
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [],
+    entries: trainingEntries,
+    dueReviewItems: [["测", "imyt", 4], ["人", "w", 1]],
+    preferredLength: "all",
+  });
+  const values = new Map([
+    [STORAGE.reviewState, JSON.stringify(state)],
+    [STORAGE.trainingPlan, JSON.stringify(plan)],
+  ]);
+  let failPlanWrite = false;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem: (key, value) => {
+        if (key === STORAGE.trainingPlan && failPlanWrite) {
+          failPlanWrite = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+    },
+  };
+  try {
+    const before = new Map(values);
+    failPlanWrite = true;
+    assert.equal(
+      deferSpacedReviewTarget("character", "测", now),
+      null,
+    );
+    assert.deepEqual(values, before);
+
+    const deferred = deferSpacedReviewTarget("character", "测", now);
+    assert.ok(deferred);
+    assert.ok(Date.parse(deferred.items[0].dueAt) > now.getTime());
+    const storedPlan = JSON.parse(values.get(STORAGE.trainingPlan));
+    const reviewTask = storedPlan.tasks.find((task) => task.type === "review");
+    assert.equal(reviewTask.items.some(([text]) => text === "测"), false);
+    assert.equal(reviewTask.items[0][0], "人");
+
+    const lonePlan = structuredClone(plan);
+    const loneTask = lonePlan.tasks.find((task) => task.type === "review");
+    loneTask.items = [["测", "imyt", 4]];
+    values.set(STORAGE.reviewState, JSON.stringify({
+      version: 1,
+      items: [reviewItem()],
+    }));
+    values.set(STORAGE.trainingPlan, JSON.stringify(lonePlan));
+    assert.ok(deferSpacedReviewTarget("character", "测", now));
+    assert.equal(JSON.parse(values.get(STORAGE.trainingPlan)), null);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("backup validates daily prescriptions and old restores clear stale plans", () => {
   const plan = generateDailyTrainingPlan({
     date: "2026-08-19",
@@ -976,6 +1219,43 @@ test("practice outcome saves weakness and task completion in one transaction", (
     assert.equal(JSON.parse(values.get(STORAGE.errors))[0].codingErrors, 1);
     const storedPlan = JSON.parse(values.get(STORAGE.trainingPlan));
     assert.equal(storedPlan.tasks.find((task) => task.type === "review").status, "completed");
+    const storedReview = JSON.parse(values.get(STORAGE.reviewState));
+    assert.equal(storedReview.items[0].targetId, "我");
+    assert.equal(storedReview.items[0].lastOutcome, "incorrect");
+    assert.equal(storedReview.items[0].intervalDays, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("correct observations only advance existing review targets", () => {
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+    [STORAGE.reviewState, JSON.stringify({
+      version: 1,
+      items: [reviewItem()],
+    })],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(savePracticeOutcome(session({
+      id: "correct-existing-review",
+      date: "2026-08-30T09:00:00+08:00",
+    }), [
+      { text: "新", code: "us", kind: "correct" },
+      { text: "测", code: "imyt", kind: "correct" },
+    ]), true);
+    const storedReview = JSON.parse(values.get(STORAGE.reviewState));
+    assert.deepEqual(storedReview.items.map((item) => item.targetId), ["测"]);
+    assert.equal(storedReview.items[0].lastOutcome, "correct");
+    assert.equal(storedReview.items[0].intervalDays, 2);
   } finally {
     delete globalThis.window;
   }
@@ -1032,6 +1312,13 @@ test("hesitation outcome atomically saves one idempotent session, weakness and q
     assert.equal(completed.items[0].status, "completed");
     assert.equal(completed.items[0].sessionId, result.id);
     assert.equal(completed.items[0].outcome, "mastered");
+    const storedReview = JSON.parse(values.get(STORAGE.reviewState));
+    const hesitationReview = storedReview.items.find(
+      (item) => item.targetType === "hesitation",
+    );
+    assert.equal(hesitationReview.targetId, target.fingerprint);
+    assert.equal(hesitationReview.lastOutcome, "correct");
+    assert.equal(hesitationReview.intervalDays, 2);
 
     const restarted = startHesitationQueueItem(queueId, now);
     assert.equal(restarted.items[0].status, "in-progress");
@@ -1061,6 +1348,7 @@ test("hesitation outcome rolls back when any participating storage key fails", (
   for (const failedKey of [
     STORAGE.sessions,
     STORAGE.errors,
+    STORAGE.reviewState,
     STORAGE.hesitationQueue,
   ]) {
     const values = new Map([
@@ -1652,6 +1940,7 @@ test("clearing practice history rolls back every key after storage failure", () 
     STORAGE.trainingPlan,
     STORAGE.hesitationQueue,
     STORAGE.advancedSeason,
+    STORAGE.reviewState,
   ];
   const values = new Map(keys.map((key, index) => [key, `old-${index}`]));
   const before = new Map(values);
@@ -1798,7 +2087,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v13/);
+  assert.match(worker, /wubi-test-v14/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);

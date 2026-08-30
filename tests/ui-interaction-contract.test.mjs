@@ -392,11 +392,40 @@ test("training tabs keep their URL state in sync", async () => {
   assert.match(training, /window\.history\.replaceState/);
   assert.match(training, /url\.searchParams\.delete\("tab"\)/);
   assert.match(training, /url\.searchParams\.set\("tab", next\)/);
-  assert.match(training, /onClick=\{\(\) => selectTrainingTab\(value\)\}/);
   assert.match(
     training,
-    /if \(loading \|\| loadError \|\| plan \|\| !entries\.length \|\| !articles\.length\)/,
+    /onClick=\{\(\) => \{[\s\S]*setActiveDueReview\(null\);[\s\S]*selectTrainingTab\(value\);[\s\S]*\}\}/,
   );
+  assert.match(training, /loading \|\|[\s\S]*!reviewState \|\|[\s\S]*!entries\.length \|\|[\s\S]*!articles\.length/);
+});
+
+test("spaced review queue stays explainable, deferrable, and usable on narrow screens", async () => {
+  const [training, component, styles] = await Promise.all([
+    readFile(trainingCenterPath, "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(training, /buildDueReviewQueue/);
+  assert.match(training, /间隔复习 · 每日上限 \{dueReviewQueue\.limit\} 项/);
+  assert.match(training, /reviewDueLabel\(item\.dueAt\)/);
+  assert.match(training, /错误严重度 \$\{item\.severity\}\/5/);
+  assert.match(training, /收益权重 \$\{item\.expectedBenefit\}/);
+  assert.match(training, /dueReviewItems: buildDueReviewQueue/);
+  assert.match(training, />\s*暂缓到明天\s*<\/button>/);
+  assert.match(training, /deferSpacedReviewTarget\(item\.targetType, item\.targetId\)/);
+  assert.match(training, /届时会重新出现/);
+  assert.match(training, /role=\{reviewMessage\.includes\("未能"\)/);
+  assert.match(training, /onPracticeHesitation\("", item\.hesitationTarget\)/);
+  assert.match(training, /document\.getElementById\(`training-tab-\$\{nextTab\}`\)\?\.focus\(\)/);
+  assert.match(training, /id="due-review-title" tabIndex=\{-1\}/);
+  assert.match(component, /if \(!itemId\) \{[\s\S]*setActiveHesitationPractice\(\{ target \}\)/);
+  assert.match(styles, /\.due-review-list\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*\.due-review-list,[\s\S]*grid-template-columns:\s*1fr/s,
+  );
+  assert.match(styles, /\.due-review-copy strong\s*\{[^}]*overflow-wrap:\s*anywhere/s);
 });
 
 test("restrained motion connects progress, tabs, and rhythm without ignoring reduced motion", async () => {
@@ -437,7 +466,7 @@ test("code length coach exposes recommendations and phrase practice on desktop a
   assert.match(training, /getPhraseOpportunities\(\)/);
   assert.match(training, /trackPhrasePractice/);
   assert.match(training, /phrasePracticeAnswers\.current\.push/);
-  assert.match(training, /key="phrase-training"/);
+  assert.match(training, /: "phrase-training"/);
   assert.match(training, /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/);
   assert.match(styles, /\.code-coach\s*\{[^}]*grid-template-columns:/s);
   assert.match(

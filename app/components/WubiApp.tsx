@@ -442,6 +442,10 @@ export function WubiApp({ view }: { view: AppView }) {
 
   const startQueuedHesitationPractice = useCallback(
     (itemId: string, target: HesitationPracticeTarget) => {
+      if (!itemId) {
+        setActiveHesitationPractice({ target });
+        return;
+      }
       const queue = startHesitationQueueItem(itemId);
       if (!queue) {
         window.alert("加练状态未能保存，请检查浏览器存储空间后再试。");

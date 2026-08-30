@@ -20,12 +20,15 @@ import {
   localDateKey,
   readDailyGoal,
   readLocal,
+  readSpacedReviewState,
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
   savePracticeOutcome,
   startTrainingTask,
   STORAGE,
+  syncSpacedReviewState,
+  deferSpacedReviewTarget,
   writeLocal,
   writeTrainingPlan,
   type PhrasePracticeInput,
@@ -43,6 +46,12 @@ import type {
   WeakObservation,
   WubiEntry,
 } from "../types";
+import {
+  buildDueReviewQueue,
+  createEmptySpacedReviewState,
+  type SpacedReviewItem,
+  type SpacedReviewState,
+} from "../spaced-review";
 import {
   buildTrainingSummary,
   generateDailyTrainingPlan,
@@ -85,6 +94,10 @@ export function TrainingCenter({
     PhraseOpportunityStat[]
   >([]);
   const [sessions, setSessions] = useState<SessionResult[]>([]);
+  const [reviewState, setReviewState] = useState<SpacedReviewState | null>(null);
+  const [activeDueReview, setActiveDueReview] =
+    useState<SpacedReviewItem | null>(null);
+  const [reviewMessage, setReviewMessage] = useState("");
   const [plan, setPlan] = useState<DailyTrainingPlan | null>(null);
   const [planMessage, setPlanMessage] = useState("");
   const [goal, setGoal] = useState<DailyGoal>(defaultDailyGoal);
@@ -98,6 +111,11 @@ export function TrainingCenter({
     setPhraseOpportunities(getPhraseOpportunities());
     setSessions(getSessions());
     setGoal(readDailyGoal());
+    const syncedReviewState = syncSpacedReviewState();
+    setReviewState(syncedReviewState ?? readSpacedReviewState());
+    if (!syncedReviewState) {
+      setReviewMessage("到期队列未能更新，已显示上次保存的状态。");
+    }
     const storedPlan = readTrainingPlan();
     setPlan(
       storedPlan?.date === localDateKey(new Date()) ? storedPlan : null,
@@ -146,7 +164,14 @@ export function TrainingCenter({
   }, [loadAttempt]);
 
   useEffect(() => {
-    if (loading || loadError || plan || !entries.length || !articles.length) {
+    if (
+      loading ||
+      loadError ||
+      plan ||
+      !reviewState ||
+      !entries.length ||
+      !articles.length
+    ) {
       return;
     }
     const next = generateDailyTrainingPlan({
@@ -156,6 +181,13 @@ export function TrainingCenter({
       sessions,
       weakItems: errors,
       entries,
+      dueReviewItems: buildDueReviewQueue(reviewState).items
+        .filter((item) => item.targetType !== "hesitation" && item.code)
+        .map((item): WubiEntry => [
+          item.text,
+          item.code as string,
+          item.expectedBenefit,
+        ]),
       preferredLength: readSettings().preferredLength,
     });
     if (writeTrainingPlan(next)) {
@@ -164,7 +196,7 @@ export function TrainingCenter({
     } else {
       setPlanMessage("今日计划未能保存，请检查浏览器存储空间。");
     }
-  }, [articles, entries, errors, loadError, loading, plan, sessions]);
+  }, [articles, entries, errors, loadError, loading, plan, reviewState, sessions]);
 
   const reviewPool = useMemo(
     () => buildReviewPool(errors, entries),
@@ -182,6 +214,19 @@ export function TrainingCenter({
         suggestedEntries: phraseSuggestions,
       }),
     [entries, errors, phraseOpportunities, phraseSuggestions],
+  );
+  const dueReviewQueue = useMemo(
+    () => buildDueReviewQueue(
+      reviewState ?? createEmptySpacedReviewState(),
+    ),
+    [reviewState],
+  );
+  const activeDuePool = useMemo<WubiEntry[]>(
+    () =>
+      activeDueReview?.code
+        ? [[activeDueReview.text, activeDueReview.code, activeDueReview.expectedBenefit]]
+        : [],
+    [activeDueReview],
   );
   const today = calculateDailyProgress(sessions);
   const streak = calculateStreak(sessions);
@@ -237,6 +282,43 @@ export function TrainingCenter({
     });
   };
 
+  const startDueReview = (item: SpacedReviewItem) => {
+    setReviewMessage("");
+    if (item.targetType === "hesitation" && item.hesitationTarget) {
+      onPracticeHesitation("", item.hesitationTarget);
+      return;
+    }
+    if (!item.code) {
+      setReviewMessage("这项复习缺少可用编码，暂时无法开始。");
+      return;
+    }
+    setActiveDueReview(item);
+    const nextTab = item.targetType === "phrase" ? "phrase" : "review";
+    selectTrainingTab(nextTab);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`training-tab-${nextTab}`)?.focus();
+    });
+  };
+
+  const deferDueReview = (item: SpacedReviewItem) => {
+    const next = deferSpacedReviewTarget(item.targetType, item.targetId);
+    if (!next) {
+      setReviewMessage("暂缓状态未能保存，这项复习仍保留在今天的队列中。");
+      return;
+    }
+    setReviewState(next);
+    setPlan(readTrainingPlan());
+    setActiveDueReview((current) =>
+      current?.targetType === item.targetType && current.targetId === item.targetId
+        ? null
+        : current,
+    );
+    setReviewMessage(`“${item.text}”已暂缓到明天，届时会重新出现。`);
+    window.requestAnimationFrame(() => {
+      document.getElementById("due-review-title")?.focus();
+    });
+  };
+
   const startPlanTask = (task: TrainingTask) => {
     const previousCurrent = readLocal<string | null>(STORAGE.current, null);
     const previousGenerated = readLocal<PracticeArticle | null>(
@@ -284,6 +366,13 @@ export function TrainingCenter({
       sessions,
       weakItems: errors,
       entries,
+      dueReviewItems: dueReviewQueue.items
+        .filter((item) => item.targetType !== "hesitation" && item.code)
+        .map((item): WubiEntry => [
+          item.text,
+          item.code as string,
+          item.expectedBenefit,
+        ]),
       preferredLength: readSettings().preferredLength,
     });
     const before = plan.tasks
@@ -351,7 +440,10 @@ export function TrainingCenter({
             aria-controls={`training-panel-${value}`}
             tabIndex={tab === value ? 0 : -1}
             className={tab === value ? "active" : ""}
-            onClick={() => selectTrainingTab(value)}
+            onClick={() => {
+              setActiveDueReview(null);
+              selectTrainingTab(value);
+            }}
             onKeyDown={(event) => {
               if (event.key === "ArrowLeft") {
                 event.preventDefault();
@@ -382,6 +474,80 @@ export function TrainingCenter({
           role="tabpanel"
           aria-labelledby="training-tab-plan"
         >
+          <section className="due-review-card" aria-labelledby="due-review-title">
+            <header className="panel-title training-card-header">
+              <div className="training-card-heading">
+                <span className="eyebrow">间隔复习 · 每日上限 {dueReviewQueue.limit} 项</span>
+                <h2 id="due-review-title" tabIndex={-1}>先清到期，再走今日处方</h2>
+              </div>
+              <div
+                className="training-card-stat"
+                aria-label={`今天显示 ${dueReviewQueue.items.length} 项，共有 ${dueReviewQueue.totalDue} 项到期`}
+              >
+                <strong>
+                  {dueReviewQueue.items.length}
+                  <small> / {dueReviewQueue.totalDue}</small>
+                </strong>
+                <span>到期</span>
+              </div>
+            </header>
+            {reviewMessage && (
+              <p
+                className="review-queue-message"
+                role={reviewMessage.includes("未能") || reviewMessage.includes("无法") ? "alert" : "status"}
+              >
+                {reviewMessage}
+              </p>
+            )}
+            {dueReviewQueue.items.length ? (
+              <ol className="due-review-list">
+                {dueReviewQueue.items.map((item) => (
+                  <li key={`${item.targetType}:${item.targetId}`}>
+                    <div className="due-review-copy">
+                      <div>
+                        <span>{reviewTargetLabel(item.targetType)}</span>
+                        <time dateTime={item.dueAt}>{reviewDueLabel(item.dueAt)}</time>
+                      </div>
+                      <strong>“{item.text}”</strong>
+                      <p>{reviewReason(item)}</p>
+                      <small>
+                        当前间隔 {item.intervalDays} 天 · 掌握阶段 {item.level + 1}/10
+                      </small>
+                    </div>
+                    <div className="due-review-actions">
+                      <button
+                        className="button primary"
+                        onClick={() => startDueReview(item)}
+                      >
+                        {item.targetType === "hesitation" ? "开始三连练" : "开始复习"}
+                      </button>
+                      <button
+                        className="button secondary"
+                        onClick={() => deferDueReview(item)}
+                      >
+                        暂缓到明天
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="due-review-empty" role="status">
+                <strong>今天没有待处理的到期项</strong>
+                <span>
+                  {dueReviewQueue.deferredToday
+                    ? `已有 ${dueReviewQueue.deferredToday} 项暂缓到明天，不会永久隐藏。`
+                    : "完成新的练习后，薄弱项会按合适间隔回到这里。"}
+                </span>
+              </div>
+            )}
+            <p className="due-review-note">
+              {dueReviewQueue.totalDue > dueReviewQueue.limit
+                ? `另有 ${dueReviewQueue.totalDue - dueReviewQueue.items.length} 项积压，会按逾期天数、错误严重度和预计收益依次进入后续队列。`
+                : "到期项按逾期天数、错误严重度和预计收益排序；暂缓项明天会重新出现。"}
+            </p>
+          </section>
+
           <div className="daily-progress-card">
             <header className="panel-title training-card-header">
               <div className="training-card-heading">
@@ -639,15 +805,26 @@ export function TrainingCenter({
           aria-labelledby="training-tab-review"
         >
           <CodeDrill
-            key={prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}
-            title={prescribedReview?.title ?? "高频错题复练"}
-            description={prescribedReview?.reason ?? "错误越多、掌握度越低的字会排得越靠前。连续答对会逐步提高掌握度。"}
+            key={activeDueReview?.targetType === "character"
+              ? `due-${activeDueReview.targetId}`
+              : prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}
+            title={activeDueReview?.targetType === "character"
+              ? `到期单字 · ${activeDueReview.text}`
+              : prescribedReview?.title ?? "高频错题复练"}
+            description={activeDueReview?.targetType === "character"
+              ? "完成这一题后，会按本次结果安排下次复习；失败会缩短间隔。"
+              : prescribedReview?.reason ?? "错误越多、掌握度越低的字会排得越靠前。连续答对会逐步提高掌握度。"}
             emptyText="还没有可复练的错字。先完成一篇文章或一轮字码挑战。"
-            pool={prescribedReview?.items ?? reviewPool}
+            pool={activeDueReview?.targetType === "character"
+              ? activeDuePool
+              : prescribedReview?.items ?? reviewPool}
             sessionType="review"
             playKeySound={playKeySound}
-            planTask={prescribedReview}
+            planTask={activeDueReview?.targetType === "character"
+              ? undefined
+              : prescribedReview}
             onSessionSaved={() => {
+              setActiveDueReview(null);
               onSessionSaved();
               if (prescribedReview) selectTrainingTab("plan");
             }}
@@ -666,7 +843,9 @@ export function TrainingCenter({
             <span className="eyebrow">码长教练</span>
             <strong>把单字弱项，放回常用词组里练</strong>
             <p>
-              {phraseSuggestions.length
+              {activeDueReview?.targetType === "phrase"
+                ? "这项词组已经到期；完成后会按本次结果安排下次复习，不会覆盖今日处方。"
+                : phraseSuggestions.length
                 ? "本轮优先使用结算页的词组推荐，再补充包含近期弱项字的高频词。"
                 : phraseOpportunities.length
                   ? "本轮优先复练码长诊断里经常出现、尚未练熟的词组机会。"
@@ -677,15 +856,24 @@ export function TrainingCenter({
             <small>每轮最多 20 题，同一词组不重复出现。</small>
           </aside>
           <CodeDrill
-            key="phrase-training"
-            title="词组码长专项"
-            description="直接输入整个词组的五笔编码，建立二字、三字和四字词的连续输入记忆。"
+            key={activeDueReview?.targetType === "phrase"
+              ? `due-${activeDueReview.targetId}`
+              : "phrase-training"}
+            title={activeDueReview?.targetType === "phrase"
+              ? `到期词组 · ${activeDueReview.text}`
+              : "词组码长专项"}
+            description={activeDueReview?.targetType === "phrase"
+              ? "完成这一题后，会按本次结果安排下次复习；失败会缩短间隔。"
+              : "直接输入整个词组的五笔编码，建立二字、三字和四字词的连续输入记忆。"}
             emptyText={loading ? "正在整理词组题库…" : "暂时没有可用词组，请先完成一轮文章或稍后重试。"}
-            pool={phrasePool}
+            pool={activeDueReview?.targetType === "phrase" ? activeDuePool : phrasePool}
             sessionType="review"
             playKeySound={playKeySound}
             trackPhrasePractice
-            onSessionSaved={onSessionSaved}
+            onSessionSaved={() => {
+              setActiveDueReview(null);
+              onSessionSaved();
+            }}
           />
         </div>
       )}
@@ -731,6 +919,32 @@ export function TrainingCenter({
       )}
     </section>
   );
+}
+
+function reviewTargetLabel(targetType: SpacedReviewItem["targetType"]): string {
+  if (targetType === "phrase") return "词组";
+  if (targetType === "hesitation") return "卡顿片段";
+  return "单字";
+}
+
+function reviewDueLabel(dueAt: string, now = new Date()): string {
+  const due = new Date(dueAt);
+  const todaySerial = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const dueSerial = Date.UTC(due.getFullYear(), due.getMonth(), due.getDate());
+  const overdueDays = Math.max(
+    0,
+    Math.round((todaySerial - dueSerial) / 86_400_000),
+  );
+  return overdueDays > 0 ? `已逾期 ${overdueDays} 天` : "今天到期";
+}
+
+function reviewReason(item: SpacedReviewItem): string {
+  const source = item.lastOutcome === "correct"
+    ? "上次答对，按间隔回访"
+    : item.lastOutcome === "incorrect"
+      ? "上次未掌握，已缩短间隔"
+      : "由近期薄弱记录首次排入";
+  return `${source} · 错误严重度 ${item.severity}/5 · 收益权重 ${item.expectedBenefit}`;
 }
 
 function GoalRow({
@@ -1011,7 +1225,7 @@ function CodeDrill({
   return (
     <div className="code-drill">
       <div className="code-drill-copy">
-        <span className="eyebrow">20 题一轮</span>
+        <span className="eyebrow">{Math.min(limit, pool.length)} 题一轮</span>
         <h2>{title}</h2>
         <p>{description}</p>
       </div>
