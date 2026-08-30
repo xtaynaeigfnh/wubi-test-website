@@ -396,6 +396,7 @@ function useKeySound(enabled: boolean): KeySoundPlayer {
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const [settingsSaveError, setSettingsSaveError] = useState("");
   const [hesitationQueue, setHesitationQueue] =
     useState<HesitationPracticeQueue | null>(null);
   const [masteredAtByFingerprint, setMasteredAtByFingerprint] = useState(
@@ -442,6 +443,10 @@ export function WubiApp({ view }: { view: AppView }) {
 
   const startQueuedHesitationPractice = useCallback(
     (itemId: string, target: HesitationPracticeTarget) => {
+      if (!itemId) {
+        setActiveHesitationPractice({ target });
+        return;
+      }
       const queue = startHesitationQueueItem(itemId);
       if (!queue) {
         window.alert("加练状态未能保存，请检查浏览器存储空间后再试。");
@@ -507,7 +512,6 @@ export function WubiApp({ view }: { view: AppView }) {
     for (const [property, value] of Object.entries(customVariables)) {
       root.style.setProperty(property, value);
     }
-    writeLocal(STORAGE.settings, settings);
   }, [settings, settingsReady]);
 
   useEffect(() => {
@@ -531,11 +535,20 @@ export function WubiApp({ view }: { view: AppView }) {
 
   const currentThemeName = themeLabels[settings.theme];
   const quickTheme = getNextQuickTheme(settings.theme);
+  const updateSettings = (next: UserSettings) => {
+    if (!writeLocal(STORAGE.settings, next)) {
+      setSettingsSaveError("设置未能保存，原设置保持不变。请检查浏览器存储空间后重试。");
+      return false;
+    }
+    setSettings(next);
+    setSettingsSaveError("");
+    return true;
+  };
   const cycleTheme = () =>
-    setSettings((current) => ({
-      ...current,
-      theme: getNextQuickTheme(current.theme),
-    }));
+    updateSettings({
+      ...settings,
+      theme: getNextQuickTheme(settings.theme),
+    });
 
   return (
     <div className="app-shell" data-view={view}>
@@ -589,15 +602,18 @@ export function WubiApp({ view }: { view: AppView }) {
       </header>
 
       <main className="page-wrap" id="main-content">
+        {settingsSaveError && (
+          <p className="plan-message" role="alert">{settingsSaveError}</p>
+        )}
         {view === "typing" && (
           <TypingView
             settings={settings}
             settingsReady={settingsReady}
             onShowGhostGapChange={(value) =>
-              setSettings((current) => ({
-                ...current,
+              updateSettings({
+                ...settings,
                 showGhostGap: value,
-              }))
+              })
             }
             playKeySound={playKeySound}
             onPracticeHesitation={(target) =>
@@ -637,7 +653,7 @@ export function WubiApp({ view }: { view: AppView }) {
         {view === "settings" && (
           <SettingsView
             settings={settings}
-            onChange={setSettings}
+            onChange={updateSettings}
             playKeySound={playKeySound}
           />
         )}
@@ -949,6 +965,10 @@ function TypingView({
       nextRetryCount = 0,
       nextGhostMode: GhostMode = "off",
     ) => {
+      if (pendingPracticeSave.current) {
+        window.alert("本次成绩尚未保存，请先重试保存。");
+        return;
+      }
       if (compositionCommitTimer.current !== null) {
         window.clearTimeout(compositionCommitTimer.current);
         compositionCommitTimer.current = null;
@@ -1267,6 +1287,10 @@ function TypingView({
     codeLengthAnalysis?.highestValueOpportunities ?? [];
   const startRecommendedPhrasePractice = () => {
     if (!recommendedPhrases.length) return;
+    if (pendingPracticeSave.current) {
+      window.alert("本次成绩尚未保存，请先重试保存。");
+      return;
+    }
     router.push("/training?tab=phrase");
   };
   const retryPracticeSave = () => {
@@ -3680,7 +3704,7 @@ function SettingsView({
   playKeySound,
 }: {
   settings: UserSettings;
-  onChange: (settings: UserSettings) => void;
+  onChange: (settings: UserSettings) => boolean;
   playKeySound: KeySoundPlayer;
 }) {
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
@@ -3843,8 +3867,7 @@ function SettingsView({
             note="文章测速和字码挑战输入时播放轻提示音"
             checked={settings.sound}
             onChange={(value) => {
-              update("sound", value);
-              if (value) playKeySound({ force: true });
+              if (update("sound", value) && value) playKeySound({ force: true });
             }}
           />
         </div>

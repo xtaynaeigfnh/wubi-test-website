@@ -1,14 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { buildTrendSeries } from "../lib";
+import { useEffect, useMemo, useState } from "react";
+import { buildTrendSeries, localDateKey } from "../lib";
 import type { SessionResult } from "../types";
 
 export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
   const [range, setRange] = useState<7 | 30 | "all">(7);
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    let rolloverTimer: number | null = null;
+    const syncToday = () => {
+      const now = new Date();
+      setToday(localDateKey(now));
+      if (rolloverTimer !== null) window.clearTimeout(rolloverTimer);
+      const nextMidnight = new Date(now);
+      nextMidnight.setDate(nextMidnight.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 50);
+      rolloverTimer = window.setTimeout(
+        syncToday,
+        Math.max(1000, nextMidnight.getTime() - now.getTime()),
+      );
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") syncToday();
+    };
+    syncToday();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      if (rolloverTimer !== null) window.clearTimeout(rolloverTimer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
   const points = useMemo(
-    () => buildTrendSeries(sessions, range),
-    [range, sessions],
+    () =>
+      today
+        ? buildTrendSeries(sessions, range, new Date(`${today}T12:00:00`))
+        : [],
+    [range, sessions, today],
   );
   const maxSpeed = Math.max(1, ...points.map((point) => point.speed));
   const width = 700;

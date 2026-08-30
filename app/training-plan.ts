@@ -37,6 +37,8 @@ export interface TrainingPlanInput {
   weakItems: ErrorStat[];
   entries: WubiEntry[];
   preferredLength: UserSettings["preferredLength"];
+  /** 已到期的单字和词组，保持调度器排序并优先进入复练任务。 */
+  dueReviewItems?: WubiEntry[];
   excludeArticleIds?: string[];
   excludeItems?: string[];
 }
@@ -259,12 +261,21 @@ export function generateDailyTrainingPlan(
   );
   const preferredEntries = shortestEntries(input.entries);
   const excludedItems = new Set(input.excludeItems ?? []);
-  let reviewItems = selectWeakEntries(
-    activeWeak,
-    input.entries,
-    `${seed}:review`,
-    excludedItems,
-  );
+  const dueReviewByText = new Map<string, WubiEntry>();
+  for (const entry of input.dueReviewItems ?? []) {
+    if (!dueReviewByText.has(entry[0])) dueReviewByText.set(entry[0], entry);
+  }
+  const dueReviewItems = Array.from(dueReviewByText.values()).slice(0, 12);
+  const dueTexts = new Set(dueReviewItems.map(([text]) => text));
+  let reviewItems = [
+    ...dueReviewItems,
+    ...selectWeakEntries(
+      activeWeak,
+      input.entries,
+      `${seed}:review`,
+      excludedItems,
+    ).filter(([text]) => !dueTexts.has(text)),
+  ].slice(0, 20);
   const isBaseline = reviewItems.length === 0;
   if (isBaseline) {
     reviewItems = seededOrder(
@@ -345,6 +356,8 @@ export function generateDailyTrainingPlan(
       title: isBaseline ? "基础编码复习" : "弱项复练",
       reason: isBaseline
         ? "暂无弱项记录，用高频字建立初始基线。"
+        : dueReviewItems.length
+          ? `${dueReviewItems.length} 个到期字词优先，其余按错误、卡顿和回改排序。`
         : `${reviewItems.length} 个字词按错误、卡顿和回改综合排序。`,
       estimatedMinutes: reviewMinutes,
       items: reviewItems,

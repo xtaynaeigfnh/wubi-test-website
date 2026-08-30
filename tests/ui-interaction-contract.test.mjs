@@ -47,6 +47,11 @@ test("recorded data renders without replay animations", async () => {
     styles,
     /metric-tick|goal-ring-fill|usage-bar-fill|chart-line-draw/,
   );
+  assert.match(trendPanel, /const \[today, setToday\] = useState\(""\)/);
+  assert.match(trendPanel, /const syncToday = \(\) => \{/);
+  assert.match(trendPanel, /nextMidnight\.setHours\(0, 0, 0, 50\)/);
+  assert.match(trendPanel, /addEventListener\("visibilitychange", onVisibilityChange\)/);
+  assert.match(trendPanel, /today\s*\? buildTrendSeries/);
 });
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
@@ -355,6 +360,10 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(ui, /event\.isComposing \|\| event\.keyCode === 229/);
   assert.match(ui, /usePendingSaveGuard/);
   assert.match(ui, /addEventListener\("beforeunload"/);
+  assert.match(ui, /PENDING_SAVE_HISTORY_KEY/);
+  assert.match(ui, /addEventListener\("navigate", onNavigate\)/);
+  assert.match(ui, /addEventListener\("popstate", onPopState\)/);
+  assert.match(ui, /window\.history\.forward\(\)/);
   assert.match(training, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   assert.match(component, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   for (const source of [component, advanced, hesitation]) {
@@ -369,6 +378,41 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(pwa, /offline-cache-timeout/);
   assert.match(music, /volumeControlUnavailable/);
   assert.match(hesitation, /document\.addEventListener\("visibilitychange"/);
+});
+
+test("failed local saves cannot be discarded or shown as successful", async () => {
+  const [component, training, summary, advanced, management] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(trainingCenterPath, "utf8"),
+    readFile(keySummaryPath, "utf8"),
+    readFile(advancedCenterPath, "utf8"),
+    readFile(dataManagementPath, "utf8"),
+  ]);
+
+  assert.match(
+    component,
+    /if \(pendingPracticeSave\.current\) \{\s*window\.alert\("本次成绩尚未保存，请先重试保存。"\);\s*return;/s,
+  );
+  assert.match(
+    component,
+    /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*pendingPracticeSave\.current[\s\S]*router\.push/,
+  );
+  assert.match(component, /if \(!writeLocal\(STORAGE\.settings, next\)\)/);
+  assert.match(component, /设置未能保存，原设置保持不变/);
+
+  assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
+  assert.match(training, /if \(!force && pendingDrillSave && next !== tab\)/);
+  assert.match(training, /onPendingSaveChange\(true\)/);
+  assert.match(training, /disabled=\{Boolean\(prescribedRoots\) \|\| pendingDrillSave\}/);
+  assert.match(training, /if \(!writeLocal\(STORAGE\.dailyGoal, next\)\)/);
+  assert.match(training, /每日目标未能保存，原目标保持不变/);
+
+  assert.match(summary, /if \(!clearKeyUsage\(\)\)/);
+  assert.match(summary, /按键记录未能清空/);
+  assert.match(advanced, /scenarioLoadError/);
+  assert.match(advanced, /setScenarioLoadAttempt\(\(value\) => value \+ 1\)/);
+  assert.match(management, /custom-\$\{createLocalId\(\)\}/);
+  assert.match(management, /truncateUnicode\(item\.text\.replace/);
 });
 
 test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {
@@ -392,11 +436,40 @@ test("training tabs keep their URL state in sync", async () => {
   assert.match(training, /window\.history\.replaceState/);
   assert.match(training, /url\.searchParams\.delete\("tab"\)/);
   assert.match(training, /url\.searchParams\.set\("tab", next\)/);
-  assert.match(training, /onClick=\{\(\) => selectTrainingTab\(value\)\}/);
   assert.match(
     training,
-    /if \(loading \|\| loadError \|\| plan \|\| !entries\.length \|\| !articles\.length\)/,
+    /onClick=\{\(\) => \{[\s\S]*setActiveDueReview\(null\);[\s\S]*selectTrainingTab\(value\);[\s\S]*\}\}/,
   );
+  assert.match(training, /loading \|\|[\s\S]*!reviewState \|\|[\s\S]*!entries\.length \|\|[\s\S]*!articles\.length/);
+});
+
+test("spaced review queue stays explainable, deferrable, and usable on narrow screens", async () => {
+  const [training, component, styles] = await Promise.all([
+    readFile(trainingCenterPath, "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(training, /buildDueReviewQueue/);
+  assert.match(training, /间隔复习 · 每日上限 \{dueReviewQueue\.limit\} 项/);
+  assert.match(training, /reviewDueLabel\(item\.dueAt\)/);
+  assert.match(training, /错误严重度 \$\{item\.severity\}\/5/);
+  assert.match(training, /收益权重 \$\{item\.expectedBenefit\}/);
+  assert.match(training, /dueReviewItems: buildDueReviewQueue/);
+  assert.match(training, />\s*暂缓到明天\s*<\/button>/);
+  assert.match(training, /deferSpacedReviewTarget\(item\.targetType, item\.targetId\)/);
+  assert.match(training, /届时会重新出现/);
+  assert.match(training, /role=\{reviewMessage\.includes\("未能"\)/);
+  assert.match(training, /onPracticeHesitation\("", item\.hesitationTarget\)/);
+  assert.match(training, /document\.getElementById\(`training-tab-\$\{nextTab\}`\)\?\.focus\(\)/);
+  assert.match(training, /id="due-review-title" tabIndex=\{-1\}/);
+  assert.match(component, /if \(!itemId\) \{[\s\S]*setActiveHesitationPractice\(\{ target \}\)/);
+  assert.match(styles, /\.due-review-list\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*\.due-review-list,[\s\S]*grid-template-columns:\s*1fr/s,
+  );
+  assert.match(styles, /\.due-review-copy strong\s*\{[^}]*overflow-wrap:\s*anywhere/s);
 });
 
 test("restrained motion connects progress, tabs, and rhythm without ignoring reduced motion", async () => {
@@ -437,7 +510,7 @@ test("code length coach exposes recommendations and phrase practice on desktop a
   assert.match(training, /getPhraseOpportunities\(\)/);
   assert.match(training, /trackPhrasePractice/);
   assert.match(training, /phrasePracticeAnswers\.current\.push/);
-  assert.match(training, /key="phrase-training"/);
+  assert.match(training, /: "phrase-training"/);
   assert.match(training, /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/);
   assert.match(styles, /\.code-coach\s*\{[^}]*grid-template-columns:/s);
   assert.match(
@@ -483,7 +556,7 @@ test("key sound is shared by typing, challenge, and the settings preview", async
   assert.match(component, /context\.resume\(\)\.then\(emit/);
   assert.match(component, /<TypingView[\s\S]*playKeySound=\{playKeySound\}/);
   assert.match(component, /<ChallengeView playKeySound=\{playKeySound\}/);
-  assert.match(component, /if \(value\) playKeySound\(\{ force: true \}\)/);
+  assert.match(component, /if \(update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
   assert.match(
     component,
     /文章测速和字码挑战输入时播放轻提示音/,

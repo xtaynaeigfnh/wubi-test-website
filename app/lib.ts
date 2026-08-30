@@ -37,7 +37,23 @@ import {
 } from "./ghost-race.ts";
 import { applyWeakObservations } from "./training-plan.ts";
 import { isAdvancedSeasonArchive } from "./advanced-training.ts";
+import {
+  isValidHesitationPracticeTarget as isHesitationPracticeTarget,
+} from "./hesitation-practice.ts";
 import { isRhythmSummary, pruneRhythmCurves } from "./rhythm-lab.ts";
+import {
+  applyReviewOutcome,
+  buildDueReviewQueue,
+  createEmptySpacedReviewState,
+  deferReviewItem,
+  isSpacedReviewState,
+  MAX_SPACED_REVIEW_ITEMS,
+  migrateLegacyReviewState,
+  upsertReviewTargets,
+  type ReviewTargetInput,
+  type ReviewTargetType,
+  type SpacedReviewState,
+} from "./spaced-review.ts";
 import {
   incrementKeyUsage,
   isValidKeyUsage,
@@ -61,6 +77,7 @@ export const STORAGE = {
   hesitationQueue: "wubi-test:hesitation-queue:v1",
   phraseOpportunities: "wubi-test:phrase-opportunities:v1",
   advancedSeason: "wubi-test:advanced-season:v1",
+  reviewState: "wubi-test:review-state:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -87,6 +104,10 @@ export function createLocalId(): string {
   }
   if (!random) random = Math.random().toString(36).slice(2, 12);
   return `${Date.now().toString(36)}-${localIdCounter.toString(36)}-${random || "local"}`;
+}
+
+export function truncateUnicode(value: string, maximumCharacters: number): string {
+  return Array.from(value).slice(0, Math.max(0, maximumCharacters)).join("");
 }
 
 export function writeSessionValue(key: string, value: string): boolean {
@@ -178,11 +199,21 @@ export function addCustomArticlesWithinLimit(
   rejected: PracticeArticle[];
 } {
   const available = Math.max(0, MAX_CUSTOM_ARTICLES - existing.length);
-  const added = incoming.slice(0, available);
+  const knownIds = new Set(existing.map((article) => article.id));
+  const added: PracticeArticle[] = [];
+  const rejected: PracticeArticle[] = [];
+  for (const article of incoming) {
+    if (knownIds.has(article.id) || added.length >= available) {
+      rejected.push(article);
+      continue;
+    }
+    knownIds.add(article.id);
+    added.push(article);
+  }
   return {
     articles: [...added, ...existing],
     added,
-    rejected: incoming.slice(available),
+    rejected,
   };
 }
 
@@ -339,6 +370,86 @@ export function writeLocal<T>(key: string, value: T): boolean {
   }
 }
 
+function isBoundedSpacedReviewState(
+  value: unknown,
+): value is SpacedReviewState {
+  return (
+    isSpacedReviewState(value) &&
+    value.items.length <= MAX_SPACED_REVIEW_ITEMS &&
+    utf8ByteLength(JSON.stringify(value)) <= MAX_SPACED_REVIEW_STATE_BYTES
+  );
+}
+
+function fitSpacedReviewStateWithinLimit(
+  value: SpacedReviewState,
+): SpacedReviewState {
+  if (!isSpacedReviewState(value)) return createEmptySpacedReviewState();
+  const items = value.items.slice(0, MAX_SPACED_REVIEW_ITEMS);
+  while (
+    items.length &&
+    utf8ByteLength(JSON.stringify({ version: 1, items })) >
+      MAX_SPACED_REVIEW_STATE_BYTES
+  ) {
+    items.pop();
+  }
+  return { version: 1, items };
+}
+
+function buildSpacedReviewStateCandidate(now = new Date()): SpacedReviewState {
+  const stored = readLocal<unknown>(STORAGE.reviewState, null);
+  if (isBoundedSpacedReviewState(stored)) return stored;
+  const hesitationValue = readLocal<unknown>(STORAGE.hesitationQueue, null);
+  return fitSpacedReviewStateWithinLimit(
+    migrateLegacyReviewState({
+      errors: getErrors(),
+      phraseOpportunities: getPhraseOpportunities(),
+      hesitationQueue: isHesitationPracticeQueue(hesitationValue)
+        ? hesitationValue
+        : null,
+      now,
+    }),
+  );
+}
+
+export function syncSpacedReviewState(
+  now = new Date(),
+): SpacedReviewState | null {
+  const stored = readLocal<unknown>(STORAGE.reviewState, null);
+  if (isBoundedSpacedReviewState(stored)) return stored;
+  const state = buildSpacedReviewStateCandidate(now);
+  return writeLocal(STORAGE.reviewState, state) ? state : null;
+}
+
+export function readSpacedReviewState(): SpacedReviewState {
+  return syncSpacedReviewState() ?? buildSpacedReviewStateCandidate();
+}
+
+export function deferSpacedReviewTarget(
+  targetType: ReviewTargetType,
+  targetId: string,
+  now = new Date(),
+): SpacedReviewState | null {
+  const current = buildSpacedReviewStateCandidate(now);
+  const next = deferReviewItem(current, targetType, targetId, now);
+  if (next === current) return current;
+  if (!isBoundedSpacedReviewState(next)) return null;
+  const currentItem = current.items.find(
+    (item) => item.targetType === targetType && item.targetId === targetId,
+  );
+  const currentPlan = readTrainingPlan();
+  const trainingPlan = withReconciledPendingReviewTask(
+    currentPlan,
+    next,
+    new Set(currentItem ? [currentItem.text] : []),
+    now,
+  );
+  const writes = new Map<string, unknown>([[STORAGE.reviewState, next]]);
+  if (trainingPlan !== currentPlan) {
+    writes.set(STORAGE.trainingPlan, trainingPlan);
+  }
+  return commitLocalWrites(writes) ? next : null;
+}
+
 let pendingKeyUsage: KeyUsageMap | null = null;
 let keyUsageTimer: number | null = null;
 
@@ -367,12 +478,13 @@ export function recordKeyUsage(code: string): void {
   keyUsageTimer = window.setTimeout(flushPendingKeyUsage, 180);
 }
 
-export function clearKeyUsage(): void {
-  if (typeof window === "undefined") return;
+export function clearKeyUsage(): boolean {
+  if (typeof window === "undefined") return false;
   if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
-  pendingKeyUsage = null;
   keyUsageTimer = null;
-  writeLocal(STORAGE.keyUsage, {});
+  if (!writeLocal(STORAGE.keyUsage, {})) return false;
+  pendingKeyUsage = null;
+  return true;
 }
 
 async function fetchJson<T>(url: string, label: string): Promise<T> {
@@ -1370,6 +1482,170 @@ function withCompletedTrainingTask(
   return plan;
 }
 
+function withReconciledPendingReviewTask(
+  plan: DailyTrainingPlan | null,
+  reviewState: SpacedReviewState,
+  handledTexts: ReadonlySet<string>,
+  now: Date,
+): DailyTrainingPlan | null {
+  if (!plan || !handledTexts.size) return plan;
+  const taskIndex = plan.tasks.findIndex(
+    (task) => task.type === "review" && task.status === "pending",
+  );
+  if (taskIndex < 0) return plan;
+  const currentTask = plan.tasks[taskIndex];
+  if (!currentTask.items.some(([text]) => handledTexts.has(text))) {
+    return plan;
+  }
+
+  const dueEntries = buildDueReviewQueue(reviewState, { now }).items
+    .filter((item) => item.targetType !== "hesitation" && item.code)
+    .map((item): WubiEntry => [
+      item.text,
+      item.code as string,
+      item.expectedBenefit,
+    ]);
+  const dueTexts = new Set(dueEntries.map(([text]) => text));
+  const ordinaryEntries = currentTask.items.filter(
+    ([text]) => !handledTexts.has(text) && !dueTexts.has(text),
+  );
+  const items = [...dueEntries, ...ordinaryEntries].slice(
+    0,
+    currentTask.items.length,
+  );
+  if (!items.length) {
+    // Do not fabricate a completed task without a real practice session.
+    // Clearing the plan lets TrainingCenter regenerate a valid baseline task.
+    return null;
+  }
+  const task = {
+    ...currentTask,
+    items,
+    reason: dueEntries.length
+      ? `${dueEntries.length} 个到期字词优先，其余按错误、卡顿和回改排序。`
+      : `${items.length} 个字词按错误、卡顿和回改综合排序。`,
+    estimatedMinutes: Math.max(1, Math.ceil((items.length * 6) / 60)),
+  };
+  const tasks = plan.tasks.map((candidate, index) =>
+    index === taskIndex ? task : candidate,
+  );
+  return {
+    ...plan,
+    estimatedMinutes: tasks.reduce(
+      (sum, candidate) => sum + candidate.estimatedMinutes,
+      0,
+    ),
+    tasks,
+  };
+}
+
+function reviewTargetTypeForText(text: string): ReviewTargetType | null {
+  const length = Array.from(text.trim()).length;
+  if (length === 1) return "character";
+  if (length >= 2 && length <= 4) return "phrase";
+  return null;
+}
+
+function withPracticeReviewUpdates(
+  current: SpacedReviewState,
+  session: SessionResult,
+  observations: WeakObservation[],
+  phraseOpportunities: PhraseOpportunityInput[],
+  phrasePractices: PhrasePracticeInput[],
+): SpacedReviewState {
+  const reviewedAt = new Date(session.date);
+  const targets: ReviewTargetInput[] = phraseOpportunities.map((item) => ({
+    targetType: "phrase",
+    text: item.text,
+    code: item.code,
+    severity: 1,
+    expectedBenefit: Math.min(100, Math.max(1, item.savedKeys)),
+  }));
+  const outcomes = new Map<
+    string,
+    { targetType: ReviewTargetType; targetId: string; outcome: "correct" | "incorrect" }
+  >();
+  const existingTargetKeys = new Set(
+    current.items.map((item) => `${item.targetType}\u0000${item.targetId}`),
+  );
+
+  for (const observation of observations) {
+    const text = observation.text.trim();
+    const targetType = reviewTargetTypeForText(text);
+    if (!targetType) continue;
+    const key = `${targetType}\u0000${text}`;
+    const outcome = observation.kind === "correct" ? "correct" : "incorrect";
+    const shouldTrack =
+      outcome === "incorrect" ||
+      existingTargetKeys.has(key) ||
+      outcomes.has(key);
+    if (!shouldTrack) continue;
+    targets.push({
+      targetType,
+      text,
+      code: observation.code,
+      severity:
+        observation.kind === "correct"
+          ? 1
+          : Math.min(5, Math.max(2, observation.severity ?? 2)),
+      expectedBenefit: Math.min(100, Math.max(1, observation.code?.length ?? 1)),
+    });
+    const previous = outcomes.get(key);
+    outcomes.set(key, {
+      targetType,
+      targetId: text,
+      outcome:
+        previous?.outcome === "incorrect" || outcome === "incorrect"
+          ? "incorrect"
+          : "correct",
+    });
+  }
+
+  for (const practice of phrasePractices) {
+    const [text, code] = practice.entry;
+    if (reviewTargetTypeForText(text) !== "phrase") continue;
+    targets.push({
+      targetType: "phrase",
+      text,
+      code,
+      severity: practice.correct ? 1 : 3,
+      expectedBenefit: Math.min(100, Math.max(1, code.length)),
+    });
+    outcomes.set(`phrase\u0000${text.trim()}`, {
+      targetType: "phrase",
+      targetId: text.trim(),
+      outcome: practice.correct ? "correct" : "incorrect",
+    });
+  }
+
+  const hesitation = session.hesitationPractice;
+  if (hesitation) {
+    const target = hesitation.target;
+    const ratio = target.thresholdMs
+      ? target.sourceDelayMs / target.thresholdMs
+      : 1;
+    targets.push({
+      targetType: "hesitation",
+      targetId: target.fingerprint,
+      text: target.text,
+      hesitationTarget: target,
+      severity: Math.min(5, Math.max(1, Math.ceil(ratio))),
+      expectedBenefit: Math.min(100, Math.max(1, Math.round(ratio * 10))),
+    });
+    outcomes.set(`hesitation\u0000${target.fingerprint}`, {
+      targetType: "hesitation",
+      targetId: target.fingerprint,
+      outcome: hesitation.outcome === "mastered" ? "correct" : "incorrect",
+    });
+  }
+
+  let next = upsertReviewTargets(current, targets, reviewedAt);
+  for (const outcome of outcomes.values()) {
+    next = applyReviewOutcome(next, { ...outcome, reviewedAt });
+  }
+  return fitSpacedReviewStateWithinLimit(next);
+}
+
 export function savePracticeOutcome(
   session: SessionResult,
   observations: WeakObservation[] = [],
@@ -1392,7 +1668,13 @@ export function savePracticeOutcome(
       ),
     );
   }
-  return persistPracticeOutcome(session, observations, extraWrites);
+  return persistPracticeOutcome(
+    session,
+    observations,
+    extraWrites,
+    phraseOpportunities,
+    phrasePractices,
+  );
 }
 
 export function saveAdvancedPracticeOutcome(
@@ -1458,6 +1740,8 @@ function persistPracticeOutcome(
   session: SessionResult,
   observations: WeakObservation[],
   extraWrites = new Map<string, unknown>(),
+  phraseOpportunities: PhraseOpportunityInput[] = [],
+  phrasePractices: PhrasePracticeInput[] = [],
 ): boolean {
   if (typeof window === "undefined") return false;
   const currentSessions = getSessions();
@@ -1497,15 +1781,38 @@ function persistPracticeOutcome(
     ? applyWeakObservations(getErrors(), observations, new Date(session.date))
     : null;
   const currentPlan = readTrainingPlan();
-  const trainingPlan = withCompletedTrainingTask(currentPlan, session);
+  let trainingPlan = withCompletedTrainingTask(currentPlan, session);
   const writes = new Map<string, unknown>([[STORAGE.sessions, sessions]]);
   if (session.type === "article" && session.articleId) {
     writes.set(STORAGE.progress, progress);
   }
   if (errors) writes.set(STORAGE.errors, errors);
-  if (trainingPlan && session.trainingTaskId) {
+  const reviewState = withPracticeReviewUpdates(
+    buildSpacedReviewStateCandidate(new Date(session.date)),
+    session,
+    observations,
+    phraseOpportunities,
+    phrasePractices,
+  );
+  if (!isBoundedSpacedReviewState(reviewState)) return false;
+  if (!session.trainingTaskId) {
+    const handledTexts = new Set(
+      [
+        ...observations.map((item) => item.text.trim()),
+        ...phrasePractices.map((item) => item.entry[0].trim()),
+      ].filter((text) => reviewTargetTypeForText(text) !== null),
+    );
+    trainingPlan = withReconciledPendingReviewTask(
+      trainingPlan,
+      reviewState,
+      handledTexts,
+      new Date(session.date),
+    );
+  }
+  if (trainingPlan && (session.trainingTaskId || trainingPlan !== currentPlan)) {
     writes.set(STORAGE.trainingPlan, trainingPlan);
   }
+  writes.set(STORAGE.reviewState, reviewState);
   for (const [key, value] of extraWrites) writes.set(key, value);
   return commitLocalWrites(writes);
 }
@@ -1552,6 +1859,7 @@ export function clearPracticeHistory(): boolean {
       [STORAGE.trainingPlan, null],
       [STORAGE.hesitationQueue, null],
       [STORAGE.advancedSeason, null],
+      [STORAGE.reviewState, null],
     ]),
   );
 }
@@ -2037,6 +2345,7 @@ export function createBackupPayload(
 }
 
 export const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+export const MAX_SPACED_REVIEW_STATE_BYTES = 256 * 1024;
 
 export function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
@@ -2083,41 +2392,6 @@ function isPracticeArticle(value: unknown): value is PracticeArticle {
     isBoundedString(value.text, 5000) &&
     (value.favorite === undefined || typeof value.favorite === "boolean") &&
     (value.kind === undefined || value.kind === "custom" || value.kind === "common")
-  );
-}
-
-function isHesitationPracticeTarget(
-  value: unknown,
-): value is HesitationPracticeTarget {
-  if (!isRecord(value)) return false;
-  const textLength = typeof value.text === "string" ? Array.from(value.text).length : 0;
-  return (
-    value.version === 1 &&
-    isBoundedString(value.id, 160) &&
-    value.id.length > 0 &&
-    isBoundedString(value.fingerprint, 200) &&
-    value.fingerprint.length > 0 &&
-    isBoundedString(value.sourceSessionId, 160) &&
-    value.sourceSessionId.length > 0 &&
-    (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
-    isBoundedString(value.sourceTitle, 200) &&
-    value.sourceTitle.length > 0 &&
-    isDateString(value.sourceDate) &&
-    isBoundedString(value.text, 15) &&
-    textLength > 0 &&
-    !/[\r\n]/.test(value.text) &&
-    Number.isInteger(value.sourceStart) &&
-    isFiniteRange(value.sourceStart, 0, 5000) &&
-    Number.isInteger(value.focusOffset) &&
-    isFiniteRange(value.focusOffset, 0, textLength - 1) &&
-    Number.isInteger(value.focusLength) &&
-    isFiniteRange(value.focusLength, 1, textLength) &&
-    value.focusOffset + value.focusLength <= textLength &&
-    value.fingerprint ===
-      `${value.text}\u0000${value.focusOffset}\u0000${value.focusLength}` &&
-    isFiniteRange(value.sourceDelayMs, 0, MAX_TYPING_DELAY_MS) &&
-    isFiniteRange(value.baselineMs, 0, MAX_TYPING_DELAY_MS) &&
-    isFiniteRange(value.thresholdMs, 1000, MAX_TYPING_DELAY_MS)
   );
 }
 
@@ -2475,7 +2749,7 @@ function isWubiEntry(value: unknown): value is WubiEntry {
 
 function isTrainingTask(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  return (
+  if (!(
     isBoundedString(value.id, 200) &&
     value.id.length > 0 &&
     ["article", "review", "roots"].includes(String(value.type)) &&
@@ -2499,7 +2773,70 @@ function isTrainingTask(value: unknown): boolean {
     (value.startedAt === undefined || isDateString(value.startedAt)) &&
     (value.completedAt === undefined || isDateString(value.completedAt)) &&
     (value.sessionId === undefined || isBoundedString(value.sessionId, 160))
-  );
+  )) {
+    return false;
+  }
+
+  const status = String(value.status);
+  const hasStartedAt = value.startedAt !== undefined;
+  const hasCompletedAt = value.completedAt !== undefined;
+  const hasSessionId =
+    isBoundedString(value.sessionId, 160) && value.sessionId.length > 0;
+  if (
+    (status === "pending" && (hasStartedAt || hasCompletedAt || hasSessionId)) ||
+    (status === "in-progress" &&
+      (!hasStartedAt || hasCompletedAt || hasSessionId)) ||
+    (status === "completed" && (!hasStartedAt || !hasCompletedAt || !hasSessionId))
+  ) {
+    return false;
+  }
+  if (
+    status === "completed" &&
+    new Date(String(value.completedAt)).getTime() <
+      new Date(String(value.startedAt)).getTime()
+  ) {
+    return false;
+  }
+
+  const type = String(value.type);
+  const hasArticleId =
+    isBoundedString(value.articleId, 160) && value.articleId.length > 0;
+  const hasArticleTitle =
+    isBoundedString(value.articleTitle, 80) && value.articleTitle.length > 0;
+  const hasArticleWordCount =
+    isFiniteRange(value.articleWordCount, 1, 5000) &&
+    Number.isInteger(value.articleWordCount);
+  const rootZones: Record<string, string> = {
+    pie: "QWERT",
+    dian: "YUIOP",
+    heng: "ASDFG",
+    shu: "HJKLM",
+    zhe: "XCVBN",
+  };
+  const zoneId = typeof value.zoneId === "string" ? value.zoneId : "";
+  const hasRootZone =
+    rootZones[zoneId] !== undefined &&
+    typeof value.zoneKeys === "string" &&
+    value.zoneKeys.toUpperCase() === rootZones[zoneId];
+  const hasArticleFields =
+    value.articleId !== undefined ||
+    value.articleTitle !== undefined ||
+    value.articleWordCount !== undefined;
+  const hasRootFields = value.zoneId !== undefined || value.zoneKeys !== undefined;
+
+  if (type === "article") {
+    return (
+      value.items.length === 0 &&
+      hasArticleId &&
+      hasArticleTitle &&
+      hasArticleWordCount &&
+      !hasRootFields
+    );
+  }
+  if (type === "review") {
+    return value.items.length > 0 && !hasArticleFields && !hasRootFields;
+  }
+  return value.items.length > 0 && !hasArticleFields && hasRootZone;
 }
 
 function isDailyTrainingPlan(value: unknown): value is DailyTrainingPlan {
@@ -2720,6 +3057,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       );
     case STORAGE.advancedSeason:
       return isAdvancedSeasonArchive(value as AdvancedSeasonArchive);
+    case STORAGE.reviewState:
+      return isBoundedSpacedReviewState(value);
     default:
       return false;
   }

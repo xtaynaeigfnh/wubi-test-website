@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   addCustomArticlesWithinLimit,
   buildCustomArticle,
+  createLocalId,
   createBackupPayload,
   getCustomArticles,
   MAX_BACKUP_BYTES,
@@ -15,6 +16,7 @@ import {
   restoreBackupPayload,
   STORAGE,
   STORAGE_KEYS,
+  truncateUnicode,
   writeLocal,
 } from "../lib";
 import type { BackupPayload, PracticeArticle } from "../types";
@@ -217,10 +219,10 @@ function CustomTextManager() {
     try {
       const imported = (
         await Promise.all(
-          selected.map(async (file, index): Promise<PracticeArticle | null> => {
+          selected.map(async (file): Promise<PracticeArticle | null> => {
             if (file.size > MAX_CUSTOM_TEXT_FILE_BYTES) return null;
             return buildCustomArticle(
-              `custom-${Date.now()}-${index}`,
+              `custom-${createLocalId()}`,
               file.name.replace(/\.txt$/i, "") || "导入的文章",
               await file.text(),
             );
@@ -322,7 +324,7 @@ function CustomTextManager() {
                 <strong>{item.title}</strong>
                 <span>{item.wordCount} 字 · 修改 {item.version} 次</span>
               </div>
-              <p>{item.text.replace(/\s+/g, " ").slice(0, 72)}…</p>
+              <p>{truncateUnicode(item.text.replace(/\s+/g, " "), 72)}…</p>
               <div>
                 <button
                   aria-pressed={Boolean(item.favorite)}

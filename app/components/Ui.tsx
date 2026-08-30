@@ -2,10 +2,33 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
+const PENDING_SAVE_HISTORY_KEY = "__wubiPendingSaveGuard";
+
 export function usePendingSaveGuard(blocked: boolean) {
   useEffect(() => {
     if (!blocked) return;
     const message = "本次成绩尚未保存，请先重试保存。";
+    const historyToken = `${Date.now()}-${Math.random()}`;
+    const originalHistoryState = window.history.state;
+    let restoreTimer: number | null = null;
+    let alertTimer: number | null = null;
+    let restoringHistory = false;
+    try {
+      const nextState =
+        originalHistoryState && typeof originalHistoryState === "object"
+          ? { ...originalHistoryState, [PENDING_SAVE_HISTORY_KEY]: historyToken }
+          : { [PENDING_SAVE_HISTORY_KEY]: historyToken };
+      window.history.replaceState(nextState, "", window.location.href);
+    } catch {
+      // beforeunload and link capture still protect restricted browser contexts.
+    }
+    const showMessage = () => {
+      if (alertTimer !== null) return;
+      alertTimer = window.setTimeout(() => {
+        alertTimer = null;
+        window.alert(message);
+      }, 0);
+    };
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = message;
@@ -17,11 +40,66 @@ export function usePendingSaveGuard(blocked: boolean) {
       event.stopPropagation();
       window.alert(message);
     };
+    const onNavigate = (event: Event) => {
+      const navigationEvent = event as Event & { navigationType?: string };
+      if (navigationEvent.navigationType !== "traverse" || !event.cancelable) {
+        return;
+      }
+      event.preventDefault();
+      showMessage();
+    };
+    const onPopState = (event: PopStateEvent) => {
+      if (
+        event.state &&
+        typeof event.state === "object" &&
+        event.state[PENDING_SAVE_HISTORY_KEY] === historyToken
+      ) {
+        restoringHistory = false;
+        if (restoreTimer !== null) window.clearTimeout(restoreTimer);
+        restoreTimer = null;
+        return;
+      }
+      if (restoringHistory) return;
+      restoringHistory = true;
+      window.history.forward();
+      restoreTimer = window.setTimeout(() => {
+        restoringHistory = false;
+        restoreTimer = null;
+      }, 1000);
+      showMessage();
+    };
+    const navigation = (
+      window as Window & { navigation?: EventTarget }
+    ).navigation;
     window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", onPopState);
     document.addEventListener("click", onDocumentClick, true);
+    navigation?.addEventListener("navigate", onNavigate);
     return () => {
+      if (restoreTimer !== null) window.clearTimeout(restoreTimer);
+      if (alertTimer !== null) window.clearTimeout(alertTimer);
       window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState);
       document.removeEventListener("click", onDocumentClick, true);
+      navigation?.removeEventListener("navigate", onNavigate);
+      try {
+        const currentState = window.history.state;
+        if (
+          currentState &&
+          typeof currentState === "object" &&
+          currentState[PENDING_SAVE_HISTORY_KEY] === historyToken
+        ) {
+          const nextState = { ...currentState };
+          delete nextState[PENDING_SAVE_HISTORY_KEY];
+          window.history.replaceState(
+            Object.keys(nextState).length ? nextState : originalHistoryState,
+            "",
+            window.location.href,
+          );
+        }
+      } catch {
+        // The guard is already inactive; restricted history access needs no retry.
+      }
     };
   }, [blocked]);
 }

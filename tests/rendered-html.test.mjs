@@ -57,6 +57,15 @@ test("advanced route server-renders the quiet training shell", async () => {
   assert.match(html, /进阶训练模块/);
 });
 
+test("training route server-renders the spaced review empty state", async () => {
+  const response = await render("/training");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /间隔复习/);
+  assert.match(html, /每日上限(?:\s|<!-- -->)*12(?:\s|<!-- -->)*项/);
+  assert.match(html, /今天没有待处理的到期项/);
+});
+
 test("keyboard summary route server-renders its analysis shell", async () => {
   const response = await render("/summary");
   assert.equal(response.status, 200);

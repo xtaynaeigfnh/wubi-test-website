@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDuration } from "./lib";
+import { formatDuration, truncateUnicode } from "./lib";
 import type { SessionResult } from "./types";
 
 export function downloadShareCard(session: SessionResult) {
@@ -44,7 +44,7 @@ export function downloadShareCard(session: SessionResult) {
   );
   context.fillStyle = "#14292e";
   context.font = '700 46px "Songti SC", "STSong", serif';
-  context.fillText(session.title.slice(0, 22), 72, 210);
+  context.fillText(truncateUnicode(session.title, 22), 72, 210);
 
   const metrics = [
     ["速度", session.speed.toString(), usesCharacterSpeed ? "字/分" : "题/分"],

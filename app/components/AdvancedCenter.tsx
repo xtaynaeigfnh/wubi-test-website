@@ -51,7 +51,7 @@ import type {
   ScenarioCategory,
   SessionResult,
 } from "../types";
-import { usePendingSaveGuard } from "./Ui";
+import { ErrorState, usePendingSaveGuard } from "./Ui";
 
 type AdvancedTab = "rhythm" | "scenario" | "season";
 
@@ -531,11 +531,29 @@ export function AdvancedCenter() {
   const [practiceKey, setPracticeKey] = useState(0);
   const [optionalPractice, setOptionalPractice] = useState<PracticeTarget | null>(null);
   const [seasonSaveFailed, setSeasonSaveFailed] = useState(false);
+  const [scenarioLoadError, setScenarioLoadError] = useState("");
+  const [scenarioLoadAttempt, setScenarioLoadAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    setScenarioLoadError("");
     loadArticles()
-      .then((articles) => setScenarios(buildAdvancedScenarioLibrary(articles)))
-      .catch(() => setScenarios([]));
+      .then((articles) => {
+        if (active) setScenarios(buildAdvancedScenarioLibrary(articles));
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setScenarios([]);
+        setScenarioLoadError(
+          error instanceof Error ? error.message : "进阶实战题库加载失败",
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [scenarioLoadAttempt]);
+
+  useEffect(() => {
     setLatestSession(getSessions().find((session) => session.rhythmSummary) ?? null);
     const rawStored = readLocal<unknown>(STORAGE.advancedSeason, EMPTY_ARCHIVE);
     const stored = isAdvancedSeasonArchive(rawStored) ? rawStored : EMPTY_ARCHIVE;
@@ -704,6 +722,13 @@ export function AdvancedCenter() {
           </button>
         ))}
       </div>
+      {scenarioLoadError && tab !== "rhythm" && (
+        <ErrorState
+          title="进阶实战题库没有加载成功"
+          message={scenarioLoadError}
+          onRetry={() => setScenarioLoadAttempt((value) => value + 1)}
+        />
+      )}
       <section className="advanced-module" role="tabpanel" id={`advanced-${tab}`} aria-label={activeTab.label}>
         {tab === "rhythm" && (
           <>
