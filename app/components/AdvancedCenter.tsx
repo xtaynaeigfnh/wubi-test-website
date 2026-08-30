@@ -12,12 +12,16 @@ import {
 } from "react";
 import {
   applyTypingDelaySample,
+  calculateKeyAccuracy,
+  calculatePhraseRate,
   calculateTypingMetrics,
   classifyWubiHand,
+  countCommittedEdit,
   countCommittedAttempts,
   createLocalId,
   getSessions,
   isWubiLetterKey,
+  isImeSelectionKey,
   loadArticles,
   readLocal,
   saveAdvancedPracticeOutcome,
@@ -28,14 +32,21 @@ import {
   writeLocal,
 } from "../lib";
 import {
+  ADVANCED_GOAL_LABELS,
   archiveFinishedSeason,
+  buildAdvancedAssessmentIdentity,
+  buildAdvancedSeasonEvaluation,
   buildAdvancedScenarioLibrary,
+  cancelAdvancedSeason,
   completeAdvancedSeasonDay,
   createAdvancedSeason,
   expireAdvancedSeason,
+  getAdvancedSeasonDuration,
+  invalidateAdvancedSeasonForContent,
   isAdvancedSeasonArchive,
+  pauseAdvancedSeason,
+  resumeAdvancedSeason,
   selectWeakestScenarioCategory,
-  seasonComparison,
 } from "../advanced-training";
 import {
   buildRhythmSummary,
@@ -44,6 +55,8 @@ import {
 } from "../rhythm-lab";
 import type {
   AdvancedScenario,
+  AdvancedAssessmentIdentity,
+  AdvancedGoalMetric,
   AdvancedSeason,
   AdvancedSeasonArchive,
   RhythmSummary,
@@ -63,12 +76,13 @@ interface PracticeTarget {
   category?: ScenarioCategory;
   season?: AdvancedSeason;
   seasonDay?: number;
+  assessmentIdentity?: AdvancedAssessmentIdentity;
 }
 
 const tabs: Array<{ id: AdvancedTab; label: string; note: string }> = [
   { id: "rhythm", label: "节奏", note: "看清启动、波动与恢复" },
   { id: "scenario", label: "实战", note: "日常、办公与文学" },
-  { id: "season", label: "14 日计划", note: "按自己的节奏稳定进阶" },
+  { id: "season", label: "阶段目标", note: "7 或 14 日同条件评测" },
 ];
 
 const categoryLabels: Record<ScenarioCategory, string> = {
@@ -198,6 +212,11 @@ function AdvancedPractice({
   const physicalRef = useRef<PhysicalRhythmSample[]>([]);
   const keyCountRef = useRef(0);
   const letterKeysRef = useRef(0);
+  const backspaceCountRef = useRef(0);
+  const correctionCountRef = useRef(0);
+  const selectionCountRef = useRef(0);
+  const phraseCharsRef = useRef(0);
+  const pauseCountRef = useRef(0);
   const attemptCountRef = useRef(0);
   const correctAttemptCountRef = useRef(0);
   const pendingSaveRef = useRef<SessionResult | null>(null);
@@ -279,13 +298,26 @@ function AdvancedPractice({
       date: new Date().toISOString(),
       durationSeconds,
       ...metrics,
+      keyAccuracy: calculateKeyAccuracy({
+        keyCount: keyCountRef.current,
+        backspaceCount: backspaceCountRef.current,
+        correctionCount: correctionCountRef.current,
+        codeLength: metrics.codeLength,
+      }),
+      phraseRate: calculatePhraseRate(phraseCharsRef.current, metrics.correctChars),
       errors: Math.max(
         0,
         attemptCountRef.current - correctAttemptCountRef.current,
       ),
       keyCount: keyCountRef.current,
+      backspaceCount: backspaceCountRef.current,
+      correctionCount: correctionCountRef.current,
+      selectionCount: selectionCountRef.current,
+      pauseCount: pauseCountRef.current,
+      pauseSeconds: pausedMsRef.current / 1000,
       rhythmSummary,
       scenarioId: target.type === "scenario" ? target.id : undefined,
+      assessmentIdentity: target.assessmentIdentity,
       seasonId: target.season?.id,
       seasonDay: target.seasonDay,
     };
@@ -330,6 +362,9 @@ function AdvancedPractice({
     const elapsed = activeElapsed(now);
     const transition = lastCommitAtRef.current === null ? elapsed : Math.max(0, elapsed - lastCommitAtRef.current);
     const attempt = countCommittedAttempts(previous, committed, cleanTarget);
+    const edit = countCommittedEdit(previous, committed);
+    correctionCountRef.current += edit.removed;
+    phraseCharsRef.current += edit.phraseChars;
     attemptCountRef.current += attempt.attempts;
     correctAttemptCountRef.current += attempt.correct;
     if (Array.from(committed).length >= Array.from(previous).length) {
@@ -361,6 +396,13 @@ function AdvancedPractice({
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       keyCountRef.current += 1;
     }
+    if (event.key === "Backspace") backspaceCountRef.current += 1;
+    if (
+      (composingRef.current || event.nativeEvent.isComposing) &&
+      isImeSelectionKey(event.key)
+    ) {
+      selectionCountRef.current += 1;
+    }
     if (isWubiLetterKey(event.key, event.code)) {
       letterKeysRef.current += 1;
       const hand = classifyWubiHand(event.key, event.code);
@@ -380,6 +422,7 @@ function AdvancedPractice({
       setPaused(false);
     } else {
       pauseAtRef.current = now;
+      pauseCountRef.current += 1;
       setPaused(true);
     }
   };
@@ -510,6 +553,11 @@ function targetForSeason(
     : ["baseline", "retest", "final", "adaptive", "integrated"].includes(day.focus)
       ? baselineScenario
       : undefined;
+  const identitySource = selectedScenario ?? {
+    id: `season-rhythm-${season.currentDay}`,
+    version: 1,
+    text: RHYTHM_PRACTICE_TEXT,
+  };
   return {
     id: selectedScenario?.id ?? `season-rhythm-${season.currentDay}`,
     title: `第 ${season.currentDay} 天 · ${day.title}`,
@@ -518,7 +566,80 @@ function targetForSeason(
     category: selectedScenario?.category,
     season,
     seasonDay: season.currentDay,
+    assessmentIdentity: buildAdvancedAssessmentIdentity(identitySource),
   };
+}
+
+const goalMetricOrder: AdvancedGoalMetric[] = [
+  "speed",
+  "characterAccuracy",
+  "keyAccuracy",
+  "codeLength",
+  "phrase",
+  "stability",
+];
+
+const goalMetricNotes: Record<AdvancedGoalMetric, string> = {
+  speed: "在准确底线内观察有效速度",
+  characterAccuracy: "减少错字和重复修正",
+  keyAccuracy: "减少退格与无效按键成本",
+  codeLength: "用更短编码完成相同正文",
+  phrase: "提高连续上屏的词组比例",
+  stability: "缩小整段输入的节奏波动",
+};
+
+function formatGoalValue(metric: AdvancedGoalMetric, value: number | null | undefined) {
+  if (value === null || value === undefined) return "暂无";
+  if (metric === "speed") return `${value.toFixed(1)} 字/分`;
+  if (metric === "codeLength") return `${value.toFixed(2)} 键/字`;
+  return `${value.toFixed(1)}%`;
+}
+
+function SeasonEvaluationView({
+  season,
+  currentIdentity,
+}: {
+  season: AdvancedSeason;
+  currentIdentity?: AdvancedAssessmentIdentity;
+}) {
+  const evaluation = buildAdvancedSeasonEvaluation(season, currentIdentity);
+  const metric = season.goal?.metric ?? "speed";
+  const goalLabel = ADVANCED_GOAL_LABELS[metric];
+  const tradeoffLabel = (
+    value: "protected" | "cost" | "unavailable",
+    protectedText: string,
+    costText: string,
+  ) => value === "unavailable" ? "暂无可比数据" : value === "protected" ? protectedText : costText;
+  return (
+    <section className="season-evaluation" aria-labelledby={`season-evaluation-${season.id}`}>
+      <div>
+        <span className="eyebrow">阶段评测 · {goalLabel}</span>
+        <h3 id={`season-evaluation-${season.id}`}>基线、过程与复测</h3>
+        <p className="season-status-note">{evaluation.message}</p>
+      </div>
+      <div className="season-evaluation-grid">
+        <div><span>首日基线</span><strong>{formatGoalValue(metric, evaluation.primaryBaseline)}</strong></div>
+        <div><span>过程平均</span><strong>{formatGoalValue(metric, evaluation.processAverage)}</strong><small>{evaluation.processSampleCount} 个过程样本，仅作观察</small></div>
+        <div><span>最终复测</span><strong>{formatGoalValue(metric, evaluation.primaryFinal)}</strong></div>
+        <div><span>建议区间</span><strong>{season.goal?.targetMin === undefined || season.goal.targetMax === undefined ? "完成基线后生成" : `${formatGoalValue(metric, season.goal.targetMin)}–${formatGoalValue(metric, season.goal.targetMax)}`}</strong></div>
+      </div>
+      {evaluation.status === "comparable" && (
+        <div className="season-tradeoffs">
+          <span>{evaluation.targetReached === null ? "目标仍待观察" : evaluation.targetReached ? "已进入建议观察区间" : "尚未进入建议观察区间"}</span>
+          <span>字准：{tradeoffLabel(evaluation.tradeoffs.characterAccuracy, "未见明显代价", "出现下降代价")}</span>
+          <span>键准：{tradeoffLabel(evaluation.tradeoffs.keyAccuracy, "未见明显代价", "出现下降代价")}</span>
+          <span>码长：{tradeoffLabel(evaluation.tradeoffs.codeLength, "未见明显代价", "出现上升代价")}</span>
+        </div>
+      )}
+      <p className="season-status-note">
+        {evaluation.confidence === "moderate"
+          ? `已有 ${evaluation.retests.length} 次同身份复测，不使用单次最好成绩。`
+          : evaluation.confidence === "limited"
+            ? "可比样本较少，结果不代表长期水平。"
+            : "数据不足时不会生成提升结论。"}
+      </p>
+    </section>
+  );
 }
 
 export function AdvancedCenter() {
@@ -531,8 +652,12 @@ export function AdvancedCenter() {
   const [practiceKey, setPracticeKey] = useState(0);
   const [optionalPractice, setOptionalPractice] = useState<PracticeTarget | null>(null);
   const [seasonSaveFailed, setSeasonSaveFailed] = useState(false);
+  const [seasonMessage, setSeasonMessage] = useState("");
+  const [goalMetric, setGoalMetric] = useState<AdvancedGoalMetric>("speed");
+  const [durationDays, setDurationDays] = useState<7 | 14>(14);
   const [scenarioLoadError, setScenarioLoadError] = useState("");
   const [scenarioLoadAttempt, setScenarioLoadAttempt] = useState(0);
+  const seasonActionLockRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -600,6 +725,28 @@ export function AdvancedCenter() {
     }
   }, []);
 
+  useEffect(() => {
+    const baselineScenario = scenarios.find((item) => item.id === "quiet-office-one");
+    if (!baselineScenario) return;
+    const currentIdentity = buildAdvancedAssessmentIdentity(baselineScenario);
+    setArchive((current) => {
+      if (!current.active) return current;
+      const invalidated = invalidateAdvancedSeasonForContent(
+        current.active,
+        currentIdentity,
+      );
+      if (invalidated === current.active) return current;
+      const next = archiveFinishedSeason(current, invalidated);
+      if (!writeLocal(STORAGE.advancedSeason, next)) {
+        setSeasonSaveFailed(true);
+        setSeasonMessage("正文变化状态未能保存，请检查浏览器存储空间。");
+        return current;
+      }
+      setSeasonMessage("评测正文已经变化，旧周期已转为只读摘要。");
+      return next;
+    });
+  }, [scenarios]);
+
   const startPractice = (target: PracticeTarget) => {
     setPracticeKey((value) => value + 1);
     setPractice(target);
@@ -646,18 +793,58 @@ export function AdvancedCenter() {
   };
 
   const startSeason = () => {
-    const season = createAdvancedSeason(createLocalId());
+    if (archive.active || seasonActionLockRef.current) return;
+    seasonActionLockRef.current = true;
+    const season = createAdvancedSeason(createLocalId(), new Date(), {
+      durationDays,
+      goalMetric,
+    });
     const next = { ...archive, active: season };
     if (writeLocal(STORAGE.advancedSeason, next)) {
       setArchive(next);
       setSeasonSaveFailed(false);
+      setSeasonMessage("阶段目标已建立；完成第一天后会生成个人观察区间。");
     } else {
       setSeasonSaveFailed(true);
+      setSeasonMessage("计划未能保存，请检查浏览器存储空间后重试。");
+    }
+    window.setTimeout(() => { seasonActionLockRef.current = false; }, 0);
+  };
+
+  const updateSeason = (
+    update: (season: AdvancedSeason) => AdvancedSeason,
+    successMessage: string,
+  ) => {
+    if (!archive.active || seasonActionLockRef.current) return;
+    seasonActionLockRef.current = true;
+    const season = update(archive.active);
+    const next = archiveFinishedSeason(archive, season);
+    if (writeLocal(STORAGE.advancedSeason, next)) {
+      setArchive(next);
+      setSeasonSaveFailed(false);
+      setSeasonMessage(successMessage);
+    } else {
+      setSeasonSaveFailed(true);
+      setSeasonMessage("计划状态未能保存，原状态保持不变。");
+    }
+    window.setTimeout(() => { seasonActionLockRef.current = false; }, 0);
+  };
+
+  const toggleSeasonPause = () => {
+    if (archive.active?.status === "paused") {
+      updateSeason((season) => resumeAdvancedSeason(season), "计划已继续，暂停时间不会占用完成窗口。");
+    } else {
+      updateSeason((season) => pauseAdvancedSeason(season), "计划已暂停，已有成绩和基线均会保留。");
     }
   };
 
+  const cancelSeason = () => {
+    if (!archive.active || !window.confirm("确定取消当前阶段目标吗？已有练习成绩会保留，周期只读摘要也会留在本机。")) return;
+    updateSeason((season) => cancelAdvancedSeason(season), "阶段目标已取消；已有成绩没有删除。");
+  };
+
   const startSeasonPractice = () => {
-    if (!archive.active) return;
+    if (!archive.active || archive.active.status === "paused") return;
     const current = expireAdvancedSeason(archive.active);
     if (current.status !== "active") {
       const next = archiveFinishedSeason(archive, current);
@@ -670,11 +857,11 @@ export function AdvancedCenter() {
 
   const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
   const latestSummary = latestSession?.rhythmSummary;
-  const completedFinal = archive.history.find((season) => season.status === "completed");
-  const finalSession = completedFinal?.days[13]?.sessionId
-    ? getSessions().find((session) => session.id === completedFinal.days[13].sessionId) ?? null
-    : null;
-  const comparison = seasonComparison(completedFinal?.baseline, finalSession);
+  const baselineScenario = scenarios.find((item) => item.id === "quiet-office-one");
+  const currentBaselineIdentity = baselineScenario
+    ? buildAdvancedAssessmentIdentity(baselineScenario)
+    : undefined;
+  const latestSeason = archive.history[0];
 
   if (practice) {
     return (
@@ -682,7 +869,7 @@ export function AdvancedCenter() {
         <AdvancedPractice
           key={practiceKey}
           target={practice}
-          roundLabel={repeat ? `三连复练 · 第 ${repeat.completed + 1} 轮` : practice.seasonDay ? `十四日计划 · 第 ${practice.seasonDay} 天` : undefined}
+          roundLabel={repeat ? `三连复练 · 第 ${repeat.completed + 1} 轮` : practice.seasonDay ? `阶段目标 · 第 ${practice.seasonDay} 天` : undefined}
           onCancel={() => { setPractice(null); setRepeat(null); }}
           onSave={(session) => {
             if (!session.seasonId || archive.active?.id !== session.seasonId) {
@@ -779,52 +966,108 @@ export function AdvancedCenter() {
         {tab === "season" && (
           <>
             <div className="advanced-module-heading">
-              <div><span className="eyebrow">N3 · 十四日静流计划</span><h2>十四个训练日，最多二十一天完成</h2></div>
-              {!archive.active && <button className="button primary" onClick={startSeason}>开始新的十四日计划</button>}
+              <div><span className="eyebrow">N3 · 阶段目标与评测</span><h2>只选一个主目标，用同一正文复测</h2></div>
             </div>
+            {seasonMessage && <p className="season-status-note" role="status">{seasonMessage}</p>}
+            {seasonSaveFailed && <p className="advanced-save-error" role="alert">计划状态未能保存，请检查浏览器存储空间。</p>}
             {archive.active ? (
-              <div className="season-layout">
-                <div className="season-progress-card">
-                  <span>当前训练日</span>
-                  <strong>{archive.active.currentDay}<small> / 14</small></strong>
-                  <p>{archive.active.days[archive.active.currentDay - 1].title}</p>
-                  <button className="button primary" disabled={!scenarios.length} onClick={startSeasonPractice}>开始今天的十五分钟</button>
-                  {optionalPractice && (
-                    <button
-                      className="button secondary"
-                      onClick={() => {
-                        const target = optionalPractice;
-                        setOptionalPractice(null);
-                        startPractice(target);
-                      }}
-                    >
-                      可选三分钟短练
+              <>
+                <div className="season-goal-card">
+                  <div>
+                    <span className="eyebrow">当前主目标</span>
+                    <h3>{ADVANCED_GOAL_LABELS[archive.active.goal?.metric ?? "speed"]}</h3>
+                    <p>{goalMetricNotes[archive.active.goal?.metric ?? "speed"]}</p>
+                  </div>
+                  <div>
+                    <span>个人观察区间</span>
+                    <strong>
+                      {archive.active.goal?.targetMin === undefined || archive.active.goal.targetMax === undefined
+                        ? "完成首日基线后生成"
+                        : `${formatGoalValue(archive.active.goal.metric, archive.active.goal.targetMin)}–${formatGoalValue(archive.active.goal.metric, archive.active.goal.targetMax)}`}
+                    </strong>
+                  </div>
+                  <div className="season-controls">
+                    <button className="button secondary" onClick={toggleSeasonPause}>
+                      {archive.active.status === "paused" ? "继续目标" : "暂停目标"}
                     </button>
-                  )}
+                    <button className="button danger" onClick={cancelSeason}>取消目标</button>
+                  </div>
                 </div>
-                <ol className="season-day-list">
-                  {archive.active.days.map((day) => (
-                    <li key={day.day} className={day.completedAt ? "completed" : day.day === archive.active?.currentDay ? "current" : ""}>
-                      <span>{day.day}</span><strong>{day.title}</strong><small>{day.completedAt ? "已完成" : day.day === archive.active?.currentDay ? "今天" : "待开始"}</small>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+                <div className="season-layout">
+                  <div className="season-progress-card">
+                    <span>{archive.active.status === "paused" ? "计划已暂停" : "当前训练日"}</span>
+                    <strong>{archive.active.currentDay}<small> / {getAdvancedSeasonDuration(archive.active)}</small></strong>
+                    <p>{archive.active.days[archive.active.currentDay - 1].title}</p>
+                    <button
+                      className="button primary"
+                      disabled={!scenarios.length || archive.active.status === "paused"}
+                      onClick={startSeasonPractice}
+                    >
+                      {archive.active.status === "paused" ? "继续目标后训练" : "开始今天的核心任务"}
+                    </button>
+                    {optionalPractice && archive.active.status !== "paused" && (
+                      <button
+                        className="button secondary"
+                        onClick={() => {
+                          const target = optionalPractice;
+                          setOptionalPractice(null);
+                          startPractice(target);
+                        }}
+                      >
+                        可选三分钟短练
+                      </button>
+                    )}
+                  </div>
+                  <ol className="season-day-list">
+                    {archive.active.days.map((day) => (
+                      <li key={day.day} className={day.completedAt ? "completed" : day.day === archive.active?.currentDay ? "current" : ""}>
+                        <span>{day.day}</span><strong>{day.title}</strong><small>{day.completedAt ? "已完成" : day.day === archive.active?.currentDay ? archive.active.status === "paused" ? "暂停中" : "当前" : "待开始"}</small>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <SeasonEvaluationView season={archive.active} currentIdentity={currentBaselineIdentity} />
+              </>
             ) : (
-              <div className="season-intro">
-                {seasonSaveFailed && <p className="advanced-save-error">计划未能保存，请检查浏览器存储空间后重试。</p>}
-                <p>漏练不会扣分，训练日会顺延。每天只有一项核心任务和一项可选短练，最终只与自己的第一天比较。</p>
-                {comparison && (
-                  <div className="season-comparison">
-                    <strong>{comparison.accuracyProtected ? "最近一期完成得更稳" : "最近一期速度变化仍待巩固"}</strong>
-                    <span>速度 {comparison.speedPercent === null ? "暂无" : `${comparison.speedPercent >= 0 ? "+" : ""}${comparison.speedPercent.toFixed(1)}%`}</span>
-                    <span>字准 {comparison.accuracyPoints >= 0 ? "+" : ""}{comparison.accuracyPoints.toFixed(1)} 个百分点</span>
-                    <span>节奏波动 {comparison.variationPoints === null ? "样本不足，无法判断" : `${comparison.variationPoints >= 0 ? "缩小" : "增加"} ${Math.abs(comparison.variationPoints).toFixed(1)} 个百分点`}</span>
-                    <span>启动 {comparison.startupMs === null ? "样本不足，无法判断" : `${comparison.startupMs >= 0 ? "快" : "慢"} ${Math.abs(Math.round(comparison.startupMs))} 毫秒`}</span>
-                    <span>恢复 {comparison.recoveryMs === null ? "样本不足，无法判断" : `${comparison.recoveryMs >= 0 ? "快" : "慢"} ${Math.abs(Math.round(comparison.recoveryMs))} 毫秒`}</span>
+              <>
+                <div className="season-setup">
+                  <div>
+                    <span className="eyebrow">选择唯一主目标</span>
+                    <h3>本周期最想验证什么？</h3>
+                    <p>其他指标只作为保护项，不会和主目标争夺结论。</p>
+                  </div>
+                  <div className="season-goal-grid" role="group" aria-label="阶段训练主目标">
+                    {goalMetricOrder.map((metric) => (
+                      <button
+                        key={metric}
+                        className="season-goal-option"
+                        aria-pressed={goalMetric === metric}
+                        onClick={() => setGoalMetric(metric)}
+                      >
+                        <strong>{ADVANCED_GOAL_LABELS[metric]}</strong>
+                        <span>{goalMetricNotes[metric]}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="season-duration-options" role="group" aria-label="训练周期长度">
+                    {([7, 14] as const).map((duration) => (
+                      <button key={duration} aria-pressed={durationDays === duration} onClick={() => setDurationDays(duration)}>
+                        <strong>{duration} 个训练日</strong>
+                        <span>{duration === 7 ? "最多 10 天完成" : "最多 21 天完成"}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p>首日完成固定正文后，系统才会按个人基线生成合理观察区间，不承诺固定提升幅度。</p>
+                  <button className="button primary" disabled={!scenarios.length} onClick={startSeason}>建立阶段目标</button>
+                </div>
+                {latestSeason && (
+                  <div className="season-history-summary">
+                    <span className="eyebrow">最近一期只读摘要</span>
+                    <strong>{latestSeason.status === "completed" ? "已完成" : latestSeason.status === "cancelled" ? "已取消" : latestSeason.status === "invalidated" ? "正文变化后失效" : "未完成"}</strong>
+                    <SeasonEvaluationView season={latestSeason} currentIdentity={currentBaselineIdentity} />
                   </div>
                 )}
-              </div>
+              </>
             )}
           </>
         )}

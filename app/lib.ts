@@ -36,7 +36,10 @@ import {
   pruneGhostTimelines,
 } from "./ghost-race.ts";
 import { applyWeakObservations } from "./training-plan.ts";
-import { isAdvancedSeasonArchive } from "./advanced-training.ts";
+import {
+  isAdvancedAssessmentIdentity,
+  isAdvancedSeasonArchive,
+} from "./advanced-training.ts";
 import {
   isValidHesitationPracticeTarget as isHesitationPracticeTarget,
 } from "./hesitation-practice.ts";
@@ -2582,6 +2585,8 @@ function isSessionResult(value: unknown): value is SessionResult {
         value.errorChars.every((item) => isBoundedString(item, 8)))) &&
     (value.heatmap === undefined || isTypingHeatmap(value.heatmap)) &&
     (value.rhythmSummary === undefined || isRhythmSummary(value.rhythmSummary)) &&
+    (value.assessmentIdentity === undefined ||
+      isAdvancedAssessmentIdentity(value.assessmentIdentity)) &&
     (value.ghostTimeline === undefined ||
       (value.type === "article" &&
         isGhostTimelineForSession(value.ghostTimeline, value.durationSeconds))) &&
@@ -2591,6 +2596,7 @@ function isSessionResult(value: unknown): value is SessionResult {
       ? value.hesitationPractice !== undefined
       : value.hesitationPractice === undefined) &&
     (value.type === "scenario" ? value.scenarioId !== undefined : value.scenarioId === undefined) &&
+    (value.assessmentIdentity === undefined || value.seasonId !== undefined) &&
     ((value.seasonId === undefined && value.seasonDay === undefined) ||
       (value.seasonId !== undefined && value.seasonDay !== undefined))
   );

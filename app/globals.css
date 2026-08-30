@@ -6645,10 +6645,231 @@ select,
   gap: 12px;
 }
 
+.season-setup {
+  margin-top: 20px;
+  padding: 24px;
+  display: grid;
+  gap: 22px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+}
+
+.season-setup > *,
+.season-goal-grid > *,
+.season-evaluation-grid > * {
+  min-width: 0;
+}
+
+.season-setup h3,
+.season-goal-card h3,
+.season-evaluation h3,
+.season-history-summary h3 {
+  margin: 0;
+  font: 700 18px/1.35 var(--font-display);
+}
+
+.season-setup p,
+.season-goal-card p,
+.season-evaluation p,
+.season-history-summary p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.season-goal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.season-goal-option {
+  min-height: 118px;
+  padding: 16px;
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  color: var(--text-primary);
+  text-align: left;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-paper);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 180ms var(--ease-out);
+}
+
+.season-goal-option strong {
+  font: 700 16px/1.35 var(--font-display);
+}
+
+.season-goal-option span,
+.season-goal-option small {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.season-goal-option.active,
+.season-goal-option[aria-pressed="true"],
+.season-goal-option:has(input:checked) {
+  border-color: var(--accent-bamboo);
+  background: color-mix(in srgb, var(--accent-bamboo) 10%, var(--bg-paper));
+  box-shadow: inset 0 3px 0 var(--accent-bamboo-fill);
+}
+
+.season-goal-option input {
+  accent-color: var(--accent-bamboo-fill);
+}
+
+.season-duration-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.season-duration-options > button,
+.season-duration-options > label {
+  min-height: 40px;
+  padding: 9px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-paper);
+  cursor: pointer;
+}
+
+.season-duration-options > button.active,
+.season-duration-options > button[aria-pressed="true"],
+.season-duration-options > label:has(input:checked) {
+  color: var(--text-on-accent);
+  border-color: var(--accent-bamboo-fill);
+  background: var(--accent-bamboo-fill);
+}
+
+.season-goal-card,
+.season-evaluation,
+.season-history-summary {
+  margin-top: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+}
+
+.season-goal-card {
+  border-top: 3px solid var(--accent-bamboo);
+}
+
+.season-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.season-controls .button {
+  min-width: 112px;
+}
+
+.season-evaluation {
+  background: var(--bg-paper);
+}
+
+.season-evaluation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border-default);
+}
+
+.season-evaluation-grid > div {
+  min-height: 88px;
+  padding: 14px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.season-evaluation-grid span,
+.season-evaluation-grid small {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.season-evaluation-grid strong {
+  overflow-wrap: anywhere;
+  font: 700 18px/1.25 var(--font-data);
+}
+
+.season-tradeoffs {
+  margin: 0;
+  padding: 14px 16px 14px 34px;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--accent-vermilion);
+  background: color-mix(in srgb, var(--accent-vermilion) 6%, var(--bg-raised));
+  line-height: 1.7;
+}
+
+.season-tradeoffs li + li {
+  margin-top: 6px;
+}
+
+.season-status-note {
+  margin: 0;
+  padding: 11px 13px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--bg-paper);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.season-history-summary {
+  box-shadow: none;
+}
+
+.season-history-summary > ul,
+.season-history-summary > ol {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+
+@media (hover: hover) {
+  .season-goal-option:hover,
+  .season-duration-options > button:hover,
+  .season-duration-options > label:hover {
+    border-color: var(--accent-bamboo);
+  }
+
+  .season-goal-option:hover {
+    transform: translateY(-1px);
+  }
+}
+
 @media (max-width: 900px) {
   .scenario-grid,
   .season-layout {
     grid-template-columns: 1fr;
+  }
+
+  .season-goal-grid,
+  .season-evaluation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -6684,6 +6905,71 @@ select,
   .advanced-practice-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .season-setup,
+  .season-goal-card,
+  .season-evaluation,
+  .season-history-summary {
+    margin-inline: -16px;
+    padding: 16px;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .season-goal-grid,
+  .season-evaluation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .season-goal-option {
+    min-height: 0;
+  }
+
+  .season-duration-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .season-duration-options > button,
+  .season-duration-options > label {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .season-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .season-controls .button,
+  .season-controls button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .season-tradeoffs {
+    padding-left: 30px;
+  }
+}
+
+@media (max-width: 380px) {
+  .season-duration-options,
+  .season-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .season-evaluation-grid strong {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .season-goal-option,
+  .season-duration-options > button,
+  .season-duration-options > label {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
