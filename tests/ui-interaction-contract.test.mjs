@@ -96,6 +96,25 @@ test("training drills lock repeated submit and advance actions", async () => {
   );
 });
 
+test("completed training task status keeps its own readable action column", async () => {
+  const [training, styles] = await Promise.all([
+    readFile(trainingCenterPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(training, /className="plan-task-done"[^>]*>✓ 已完成<\/span>/);
+  assert.match(styles, /\.plan-steps li > span:first-child\s*\{/);
+  assert.doesNotMatch(styles, /\.plan-steps li > span\s*\{/);
+  assert.match(
+    styles,
+    /\.plan-task-done\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*justify-self:\s*end;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*\.plan-steps li > :last-child\s*\{[^}]*grid-column:\s*2;[^}]*justify-self:\s*start;/s,
+  );
+});
+
 test("custom text limits and install failures are visible instead of silent", async () => {
   const [component, management, pwa] = await Promise.all([
     readFile(componentPath, "utf8"),
@@ -280,8 +299,9 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.match(
     component,
-    /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
+    /<\/article>[\s\S]*\{completed && \(lastSession\?\.rhythmSummary \|\| lastSession\?\.heatmap\) && \([\s\S]*className="post-practice-review"[\s\S]*<RhythmSummaryView[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
   );
+  assert.equal(component.match(/className="post-practice-review"/g)?.length, 1);
   assert.match(component, /className="session-heatmap-trigger"/);
   assert.equal(component.match(/<HesitationHeatmap\b/g)?.length, 2);
   assert.match(
@@ -305,7 +325,7 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(styles, /--heat-mild:/);
   assert.match(
     styles,
-    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
+    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*display:\s*grid;[^}]*gap:\s*1px;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
   );
   assert.match(
     styles,
@@ -314,6 +334,10 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(
     styles,
     /@media \(max-width: 900px\)[\s\S]*\.post-practice-review,[\s\S]*\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*auto;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*\.post-practice-review\s*\{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;/s,
   );
   assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);
@@ -488,6 +512,12 @@ test("restrained motion connects progress, tabs, and rhythm without ignoring red
     styles,
     /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.goal-row > i b,[\s\S]*\.advanced-rhythm-curve i[\s\S]*animation:\s*none !important/s,
   );
+});
+
+test("advanced training content stays inside ultra-narrow viewports", async () => {
+  const styles = await readFile(stylesPath, "utf8");
+
+  assert.match(styles, /\.advanced-page > \*\s*\{[^}]*min-width:\s*0/s);
 });
 
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {

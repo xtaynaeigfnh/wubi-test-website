@@ -114,13 +114,76 @@ export interface AdvancedScenario {
   suggestedMinutes: number;
 }
 
-export type AdvancedSeasonStatus = "active" | "completed" | "expired";
+export type AdvancedGoalMetric =
+  | "speed"
+  | "characterAccuracy"
+  | "keyAccuracy"
+  | "codeLength"
+  | "phrase"
+  | "stability";
+
+export interface AdvancedGoalTarget {
+  version: 1;
+  metric: AdvancedGoalMetric;
+  baselineValue?: number;
+  targetMin?: number;
+  targetMax?: number;
+}
+
+export interface AdvancedAssessmentConditions {
+  version: 1;
+  textNormalization: "nfc-without-whitespace";
+  timingPolicy: "active-foreground-time";
+  completionPolicy: "full-text";
+}
+
+export interface AdvancedAssessmentIdentity {
+  scenarioId: string;
+  scenarioVersion: number;
+  contentFingerprint: string;
+  characterCount: number;
+  conditions?: AdvancedAssessmentConditions;
+}
+
+export interface AdvancedAssessmentMetrics {
+  speed: number;
+  characterAccuracy: number;
+  keyAccuracy: number | null;
+  codeLength: number | null;
+  phraseRate: number | null;
+  stability: number | null;
+}
+
+export interface AdvancedAssessmentSnapshot {
+  version: 1;
+  day: number;
+  sessionId: string;
+  recordedAt: string;
+  identity: AdvancedAssessmentIdentity;
+  metrics: AdvancedAssessmentMetrics;
+}
+
+export interface AdvancedSeasonAssessment {
+  version: 1;
+  snapshots: AdvancedAssessmentSnapshot[];
+  invalidatedAt?: string;
+  invalidationReason?: string;
+}
+
+export type AdvancedSeasonStatus =
+  | "active"
+  | "paused"
+  | "completed"
+  | "cancelled"
+  | "expired"
+  | "invalidated";
 
 export interface AdvancedSeasonDay {
   day: number;
   focus: "baseline" | "startup" | "stability" | "switching" | "recovery" | "retest" | ScenarioCategory | "adaptive" | "restore" | "integrated" | "prepare" | "final";
   title: string;
   completedAt?: string;
+  completedLocalDate?: string;
   sessionId?: string;
 }
 
@@ -140,6 +203,12 @@ export interface AdvancedSeason {
   expiresAt: string;
   currentDay: number;
   days: AdvancedSeasonDay[];
+  durationDays?: 7 | 14;
+  calendarDayPolicy?: "one-per-local-day";
+  goal?: AdvancedGoalTarget;
+  assessment?: AdvancedSeasonAssessment;
+  pausedAt?: string;
+  pausedDurationMs?: number;
   baseline?: AdvancedSeasonBaseline;
   completedAt?: string;
 }
@@ -232,6 +301,7 @@ export interface SessionResult {
   hesitationPractice?: HesitationPracticeResult;
   rhythmSummary?: RhythmSummary;
   scenarioId?: string;
+  assessmentIdentity?: AdvancedAssessmentIdentity;
   seasonId?: string;
   seasonDay?: number;
 }
