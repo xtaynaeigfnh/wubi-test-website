@@ -4321,7 +4321,7 @@ select,
   border-bottom: 0;
 }
 
-.plan-steps li > span {
+.plan-steps li > span:first-child {
   width: 38px;
   height: 38px;
   display: grid;
@@ -4611,7 +4611,7 @@ select,
   align-items: start;
 }
 
-.adaptive-plan-steps li[data-status="pending"] > span {
+.adaptive-plan-steps li[data-status="pending"] > span:first-child {
   color: var(--accent-vermilion);
   border: 1px solid var(--accent-vermilion);
   background: transparent;
@@ -4621,7 +4621,7 @@ select,
   box-shadow: inset 4px 0 0 var(--accent-bamboo);
 }
 
-.adaptive-plan-steps li[data-status="in-progress"] > span {
+.adaptive-plan-steps li[data-status="in-progress"] > span:first-child {
   background: var(--accent-bamboo-fill);
 }
 
@@ -4629,7 +4629,7 @@ select,
   background: color-mix(in srgb, var(--state-success) 5%, transparent);
 }
 
-.adaptive-plan-steps li[data-status="completed"] > span {
+.adaptive-plan-steps li[data-status="completed"] > span:first-child {
   background: var(--state-success-fill);
 }
 
@@ -4668,9 +4668,12 @@ select,
 }
 
 .plan-task-done {
+  width: max-content;
+  max-width: 100%;
   padding-inline: 12px;
   display: inline-flex;
   align-items: center;
+  justify-self: end;
   color: var(--state-success);
   border: 1px solid color-mix(in srgb, var(--state-success) 55%, var(--border-default));
   border-radius: var(--radius-small);
@@ -8875,7 +8878,7 @@ textarea {
   border-top: 3px solid var(--accent-bamboo);
 }
 
-.plan-steps li > span {
+.plan-steps li > span:first-child {
   color: var(--text-on-accent);
   border-radius: var(--radius-small);
   background: var(--accent-vermilion-fill);

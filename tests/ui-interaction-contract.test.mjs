@@ -96,6 +96,25 @@ test("training drills lock repeated submit and advance actions", async () => {
   );
 });
 
+test("completed training task status keeps its own readable action column", async () => {
+  const [training, styles] = await Promise.all([
+    readFile(trainingCenterPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  assert.match(training, /className="plan-task-done"[^>]*>✓ 已完成<\/span>/);
+  assert.match(styles, /\.plan-steps li > span:first-child\s*\{/);
+  assert.doesNotMatch(styles, /\.plan-steps li > span\s*\{/);
+  assert.match(
+    styles,
+    /\.plan-task-done\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*justify-self:\s*end;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*\.plan-steps li > :last-child\s*\{[^}]*grid-column:\s*2;[^}]*justify-self:\s*start;/s,
+  );
+});
+
 test("custom text limits and install failures are visible instead of silent", async () => {
   const [component, management, pwa] = await Promise.all([
     readFile(componentPath, "utf8"),
