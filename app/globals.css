@@ -6229,6 +6229,10 @@ select,
   gap: 20px;
 }
 
+.advanced-page > * {
+  min-width: 0;
+}
+
 .advanced-heading {
   margin-bottom: 0;
 }

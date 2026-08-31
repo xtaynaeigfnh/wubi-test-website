@@ -514,6 +514,12 @@ test("restrained motion connects progress, tabs, and rhythm without ignoring red
   );
 });
 
+test("advanced training content stays inside ultra-narrow viewports", async () => {
+  const styles = await readFile(stylesPath, "utf8");
+
+  assert.match(styles, /\.advanced-page > \*\s*\{[^}]*min-width:\s*0/s);
+});
+
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
   const [component, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
