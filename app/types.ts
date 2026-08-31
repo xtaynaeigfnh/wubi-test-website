@@ -183,6 +183,7 @@ export interface AdvancedSeasonDay {
   focus: "baseline" | "startup" | "stability" | "switching" | "recovery" | "retest" | ScenarioCategory | "adaptive" | "restore" | "integrated" | "prepare" | "final";
   title: string;
   completedAt?: string;
+  completedLocalDate?: string;
   sessionId?: string;
 }
 

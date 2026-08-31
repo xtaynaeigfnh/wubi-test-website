@@ -4,10 +4,12 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 
 const PENDING_SAVE_HISTORY_KEY = "__wubiPendingSaveGuard";
 
-export function usePendingSaveGuard(blocked: boolean) {
+export function usePendingSaveGuard(
+  blocked: boolean,
+  message = "本次成绩尚未保存，请先重试保存。",
+) {
   useEffect(() => {
     if (!blocked) return;
-    const message = "本次成绩尚未保存，请先重试保存。";
     const historyToken = `${Date.now()}-${Math.random()}`;
     const originalHistoryState = window.history.state;
     let restoreTimer: number | null = null;
@@ -101,7 +103,7 @@ export function usePendingSaveGuard(blocked: boolean) {
         // The guard is already inactive; restricted history access needs no retry.
       }
     };
-  }, [blocked]);
+  }, [blocked, message]);
 }
 
 export function SummaryCard({

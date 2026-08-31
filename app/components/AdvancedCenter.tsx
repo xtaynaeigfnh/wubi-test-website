@@ -109,8 +109,11 @@ function ms(value: number | null): string {
 
 function RhythmCurve({ summary }: { summary: RhythmSummary }) {
   const max = Math.max(1, ...summary.curve.map((point) => point.intervalMs));
+  const curveLabel = summary.curve.length
+    ? `压缩节奏曲线，共 ${summary.curve.length} 个采样点，中位间隔${ms(summary.medianIntervalMs)}，第九十分位间隔${ms(summary.p90IntervalMs)}`
+    : "压缩节奏曲线，本次没有足够数据";
   return (
-    <div className="advanced-rhythm-curve" aria-label="压缩节奏曲线">
+    <div className="advanced-rhythm-curve" role="img" aria-label={curveLabel}>
       {summary.curve.map((point, index) => (
         <i
           key={point.characterCount}
@@ -202,8 +205,14 @@ function AdvancedPractice({
   const [inputValue, setInputValue] = useState("");
   const [paused, setPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  usePendingSaveGuard(saveFailed);
+  usePendingSaveGuard(
+    saveFailed || (hasStarted && !finished),
+    saveFailed
+      ? "本次成绩尚未保存，请先重试保存。"
+      : "练习正在进行，退出会丢失本次输入。",
+  );
   const startedAtRef = useRef<number | null>(null);
   const lastCommitAtRef = useRef<number | null>(null);
   const inactiveAtRef = useRef<number | null>(null);
@@ -277,6 +286,7 @@ function AdvancedPractice({
   const finish = (committed: string) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
+    setFinished(true);
     const now = performance.now();
     const durationSeconds = Math.max(0.1, activeElapsed(now) / 1000);
     const metrics = calculateTypingMetrics({
@@ -522,12 +532,20 @@ function AdvancedPractice({
         </div>
       )}
       <div className="advanced-practice-actions">
-        <button className="button secondary" disabled={saveFailed} onClick={onCancel}>
+        <button
+          className="button secondary"
+          disabled={saveFailed}
+          onClick={() => {
+            if (hasStarted && !finished && !window.confirm("退出会丢失本次输入，确定退出吗？")) return;
+            onCancel();
+          }}
+        >
           退出本次练习
         </button>
         <button
           className="button secondary"
           disabled={!hasStarted || saveFailed}
+          aria-pressed={paused}
           onClick={togglePause}
         >
           {paused ? "继续" : "暂停"}
@@ -630,16 +648,16 @@ function SeasonEvaluationView({
         <div><span>建议区间</span><strong>{season.goal?.targetMin === undefined || season.goal.targetMax === undefined ? "完成基线后生成" : `${formatGoalValue(metric, season.goal.targetMin)}–${formatGoalValue(metric, season.goal.targetMax)}`}</strong></div>
       </div>
       {evaluation.status === "comparable" && (
-        <div className="season-tradeoffs">
-          <span>{evaluation.targetReached === null ? "目标仍待观察" : evaluation.targetReached ? "已进入建议观察区间" : "尚未进入建议观察区间"}</span>
-          <span>字准：{tradeoffLabel(evaluation.tradeoffs.characterAccuracy, "未见明显代价", "出现下降代价")}</span>
-          <span>键准：{tradeoffLabel(evaluation.tradeoffs.keyAccuracy, "未见明显代价", "出现下降代价")}</span>
-          <span>码长：{tradeoffLabel(evaluation.tradeoffs.codeLength, "未见明显代价", "出现上升代价")}</span>
-        </div>
+        <ul className="season-tradeoffs">
+          <li>{evaluation.targetReached === null ? "目标仍待观察" : evaluation.targetReached ? "已进入建议观察区间" : "尚未进入建议观察区间"}</li>
+          <li>字准：{tradeoffLabel(evaluation.tradeoffs.characterAccuracy, "未见明显代价", "出现下降代价")}</li>
+          <li>键准：{tradeoffLabel(evaluation.tradeoffs.keyAccuracy, "未见明显代价", "出现下降代价")}</li>
+          <li>码长：{tradeoffLabel(evaluation.tradeoffs.codeLength, "未见明显代价", "出现上升代价")}</li>
+        </ul>
       )}
       <p className="season-status-note">
         {evaluation.confidence === "moderate"
-          ? `已有 ${evaluation.retests.length} 次同身份复测，不使用单次最好成绩。`
+          ? `已有 ${evaluation.retests.length} 个同正文样本，不使用单次最好成绩。`
           : evaluation.confidence === "limited"
             ? "可比样本较少，结果不代表长期水平。"
             : "数据不足时不会生成提升结论。"}
@@ -663,19 +681,27 @@ export function AdvancedCenter() {
   const [durationDays, setDurationDays] = useState<7 | 14>(14);
   const [seasonClock, setSeasonClock] = useState(() => Date.now());
   const [scenarioLoadError, setScenarioLoadError] = useState("");
+  const [scenarioLoading, setScenarioLoading] = useState(true);
   const [scenarioLoadAttempt, setScenarioLoadAttempt] = useState(0);
+  const [completionMessage, setCompletionMessage] = useState("");
   const seasonActionLockRef = useRef(false);
+  const resultFocusRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let active = true;
     setScenarioLoadError("");
+    setScenarioLoading(true);
     loadArticles()
       .then((articles) => {
-        if (active) setScenarios(buildAdvancedScenarioLibrary(articles));
+        if (active) {
+          setScenarios(buildAdvancedScenarioLibrary(articles));
+          setScenarioLoading(false);
+        }
       })
       .catch((error: unknown) => {
         if (!active) return;
         setScenarios([]);
+        setScenarioLoading(false);
         setScenarioLoadError(
           error instanceof Error ? error.message : "进阶实战题库加载失败",
         );
@@ -684,6 +710,12 @@ export function AdvancedCenter() {
       active = false;
     };
   }, [scenarioLoadAttempt]);
+
+  useEffect(() => {
+    if (practice || !completionMessage) return;
+    const frame = window.requestAnimationFrame(() => resultFocusRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [completionMessage, practice]);
 
   useEffect(() => {
     setLatestSession(getSessions().find((session) => session.rhythmSummary) ?? null);
@@ -784,10 +816,14 @@ export function AdvancedCenter() {
 
   const completePractice = (session: SessionResult) => {
     setLatestSession(session);
+    setCompletionMessage(`${session.title}已完成，成绩已保存。`);
     if (session.seasonId && archive.active?.id === session.seasonId) {
       const season = completeAdvancedSeasonDay(archive.active, session, new Date(session.date));
       const nextArchive = archiveFinishedSeason(archive, season);
       setArchive(nextArchive);
+      if (season.days[(session.seasonDay ?? 1) - 1]?.sessionId === session.id) {
+        setSeasonMessage(`第 ${session.seasonDay} 个训练日已完成，成绩已保存。`);
+      }
       if (season.days[(session.seasonDay ?? 1) - 1]?.sessionId === session.id) {
         setOptionalPractice({
           id: `optional-${session.seasonDay}`,
@@ -921,14 +957,24 @@ export function AdvancedCenter() {
         <p>从一次输入的启动、稳定与恢复出发，把熟练变成可以理解、可以复练的手感。</p>
       </div>
       <div className="advanced-tabs" role="tablist" aria-label="进阶训练模块">
-        {tabs.map((item) => (
+        {tabs.map((item, index) => (
           <button
             key={item.id}
+            id={`advanced-tab-${item.id}`}
             role="tab"
             aria-selected={tab === item.id}
-            aria-controls={`advanced-${item.id}`}
+            aria-controls="advanced-panel"
+            tabIndex={tab === item.id ? 0 : -1}
             className={tab === item.id ? "active" : ""}
             onClick={() => setTab(item.id)}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const offset = event.key === "ArrowRight" ? 1 : -1;
+              const next = tabs[(index + offset + tabs.length) % tabs.length];
+              setTab(next.id);
+              window.requestAnimationFrame(() => document.getElementById(`advanced-tab-${next.id}`)?.focus());
+            }}
           >
             <strong>{item.label}</strong>
             <span>{item.note}</span>
@@ -942,7 +988,15 @@ export function AdvancedCenter() {
           onRetry={() => setScenarioLoadAttempt((value) => value + 1)}
         />
       )}
-      <section className="advanced-module" role="tabpanel" id={`advanced-${tab}`} aria-label={activeTab.label}>
+      {completionMessage && <p className="season-status-note" role="status" aria-live="polite">{completionMessage}</p>}
+      <section
+        ref={resultFocusRef}
+        className="advanced-module"
+        role="tabpanel"
+        id="advanced-panel"
+        aria-labelledby={`advanced-tab-${activeTab.id}`}
+        tabIndex={-1}
+      >
         {tab === "rhythm" && (
           <>
             <div className="advanced-module-heading">
@@ -985,7 +1039,7 @@ export function AdvancedCenter() {
                   <button className="button secondary" onClick={() => startPractice({ ...scenario, type: "scenario" })}>开始这项实战</button>
                 </article>
               ))}
-              {!scenarios.length && <div className="advanced-empty">实战题库正在准备，请稍后重试。</div>}
+              {scenarioLoading && <div className="advanced-empty" role="status">实战题库正在准备，请稍后重试。</div>}
             </div>
           </>
         )}
@@ -1083,12 +1137,13 @@ export function AdvancedCenter() {
                     {([7, 14] as const).map((duration) => (
                       <button key={duration} aria-pressed={durationDays === duration} onClick={() => setDurationDays(duration)}>
                         <strong>{duration} 个训练日</strong>
-                        <span>{duration === 7 ? "最多 10 天完成" : "最多 21 天完成"}</span>
+                        <span>{duration === 7 ? "未暂停时 10 天内完成" : "未暂停时 21 天内完成"}</span>
                       </button>
                     ))}
                   </div>
                   <p>首日完成固定正文后，系统才会按个人基线生成合理观察区间，不承诺固定提升幅度。</p>
-                  <button className="button primary" disabled={!scenarios.length} onClick={startSeason}>建立阶段目标</button>
+                  <button className="button primary" disabled={scenarioLoading || !!scenarioLoadError || !scenarios.length} onClick={startSeason}>建立阶段目标</button>
+                  {(scenarioLoading || scenarioLoadError) && <p role="status">{scenarioLoadError ? "题库加载失败，重试成功后才能建立目标。" : "题库准备完成后即可建立目标。"}</p>}
                 </div>
                 {latestSeason && (
                   <div className="season-history-summary">

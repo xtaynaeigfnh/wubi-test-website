@@ -423,6 +423,33 @@ test("each season day requires a different local calendar day", () => {
   );
   assert.equal(blocked, dayOne);
   assert.equal(canCompleteAdvancedSeasonToday(dayOne, new Date(2026, 7, 2, 0, 1)), true);
+  assert.match(dayOne.days[0].completedLocalDate, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("season completion canonicalizes equivalent timestamps and keeps local dates portable", () => {
+  const season = createAdvancedSeason("canonical-time", new Date("2026-08-01T08:00:00.000Z"));
+  const completed = completeAdvancedSeasonDay(
+    season,
+    assessmentSession(season, 1, { date: "2026-08-01T09:00:00Z" }),
+    new Date("2026-08-01T09:00:00.000Z"),
+  );
+
+  assert.equal(completed.days[0].completedAt, "2026-08-01T09:00:00.000Z");
+  assert.equal(completed.assessment.snapshots[0].recordedAt, completed.days[0].completedAt);
+  assert.equal(isAdvancedSeason(completed), true);
+});
+
+test("expired seasons cannot later be cancelled or invalidated", () => {
+  const season = createAdvancedSeason("expiry-priority", new Date("2026-08-01T08:00:00.000Z"), {
+    durationDays: 7,
+  });
+  const afterExpiry = new Date("2026-08-20T08:00:00.000Z");
+
+  assert.equal(cancelAdvancedSeason(season, afterExpiry).status, "expired");
+  assert.equal(
+    invalidateAdvancedSeasonForContent(season, assessmentIdentity({ contentFingerprint: "changed" }), afterExpiry).status,
+    "expired",
+  );
 });
 
 test("new seasons reject missing assessment identity and legacy active seasons close read-only", () => {
@@ -843,12 +870,25 @@ test("season archive rejects altered schedules and active history entries", () =
     history: [],
   }), false);
   assert.equal(isAdvancedSeasonArchive({ version: 1, active: null, history: [active] }), false);
+  const cancelled = cancelAdvancedSeason(active, new Date("2026-08-02T08:00:00.000Z"));
+  assert.equal(isAdvancedSeasonArchive({ version: 1, active: null, history: [cancelled, cancelled] }), false);
+  assert.equal(isAdvancedSeason({
+    ...active,
+    goal: { version: 1, metric: "characterAccuracy", baselineValue: 500_000, targetMin: 500_000, targetMax: 500_001 },
+  }), false);
 });
 
 test("advanced page exposes accessible tabs and quiet copy", async () => {
   const component = await readFile(new URL("../app/components/AdvancedCenter.tsx", import.meta.url), "utf8");
   assert.match(component, /role="tablist"/);
   assert.match(component, /aria-selected=\{tab === item\.id\}/);
+  assert.match(component, /id=\{`advanced-tab-\$\{item\.id\}`\}/);
+  assert.match(component, /tabIndex=\{tab === item\.id \? 0 : -1\}/);
+  assert.match(component, /event\.key !== "ArrowLeft" && event\.key !== "ArrowRight"/);
+  assert.match(component, /role="tabpanel"[\s\S]*aria-labelledby=\{`advanced-tab-\$\{activeTab\.id\}`\}/);
+  assert.match(component, /role="status" aria-live="polite"/);
+  assert.match(component, /退出会丢失本次输入，确定退出吗/);
+  assert.match(component, /aria-pressed=\{paused\}/);
   assert.match(component, /不催促，只看见节奏/);
   assert.match(component, /日常、办公与文学/);
   assert.match(component, /阶段目标与评测/);
@@ -882,7 +922,7 @@ test("advanced page exposes the complete v0.8 goal and assessment contract", asy
   assert.match(component, /useState<7 \| 14>\(14\)/);
   assert.match(component, /\(\[7, 14\] as const\)\.map\(\(duration\) =>/);
   assert.match(component, /aria-label="训练周期长度"/);
-  assert.match(component, /duration === 7 \? "最多 10 天完成" : "最多 21 天完成"/);
+  assert.match(component, /duration === 7 \? "未暂停时 10 天内完成" : "未暂停时 21 天内完成"/);
   assert.match(component, /createAdvancedSeason\(createLocalId\(\), new Date\(\), \{\s*durationDays,\s*goalMetric,\s*\}\)/);
 
   assert.match(component, /archive\.active\.status === "paused" \? "继续目标" : "暂停目标"/);

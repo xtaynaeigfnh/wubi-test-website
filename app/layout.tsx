@@ -18,14 +18,14 @@ export const metadata: Metadata = {
   description: "专为 86 版五笔熟练用户设计的本地文章测速、错题复练、五码根专项与离线查码工具。",
   openGraph: {
     title: "五笔测试网站",
-    description: "静流 · 节奏实验室、中文实战场与十四日训练。",
+    description: "静流 · 节奏实验室、中文实战场与 7 日或 14 日阶段训练。",
     type: "website",
     images: [{ url: `${basePath}/og.png`, width: 1536, height: 1024, alt: "五笔测试网站静流进阶训练" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "五笔测试网站",
-    description: "静流 · 节奏实验室、中文实战场与十四日训练。",
+    description: "静流 · 节奏实验室、中文实战场与 7 日或 14 日阶段训练。",
     images: [`${basePath}/og.png`],
   },
   manifest: `${basePath}/manifest.webmanifest`,

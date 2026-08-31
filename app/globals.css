@@ -6744,7 +6744,7 @@ select,
 
 .season-duration-options > button,
 .season-duration-options > label {
-  min-height: 40px;
+  min-height: 44px;
   padding: 9px 14px;
   display: inline-flex;
   align-items: center;

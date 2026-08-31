@@ -3437,7 +3437,7 @@ function HistoryView({
   );
 
   const clearResults = () => {
-    if (!window.confirm("确定清除全部本地成绩、错题、今日训练与十四日计划吗？此操作无法撤销。")) return;
+    if (!window.confirm("确定清除全部本地成绩、错题、今日训练与阶段目标吗？此操作无法撤销。")) return;
     if (!clearPracticeHistory()) {
       window.alert("清除未完成，本机数据已恢复到操作前的状态，请稍后重试。");
       return;
