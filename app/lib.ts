@@ -1748,7 +1748,9 @@ function persistPracticeOutcome(
 ): boolean {
   if (typeof window === "undefined") return false;
   const currentSessions = getSessions();
-  if (currentSessions.some((item) => item.id === session.id)) return true;
+  if (currentSessions.some((item) => item.id === session.id)) {
+    return extraWrites.size ? commitLocalWrites(extraWrites) : true;
+  }
   let retainedHeatmaps = 0;
   const sessions = pruneRhythmCurves(pruneGhostTimelines(
     [session, ...currentSessions].slice(0, 500),

@@ -1646,12 +1646,19 @@ a {
   min-width: 0;
   grid-column: 1;
   grid-row: 2;
+  display: grid;
+  gap: 1px;
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-top: 3px solid var(--accent-vermilion);
   border-radius: var(--radius-medium);
   background: var(--bg-paper);
   box-shadow: var(--shadow-panel);
+}
+
+.post-practice-review > .rhythm-result,
+.post-practice-review > .hesitation-heatmap {
+  min-width: 0;
 }
 
 .workspace-grid > .side-panel {
@@ -9122,6 +9129,11 @@ textarea {
 @media (max-width: 620px) {
   body {
     background-size: 28px 28px;
+  }
+
+  .post-practice-review {
+    border-inline: 0;
+    border-radius: 0;
   }
 
   body::before {

@@ -13,6 +13,7 @@ import {
   archiveFinishedSeason,
   buildAdvancedAssessmentIdentity,
   buildAdvancedSeasonEvaluation,
+  canCompleteAdvancedSeasonToday,
   buildAdvancedScenarioLibrary,
   cancelAdvancedSeason,
   completeAdvancedSeasonDay,
@@ -20,8 +21,10 @@ import {
   expireAdvancedSeason,
   invalidateAdvancedSeasonForContent,
   isAdvancedAssessmentIdentity,
+  isCurrentAdvancedAssessmentIdentity,
   isAdvancedSeason,
   isAdvancedSeasonArchive,
+  isLegacyAdvancedSeason,
   isValidScenario,
   pauseAdvancedSeason,
   resumeAdvancedSeason,
@@ -77,7 +80,7 @@ function assessmentIdentity(overrides = {}) {
 function assessmentSession(season, day, overrides = {}) {
   return session({
     id: `assessment-${day}`,
-    date: new Date(Date.UTC(2026, 7, day, 8)).toISOString(),
+    date: new Date(Date.UTC(2026, 7, day, 9)).toISOString(),
     seasonId: season.id,
     seasonDay: day,
     assessmentIdentity: assessmentIdentity(),
@@ -189,7 +192,7 @@ test("fourteen-day plan advances once, expires after twenty-one days, and keeps 
 
   const completed = completeAdvancedSeasonDay(
     season,
-    session({ seasonId: season.id, seasonDay: 1 }),
+    assessmentSession(season, 1, { date: "2026-08-02T08:00:00.000Z" }),
     new Date("2026-08-02T08:00:00.000Z"),
   );
   assert.equal(completed.currentDay, 2);
@@ -197,7 +200,7 @@ test("fourteen-day plan advances once, expires after twenty-one days, and keeps 
   assert.equal(
     completeAdvancedSeasonDay(
       completed,
-      session({ id: "advanced-session-two", seasonId: season.id, seasonDay: 2 }),
+      assessmentSession(completed, 2, { date: "2026-08-03T08:00:00.000Z" }),
       new Date("2026-08-03T08:00:00.000Z"),
     ).currentDay,
     3,
@@ -225,6 +228,7 @@ test("seven-day and fourteen-day plans use their own schedules and completion wi
   });
 
   assert.equal(seven.days.length, 7);
+  assert.equal(seven.calendarDayPolicy, "one-per-local-day");
   assert.deepEqual(seven.days.map((day) => day.focus), [
     "baseline",
     "startup",
@@ -287,12 +291,24 @@ test("assessment identity fingerprints normalized content and preserves version 
   assert.equal(compact.scenarioVersion, 2);
   assert.notEqual(spaced.contentFingerprint, changed.contentFingerprint);
   assert.equal(isAdvancedAssessmentIdentity(spaced), true);
+  assert.deepEqual(spaced.conditions, {
+    version: 1,
+    textNormalization: "nfc-without-whitespace",
+    timingPolicy: "active-foreground-time",
+    completionPolicy: "full-text",
+  });
   assert.equal(isAdvancedAssessmentIdentity({ ...spaced, contentFingerprint: "forged" }), false);
   assert.equal(isAdvancedAssessmentIdentity({ ...spaced, characterCount: 0 }), false);
+  assert.equal(isAdvancedAssessmentIdentity({ ...spaced, conditions: { ...spaced.conditions, version: 2 } }), false);
+  const legacyIdentity = { ...spaced };
+  delete legacyIdentity.conditions;
+  assert.equal(isAdvancedAssessmentIdentity(legacyIdentity), true);
+  assert.equal(isCurrentAdvancedAssessmentIdentity(legacyIdentity), false);
+  assert.equal(isCurrentAdvancedAssessmentIdentity(spaced), true);
 });
 
 test("season validation rejects malformed goals, snapshots, schedules, and status timestamps", () => {
-  const season = createAdvancedSeason("strict-v08");
+  const season = createAdvancedSeason("strict-v08", new Date("2026-08-01T08:00:00.000Z"));
   const identity = assessmentIdentity();
   const completedDay = completeAdvancedSeasonDay(
     season,
@@ -307,6 +323,10 @@ test("season validation rejects malformed goals, snapshots, schedules, and statu
   assert.equal(isAdvancedSeason({
     ...season,
     goal: { version: 1, metric: "speed", targetMin: -1 },
+  }), false);
+  assert.equal(isAdvancedSeason({
+    ...season,
+    goal: { version: 1, metric: "speed", baselineValue: 100, targetMin: 108, targetMax: 103 },
   }), false);
   assert.equal(isAdvancedSeason({
     ...season,
@@ -338,6 +358,160 @@ test("season validation rejects malformed goals, snapshots, schedules, and statu
     status: "completed",
     completedAt: undefined,
   }), false);
+  assert.equal(isAdvancedSeason({
+    ...completedDay,
+    currentDay: 1,
+  }), false);
+  assert.equal(isAdvancedSeason({
+    ...completedDay,
+    days: completedDay.days.map((day, index) => index === 1
+      ? { ...day, completedAt: completedDay.days[0].completedAt, sessionId: "second-session" }
+      : day),
+    currentDay: 3,
+    assessment: {
+      version: 1,
+      snapshots: [
+        completedDay.assessment.snapshots[0],
+        { ...completedDay.assessment.snapshots[0], day: 2, sessionId: "second-session" },
+      ],
+    },
+  }), false);
+  assert.equal(isAdvancedSeason({
+    ...completedDay,
+    days: completedDay.days.map((day, index) => index === 1
+      ? { ...day, completedAt: "2026-08-02T09:00:00.000Z", sessionId: completedDay.days[0].sessionId }
+      : day),
+    currentDay: 3,
+  }), false);
+  assert.equal(isAdvancedSeason({
+    ...completedDay,
+    completedAt: "2026-07-31T09:00:00.000Z",
+    status: "cancelled",
+  }), false);
+  assert.equal(isAdvancedSeason({
+    ...completedDay,
+    completedAt: "2026-08-01T08:30:00.000Z",
+    status: "cancelled",
+  }), false);
+  assert.equal(isAdvancedSeason({
+    ...completedDay,
+    assessment: {
+      ...completedDay.assessment,
+      snapshots: completedDay.assessment.snapshots.map((snapshot) => ({
+        ...snapshot,
+        recordedAt: "2026-08-01T09:00:01.000Z",
+      })),
+    },
+  }), false);
+});
+
+test("each season day requires a different local calendar day", () => {
+  const season = createAdvancedSeason("daily-boundary", new Date(2026, 7, 1, 8));
+  const dayOneTime = new Date(2026, 7, 1, 9);
+  const dayOne = completeAdvancedSeasonDay(
+    season,
+    assessmentSession(season, 1, { date: dayOneTime.toISOString() }),
+    dayOneTime,
+  );
+  assert.equal(dayOne.currentDay, 2);
+  assert.equal(canCompleteAdvancedSeasonToday(dayOne, new Date(2026, 7, 1, 23, 59)), false);
+
+  const blocked = completeAdvancedSeasonDay(
+    dayOne,
+    assessmentSession(dayOne, 2, { date: new Date(2026, 7, 1, 23, 59).toISOString() }),
+    new Date(2026, 7, 1, 23, 59),
+  );
+  assert.equal(blocked, dayOne);
+  assert.equal(canCompleteAdvancedSeasonToday(dayOne, new Date(2026, 7, 2, 0, 1)), true);
+});
+
+test("new seasons reject missing assessment identity and legacy active seasons close read-only", () => {
+  const started = new Date("2026-08-01T08:00:00.000Z");
+  const season = createAdvancedSeason("identity-required", started);
+  const missingIdentity = session({
+    seasonId: season.id,
+    seasonDay: 1,
+    date: "2026-08-02T08:00:00.000Z",
+  });
+  assert.equal(
+    completeAdvancedSeasonDay(season, missingIdentity, new Date(missingIdentity.date)),
+    season,
+  );
+
+  const legacy = {
+    ...season,
+    durationDays: undefined,
+    goal: undefined,
+    assessment: undefined,
+    pausedDurationMs: undefined,
+    baseline: { speed: 90, accuracy: 98, variationPercent: null, startupMs: null, recoveryMs: null },
+  };
+  assert.equal(isLegacyAdvancedSeason(legacy), true);
+  assert.equal(isAdvancedSeason(legacy), true);
+  const closed = completeAdvancedSeasonDay(
+    legacy,
+    { ...missingIdentity, assessmentIdentity: assessmentIdentity() },
+    new Date(missingIdentity.date),
+  );
+  assert.equal(closed.status, "invalidated");
+  assert.equal(closed.assessment, undefined);
+  assert.equal(buildAdvancedSeasonEvaluation(closed).status, "legacy");
+  const retiredOnLoad = invalidateAdvancedSeasonForContent(
+    legacy,
+    assessmentIdentity(),
+    new Date(missingIdentity.date),
+  );
+  assert.equal(retiredOnLoad.status, "invalidated");
+  assert.equal(buildAdvancedSeasonEvaluation(retiredOnLoad).status, "legacy");
+});
+
+test("pre-condition v0.8 identities remain loadable but are no longer comparable", () => {
+  const initial = createAdvancedSeason("old-v08", new Date("2026-08-01T00:00:00.000Z"), {
+    durationDays: 7,
+  });
+  const completed = completeAdvancedSeasonDay(
+    initial,
+    assessmentSession(initial, 1),
+    new Date("2026-08-01T09:00:00.000Z"),
+  );
+  const oldSnapshot = structuredClone(completed.assessment.snapshots[0]);
+  delete oldSnapshot.identity.conditions;
+  const stored = {
+    ...completed,
+    assessment: { version: 1, snapshots: [oldSnapshot] },
+  };
+  assert.equal(isAdvancedSeason(stored), true);
+  assert.equal(buildAdvancedSeasonEvaluation(stored, assessmentIdentity()).status, "invalidated");
+
+  const oldIdentity = structuredClone(assessmentIdentity());
+  delete oldIdentity.conditions;
+  const blocked = completeAdvancedSeasonDay(
+    initial,
+    assessmentSession(initial, 1, { assessmentIdentity: oldIdentity }),
+    new Date("2026-08-01T09:00:00.000Z"),
+  );
+  assert.equal(blocked, initial);
+
+  const secondSnapshot = {
+    ...completed.assessment.snapshots[0],
+    day: 2,
+    sessionId: "old-same-day-two",
+    recordedAt: "2026-08-01T10:00:00.000Z",
+  };
+  const oldSameDay = {
+    ...completed,
+    calendarDayPolicy: undefined,
+    currentDay: 3,
+    days: completed.days.map((day) => day.day === 2
+      ? { ...day, completedAt: secondSnapshot.recordedAt, sessionId: secondSnapshot.sessionId }
+      : day),
+    assessment: {
+      version: 1,
+      snapshots: [completed.assessment.snapshots[0], secondSnapshot],
+    },
+  };
+  assert.equal(isAdvancedSeason(oldSameDay), true);
+  assert.equal(isAdvancedSeason({ ...oldSameDay, calendarDayPolicy: "one-per-local-day" }), false);
 });
 
 test("pause and resume exclude background time by extending expiration", () => {
@@ -356,7 +530,7 @@ test("pause and resume exclude background time by extending expiration", () => {
 });
 
 test("cancelling a plan preserves completed session records and closes only the season", () => {
-  const season = createAdvancedSeason("cancel-season");
+  const season = createAdvancedSeason("cancel-season", new Date("2026-07-31T08:00:00.000Z"));
   const result = assessmentSession(season, 1);
   const completedDay = completeAdvancedSeasonDay(season, result, new Date(result.date));
   const sessions = [result];
@@ -396,6 +570,7 @@ test("evaluation compares baseline, process, and same-content retests with trade
   assert.equal(evaluation.status, "comparable");
   assert.equal(evaluation.baseline.day, 1);
   assert.equal(evaluation.final.day, 7);
+  assert.equal(evaluation.stageRetest.day, 6);
   assert.deepEqual(evaluation.retests.map((item) => item.day), [5, 6, 7]);
   assert.equal(evaluation.processSampleCount, 5);
   assert.equal(evaluation.processAverage, 112.4);
@@ -409,6 +584,49 @@ test("evaluation compares baseline, process, and same-content retests with trade
     keyAccuracy: "protected",
     codeLength: "cost",
   });
+});
+
+test("goal result must fall inside both ends of the observation range", () => {
+  let season = createAdvancedSeason("strict-range", new Date("2026-08-01T00:00:00.000Z"), {
+    durationDays: 7,
+    goalMetric: "speed",
+  });
+  for (let day = 1; day <= 7; day += 1) {
+    season = completeAdvancedSeasonDay(
+      season,
+      assessmentSession(season, day, { speed: day === 7 ? 200 : 100 }),
+      new Date(Date.UTC(2026, 7, day, 9)),
+    );
+  }
+  assert.deepEqual(
+    { min: season.goal.targetMin, max: season.goal.targetMax },
+    { min: 103, max: 108 },
+  );
+  assert.equal(buildAdvancedSeasonEvaluation(season, assessmentIdentity()).targetReached, false);
+});
+
+test("forged stage conditions cannot advance or become a comparable retest", () => {
+  const base = createAdvancedSeason("stage-retest", new Date("2026-08-01T00:00:00.000Z"), {
+    durationDays: 7,
+  });
+  let season = base;
+  for (let day = 1; day <= 6; day += 1) {
+    season = completeAdvancedSeasonDay(
+      season,
+      assessmentSession(season, day, {
+        assessmentIdentity: day === 6
+          ? assessmentIdentity({
+              conditions: { ...assessmentIdentity().conditions, timingPolicy: "forged" },
+            })
+          : assessmentIdentity(),
+      }),
+      new Date(Date.UTC(2026, 7, day, 9)),
+    );
+  }
+  // Day six is rejected before it can enter the season archive.
+  assert.equal(season.currentDay, 6);
+  assert.equal(isAdvancedSeason(season), true);
+  assert.equal(buildAdvancedSeasonEvaluation(season, assessmentIdentity()).stageRetest, null);
 });
 
 test("content changes invalidate old assessment evidence instead of claiming improvement", () => {
@@ -440,6 +658,27 @@ test("content changes invalidate old assessment evidence instead of claiming imp
   assert.equal(evaluation.targetReached, null);
   assert.match(evaluation.message, /只读摘要/);
   assert.equal(isAdvancedSeason(invalidated), true);
+});
+
+test("assessment condition changes invalidate an otherwise identical text", () => {
+  const initial = createAdvancedSeason("condition-change", new Date("2026-08-01T00:00:00.000Z"), {
+    durationDays: 7,
+  });
+  const withBaseline = completeAdvancedSeasonDay(
+    initial,
+    assessmentSession(initial, 1),
+    new Date("2026-08-01T09:00:00.000Z"),
+  );
+  const currentIdentity = assessmentIdentity({
+    conditions: { ...assessmentIdentity().conditions, timingPolicy: "wall-clock-time" },
+  });
+  const invalidated = invalidateAdvancedSeasonForContent(
+    withBaseline,
+    currentIdentity,
+    new Date("2026-08-02T09:00:00.000Z"),
+  );
+  assert.equal(invalidated.status, "invalidated");
+  assert.equal(buildAdvancedSeasonEvaluation(invalidated, currentIdentity).status, "invalidated");
 });
 
 test("evaluation reports missing or limited samples without inventing a conclusion", () => {
@@ -524,11 +763,11 @@ test("adaptive day selects the weakest of the three completed scenarios", () => 
 });
 
 test("advanced outcome rolls sessions and season back when either write fails", () => {
-  const season = createAdvancedSeason("atomic-season");
-  const result = session({ seasonId: season.id, seasonDay: 1 });
+  const season = createAdvancedSeason("atomic-season", new Date("2026-07-31T08:00:00.000Z"));
+  const result = assessmentSession(season, 1);
   const completed = completeAdvancedSeasonDay(
     season,
-    { ...result, seasonId: season.id, seasonDay: 1 },
+    result,
     new Date(result.date),
   );
   const archive = { version: 1, active: completed, history: [] };
@@ -550,6 +789,31 @@ test("advanced outcome rolls sessions and season back when either write fails", 
     assert.equal(saveAdvancedPracticeOutcome(result, archive), false);
     assert.deepEqual(JSON.parse(values.get(STORAGE.sessions)), []);
     assert.equal(JSON.parse(values.get(STORAGE.advancedSeason)).active.currentDay, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("a repeated saved session still repairs its missing season write", () => {
+  const season = createAdvancedSeason("idempotent-season", new Date("2026-07-31T08:00:00.000Z"));
+  const result = assessmentSession(season, 1);
+  const completed = completeAdvancedSeasonDay(season, result, new Date(result.date));
+  const repairedArchive = { version: 1, active: completed, history: [] };
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([result])],
+    [STORAGE.advancedSeason, JSON.stringify({ version: 1, active: season, history: [] })],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(saveAdvancedPracticeOutcome(result, repairedArchive), true);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(JSON.parse(values.get(STORAGE.advancedSeason)).active.currentDay, 2);
   } finally {
     delete globalThis.window;
   }
@@ -631,6 +895,9 @@ test("advanced page exposes the complete v0.8 goal and assessment contract", asy
   assert.match(component, /评测正文已经变化，旧周期已转为只读摘要。/);
   assert.match(component, /latestSeason\.status === "invalidated" \? "正文变化后失效"/);
   assert.match(component, /<h3 id=\{`season-evaluation-\$\{season\.id\}`\}>基线、过程与复测<\/h3>/);
+  assert.match(component, /<span>阶段复测<\/span><strong>\{formatGoalValue\(metric, stageRetestValue\)\}<\/strong>/);
+  assert.match(component, /canCompleteAdvancedSeasonToday\(archive\.active, new Date\(seasonClock\)\)/);
+  assert.match(component, /下一训练日明天开放/);
   assert.match(component, /字准：\{tradeoffLabel\(evaluation\.tradeoffs\.characterAccuracy, "未见明显代价", "出现下降代价"\)\}/);
   assert.match(component, /键准：\{tradeoffLabel\(evaluation\.tradeoffs\.keyAccuracy, "未见明显代价", "出现下降代价"\)\}/);
   assert.match(component, /码长：\{tradeoffLabel\(evaluation\.tradeoffs\.codeLength, "未见明显代价", "出现上升代价"\)\}/);

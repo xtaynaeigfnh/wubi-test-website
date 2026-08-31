@@ -15,6 +15,13 @@ import type {
 export const ADVANCED_SEASON_DAYS = 14;
 export const ADVANCED_SEASON_WINDOW_DAYS = 21;
 
+const ASSESSMENT_CONDITIONS = {
+  version: 1,
+  textNormalization: "nfc-without-whitespace",
+  timingPolicy: "active-foreground-time",
+  completionPolicy: "full-text",
+} as const;
+
 const FOURTEEN_DAY_SCHEDULE: Array<Pick<AdvancedSeasonDay, "focus" | "title">> = [
   { focus: "baseline", title: "建立个人节奏基线" },
   { focus: "startup", title: "缩短启动前的停顿" },
@@ -191,6 +198,7 @@ export function buildAdvancedAssessmentIdentity(input: {
     scenarioVersion: input.version,
     contentFingerprint: `${characterCount}-${hashText(normalized)}`,
     characterCount,
+    conditions: ASSESSMENT_CONDITIONS,
   };
 }
 
@@ -272,6 +280,7 @@ export function createAdvancedSeason(
     expiresAt: expires.toISOString(),
     currentDay: 1,
     durationDays,
+    calendarDayPolicy: "one-per-local-day",
     goal: {
       version: 1,
       metric: options.goalMetric ?? "speed",
@@ -308,12 +317,27 @@ function isOptionalMetric(value: unknown, maximum = 1_000_000): boolean {
 export function isAdvancedAssessmentIdentity(value: unknown): value is AdvancedAssessmentIdentity {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const identity = value as AdvancedAssessmentIdentity;
+  const conditions = identity.conditions;
   return (
     typeof identity.scenarioId === "string" && identity.scenarioId.length > 0 && identity.scenarioId.length <= 160 &&
     Number.isInteger(identity.scenarioVersion) && identity.scenarioVersion >= 1 && identity.scenarioVersion <= 1_000_000 &&
     typeof identity.contentFingerprint === "string" && /^\d{1,4}-[0-9a-z]+$/.test(identity.contentFingerprint) &&
-    Number.isInteger(identity.characterCount) && identity.characterCount >= 1 && identity.characterCount <= 5000
+    Number.isInteger(identity.characterCount) && identity.characterCount >= 1 && identity.characterCount <= 5000 &&
+    Number(identity.contentFingerprint.split("-", 1)[0]) === identity.characterCount &&
+    (conditions === undefined || (
+      Boolean(conditions) && typeof conditions === "object" && !Array.isArray(conditions) &&
+      conditions.version === 1 &&
+      conditions.textNormalization === "nfc-without-whitespace" &&
+      conditions.timingPolicy === "active-foreground-time" &&
+      conditions.completionPolicy === "full-text"
+    ))
   );
+}
+
+export function isCurrentAdvancedAssessmentIdentity(
+  value: unknown,
+): value is AdvancedAssessmentIdentity & { conditions: typeof ASSESSMENT_CONDITIONS } {
+  return isAdvancedAssessmentIdentity(value) && value.conditions !== undefined;
 }
 
 function isAssessmentMetrics(value: unknown): value is AdvancedAssessmentMetrics {
@@ -346,8 +370,14 @@ function isGoal(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const goal = value as AdvancedSeason["goal"];
   if (!goal || goal.version !== 1 || !Object.hasOwn(ADVANCED_GOAL_LABELS, goal.metric)) return false;
-  return [goal.baselineValue, goal.targetMin, goal.targetMax].every(
+  const valuesValid = [goal.baselineValue, goal.targetMin, goal.targetMax].every(
     (item) => item === undefined || (typeof item === "number" && Number.isFinite(item) && item >= 0 && item <= 1_000_000),
+  );
+  const targetFields = [goal.baselineValue, goal.targetMin, goal.targetMax];
+  const hasNoTarget = targetFields.every((item) => item === undefined);
+  const hasCompleteTarget = targetFields.every((item) => item !== undefined);
+  return valuesValid && (hasNoTarget || hasCompleteTarget) && (
+    !hasCompleteTarget || (goal.targetMin as number) <= (goal.targetMax as number)
   );
 }
 
@@ -373,23 +403,77 @@ function isAssessment(value: unknown, durationDays: number): boolean {
 export function isAdvancedSeason(value: unknown): value is AdvancedSeason {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const season = value as AdvancedSeason;
+  if (
+    season.version !== 1 ||
+    typeof season.id !== "string" || season.id.length === 0 || season.id.length > 160 ||
+    !["active", "paused", "completed", "cancelled", "expired", "invalidated"].includes(season.status) ||
+    (season.durationDays !== undefined && season.durationDays !== 7 && season.durationDays !== 14) ||
+    (season.calendarDayPolicy !== undefined && season.calendarDayPolicy !== "one-per-local-day") ||
+    !isDate(season.startedAt) || !isDate(season.expiresAt) ||
+    !Array.isArray(season.days) ||
+    !season.days.every((day) => Boolean(day) && typeof day === "object" && !Array.isArray(day))
+  ) return false;
   const durationDays = season.durationDays ?? 14;
   const schedule = scheduleForDuration(durationDays);
   const isOpen = season.status === "active" || season.status === "paused";
+  const startedAt = new Date(season.startedAt).getTime();
+  const expiresAt = new Date(season.expiresAt).getTime();
+  const completedAt = season.completedAt === undefined
+    ? null
+    : new Date(season.completedAt).getTime();
+  const completedDays = Array.isArray(season.days)
+    ? season.days.filter((day) => day.completedAt !== undefined)
+    : [];
+  const completedCount = completedDays.length;
+  const completedPrefix = Array.isArray(season.days) && season.days.every(
+    (day, index) => index < completedCount
+      ? day.completedAt !== undefined && Boolean(day.sessionId)
+      : day.completedAt === undefined && day.sessionId === undefined,
+  );
+  const sessionIds = completedDays.map((day) => day.sessionId);
+  const sessionIdsUnique = new Set(sessionIds).size === sessionIds.length;
+  const completedTimestamps = completedDays.map((day) => new Date(day.completedAt!).getTime());
+  const completedDatesChronological = completedTimestamps.every(
+    (timestamp, index) => index === 0 || timestamp > completedTimestamps[index - 1],
+  );
+  const completedCalendarDaysUnique = new Set(
+    completedDays.map((day) => localCalendarDay(new Date(day.completedAt!))),
+  ).size === completedDays.length;
+  const completionTimelineConsistent = completedAt === null || completedTimestamps.every(
+    (timestamp) => timestamp <= completedAt,
+  );
+  const progressConsistent = season.status === "completed"
+    ? completedCount === durationDays && season.currentDay === durationDays
+    : completedCount < durationDays && season.currentDay === completedCount + 1;
+  const assessmentSnapshots = season.assessment && Array.isArray(season.assessment.snapshots)
+    ? season.assessment.snapshots
+    : [];
+  const snapshotByDay = new Map(
+    assessmentSnapshots.map((snapshot) => [snapshot.day, snapshot]),
+  );
+  const isVersionEightSeason = season.durationDays !== undefined;
+  const assessmentConsistent = !isVersionEightSeason || (
+    Boolean(season.goal) && Boolean(season.assessment) &&
+    season.assessment!.snapshots.length === completedCount &&
+    completedDays.every((day) => {
+      const snapshot = snapshotByDay.get(day.day);
+      return snapshot !== undefined &&
+        snapshot.sessionId === day.sessionId &&
+        snapshot.recordedAt === day.completedAt;
+    })
+  );
   return (
-    season.version === 1 &&
-    typeof season.id === "string" && season.id.length > 0 && season.id.length <= 160 &&
-    ["active", "paused", "completed", "cancelled", "expired", "invalidated"].includes(season.status) &&
-    (season.durationDays === undefined || season.durationDays === 7 || season.durationDays === 14) &&
-    isDate(season.startedAt) && isDate(season.expiresAt) &&
+    isDate(season.startedAt) && isDate(season.expiresAt) && startedAt < expiresAt &&
     Number.isInteger(season.currentDay) && season.currentDay >= 1 && season.currentDay <= durationDays &&
     Array.isArray(season.days) && season.days.length === durationDays &&
     season.days.every((day, index) =>
       day.day === index + 1 &&
       day.focus === schedule[index].focus &&
       day.title === schedule[index].title &&
-      (day.completedAt === undefined || isDate(day.completedAt)) &&
-      (day.sessionId === undefined || (typeof day.sessionId === "string" && day.sessionId.length <= 160)),
+      (day.completedAt === undefined || (
+        isDate(day.completedAt) && new Date(day.completedAt).getTime() >= startedAt
+      )) &&
+      (day.sessionId === undefined || (typeof day.sessionId === "string" && day.sessionId.length > 0 && day.sessionId.length <= 160)),
     ) &&
     (season.goal === undefined || isGoal(season.goal)) &&
     (season.assessment === undefined || isAssessment(season.assessment, durationDays)) &&
@@ -398,8 +482,14 @@ export function isAdvancedSeason(value: unknown): value is AdvancedSeason {
     )) &&
     (season.status === "paused" ? isDate(season.pausedAt) : season.pausedAt === undefined) &&
     (season.baseline === undefined || isBaseline(season.baseline)) &&
-    (season.completedAt === undefined || isDate(season.completedAt)) &&
-    (isOpen ? season.completedAt === undefined : season.completedAt !== undefined)
+    (season.completedAt === undefined || (
+      isDate(season.completedAt) && completedAt !== null && completedAt >= startedAt
+    )) &&
+    (isOpen ? season.completedAt === undefined : season.completedAt !== undefined) &&
+    completedPrefix && sessionIdsUnique && completedDatesChronological &&
+    (season.calendarDayPolicy === undefined || completedCalendarDaysUnique) &&
+    completionTimelineConsistent &&
+    progressConsistent && assessmentConsistent
   );
 }
 
@@ -419,6 +509,25 @@ export function isAdvancedSeasonArchive(value: unknown): value is AdvancedSeason
 export function expireAdvancedSeason(season: AdvancedSeason, now = new Date()): AdvancedSeason {
   if (season.status !== "active" || now.getTime() < new Date(season.expiresAt).getTime()) return season;
   return { ...season, status: "expired", completedAt: now.toISOString() };
+}
+
+function localCalendarDay(value: Date): string {
+  return `${value.getFullYear()}-${value.getMonth()}-${value.getDate()}`;
+}
+
+export function canCompleteAdvancedSeasonToday(
+  season: AdvancedSeason,
+  now = new Date(),
+): boolean {
+  if (season.status !== "active" || now.getTime() >= new Date(season.expiresAt).getTime()) {
+    return false;
+  }
+  const lastCompleted = [...season.days].reverse().find((day) => day.completedAt);
+  return !lastCompleted || localCalendarDay(new Date(lastCompleted.completedAt!)) !== localCalendarDay(now);
+}
+
+export function isLegacyAdvancedSeason(season: AdvancedSeason): boolean {
+  return season.durationDays === undefined && season.goal === undefined && season.assessment === undefined;
 }
 
 export function pauseAdvancedSeason(season: AdvancedSeason, now = new Date()): AdvancedSeason {
@@ -457,10 +566,15 @@ function sameAssessmentIdentity(
   left: AdvancedAssessmentIdentity,
   right: AdvancedAssessmentIdentity,
 ) {
+  if (!left.conditions || !right.conditions) return false;
   return left.scenarioId === right.scenarioId &&
     left.scenarioVersion === right.scenarioVersion &&
     left.contentFingerprint === right.contentFingerprint &&
-    left.characterCount === right.characterCount;
+    left.characterCount === right.characterCount &&
+    left.conditions.version === right.conditions.version &&
+    left.conditions.textNormalization === right.conditions.textNormalization &&
+    left.conditions.timingPolicy === right.conditions.timingPolicy &&
+    left.conditions.completionPolicy === right.conditions.completionPolicy;
 }
 
 export function invalidateAdvancedSeasonForContent(
@@ -469,6 +583,14 @@ export function invalidateAdvancedSeasonForContent(
   now = new Date(),
 ): AdvancedSeason {
   if (season.status !== "active" && season.status !== "paused") return season;
+  if (isLegacyAdvancedSeason(season)) {
+    return {
+      ...season,
+      status: "invalidated",
+      pausedAt: undefined,
+      completedAt: now.toISOString(),
+    };
+  }
   const baseline = season.assessment?.snapshots.find((item) => item.day === 1);
   if (!baseline || sameAssessmentIdentity(baseline.identity, currentIdentity)) return season;
   return {
@@ -514,7 +636,18 @@ export function completeAdvancedSeasonDay(
 ): AdvancedSeason {
   const current = expireAdvancedSeason(season, now);
   if (current.status !== "active") return current;
+  if (isLegacyAdvancedSeason(current)) {
+    return { ...current, status: "invalidated", completedAt: now.toISOString() };
+  }
   if (session.seasonId !== current.id || session.seasonDay !== current.currentDay) return current;
+  const sessionTime = new Date(session.date).getTime();
+  if (
+    !isCurrentAdvancedAssessmentIdentity(session.assessmentIdentity) ||
+    !Number.isFinite(sessionTime) ||
+    sessionTime !== now.getTime() ||
+    sessionTime < new Date(current.startedAt).getTime() ||
+    !canCompleteAdvancedSeasonToday(current, now)
+  ) return current;
   const dayIndex = current.currentDay - 1;
   if (current.days[dayIndex]?.completedAt) return current;
   const days = current.days.map((day, index) => index === dayIndex
@@ -616,6 +749,7 @@ export interface AdvancedSeasonEvaluation {
   status: "missing-baseline" | "in-progress" | "comparable" | "invalidated" | "legacy";
   baseline: AdvancedAssessmentSnapshot | null;
   final: AdvancedAssessmentSnapshot | null;
+  stageRetest: AdvancedAssessmentSnapshot | null;
   retests: AdvancedAssessmentSnapshot[];
   processSampleCount: number;
   processAverage: number | null;
@@ -670,6 +804,7 @@ export function buildAdvancedSeasonEvaluation(
       status: "legacy",
       baseline: null,
       final: null,
+      stageRetest: null,
       retests: [],
       processSampleCount: 0,
       processAverage: null,
@@ -687,6 +822,7 @@ export function buildAdvancedSeasonEvaluation(
       status: "missing-baseline",
       baseline: null,
       final,
+      stageRetest: null,
       retests: [],
       processSampleCount: snapshots.length,
       processAverage: null,
@@ -709,6 +845,14 @@ export function buildAdvancedSeasonEvaluation(
   const retests = snapshots.filter((item) =>
     item.day > 1 && sameAssessmentIdentity(item.identity, baseline.identity)
   );
+  const stageRetestDay = season.days.find((day) => day.focus === "retest")?.day;
+  const stageRetestCandidate = stageRetestDay
+    ? snapshots.find((item) => item.day === stageRetestDay) ?? null
+    : null;
+  const stageRetest = stageRetestCandidate &&
+    sameAssessmentIdentity(stageRetestCandidate.identity, baseline.identity)
+    ? stageRetestCandidate
+    : null;
   const primaryBaseline = getAdvancedGoalValue(baseline.metrics, metric);
   const primaryFinal = final ? getAdvancedGoalValue(final.metrics, metric) : null;
   const tradeoffs = final ? {
@@ -722,13 +866,10 @@ export function buildAdvancedSeasonEvaluation(
     keyAccuracy: protection(baseline.metrics.keyAccuracy, final.metrics.keyAccuracy, 1),
     codeLength: protection(baseline.metrics.codeLength, final.metrics.codeLength, 0.05, true),
   } : unavailable;
-  const isLowerBetter = metric === "codeLength" || metric === "stability";
   const targetReached = !final || invalidated || primaryFinal === null || !season.goal ||
     season.goal.targetMin === undefined || season.goal.targetMax === undefined
     ? null
-    : isLowerBetter
-      ? primaryFinal <= season.goal.targetMax
-      : primaryFinal >= season.goal.targetMin;
+    : primaryFinal >= season.goal.targetMin && primaryFinal <= season.goal.targetMax;
   const confidence = retests.length >= 2
     ? "moderate"
     : final ? "limited" : "insufficient";
@@ -736,6 +877,7 @@ export function buildAdvancedSeasonEvaluation(
     status: invalidated ? "invalidated" : final ? "comparable" : "in-progress",
     baseline,
     final,
+    stageRetest,
     retests,
     processSampleCount: process.length,
     processAverage: average(process.map((item) => getAdvancedGoalValue(item.metrics, metric))),

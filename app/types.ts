@@ -130,11 +130,19 @@ export interface AdvancedGoalTarget {
   targetMax?: number;
 }
 
+export interface AdvancedAssessmentConditions {
+  version: 1;
+  textNormalization: "nfc-without-whitespace";
+  timingPolicy: "active-foreground-time";
+  completionPolicy: "full-text";
+}
+
 export interface AdvancedAssessmentIdentity {
   scenarioId: string;
   scenarioVersion: number;
   contentFingerprint: string;
   characterCount: number;
+  conditions?: AdvancedAssessmentConditions;
 }
 
 export interface AdvancedAssessmentMetrics {
@@ -195,6 +203,7 @@ export interface AdvancedSeason {
   currentDay: number;
   days: AdvancedSeasonDay[];
   durationDays?: 7 | 14;
+  calendarDayPolicy?: "one-per-local-day";
   goal?: AdvancedGoalTarget;
   assessment?: AdvancedSeasonAssessment;
   pausedAt?: string;

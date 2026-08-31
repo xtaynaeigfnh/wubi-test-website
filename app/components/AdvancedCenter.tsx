@@ -37,10 +37,12 @@ import {
   buildAdvancedAssessmentIdentity,
   buildAdvancedSeasonEvaluation,
   buildAdvancedScenarioLibrary,
+  canCompleteAdvancedSeasonToday,
   cancelAdvancedSeason,
   completeAdvancedSeasonDay,
   createAdvancedSeason,
   expireAdvancedSeason,
+  getAdvancedGoalValue,
   getAdvancedSeasonDuration,
   invalidateAdvancedSeasonForContent,
   isAdvancedSeasonArchive,
@@ -605,6 +607,9 @@ function SeasonEvaluationView({
   const evaluation = buildAdvancedSeasonEvaluation(season, currentIdentity);
   const metric = season.goal?.metric ?? "speed";
   const goalLabel = ADVANCED_GOAL_LABELS[metric];
+  const stageRetestValue = evaluation.stageRetest
+    ? getAdvancedGoalValue(evaluation.stageRetest.metrics, metric)
+    : null;
   const tradeoffLabel = (
     value: "protected" | "cost" | "unavailable",
     protectedText: string,
@@ -620,6 +625,7 @@ function SeasonEvaluationView({
       <div className="season-evaluation-grid">
         <div><span>首日基线</span><strong>{formatGoalValue(metric, evaluation.primaryBaseline)}</strong></div>
         <div><span>过程平均</span><strong>{formatGoalValue(metric, evaluation.processAverage)}</strong><small>{evaluation.processSampleCount} 个过程样本，仅作观察</small></div>
+        <div><span>阶段复测</span><strong>{formatGoalValue(metric, stageRetestValue)}</strong><small>仅比较同正文、同评测条件</small></div>
         <div><span>最终复测</span><strong>{formatGoalValue(metric, evaluation.primaryFinal)}</strong></div>
         <div><span>建议区间</span><strong>{season.goal?.targetMin === undefined || season.goal.targetMax === undefined ? "完成基线后生成" : `${formatGoalValue(metric, season.goal.targetMin)}–${formatGoalValue(metric, season.goal.targetMax)}`}</strong></div>
       </div>
@@ -655,6 +661,7 @@ export function AdvancedCenter() {
   const [seasonMessage, setSeasonMessage] = useState("");
   const [goalMetric, setGoalMetric] = useState<AdvancedGoalMetric>("speed");
   const [durationDays, setDurationDays] = useState<7 | 14>(14);
+  const [seasonClock, setSeasonClock] = useState(() => Date.now());
   const [scenarioLoadError, setScenarioLoadError] = useState("");
   const [scenarioLoadAttempt, setScenarioLoadAttempt] = useState(0);
   const seasonActionLockRef = useRef(false);
@@ -746,6 +753,18 @@ export function AdvancedCenter() {
       return next;
     });
   }, [scenarios]);
+
+  useEffect(() => {
+    if (!archive.active) return;
+    const now = new Date();
+    const nextDay = new Date(now);
+    nextDay.setHours(24, 0, 0, 100);
+    const timer = window.setTimeout(
+      () => setSeasonClock(Date.now()),
+      Math.max(1_000, nextDay.getTime() - now.getTime()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [archive.active]);
 
   const startPractice = (target: PracticeTarget) => {
     setPracticeKey((value) => value + 1);
@@ -852,6 +871,10 @@ export function AdvancedCenter() {
       else setSeasonSaveFailed(true);
       return;
     }
+    if (!canCompleteAdvancedSeasonToday(current, new Date())) {
+      setSeasonMessage("今天的核心任务已经完成，下一训练日会在本地日期变化后开放。");
+      return;
+    }
     startPractice(targetForSeason(current, scenarios, getSessions()));
   };
 
@@ -862,6 +885,9 @@ export function AdvancedCenter() {
     ? buildAdvancedAssessmentIdentity(baselineScenario)
     : undefined;
   const latestSeason = archive.history[0];
+  const canTrainToday = archive.active
+    ? canCompleteAdvancedSeasonToday(archive.active, new Date(seasonClock))
+    : false;
 
   if (practice) {
     return (
@@ -1000,10 +1026,14 @@ export function AdvancedCenter() {
                     <p>{archive.active.days[archive.active.currentDay - 1].title}</p>
                     <button
                       className="button primary"
-                      disabled={!scenarios.length || archive.active.status === "paused"}
+                      disabled={!scenarios.length || archive.active.status === "paused" || !canTrainToday}
                       onClick={startSeasonPractice}
                     >
-                      {archive.active.status === "paused" ? "继续目标后训练" : "开始今天的核心任务"}
+                      {archive.active.status === "paused"
+                        ? "继续目标后训练"
+                        : canTrainToday
+                          ? "开始今天的核心任务"
+                          : "下一训练日明天开放"}
                     </button>
                     {optionalPractice && archive.active.status !== "paused" && (
                       <button

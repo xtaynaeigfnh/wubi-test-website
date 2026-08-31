@@ -280,8 +280,9 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.match(
     component,
-    /<\/article>[\s\S]*\{completed && lastSession\?\.heatmap && \([\s\S]*className="post-practice-review"[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
+    /<\/article>[\s\S]*\{completed && \(lastSession\?\.rhythmSummary \|\| lastSession\?\.heatmap\) && \([\s\S]*className="post-practice-review"[\s\S]*<RhythmSummaryView[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
   );
+  assert.equal(component.match(/className="post-practice-review"/g)?.length, 1);
   assert.match(component, /className="session-heatmap-trigger"/);
   assert.equal(component.match(/<HesitationHeatmap\b/g)?.length, 2);
   assert.match(
@@ -305,7 +306,7 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(styles, /--heat-mild:/);
   assert.match(
     styles,
-    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
+    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*display:\s*grid;[^}]*gap:\s*1px;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
   );
   assert.match(
     styles,
@@ -314,6 +315,10 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(
     styles,
     /@media \(max-width: 900px\)[\s\S]*\.post-practice-review,[\s\S]*\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*auto;/s,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 620px\)[\s\S]*\.post-practice-review\s*\{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;/s,
   );
   assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);

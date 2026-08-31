@@ -2503,25 +2503,24 @@ function TypingView({
           )}
         </article>
 
-        {completed && lastSession?.rhythmSummary && (
+        {completed && (lastSession?.rhythmSummary || lastSession?.heatmap) && (
           <div className="post-practice-review">
-            <RhythmSummaryView
-              summary={lastSession.rhythmSummary}
-              onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
-            />
-          </div>
-        )}
-
-        {completed && lastSession?.heatmap && (
-          <div className="post-practice-review">
-            <HesitationHeatmap
-              heatmap={lastSession.heatmap}
-              source={lastSession}
-              onPractice={onPracticeHesitation}
-              onAddToQueue={onAddHesitationToQueue}
-              queuedFingerprints={queuedFingerprints}
-              masteredAtByFingerprint={masteredAtByFingerprint}
-            />
+            {lastSession.rhythmSummary && (
+              <RhythmSummaryView
+                summary={lastSession.rhythmSummary}
+                onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
+              />
+            )}
+            {lastSession.heatmap && (
+              <HesitationHeatmap
+                heatmap={lastSession.heatmap}
+                source={lastSession}
+                onPractice={onPracticeHesitation}
+                onAddToQueue={onAddHesitationToQueue}
+                queuedFingerprints={queuedFingerprints}
+                masteredAtByFingerprint={masteredAtByFingerprint}
+              />
+            )}
           </div>
         )}
 
