@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-86 版五笔打字练习网站，支持离线使用。提供文章测速、今日训练中心（自适应处方）、常用字练习、错题复练与卡顿片段复练、五码根专项、字码挑战、离线查码、击键统计、成绩卡分享和离线 Lo-fi 音乐播放。内置文章库包含 120 篇短文、105 篇中篇、45 篇长文和 30 篇网络聊天“水文”（共 300 篇）；文章测速会对比实际码长与当前码表下的理论下限。
+86 版五笔打字练习网站，支持离线使用。提供文章测速、个人最佳幽灵赛、码长教练、今日训练与自适应处方、词组专项、间隔复习、错题与卡顿片段复练、节奏实验室、中文实战场、七日/十四日阶段目标、周报与能力雷达、数据维护与完整备份，以及离线查码、成绩卡和音乐播放。内置文章库包含 120 篇短文、105 篇中篇、45 篇长文和 30 篇网络聊天“水文”（共 300 篇）；文章测速会对比实际码长与当前码表下的理论下限。
 
 ## Key Commands
 
@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run start` — 运行生产构建
 - `npm test` — 完整测试：单元测试 → 构建 → 渲染验证
 - `npm run lint` — ESLint 检查
-- `npx tsc --noEmit` — TypeScript 类型检查
+- `npm run typecheck` — 刷新 Next.js 路由类型后执行 TypeScript 类型检查
 - `npm run data:generate` — 重新生成文章、常用字、完整码表和挑战码表数据
 - `npm run db:generate` — 可选 D1/Drizzle schema 变更后生成迁移
 
@@ -25,6 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **路由结构** (`app/`):
 - `page.tsx` → 首页文章测速（WubiApp view="typing"）
 - `training/page.tsx` → 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练
+- `advanced/page.tsx` → 进阶训练：节奏实验室、中文实战场与阶段目标
 - `challenge/page.tsx` → 字码挑战
 - `lookup/page.tsx` → 离线查码
 - `history/page.tsx` → 本地成绩、卡顿热力图与文章完成度
@@ -34,6 +35,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **核心逻辑**:
 - `app/lib.ts` — 客户端共享逻辑：localStorage 读写、文章与码表加载、成绩统计、错题管理、版本化备份校验/恢复，以及基于单字和词组最优分段的理论最小码长计算。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；恢复失败时必须保留原数据。
 - `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
+- `app/code-length-coach.ts` / `app/phrase-training.ts` — 理论码长机会与词组专项选题
+- `app/ghost-race.ts` — 幽灵时间线、可比较记录与赛后分段复盘
+- `app/spaced-review.ts` — 单字、词组与卡顿片段的间隔复习队列
+- `app/rhythm-lab.ts` / `app/advanced-training.ts` — 节奏分析、中文实战和阶段目标评测
+- `app/weekly-report.ts` / `app/weekly-report-card.ts` — 周报、能力雷达与本地 PNG 导出
+- `app/data-maintenance.ts` — 本机数据用量、清理预览、保留规则和轻量摘要
 - `app/key-usage.ts` — 键盘键位定义与击键统计（左右手、指法、键区）
 - `app/hesitation-practice.ts` — 从卡顿热力图中提取片段、三连练结果判定与观察项生成
 - `app/share-card.ts` — 本地成绩卡 PNG 生成
@@ -41,10 +48,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/music.ts` — 音乐目录解析与播放逻辑
 - `app/components/WubiApp.tsx` — 主应用组件，根据 `view` prop 渲染不同页面
 - `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项与卡顿片段加练
+- `app/components/AdvancedCenter.tsx` — 节奏、实战与阶段目标的进阶训练页
+- `app/components/WeeklyReportPanel.tsx` — 周报、能力雷达、改善解释与下一步建议
 - `app/components/HesitationHeatmap.tsx` — 卡顿热力图与片段识别
 - `app/components/HesitationPracticeModal.tsx` — 卡顿片段三连练弹窗
 - `app/components/KeySummary.tsx` — 击键统计（左右手、指法、键区）
-- `app/components/DataManagement.tsx` — 完整备份、自定义文章和 TXT 批量导入
+- `app/components/DataManagement.tsx` — 数据用量与清理、轻量摘要、完整备份、自定义文章和 TXT 批量导入
 - `app/components/TrendPanel.tsx` — 成绩趋势序列
 - `app/components/PwaControl.tsx` — Service Worker 状态和安装提示
 - `app/components/MusicPlayer.tsx` — 跨路由保持状态的根级离线播放器
@@ -70,11 +79,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 测试名称描述可观察行为，不描述实现细节
 - 统计、Unicode 字符计数、输入法按键和音乐逻辑优先补充 `tests/core-logic.test.mjs`
 - 卡顿片段复练逻辑补充 `tests/hesitation-practice.test.mjs`
+- 词组专项、间隔复习、周报、进阶训练和数据维护分别补充 `tests/phrase-training.test.mjs`、`tests/spaced-review.test.mjs`、`tests/weekly-report.test.mjs`、`tests/advanced-training.test.mjs` 和 `tests/data-maintenance.test.mjs`
 - 界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
 - 本地存储、备份恢复、PWA 和离线回退改动补充 `tests/v02-features.test.mjs`
 - 文章生成改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，并提交全部重新生成的 JSON
 - 构建产物与渲染结果在 `tests/rendered-html.test.mjs` 校验（`npm test` 的最后一步）
-- `npm test` 不包含 lint 与类型检查；交付前同时运行 `npm run lint`、`npx tsc --noEmit` 和 `npm test`。GitHub Pages 工作流也以这三项为部署门禁
+- `npm test` 不包含 lint 与类型检查；交付前同时运行 `npm run lint`、`npm run typecheck` 和 `npm test`。GitHub Pages 工作流也以这三项为部署门禁
 
 ## Commit Style
 
