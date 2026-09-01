@@ -503,6 +503,14 @@ test("spaced review queue stays explainable, deferrable, and usable on narrow sc
   assert.match(training, /dueReviewItems: buildDueReviewQueue/);
   assert.match(training, />\s*暂缓到明天\s*<\/button>/);
   assert.match(training, /deferSpacedReviewTarget\(item\.targetType, item\.targetId\)/);
+  assert.match(
+    training,
+    /activeDueReview\?\.targetType === "character" \|\| prescribedReview\) \{[\s\S]*selectTrainingTab\("plan", true\)/,
+  );
+  assert.match(
+    training,
+    /activeDueReview\?\.targetType === "phrase"\) \{[\s\S]*selectTrainingTab\("plan", true\)/,
+  );
   assert.match(training, /届时会重新出现/);
   assert.match(training, /role=\{reviewMessage\.includes\("未能"\)/);
   assert.match(training, /onPracticeHesitation\("", item\.hesitationTarget\)/);

@@ -869,7 +869,9 @@ export function TrainingCenter({
             onSessionSaved={() => {
               setActiveDueReview(null);
               onSessionSaved();
-              if (prescribedReview) selectTrainingTab("plan", true);
+              if (activeDueReview?.targetType === "character" || prescribedReview) {
+                selectTrainingTab("plan", true);
+              }
             }}
           />
         </div>
@@ -917,6 +919,9 @@ export function TrainingCenter({
             onSessionSaved={() => {
               setActiveDueReview(null);
               onSessionSaved();
+              if (activeDueReview?.targetType === "phrase") {
+                selectTrainingTab("plan", true);
+              }
             }}
           />
         </div>
