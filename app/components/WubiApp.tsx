@@ -3349,6 +3349,34 @@ function LookupView() {
   );
 }
 
+function sessionRecommendationEvidence(session: SessionResult): string[] {
+  const evidence: string[] = [];
+  if (session.trainingTaskId) {
+    evidence.push("这次练习由今日训练处方安排，完成结果已回写到对应任务与弱项统计。");
+  }
+  if (session.errors > 0) {
+    evidence.push(`${session.errors} 个错误会提高相关字词的编码错误权重。`);
+  }
+  if ((session.correctionCount ?? 0) > 0) {
+    evidence.push(`${session.correctionCount} 次回改会提高重复修正权重。`);
+  }
+  if (session.pauseCount && session.pauseCount > 0) {
+    evidence.push(`${session.pauseCount} 次暂停会作为节奏观察依据，但不会单独判定能力下降。`);
+  }
+  if (
+    session.theoreticalCodeLength &&
+    session.codeLength > session.theoreticalCodeLength
+  ) {
+    evidence.push(
+      `实际码长 ${session.codeLength.toFixed(2)} 高于理论下限 ${session.theoreticalCodeLength.toFixed(2)}，后续会优先观察高收益词组机会。`,
+    );
+  }
+  if (!evidence.length) {
+    evidence.push("本次没有触发明确弱项；成绩仍用于趋势、周报和后续基线比较。");
+  }
+  return evidence;
+}
+
 function HistoryView({
   onPracticeHesitation,
   onAddHesitationToQueue,
@@ -3632,6 +3660,16 @@ function HistoryView({
                     />
                     <DiagnosticMetric label="重打" value={session.retryCount?.toString() ?? "—"} unit="" />
                   </div>
+                )}
+                {session.type === "article" && (
+                  <details className="session-recommendation-evidence">
+                    <summary>这次成绩如何影响后续推荐</summary>
+                    <ul>
+                      {sessionRecommendationEvidence(session).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </details>
                 )}
                 {(session.heatmap || session.rhythmSummary) && expandedHeatmapId === session.id && (
                   <div

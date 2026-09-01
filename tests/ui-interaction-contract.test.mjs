@@ -131,6 +131,27 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
 });
 
+test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explanations", async () => {
+  const [management, training, weekly, app, styles] = await Promise.all([
+    readFile(dataManagementPath, "utf8"),
+    readFile(trainingCenterPath, "utf8"),
+    readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+  assert.match(management, /数据用量与清理/);
+  assert.match(management, /预览清理/);
+  assert.match(management, /导出轻量统计摘要/);
+  assert.match(management, /不兼容项：0/);
+  assert.match(management, /window\.confirm/);
+  assert.match(training, /为什么这些弱项排在前面/);
+  assert.match(training, /编码错误 50%、卡顿 30%、回改 20%/);
+  assert.match(weekly, /六项能力的精确计算公式/);
+  assert.match(app, /这次成绩如何影响后续推荐/);
+  assert.match(styles, /\.storage-usage-list/);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.storage-usage-list\s*\{[^}]*grid-template-columns:\s*1fr/s);
+});
+
 test("history filters are visually separate and expose pressed state", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),

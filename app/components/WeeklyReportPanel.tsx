@@ -191,6 +191,18 @@ export function WeeklyReportPanel({ report }: WeeklyReportPanelProps) {
         <p>图形展示归一化得分；右侧保留原始值与换算区间。</p>
       </div>
       <RadarChart abilities={report.abilities} comparison={report.comparison.abilities} />
+      <details className="ability-formulas">
+        <summary>查看六项能力的精确计算公式</summary>
+        <p>所有结果四舍五入并限制在 0–100 分；缺少有效原始数据时保留为“暂无数据”，不会补成 0 分。</p>
+        <dl>
+          <div><dt>速度</dt><dd>正确字数 ÷ 有效分钟 ÷ 120 × 100</dd></div>
+          <div><dt>字准</dt><dd>（按尝试字符加权的字准 − 80%）÷ 20% × 100</dd></div>
+          <div><dt>键准</dt><dd>（按按键数加权的键准 − 80%）÷ 20% × 100</dd></div>
+          <div><dt>码长</dt><dd>（理论总按键 ÷ 实际总按键 − 65%）÷ 35% × 100</dd></div>
+          <div><dt>打词</dt><dd>按正确字数加权的打词率 ÷ 60% × 100</dd></div>
+          <div><dt>稳定性</dt><dd>（1 − 文章速度变异系数 ÷ 45%）× 100；至少需要 2 次文章测速</dd></div>
+        </dl>
+      </details>
 
       <div className="weekly-section-heading">
         <div><span>02</span><h3>本周观察</h3></div>
@@ -253,6 +265,13 @@ const weeklyReportStyles = `
   .weekly-download { min-height: 42px; padding: 0 15px; color: var(--text-on-accent); border: 1px solid var(--accent-bamboo); border-radius: var(--radius-small); background: var(--accent-bamboo-fill); cursor: pointer; font-size: 11px; font-weight: 750; }
   .weekly-download:hover:not(:disabled) { filter: brightness(1.08); }
   .weekly-download:disabled { cursor: wait; opacity: .6; }
+  .ability-formulas { margin: 14px 0 30px; padding: 14px 16px; border: 1px solid var(--border-default); border-radius: var(--radius-medium); background: var(--bg-raised); }
+  .ability-formulas summary { cursor: pointer; color: var(--accent-bamboo); font-size: 11px; font-weight: 750; }
+  .ability-formulas > p { margin: 12px 0; color: var(--text-secondary); font-size: 10px; line-height: 1.7; }
+  .ability-formulas dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+  .ability-formulas dl > div { min-width: 0; display: grid; grid-template-columns: 48px 1fr; gap: 8px; font-size: 10px; line-height: 1.6; }
+  .ability-formulas dt { font-weight: 750; }
+  .ability-formulas dd { margin: 0; color: var(--text-secondary); }
   .weekly-volume { margin: 20px 0 30px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border-default); border-radius: var(--radius-medium); background: var(--bg-raised); }
   .weekly-volume > div { min-width: 0; padding: 15px 18px; border-right: 1px solid var(--border-default); }
   .weekly-volume > div:last-child { border-right: 0; }
@@ -307,7 +326,7 @@ const weeklyReportStyles = `
   .weekly-goals li a { min-height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent-bamboo); border: 1px solid var(--accent-bamboo); border-radius: var(--radius-small); background: var(--bg-paper); font-size: 10px; font-weight: 750; text-decoration: none; white-space: nowrap; }
   .weekly-goals li a:hover { color: var(--text-on-accent); background: var(--accent-bamboo-fill); }
   .weekly-goal-note { margin: 8px 0 0; color: var(--text-secondary); font-size: 9px; line-height: 1.6; }
-  @media (max-width: 780px) { .weekly-report { padding: 18px; } .weekly-report-header { display: grid; } .weekly-download-wrap { justify-items: start; } .weekly-volume { grid-template-columns: repeat(2, 1fr); } .weekly-volume > div:nth-child(2) { border-right: 0; } .weekly-volume > div:nth-child(-n + 2) { border-bottom: 1px solid var(--border-default); } .weekly-radar-wrap { grid-template-columns: 1fr; } .weekly-observations { grid-template-columns: 1fr; } }
+  @media (max-width: 780px) { .weekly-report { padding: 18px; } .weekly-report-header { display: grid; } .weekly-download-wrap { justify-items: start; } .weekly-volume { grid-template-columns: repeat(2, 1fr); } .weekly-volume > div:nth-child(2) { border-right: 0; } .weekly-volume > div:nth-child(-n + 2) { border-bottom: 1px solid var(--border-default); } .weekly-radar-wrap { grid-template-columns: 1fr; } .ability-formulas dl { grid-template-columns: 1fr; } .weekly-observations { grid-template-columns: 1fr; } }
   @media (max-width: 440px) { .weekly-report { padding: 14px; } .weekly-section-heading { align-items: flex-start; flex-direction: column; } .weekly-radar-wrap { padding: 10px; } .weekly-ability { grid-template-columns: 1fr 64px; } .weekly-delta { grid-column: 1 / -1; text-align: left; } .weekly-weakest dl { grid-template-columns: 1fr; } .weekly-weakest dl > div { padding: 10px 0; border-right: 0; border-bottom: 1px solid var(--border-default); } .weekly-weakest dl > div:last-child { border-bottom: 0; } .weekly-goals li { grid-template-columns: 1fr; gap: 7px; } .weekly-goals li a { justify-self: start; } }
   @media (prefers-reduced-motion: reduce) { .weekly-report * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 `;

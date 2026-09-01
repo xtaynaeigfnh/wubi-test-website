@@ -57,6 +57,8 @@ import {
   generateDailyTrainingPlan,
   regenerateIncompleteTasks,
   ROOT_ZONES,
+  scoreWeakItem,
+  WEAKNESS_RESOLVED_SCORE,
 } from "../training-plan";
 import { buildPhraseTrainingPool } from "../phrase-training";
 import { ErrorState, usePendingSaveGuard } from "./Ui";
@@ -216,6 +218,16 @@ export function TrainingCenter({
         suggestedEntries: phraseSuggestions,
       }),
     [entries, errors, phraseOpportunities, phraseSuggestions],
+  );
+  const explainedWeaknesses = useMemo(
+    () => errors
+      .map((item) => ({ item, result: scoreWeakItem(item) }))
+      .sort((left, right) =>
+        right.result.score - left.result.score ||
+        left.item.text.localeCompare(right.item.text),
+      )
+      .slice(0, 5),
+    [errors],
   );
   const dueReviewQueue = useMemo(
     () => buildDueReviewQueue(
@@ -734,6 +746,25 @@ export function TrainingCenter({
                   </button>
                   <span>只替换未完成任务，已完成记录会保留。</span>
                 </div>
+                <details className="priority-explanation">
+                  <summary>为什么这些弱项排在前面？</summary>
+                  <p>
+                    原始问题权重为编码错误 50%、卡顿 30%、回改 20%；再乘以最近出现时间与掌握度系数，四舍五入得到优先级。连续答对、掌握阶段提高或长期未复发都会降低分数，低于 {WEAKNESS_RESOLVED_SCORE} 分后退出当前弱项队列。
+                  </p>
+                  {explainedWeaknesses.length ? (
+                    <ol>
+                      {explainedWeaknesses.map(({ item, result }) => (
+                        <li key={item.text}>
+                          <strong>{item.text}</strong>
+                          <b>{result.score} 分</b>
+                          <span>{result.explanation}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p>暂无弱项数据；今天先用高频字建立基线。</p>
+                  )}
+                </details>
               </>
             )}
           </div>

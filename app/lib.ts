@@ -29,6 +29,18 @@ import type {
   WubiEntry,
 } from "./types";
 import {
+  appendMaintenanceEvent,
+  createLightweightStatisticsSummary,
+  isMaintenanceLog,
+  previewCleanup,
+  stripSessionLargeObjects,
+  type CleanupPreview,
+  type CleanupTarget,
+  type MaintenanceEventKind,
+  type MaintenanceLog,
+  type StorageDataSnapshot,
+} from "./data-maintenance.ts";
+import {
   ghostTimelineByteLength,
   getGhostSampleStep,
   MAX_GHOST_SAMPLES,
@@ -81,6 +93,7 @@ export const STORAGE = {
   phraseOpportunities: "wubi-test:phrase-opportunities:v1",
   advancedSeason: "wubi-test:advanced-season:v1",
   reviewState: "wubi-test:review-state:v1",
+  maintenance: "wubi-test:maintenance:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);
@@ -420,7 +433,13 @@ export function syncSpacedReviewState(
   const stored = readLocal<unknown>(STORAGE.reviewState, null);
   if (isBoundedSpacedReviewState(stored)) return stored;
   const state = buildSpacedReviewStateCandidate(now);
-  return writeLocal(STORAGE.reviewState, state) ? state : null;
+  if (!writeLocal(STORAGE.reviewState, state)) return null;
+  recordMaintenanceEvent(
+    "migration",
+    `已从旧弱项数据建立 ${state.items.length} 项间隔复习记录。`,
+    now,
+  );
+  return state;
 }
 
 export function readSpacedReviewState(): SpacedReviewState {
@@ -1314,6 +1333,18 @@ export async function loadWubiChallenge(): Promise<WubiEntry[]> {
   return wubiChallengePromise;
 }
 
+function pruneHeatmaps(sessions: SessionResult[]): SessionResult[] {
+  let retained = 0;
+  return sessions.map((session) => {
+    if (!session.heatmap) return session;
+    retained += 1;
+    if (retained <= 50) return session;
+    const summary = { ...session };
+    delete summary.heatmap;
+    return summary;
+  });
+}
+
 export function getSessions() {
   const stored = readValidatedLocalArray(STORAGE.sessions, 500, isSessionResult);
   const ids = new Set<string>();
@@ -1322,9 +1353,14 @@ export function getSessions() {
     ids.add(session.id);
     return true;
   });
-  const pruned = pruneRhythmCurves(pruneGhostTimelines(unique));
+  const pruned = pruneHeatmaps(pruneRhythmCurves(pruneGhostTimelines(unique)));
   if (JSON.stringify(pruned) !== JSON.stringify(stored)) {
-    writeLocal(STORAGE.sessions, pruned);
+    if (writeLocal(STORAGE.sessions, pruned)) {
+      recordMaintenanceEvent(
+        "eviction",
+        "已按保留上限移除旧热力图、幽灵时间线或节奏曲线，成绩摘要保持不变。",
+      );
+    }
   }
   return pruned;
 }
@@ -1751,17 +1787,9 @@ function persistPracticeOutcome(
   if (currentSessions.some((item) => item.id === session.id)) {
     return extraWrites.size ? commitLocalWrites(extraWrites) : true;
   }
-  let retainedHeatmaps = 0;
-  const sessions = pruneRhythmCurves(pruneGhostTimelines(
+  const sessions = pruneHeatmaps(pruneRhythmCurves(pruneGhostTimelines(
     [session, ...currentSessions].slice(0, 500),
-  )).map((item) => {
-    if (!item.heatmap) return item;
-    retainedHeatmaps += 1;
-    if (retainedHeatmaps <= 50) return item;
-    const summary = { ...item };
-    delete summary.heatmap;
-    return summary;
-  });
+  )));
   const progress = getProgress();
   if (session.type === "article" && session.articleId) {
     const existing = progress.find((row) => row.articleId === session.articleId);
@@ -1819,7 +1847,27 @@ function persistPracticeOutcome(
   }
   writes.set(STORAGE.reviewState, reviewState);
   for (const [key, value] of extraWrites) writes.set(key, value);
-  return commitLocalWrites(writes);
+  const persisted = commitLocalWrites(writes);
+  if (persisted) {
+    const byId = new Map(sessions.map((item) => [item.id, item]));
+    const evictedLargeObject = currentSessions.some((item) => {
+      const retained = byId.get(item.id);
+      return Boolean(
+        !retained ||
+        (item.heatmap && !retained.heatmap) ||
+        (item.ghostTimeline && !retained.ghostTimeline) ||
+        (item.rhythmSummary?.curve.length && !retained.rhythmSummary?.curve.length),
+      );
+    });
+    if (evictedLargeObject) {
+      recordMaintenanceEvent(
+        "eviction",
+        "保存新成绩时已按上限淘汰旧大对象，成绩摘要与长期趋势保持不变。",
+        new Date(session.date),
+      );
+    }
+  }
+  return persisted;
 }
 
 function commitLocalWrites(writes: Map<string, unknown>): boolean {
@@ -1854,6 +1902,82 @@ function commitLocalWrites(writes: Map<string, unknown>): boolean {
   }
 }
 
+export function readMaintenanceLog(): MaintenanceLog {
+  const value = readLocal<unknown>(STORAGE.maintenance, null);
+  return isMaintenanceLog(value) ? value : { version: 1, events: [] };
+}
+
+function nextMaintenanceLog(
+  kind: MaintenanceEventKind,
+  summary: string,
+  now = new Date(),
+): MaintenanceLog {
+  return appendMaintenanceEvent(readMaintenanceLog(), {
+    id: createLocalId(),
+    date: now.toISOString(),
+    kind,
+    summary: truncateUnicode(summary, 160),
+  });
+}
+
+export function recordMaintenanceEvent(
+  kind: MaintenanceEventKind,
+  summary: string,
+  now = new Date(),
+): boolean {
+  return writeLocal(STORAGE.maintenance, nextMaintenanceLog(kind, summary, now));
+}
+
+function maintenanceSnapshot(): StorageDataSnapshot {
+  const sessions = getSessions();
+  return {
+    sessions,
+    phraseOpportunities: getPhraseOpportunities(),
+    reviewState: readSpacedReviewState(),
+    allValues: STORAGE_KEYS.map((key) => readLocalForBackup(key)),
+  };
+}
+
+export function inspectCleanup(target: CleanupTarget): CleanupPreview {
+  return previewCleanup(target, maintenanceSnapshot());
+}
+
+export function clearMaintenanceTarget(
+  target: CleanupTarget,
+  now = new Date(),
+): boolean {
+  const snapshot = maintenanceSnapshot();
+  const preview = previewCleanup(target, snapshot);
+  const writes = new Map<string, unknown>();
+  if (target === "phrases") {
+    writes.set(STORAGE.phraseOpportunities, []);
+  } else if (target === "reviews") {
+    writes.set(STORAGE.reviewState, createEmptySpacedReviewState());
+    writes.set(STORAGE.trainingPlan, null);
+  } else {
+    writes.set(STORAGE.sessions, stripSessionLargeObjects(snapshot.sessions, target));
+  }
+  writes.set(
+    STORAGE.maintenance,
+    nextMaintenanceLog(
+      "cleanup",
+      `已清理 ${preview.count} 项${preview.label}，约释放 ${preview.bytes} 字节。`,
+      now,
+    ),
+  );
+  return commitLocalWrites(writes);
+}
+
+export function buildLightweightStatisticsSummary(now = new Date()) {
+  return createLightweightStatisticsSummary(
+    getSessions(),
+    getErrors(),
+    getPhraseOpportunities(),
+    readSpacedReviewState(),
+    now,
+  );
+}
+
 export function clearPracticeHistory(): boolean {
   return commitLocalWrites(
     new Map<string, unknown>([
@@ -1865,6 +1989,7 @@ export function clearPracticeHistory(): boolean {
       [STORAGE.hesitationQueue, null],
       [STORAGE.advancedSeason, null],
       [STORAGE.reviewState, null],
+      [STORAGE.maintenance, null],
     ]),
   );
 }
@@ -3067,6 +3192,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
       return isAdvancedSeasonArchive(value as AdvancedSeasonArchive);
     case STORAGE.reviewState:
       return isBoundedSpacedReviewState(value);
+    case STORAGE.maintenance:
+      return isMaintenanceLog(value);
     default:
       return false;
   }
@@ -3078,7 +3205,9 @@ function isValidSessionCollection(value: unknown): value is SessionResult[] {
   if (new Set(sessions.map((session) => session.id)).size !== sessions.length) {
     return false;
   }
-  return JSON.stringify(pruneRhythmCurves(pruneGhostTimelines(sessions))) === JSON.stringify(sessions);
+  return JSON.stringify(
+    pruneHeatmaps(pruneRhythmCurves(pruneGhostTimelines(sessions))),
+  ) === JSON.stringify(sessions);
 }
 
 export function parseBackupPayload(value: unknown): BackupPayload {
