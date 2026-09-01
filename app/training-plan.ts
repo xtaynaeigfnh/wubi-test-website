@@ -25,6 +25,7 @@ export interface WeakScore {
   score: number;
   issue: "coding-error" | "hesitation" | "correction";
   reason: string;
+  explanation: string;
 }
 
 export interface TrainingPlanInput {
@@ -95,6 +96,18 @@ export function scoreWeakItem(
         : issue === "hesitation"
           ? "存在明显卡顿"
           : "多次回改后才完成",
+    explanation: [
+      `错误 ${stat.codingErrors} 次、卡顿 ${stat.hesitationPoints} 点、回改 ${stat.correctionCount} 次共同抬高优先级`,
+      stat.correctStreak > 0
+        ? `连续答对 ${stat.correctStreak} 次使优先级下降`
+        : "尚无连续答对减分",
+      stat.mastery > 0
+        ? `掌握阶段 ${stat.mastery}/5 使优先级下降`
+        : "尚未进入掌握阶段",
+      ageDays >= 1
+        ? `距上次出现 ${Math.floor(ageDays)} 天，时间衰减后保留 ${Math.round(recency * 100)}%`
+        : "今天出现，暂不做时间衰减",
+    ].join("；"),
   };
 }
 

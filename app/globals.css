@@ -3003,6 +3003,29 @@ select,
   border-top: 1px dashed var(--border-subtle);
 }
 
+.session-recommendation-evidence {
+  padding: 9px 0 2px;
+  grid-column: 1 / -1;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.session-recommendation-evidence summary {
+  width: max-content;
+  max-width: 100%;
+  cursor: pointer;
+  color: var(--accent-bamboo);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.session-recommendation-evidence ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  line-height: 1.7;
+}
+
 .session-actions {
   display: grid;
   justify-items: stretch;
@@ -5148,6 +5171,158 @@ select,
   font-size: 11px;
 }
 
+.storage-total {
+  margin-top: 20px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  border-left: 3px solid var(--accent-bamboo);
+  background: var(--bg-raised);
+}
+
+.storage-total strong {
+  font: 750 23px/1 var(--font-data);
+}
+
+.storage-total span,
+.storage-usage-heading span,
+.storage-usage-list small,
+.maintenance-log p {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.storage-warning {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  color: var(--state-error);
+  border: 1px solid color-mix(in srgb, var(--state-error) 45%, var(--border-default));
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--state-error) 6%, var(--bg-paper));
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.storage-usage-list {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.storage-usage-list article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+}
+
+.storage-usage-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.storage-usage-heading strong,
+.storage-usage-heading span {
+  display: block;
+}
+
+.storage-usage-heading span {
+  margin-top: 4px;
+}
+
+.storage-usage-heading .button {
+  min-height: 32px;
+  padding: 0 10px;
+  flex: 0 0 auto;
+  font-size: 9px;
+}
+
+.storage-meter {
+  height: 6px;
+  margin: 12px 0 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border-subtle);
+}
+
+.storage-meter i {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--accent-bamboo-fill);
+}
+
+.maintenance-log,
+.priority-explanation {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.maintenance-log summary,
+.priority-explanation summary {
+  cursor: pointer;
+  color: var(--accent-bamboo);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.maintenance-log ol,
+.priority-explanation ol {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.maintenance-log li {
+  padding: 8px 0;
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.maintenance-log time {
+  color: var(--text-secondary);
+  font: 500 9px/1.5 var(--font-data);
+}
+
+.priority-explanation > p {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.priority-explanation li {
+  padding: 9px 0;
+  display: grid;
+  grid-template-columns: 28px 54px 1fr;
+  gap: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.priority-explanation li b {
+  color: var(--accent-vermilion);
+  font: 700 10px/1.6 var(--font-data);
+}
+
+.priority-explanation li span {
+  color: var(--text-secondary);
+}
+
 .management-heading {
   display: flex;
   align-items: center;
@@ -5938,11 +6113,21 @@ select,
     grid-template-columns: 1fr;
   }
 
+  .storage-usage-list {
+    grid-template-columns: 1fr;
+  }
+
   .management-heading,
   .pwa-card,
   .restore-preview {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .maintenance-log li,
+  .priority-explanation li {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 
   .panel-title:has(.history-filter) {

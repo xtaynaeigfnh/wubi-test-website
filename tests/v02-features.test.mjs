@@ -2158,7 +2158,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v17/);
+  assert.match(worker, /wubi-test-v18/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);
