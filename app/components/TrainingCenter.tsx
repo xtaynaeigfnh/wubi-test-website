@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildReviewPool,
   buildRootPool,
-  calculateAccuracy,
   calculateDailyProgress,
   calculateStreak,
   createLocalId,
@@ -33,6 +32,7 @@ import {
   writeTrainingPlan,
   type PhrasePracticeInput,
 } from "../lib";
+import { calculateAccuracy } from "../typing-metrics";
 import type {
   DailyTrainingPlan,
   DailyGoal,

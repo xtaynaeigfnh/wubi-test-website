@@ -11,6 +11,17 @@ import {
   type KeyboardEvent,
 } from "react";
 import {
+  createLocalId,
+  getSessions,
+  loadArticles,
+  readLocal,
+  saveAdvancedPracticeOutcome,
+  savePracticeOutcome,
+  STORAGE,
+  takeSessionValue,
+  writeLocal,
+} from "../lib";
+import {
   applyTypingDelaySample,
   calculateKeyAccuracy,
   calculatePhraseRate,
@@ -18,19 +29,10 @@ import {
   classifyWubiHand,
   countCommittedEdit,
   countCommittedAttempts,
-  createLocalId,
-  getSessions,
-  isWubiLetterKey,
   isImeSelectionKey,
-  loadArticles,
-  readLocal,
-  saveAdvancedPracticeOutcome,
-  savePracticeOutcome,
+  isWubiLetterKey,
   shouldDeferInputCommit,
-  STORAGE,
-  takeSessionValue,
-  writeLocal,
-} from "../lib";
+} from "../typing-metrics";
 import {
   ADVANCED_GOAL_LABELS,
   archiveFinishedSeason,

@@ -8,14 +8,14 @@ import {
   type KeyboardEvent,
 } from "react";
 import {
-  applyTypingDelaySample,
-  calculateTypingTransitionMs,
-  shouldDeferInputCommit,
-} from "../lib";
-import {
   calculateHesitationImprovement,
   isHesitationPracticeMastered,
 } from "../hesitation-practice";
+import {
+  applyTypingDelaySample,
+  calculateTypingTransitionMs,
+  shouldDeferInputCommit,
+} from "../typing-metrics";
 import type {
   HesitationPracticeAttempt,
   HesitationPracticeTarget,
