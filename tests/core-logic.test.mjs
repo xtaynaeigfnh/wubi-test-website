@@ -2,11 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  applyTypingDelaySample,
   buildCommonPracticeArticle,
   buildChallengePool,
-  buildMinimumCodeLengthIndex,
   buildCustomArticle,
+  calculateAccuracy as calculateAccuracyFromLib,
+  commonCharacterPresets,
+  formatCommonCharacterText,
+  getCommonCharacterSlice,
+  isCommonPracticeArticle,
+  selectInitialArticle,
+  shuffleCharacters,
+} from "../app/lib.ts";
+import {
+  applyTypingDelaySample,
+  buildMinimumCodeLengthIndex,
   buildTypingHeatmap,
   calculateActiveDurationSeconds,
   calculateAccuracy,
@@ -18,21 +27,15 @@ import {
   calculateTypingMetrics,
   canCompleteTyping,
   classifyWubiHand,
-  commonCharacterPresets,
   countCommittedAttempts,
   countCommittedEdit,
-  formatCommonCharacterText,
-  getCommonCharacterSlice,
-  getHesitationLevel,
   getCommittedEditRange,
-  isCommonPracticeArticle,
-  isWubiLetterKey,
+  getHesitationLevel,
   isImeSelectionKey,
+  isWubiLetterKey,
   preferShortestWubiCodes,
-  selectInitialArticle,
-  shuffleCharacters,
   shouldDeferInputCommit,
-} from "../app/lib.ts";
+} from "../app/typing-metrics.ts";
 import {
   incrementKeyUsage,
   normalizeKeyUsage,
@@ -78,6 +81,10 @@ function ghostSession(id, date, durationSeconds, ghostTimeline) {
     ghostTimeline,
   };
 }
+
+test("lib keeps the typing metrics compatibility export", () => {
+  assert.equal(calculateAccuracyFromLib, calculateAccuracy);
+});
 
 test("typing accuracy keeps corrected mistakes in the denominator", () => {
   const target = "中国";

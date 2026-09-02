@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { buildHesitationPracticeTarget } from "../hesitation-practice";
-import { getHesitationLevel } from "../lib";
+import { getHesitationLevel } from "../typing-metrics";
 import type {
   HesitationPracticeTarget,
   HesitationSegment,
