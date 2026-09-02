@@ -29,6 +29,7 @@ import {
 import {
   buildStorageUsageReport,
   type CleanupTarget,
+  type MaintenanceEvent,
   type StorageUsageReport,
 } from "../data-maintenance";
 import type { BackupPayload, PracticeArticle } from "../types";
@@ -61,7 +62,7 @@ function StorageManager({
 }) {
   const [report, setReport] = useState<StorageUsageReport | null>(null);
   const [message, setMessage] = useState("");
-  const [events, setEvents] = useState(readMaintenanceLog().events);
+  const [events, setEvents] = useState<MaintenanceEvent[]>([]);
 
   useEffect(() => {
     try {

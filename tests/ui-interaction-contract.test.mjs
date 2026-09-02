@@ -34,6 +34,23 @@ test("interactive controls stay hidden and inert until hydration completes", asy
   assert.match(styles, /\.hydration-status\s*\{[^}]*position:\s*fixed[^}]*z-index:\s*200/s);
 });
 
+test("settings storage history waits until hydration before reading local data", async () => {
+  const management = await readFile(dataManagementPath, "utf8");
+
+  assert.match(
+    management,
+    /const \[events, setEvents\] = useState<MaintenanceEvent\[\]>\(\[\]\)/,
+  );
+  assert.doesNotMatch(
+    management,
+    /useState\(readMaintenanceLog\(\)\.events\)/,
+  );
+  assert.match(
+    management,
+    /useEffect\(\(\) => \{[\s\S]*setEvents\(readMaintenanceLog\(\)\.events\);[\s\S]*\}, \[revision\]\)/,
+  );
+});
+
 test("recorded data renders without replay animations", async () => {
   const [component, trendPanel, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
