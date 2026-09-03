@@ -16,6 +16,7 @@ const pwaControlPath = new URL("../app/components/PwaControl.tsx", import.meta.u
 const hydrationBoundaryPath = new URL("../app/components/HydrationBoundary.tsx", import.meta.url);
 const uiPath = new URL("../app/components/Ui.tsx", import.meta.url);
 const dataManagementPath = new URL("../app/components/DataManagement.tsx", import.meta.url);
+const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.meta.url);
 
 test("interactive controls stay hidden and inert until hydration completes", async () => {
   const [boundary, layout, styles] = await Promise.all([
@@ -750,7 +751,7 @@ test("code hint pairs the current character with a compact toolbar code card", a
 });
 
 test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const component = await readFile(lookupViewPath, "utf8");
 
   assert.match(component, /QWERTYUIOPASDFGHJKLXCVBNM/);
   assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBNM/);
