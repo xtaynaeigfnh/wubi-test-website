@@ -13,7 +13,6 @@ import {
 import {
   createLocalId,
   getSessions,
-  loadArticles,
   readLocal,
   saveAdvancedPracticeOutcome,
   savePracticeOutcome,
@@ -21,6 +20,7 @@ import {
   takeSessionValue,
   writeLocal,
 } from "../lib";
+import { loadArticles } from "../content-loader";
 import {
   applyTypingDelaySample,
   calculateKeyAccuracy,

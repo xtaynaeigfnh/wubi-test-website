@@ -31,11 +31,6 @@ import {
   getProgress,
   getSessions,
   lengthLabels,
-  loadArticleMetadata,
-  loadArticles,
-  loadCommonCharacters,
-  loadWubi,
-  loadWubiChallenge,
   MAX_CUSTOM_TEXT_LENGTH,
   readLocal,
   readLocalArray,
@@ -54,6 +49,13 @@ import {
   writeLocal,
   type PhraseOpportunityInput,
 } from "../lib";
+import {
+  loadArticleMetadata,
+  loadArticles,
+  loadCommonCharacters,
+  loadWubi,
+  loadWubiChallenge,
+} from "../content-loader";
 import {
   applyTypingDelaySample,
   buildMinimumCodeLengthIndex,
