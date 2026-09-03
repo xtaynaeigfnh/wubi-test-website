@@ -17,6 +17,8 @@ const hydrationBoundaryPath = new URL("../app/components/HydrationBoundary.tsx",
 const uiPath = new URL("../app/components/Ui.tsx", import.meta.url);
 const dataManagementPath = new URL("../app/components/DataManagement.tsx", import.meta.url);
 const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.meta.url);
+const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
+const themePath = new URL("../app/theme.ts", import.meta.url);
 
 test("interactive controls stay hidden and inert until hydration completes", async () => {
   const [boundary, layout, styles] = await Promise.all([
@@ -626,16 +628,19 @@ test("typing progress fills the five correct Wubi root zones continuously", asyn
 });
 
 test("key sound is shared by typing, challenge, and the settings preview", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, settings] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(settingsViewPath, "utf8"),
+  ]);
 
   assert.match(component, /function useKeySound\(enabled: boolean\)/);
   assert.match(component, /context\.state === "suspended"/);
   assert.match(component, /context\.resume\(\)\.then\(emit/);
   assert.match(component, /<TypingView[\s\S]*playKeySound=\{playKeySound\}/);
   assert.match(component, /<ChallengeView playKeySound=\{playKeySound\}/);
-  assert.match(component, /if \(update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
+  assert.match(settings, /if \(update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
   assert.match(
-    component,
+    settings,
     /文章测速和字码挑战输入时播放轻提示音/,
   );
 });
@@ -778,7 +783,10 @@ test("typing offers ordered common-character ranges with explicit reshuffling", 
 });
 
 test("theme settings expose six presets and accessible custom color controls", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, theme] = await Promise.all([
+    readFile(settingsViewPath, "utf8"),
+    readFile(themePath, "utf8"),
+  ]);
 
   for (const [value, label] of [
     ["system", "系统"],
@@ -788,7 +796,7 @@ test("theme settings expose six presets and accessible custom color controls", a
     ["qingdai", "青黛"],
     ["custom", "自定义"],
   ]) {
-    assert.match(component, new RegExp(`${value}: "${label}"`));
+    assert.match(theme, new RegExp(`${value}: "${label}"`));
   }
   assert.match(component, /主题预设/);
   assert.match(component, /<fieldset className="theme-preset-fieldset">/);
@@ -811,20 +819,22 @@ test("theme settings expose six presets and accessible custom color controls", a
 });
 
 test("custom theme preview reports contrast and keeps semantic colors stable", async () => {
-  const [component, styles] = await Promise.all([
+  const [component, shell, theme, styles] = await Promise.all([
+    readFile(settingsViewPath, "utf8"),
     readFile(componentPath, "utf8"),
+    readFile(themePath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /function getContrastRatio\s*\(/);
-  assert.match(component, /function chooseContrastText\s*\(/);
-  assert.match(component, /4\.5/);
-  assert.match(component, /"--custom-accent":\s*accent/);
-  assert.match(component, /"--custom-canvas":\s*canvas/);
-  assert.match(component, /"--custom-text":\s*text/);
-  assert.match(component, /"--custom-accent-text":\s*chooseContrastText\(accent\)/);
-  assert.match(component, /Object\.entries\(customVariables\)/);
-  assert.match(component, /root\.style\.setProperty\(property, value\)/);
+  assert.match(theme, /function getContrastRatio\s*\(/);
+  assert.match(theme, /function chooseContrastText\s*\(/);
+  assert.match(theme, /4\.5/);
+  assert.match(theme, /"--custom-accent":\s*accent/);
+  assert.match(theme, /"--custom-canvas":\s*canvas/);
+  assert.match(theme, /"--custom-text":\s*text/);
+  assert.match(theme, /"--custom-accent-text":\s*chooseContrastText\(accent\)/);
+  assert.match(shell, /Object\.entries\(customVariables\)/);
+  assert.match(shell, /root\.style\.setProperty\(property, value\)/);
   assert.match(component, /className="theme-preview/);
   assert.match(component, /即时预览/);
   assert.match(component, /className="theme-preview-button"/);
