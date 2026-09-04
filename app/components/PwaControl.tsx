@@ -132,7 +132,8 @@ export function PwaControl() {
   };
 
   return (
-    <section className="management-card pwa-card" aria-labelledby="pwa-title">
+    <section className="management-card pwa-card" id="settings-device" aria-labelledby="pwa-title">
+      <span className="settings-section-key" aria-hidden="true">G</span>
       <div>
         <span className="eyebrow">离线安装</span>
         <h2 id="pwa-title">把网站放到桌面</h2>

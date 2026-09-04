@@ -152,7 +152,7 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
 });
 
-test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explanations", async () => {
+test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explanations", async () => {
   const [management, training, weekly, app, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
@@ -161,7 +161,9 @@ test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explan
     readFile(stylesPath, "utf8"),
   ]);
   assert.match(management, /数据用量与清理/);
-  assert.match(management, /预览清理/);
+  assert.match(management, />\s*全部清理\s*</);
+  assert.doesNotMatch(management, /预览清理/);
+  assert.doesNotMatch(management, /storage-usage-list|storage-meter/);
   assert.match(management, /导出轻量统计摘要/);
   assert.match(management, /不兼容项：0/);
   assert.match(management, /window\.confirm/);
@@ -169,8 +171,7 @@ test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explan
   assert.match(training, /编码错误 50%、卡顿 30%、回改 20%/);
   assert.match(weekly, /六项能力的精确计算公式/);
   assert.match(app, /这次成绩如何影响后续推荐/);
-  assert.match(styles, /\.storage-usage-list/);
-  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.storage-usage-list\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.doesNotMatch(styles, /\.storage-usage-list|\.storage-meter/);
 });
 
 test("history filters are visually separate and expose pressed state", async () => {
@@ -864,11 +865,20 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(component, /role="group"\s+aria-label="当前练习操作"/);
 });
 
-test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
-  const component = await readFile(lookupViewPath, "utf8");
+test("lookup restores a centered 26-letter keyboard and compact search field", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(lookupViewPath, "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
 
-  assert.match(component, /QWERTYUIOPASDFGHJKLXCVBNM/);
-  assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBNM/);
+  assert.match(component, /\["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"\]/);
+  assert.match(component, /className="keyboard-row"/);
+  assert.match(component, /aria-label="二十六字母键盘"/);
+  assert.doesNotMatch(component, /<span aria-hidden="true">查<\/span>/);
+  assert.match(component, /className="lookup-search-field"/);
+  assert.match(styles, /\.lookup-search-field\s*\{[^}]*width:\s*min\(680px, 100%\)/s);
+  assert.match(styles, /html\s*\{[^}]*scroll-behavior:\s*smooth/s);
+  assert.match(styles, /@keyframes lookup-keyboard-row-in/);
 });
 
 test("lookup uses the same full content width as other subpages", async () => {
@@ -934,6 +944,40 @@ test("theme settings expose six presets and accessible custom color controls", a
   );
   assert.equal(component.match(/type="color"/g)?.length, 2);
   assert.match(component, /恢复当前主题默认配色/);
+});
+
+test("settings layout provides a responsive home-row section index", async () => {
+  const [component, dataManagement, pwa, styles] = await Promise.all([
+    readFile(settingsViewPath, "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  for (const [key, target, label] of [
+    ["A", "settings-appearance", "外观"],
+    ["S", "settings-practice", "练习"],
+    ["D", "settings-feedback", "反馈"],
+    ["F", "settings-data", "数据"],
+    ["G", "settings-device", "设备"],
+    ["H", "settings-license", "版权"],
+  ]) {
+    assert.match(component, new RegExp(`key: "${key}", href: "#${target}", label: "${label}"`));
+  }
+  assert.match(component, /<aside className="settings-index" aria-label="设置分区">/);
+  assert.match(component, /<dl className="settings-heading-summary" aria-label="当前设置摘要">/);
+  assert.match(component, /enabledFeedbackCount === 0[\s\S]*"全部关闭"[\s\S]*"已全部开启"[\s\S]*"已开启 1 项"/);
+  assert.match(component, /<ul aria-label="辅助反馈状态">/);
+  assert.match(component, />编码提示</);
+  assert.match(component, />按键声音</);
+  assert.doesNotMatch(component, /\/ 2 开启/);
+  assert.match(dataManagement, /className="data-management" id="settings-data"/);
+  assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">F<\/span>/);
+  assert.match(pwa, /className="management-card pwa-card" id="settings-device"/);
+  assert.match(pwa, /className="settings-section-key" aria-hidden="true">G<\/span>/);
+  assert.match(styles, /\.settings-workbench\s*\{[^}]*grid-template-columns:\s*176px minmax\(0, 1fr\)/s);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.settings-index nav\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.settings-quick-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });
 
 test("custom theme preview reports contrast and keeps semantic colors stable", async () => {

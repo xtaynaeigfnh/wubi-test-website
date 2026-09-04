@@ -82,14 +82,15 @@ export function LookupView() {
         <p>输入汉字、词组或 1–4 位编码，结果完全来自本地码表。</p>
       </div>
       <div className="lookup-search">
-        <span aria-hidden="true">查</span>
-        <input
-          aria-label="查询汉字、词组或五笔编码"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={loading ? "正在加载离线码表…" : "例如：五笔、测试、ggtt"}
-        />
-        {query && <button onClick={() => setQuery("")}>清除</button>}
+        <div className="lookup-search-field">
+          <input
+            aria-label="查询汉字、词组或五笔编码"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={loading ? "正在加载离线码表…" : "例如：五笔、测试、ggtt"}
+          />
+          {query && <button onClick={() => setQuery("")}>清除</button>}
+        </div>
       </div>
       {loadError && (
         <ErrorState
@@ -100,9 +101,11 @@ export function LookupView() {
       )}
       {!normalizedQuery && (
         <div className="lookup-empty">
-          <div className="keyboard-visual">
-            {"QWERTYUIOPASDFGHJKLXCVBNM".split("").map((key) => (
-              <span key={key}>{key}</span>
+          <div className="keyboard-visual" aria-label="二十六字母键盘">
+            {["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].map((row) => (
+              <div className="keyboard-row" key={row}>
+                {row.split("").map((key) => <span key={key}>{key}</span>)}
+              </div>
             ))}
           </div>
           <h2>查一个字，也可以反查一组编码</h2>
