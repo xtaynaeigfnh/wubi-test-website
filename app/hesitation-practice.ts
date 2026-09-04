@@ -23,6 +23,13 @@ function isBoundedString(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length <= maximum;
 }
 
+function isBoundedUnicodeString(
+  value: unknown,
+  maximum: number,
+): value is string {
+  return typeof value === "string" && Array.from(value).length <= maximum;
+}
+
 function isFiniteRange(value: unknown, minimum: number, maximum: number): value is number {
   return (
     typeof value === "number" &&
@@ -54,7 +61,7 @@ export function isValidHesitationPracticeTarget(
     isBoundedString(target.sourceDate, 40) &&
     target.sourceDate.length > 0 &&
     Number.isFinite(Date.parse(target.sourceDate)) &&
-    isBoundedString(target.text, MAX_EXCERPT_LENGTH) &&
+    isBoundedUnicodeString(target.text, MAX_EXCERPT_LENGTH) &&
     textLength > 0 &&
     !/[\r\n]/.test(target.text) &&
     Number.isInteger(target.sourceStart) &&

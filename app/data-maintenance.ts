@@ -10,6 +10,8 @@ import {
 import {
   MAX_RHYTHM_CURVE_BYTES,
   MAX_RHYTHM_CURVE_SESSIONS,
+  rhythmCurveByteLength,
+  withoutRhythmCurve,
 } from "./rhythm-lab.ts";
 import {
   MAX_SPACED_REVIEW_ITEMS,
@@ -108,6 +110,22 @@ function fieldUsage(
   return { count: values.length, bytes: byteLength(values) };
 }
 
+function rhythmUsage(sessions: SessionResult[]) {
+  const summaries = sessions.flatMap((session) => {
+    const summary = session.rhythmSummary;
+    return summary && (summary.curve.length || summary.weakSegments.length)
+      ? [summary]
+      : [];
+  });
+  return {
+    count: summaries.length,
+    bytes: summaries.reduce(
+      (sum, summary) => sum + rhythmCurveByteLength(summary),
+      0,
+    ),
+  };
+}
+
 function ratio(item: StorageUsageItem): number {
   return Math.max(
     item.countLimit ? item.count / item.countLimit : 0,
@@ -120,7 +138,7 @@ export function buildStorageUsageReport(
 ): StorageUsageReport {
   const heatmaps = fieldUsage(snapshot.sessions, "heatmap");
   const ghosts = fieldUsage(snapshot.sessions, "ghostTimeline");
-  const rhythm = fieldUsage(snapshot.sessions, "rhythmSummary");
+  const rhythm = rhythmUsage(snapshot.sessions);
   const items: StorageUsageItem[] = [
     {
       id: "sessions",
@@ -227,14 +245,15 @@ export function stripSessionLargeObjects(
       delete next.ghostTimeline;
       return next;
     }
-    if (target === "rhythm" && session.rhythmSummary?.curve.length) {
+    if (
+      target === "rhythm" &&
+      session.rhythmSummary &&
+      (session.rhythmSummary.curve.length ||
+        session.rhythmSummary.weakSegments.length)
+    ) {
       return {
         ...session,
-        rhythmSummary: {
-          ...session.rhythmSummary,
-          curve: [],
-          weakSegments: [],
-        },
+        rhythmSummary: withoutRhythmCurve(session.rhythmSummary),
       };
     }
     return session;

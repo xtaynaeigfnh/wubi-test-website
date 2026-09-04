@@ -408,6 +408,20 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(management, /importingRef/);
   assert.match(management, /MAX_CUSTOM_TEXT_FILE_BYTES/);
   assert.match(management, /自定义文章已满 20 篇/);
+  assert.match(management, /<CustomTextManager onChanged=\{refreshStorageUsage\} \/>/);
+  assert.match(management, /setItems\(next\);\s*onChanged\(\);\s*return true;/);
+});
+
+test("lookup keeps trimmed empty input idle and waits for deferred results", async () => {
+  const lookup = await readFile(lookupViewPath, "utf8");
+
+  assert.match(lookup, /const normalizedQuery = query\.trim\(\);/);
+  assert.match(lookup, /const isSearchPending = normalizedQuery !== deferredQuery;/);
+  assert.match(lookup, /\{!normalizedQuery && \(/);
+  assert.match(
+    lookup,
+    /\{normalizedQuery && !isSearchPending && !loading && !loadError && \(/,
+  );
 });
 
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
@@ -492,6 +506,19 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   );
   assert.match(component, /文章选择未能保存，原练习保持不变/);
   assert.match(component, /if \(chooseArticle\(buildCommonPracticeArticle/);
+  assert.match(
+    component,
+    /const practiceInProgress = startedAt !== null && !completed;/,
+  );
+  assert.match(
+    component,
+    /usePendingSaveGuard\([\s\S]*sessionSaveFailed \|\| practiceInProgress[\s\S]*本次练习尚未完成/,
+  );
+  assert.match(
+    component,
+    /if \(!chooseArticle\(custom\)\) \{[\s\S]*writeLocal\(STORAGE\.customTexts, saved\)[\s\S]*return;/,
+  );
+  assert.match(component, /disabled=\{practiceInProgress\}/);
 
   assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
   assert.match(training, /if \(!force && pendingDrillSave\)/);

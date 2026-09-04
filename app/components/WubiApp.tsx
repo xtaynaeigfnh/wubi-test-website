@@ -601,7 +601,13 @@ function TypingView({
   const [completed, setCompleted] = useState(false);
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const [sessionSaveFailed, setSessionSaveFailed] = useState(false);
-  usePendingSaveGuard(sessionSaveFailed);
+  const practiceInProgress = startedAt !== null && !completed;
+  usePendingSaveGuard(
+    sessionSaveFailed || practiceInProgress,
+    sessionSaveFailed
+      ? "本次成绩尚未保存，请先重试保存。"
+      : "本次练习尚未完成，请先完成或重来后再离开。",
+  );
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const composing = useRef(false);
   const recorded = useRef(false);
@@ -1655,9 +1661,19 @@ function TypingView({
       customSaveLock.current = false;
       return;
     }
+    if (!chooseArticle(custom)) {
+      if (!writeLocal(STORAGE.customTexts, saved)) {
+        setCustomTexts(getCustomArticles());
+        setCustomError("文章选择失败，且自定义文章列表未能回滚，请到设置页检查。");
+      } else {
+        setCustomTexts(saved);
+        setCustomError("文章选择失败，自定义文章未保存，请检查存储空间后重试。");
+      }
+      customSaveLock.current = false;
+      return;
+    }
     setCustomError("");
     setCustomTexts(nextCustomTexts);
-    chooseArticle(custom);
     setCustomOpen(false);
   };
 
@@ -1727,11 +1743,16 @@ function TypingView({
           <p>切到五笔输入法就可以开始。速度、击键和错字都安静地记在这台电脑里。</p>
         </div>
         <div className="hero-actions">
-          <button className="button secondary common-entry" onClick={openCommonPractice}>
+          <button
+            className="button secondary common-entry"
+            disabled={practiceInProgress}
+            onClick={openCommonPractice}
+          >
             常用字练习
           </button>
           <button
             className="button secondary"
+            disabled={practiceInProgress}
             onClick={() => {
               customSaveLock.current = false;
               setCustomError("");
@@ -1740,7 +1761,11 @@ function TypingView({
           >
             粘贴自己的文字
           </button>
-          <button className="button primary" onClick={randomArticle}>
+          <button
+            className="button primary"
+            disabled={practiceInProgress}
+            onClick={randomArticle}
+          >
             换一篇练练
           </button>
         </div>
@@ -1856,8 +1881,15 @@ function TypingView({
                 : "完成一次可比较的文章练习后即可挑战"}
             </span>
             <div className="practice-actions">
-              <button onClick={() => setPickerOpen(true)}>选文章</button>
-              <button onClick={randomArticle}>随机</button>
+              <button
+                disabled={practiceInProgress}
+                onClick={() => setPickerOpen(true)}
+              >
+                选文章
+              </button>
+              <button disabled={practiceInProgress} onClick={randomArticle}>
+                随机
+              </button>
               <button
                 disabled={startedAt === null || completed}
                 className={pausedAt !== null ? "active" : ""}
@@ -2470,8 +2502,20 @@ function TypingView({
               <option value="practiced">已练习</option>
             </select>
           </label>
-          <button className="side-action" disabled={!filtered.length} onClick={randomArticle}>随机抽取一篇 <b>↗</b></button>
-          <button className="side-action subtle" onClick={pickMostDifficult}>重练错字较多文章</button>
+          <button
+            className="side-action"
+            disabled={practiceInProgress || !filtered.length}
+            onClick={randomArticle}
+          >
+            随机抽取一篇 <b>↗</b>
+          </button>
+          <button
+            className="side-action subtle"
+            disabled={practiceInProgress}
+            onClick={pickMostDifficult}
+          >
+            重练错字较多文章
+          </button>
           <div className="tip-box">
             <span>小提示</span>
             <p>系统五笔候选上屏后才会判定正误，组合输入过程不会被计为错字。</p>

@@ -12,7 +12,9 @@ export function LookupView() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const deferredQuery = useDeferredValue(query.trim());
+  const normalizedQuery = query.trim();
+  const deferredQuery = useDeferredValue(normalizedQuery);
+  const isSearchPending = normalizedQuery !== deferredQuery;
 
   useEffect(() => {
     let active = true;
@@ -96,7 +98,7 @@ export function LookupView() {
           onRetry={() => setLoadAttempt((value) => value + 1)}
         />
       )}
-      {!query && (
+      {!normalizedQuery && (
         <div className="lookup-empty">
           <div className="keyboard-visual">
             {"QWERTYUIOPASDFGHJKLXCVBNM".split("").map((key) => (
@@ -112,7 +114,7 @@ export function LookupView() {
           </div>
         </div>
       )}
-      {query && !loading && !loadError && (
+      {normalizedQuery && !isSearchPending && !loading && !loadError && (
         <div className="lookup-results">
           <div className="result-heading" role="status" aria-live="polite">
             <span>查询结果</span><strong>{results.length} 条</strong>

@@ -1265,7 +1265,7 @@ function persistPracticeOutcome(
       new Date(session.date),
     );
   }
-  if (trainingPlan && (session.trainingTaskId || trainingPlan !== currentPlan)) {
+  if (session.trainingTaskId || trainingPlan !== currentPlan) {
     writes.set(STORAGE.trainingPlan, trainingPlan);
   }
   writes.set(STORAGE.reviewState, reviewState);
@@ -1868,6 +1868,10 @@ export function buildTrendSeries(
       (sum, session) => sum + session.durationSeconds / 60,
       0,
     );
+    const attemptedChars = rows.reduce(
+      (sum, session) => sum + session.attemptedChars,
+      0,
+    );
     return {
       date: key,
       label: `${date.getMonth() + 1}/${date.getDate()}`,
@@ -1875,8 +1879,11 @@ export function buildTrendSeries(
       chars: weightedChars,
       minutes: weightedMinutes,
       speed: weightedMinutes > 0 ? Math.round(weightedChars / weightedMinutes) : 0,
-      accuracy: rows.length
-        ? rows.reduce((sum, session) => sum + session.accuracy, 0) / rows.length
+      accuracy: attemptedChars > 0
+        ? rows.reduce(
+            (sum, session) => sum + session.accuracy * session.attemptedChars,
+            0,
+          ) / attemptedChars
         : 0,
     };
   });

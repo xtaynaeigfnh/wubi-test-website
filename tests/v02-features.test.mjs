@@ -556,10 +556,16 @@ test("regrouping preserves completed tasks and training summaries compare snapsh
 test("trend series produces daily speed and accuracy summaries", () => {
   const points = buildTrendSeries(
     [
-      session({ correctChars: 200, durationSeconds: 120, accuracy: 98 }),
+      session({
+        correctChars: 200,
+        attemptedChars: 200,
+        durationSeconds: 120,
+        accuracy: 98,
+      }),
       session({
         id: "second",
         correctChars: 100,
+        attemptedChars: 100,
         durationSeconds: 60,
         accuracy: 94,
       }),
@@ -572,7 +578,20 @@ test("trend series produces daily speed and accuracy summaries", () => {
   assert.equal(today.chars, 300);
   assert.equal(today.minutes, 3);
   assert.equal(today.speed, 100);
-  assert.equal(today.accuracy, 96);
+  assert.equal(today.accuracy, 290 / 3);
+});
+
+test("trend accuracy weights sessions by attempted characters", () => {
+  const points = buildTrendSeries(
+    [
+      session({ attemptedChars: 1, accuracy: 0 }),
+      session({ id: "long", attemptedChars: 999, accuracy: 100 }),
+    ],
+    7,
+    new Date("2026-07-29T12:00:00+08:00"),
+  );
+
+  assert.equal(points.at(-1).accuracy, 99.9);
 });
 
 test("all trend range includes sessions older than one year", () => {
@@ -1327,6 +1346,62 @@ test("correct observations only advance existing review targets", () => {
     assert.deepEqual(storedReview.items.map((item) => item.targetId), ["测"]);
     assert.equal(storedReview.items[0].lastOutcome, "correct");
     assert.equal(storedReview.items[0].intervalDays, 2);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("standalone review clears a pending plan whose last item was handled", () => {
+  const now = new Date("2026-08-29T09:00:00.000Z");
+  const plan = generateDailyTrainingPlan({
+    date: "2026-08-29",
+    now,
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [],
+    entries: trainingEntries,
+    dueReviewItems: [["测", "imyt", 4]],
+    preferredLength: "all",
+  });
+  const review = plan.tasks.find((task) => task.type === "review");
+  review.items = [["测", "imyt", 4]];
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+    [STORAGE.reviewState, JSON.stringify({ version: 1, items: [reviewItem()] })],
+    [STORAGE.trainingPlan, JSON.stringify(plan)],
+  ]);
+  let failPlanWrite = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        if (key === STORAGE.trainingPlan && failPlanWrite) {
+          failPlanWrite = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const result = session({
+      id: "standalone-review",
+      type: "review",
+      articleId: undefined,
+      date: now.toISOString(),
+    });
+    const observations = [
+      { text: "测", code: "imyt", kind: "correct" },
+    ];
+    const before = new Map(values);
+    assert.equal(savePracticeOutcome(result, observations), false);
+    assert.deepEqual(values, before);
+
+    assert.equal(savePracticeOutcome(result, observations), true);
+    assert.equal(JSON.parse(values.get(STORAGE.trainingPlan)), null);
   } finally {
     delete globalThis.window;
   }
@@ -2309,6 +2384,26 @@ test("service worker creates valid cached audio range responses", async () => {
     Array.from(new Uint8Array(await offlineAudio.arrayBuffer())),
     [2, 3, 4],
   );
+
+  context.fetch = async () => new Response("missing", { status: 404 });
+  fetchListener({
+    request: {
+      method: "GET",
+      mode: "navigate",
+      url: "https://example.com/wubi/missing",
+      headers: new Headers(),
+    },
+    respondWith: (promise) => {
+      responsePromise = promise;
+    },
+    waitUntil: (promise) => {
+      cachePromise = promise;
+    },
+  });
+  const missingNavigation = await responsePromise;
+  await cachePromise;
+  assert.equal(missingNavigation.status, 404);
+  assert.equal(await missingNavigation.text(), "missing");
 });
 
 test("build lifecycle stays cross-platform and project-rooted", async () => {
