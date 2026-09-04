@@ -160,7 +160,7 @@ test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explan
     readFile(componentPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
-  assert.match(management, /数据用量与清理/);
+  assert.match(management, /数据清理/);
   assert.match(management, />\s*全部清理\s*</);
   assert.doesNotMatch(management, /预览清理/);
   assert.doesNotMatch(management, /storage-usage-list|storage-meter/);
@@ -781,13 +781,17 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /手指使用率（分区）/);
   assert.match(summary, /aria-label="练习按键次数热力图"/);
   assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
-  assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
+  assert.match(summary, /className="key-analysis-layout" aria-label="按键分布分析"/);
+  assert.match(summary, /className="key-summary-metrics" aria-label="按键使用概览"/);
+  assert.match(summary, /className={`key-summary-verdict\$\{summary\.total \? " has-data" : ""\}`} aria-label="当前键位结论"/);
+  assert.match(summary, /只记录次数 · 不记录输入内容 · 不上传/);
+  assert.match(summary, /Boolean\(summary\.total\)[\s\S]*<HandBalanceChart/);
   assert.match(summary, /id="finger-usage-title"[\s\S]*className="vertical-chart"/);
   assert.match(summary, /className="axis-bars" role="list"/);
   assert.match(summary, /className="vertical-chart" role="list"/);
   assert.match(summary, /className="vertical-bar"[\s\S]*role="listitem"/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
-  assert.match(styles, /\.key-analysis-grid\s*\{/);
+  assert.match(styles, /\.key-analysis-layout\s*\{[^}]*grid-template-columns:\s*repeat\(12,/s);
   assert.match(styles, /\.hand-pie\s*\{[^}]*border-radius:\s*50%/s);
   assert.match(styles, /\.axis-grid\s*\{/);
   assert.match(styles, /\.vertical-bars\s*\{[^}]*grid-template-columns:\s*repeat\(9,/s);
@@ -799,7 +803,7 @@ test("typing surfaces record physical keys and the summary exposes the reference
     styles,
     /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
   );
-  assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(styles, /\.key-analysis-layout > :nth-child\(2\)\s*\{[^}]*grid-column:\s*span 8/s);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.vertical-chart/s);
   assert.match(
     styles,
@@ -958,9 +962,10 @@ test("settings layout provides a responsive home-row section index", async () =>
     ["A", "settings-appearance", "外观"],
     ["S", "settings-practice", "练习"],
     ["D", "settings-feedback", "反馈"],
-    ["F", "settings-data", "数据"],
-    ["G", "settings-device", "设备"],
-    ["H", "settings-license", "版权"],
+    ["F", "settings-data", "清理"],
+    ["G", "settings-backup", "备份"],
+    ["H", "settings-device", "设备"],
+    ["J", "settings-license", "版权"],
   ]) {
     assert.match(component, new RegExp(`key: "${key}", href: "#${target}", label: "${label}"`));
   }
@@ -973,10 +978,18 @@ test("settings layout provides a responsive home-row section index", async () =>
   assert.doesNotMatch(component, /\/ 2 开启/);
   assert.match(dataManagement, /className="data-management" id="settings-data"/);
   assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">F<\/span>/);
+  assert.match(dataManagement, /className="data-tools-grid">\s*<StorageManager[^>]*\/>\s*<BackupManager\s*\/>\s*<\/div>/);
+  assert.match(dataManagement, /id="settings-backup" aria-labelledby="backup-title"/);
+  assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">G<\/span>/);
+  assert.match(dataManagement, /<h2 id="storage-title">数据清理<\/h2>/);
+  assert.match(component, /<span>J<\/span><div><h2>内容与版权/);
   assert.match(pwa, /className="management-card pwa-card" id="settings-device"/);
-  assert.match(pwa, /className="settings-section-key" aria-hidden="true">G<\/span>/);
+  assert.match(pwa, /className="settings-section-key" aria-hidden="true">H<\/span>/);
   assert.match(styles, /\.settings-workbench\s*\{[^}]*grid-template-columns:\s*176px minmax\(0, 1fr\)/s);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.settings-index nav\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.settings-index nav\s*\{[^}]*grid-template-columns:\s*repeat\(7,/s);
+  assert.match(styles, /\.data-tools-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s);
+  assert.match(styles, /\.data-tool-card\s*\{[^}]*min-width:\s*0/s);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.data-tools-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.settings-quick-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });
 

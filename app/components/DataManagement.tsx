@@ -40,8 +40,10 @@ export function DataManagement() {
   const refreshStorageUsage = () => setRevision((value) => value + 1);
   return (
     <div className="data-management" id="settings-data">
-      <StorageManager revision={revision} onChanged={refreshStorageUsage} />
-      <BackupManager />
+      <div className="data-tools-grid">
+        <StorageManager revision={revision} onChanged={refreshStorageUsage} />
+        <BackupManager />
+      </div>
       <CustomTextManager onChanged={refreshStorageUsage} />
     </div>
   );
@@ -126,17 +128,13 @@ function StorageManager({
   };
 
   return (
-    <section className="management-card storage-manager" aria-labelledby="storage-title">
-      <div className="management-heading">
+    <section className="management-card data-tool-card storage-manager" aria-labelledby="storage-title">
+      <div className="settings-card-title">
         <span className="settings-section-key" aria-hidden="true">F</span>
         <div>
-          <span className="eyebrow">本机存储 · V0.9</span>
-          <h2 id="storage-title">数据用量与清理</h2>
-          <p>所有估算、清理和导出都只在当前浏览器中完成。</p>
+          <h2 id="storage-title">数据清理</h2>
+          <p>查看本机用量，清理附加数据</p>
         </div>
-        <button className="button secondary" onClick={exportSummary}>
-          导出轻量统计摘要
-        </button>
       </div>
       {report && (
         <>
@@ -160,6 +158,11 @@ function StorageManager({
           </div>
         </>
       )}
+      <div className="management-actions">
+        <button className="button secondary" onClick={exportSummary}>
+          导出轻量统计摘要
+        </button>
+      </div>
       <details className="maintenance-log">
         <summary>迁移与淘汰记录（{events.length}）</summary>
         {events.length ? (
@@ -267,12 +270,15 @@ function BackupManager() {
   };
 
   return (
-    <section className="management-card" aria-labelledby="backup-title">
-      <div>
-        <span className="eyebrow">数据安全</span>
-        <h2 id="backup-title">备份与恢复</h2>
-        <p>把成绩、错题、设置和自定义文章保存成一个 JSON 文件。</p>
+    <section className="management-card data-tool-card backup-manager" id="settings-backup" aria-labelledby="backup-title">
+      <div className="settings-card-title">
+        <span className="settings-section-key" aria-hidden="true">G</span>
+        <div>
+          <h2 id="backup-title">备份与恢复</h2>
+          <p>导出完整备份，或从文件恢复</p>
+        </div>
       </div>
+      <p>把成绩、错题、设置和自定义文章保存成一个 JSON 文件。</p>
       <div className="management-actions">
         <button className="button primary" onClick={exportBackup}>
           导出完整备份

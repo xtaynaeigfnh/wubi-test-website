@@ -64,9 +64,10 @@ const settingsSections = [
   { key: "A", href: "#settings-appearance", label: "外观" },
   { key: "S", href: "#settings-practice", label: "练习" },
   { key: "D", href: "#settings-feedback", label: "反馈" },
-  { key: "F", href: "#settings-data", label: "数据" },
-  { key: "G", href: "#settings-device", label: "设备" },
-  { key: "H", href: "#settings-license", label: "版权" },
+  { key: "F", href: "#settings-data", label: "清理" },
+  { key: "G", href: "#settings-backup", label: "备份" },
+  { key: "H", href: "#settings-device", label: "设备" },
+  { key: "J", href: "#settings-license", label: "版权" },
 ] as const;
 
 export function SettingsView({
@@ -297,7 +298,7 @@ export function SettingsView({
           <DataManagement />
           <PwaControl />
           <section className="settings-card license-card" id="settings-license">
-            <div className="settings-card-title"><span>H</span><div><h2>内容与版权</h2><p>数据来源清楚可核对</p></div></div>
+            <div className="settings-card-title"><span>J</span><div><h2>内容与版权</h2><p>数据来源清楚可核对</p></div></div>
             <p>练习文章为本项目原创生成内容。86 版码表来自 Rime 五笔方案，按 LGPL-3.0 保留原始许可证、作者信息和完整源数据。</p>
             <a href="https://github.com/rime/rime-wubi" target="_blank" rel="noreferrer">查看 Rime 五笔方案 ↗</a>
           </section>
