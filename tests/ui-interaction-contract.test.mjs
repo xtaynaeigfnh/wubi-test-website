@@ -1042,3 +1042,31 @@ test("one root-level audio player exposes accessible manual controls", async () 
     /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
   );
 });
+
+test("music dock waits for both pointer and focus to leave before collapsing", async () => {
+  const music = await readFile(musicPath, "utf8");
+
+  assert.match(music, /const pointerInsideRef = useRef\(false\)/);
+  assert.match(music, /const focusInsideRef = useRef\(false\)/);
+  assert.match(music, /const collapseTimerRef = useRef<number \| null>\(null\)/);
+  assert.match(music, /const dockRef = useRef<HTMLElement>\(null\)/);
+  assert.match(music, /const peekButtonRef = useRef<HTMLButtonElement>\(null\)/);
+  assert.match(music, /const clearCollapseTimer = useCallback/);
+  assert.match(music, /if \(collapseTimerRef\.current !== null\) \{[\s\S]*window\.clearTimeout\(collapseTimerRef\.current\)/);
+  assert.match(
+    music,
+    /pointerInsideRef\.current \|\|[\s\S]*focusInsideRef\.current \|\|[\s\S]*expandedRef\.current \|\|[\s\S]*collapsedRef\.current/,
+  );
+  assert.match(music, /const handlePointerEnter =/);
+  assert.match(music, /const handlePointerLeave =/);
+  assert.match(music, /const handleFocus =/);
+  assert.match(music, /const handleBlur =/);
+  assert.match(music, /onPointerEnter=\{handlePointerEnter\}/);
+  assert.match(music, /onPointerLeave=\{handlePointerLeave\}/);
+  assert.match(music, /onFocusCapture=\{handleFocus\}/);
+  assert.match(music, /onBlurCapture=\{handleBlur\}/);
+  assert.match(music, /dockRef\.current\?\.contains\(document\.activeElement\)/);
+  assert.match(music, /useLayoutEffect\(\(\) => \{[\s\S]*peekButtonRef\.current\?\.focus\(\)/);
+  assert.match(music, /return clearCollapseTimer/);
+  assert.doesNotMatch(music, /activityTick/);
+});
