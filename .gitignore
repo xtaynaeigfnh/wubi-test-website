@@ -24,6 +24,7 @@
 # Tests and tooling caches
 /coverage/
 /.nyc_output/
+/.playwright-cli/
 .eslintcache
 *.tsbuildinfo
 next-env.d.ts
