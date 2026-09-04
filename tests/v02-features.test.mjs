@@ -103,6 +103,18 @@ function session(overrides = {}) {
   };
 }
 
+function articleProgress(overrides = {}) {
+  return {
+    articleId: "article-a",
+    attempts: 1,
+    bestSpeed: 80,
+    completed: false,
+    lastPracticed: "2026-07-29T09:00:00.000Z",
+    errors: 3,
+    ...overrides,
+  };
+}
+
 function hesitationTarget(overrides = {}) {
   const target = {
     version: 1,
@@ -2096,6 +2108,186 @@ test("local history readers discard malformed records and self-heal storage", ()
     assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
     assert.equal(JSON.parse(values.get(STORAGE.progress)).length, 1);
     assert.equal(JSON.parse(values.get(STORAGE.errors)).length, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("backup rejects duplicate article progress without touching local storage", () => {
+  const values = new Map([
+    [STORAGE.settings, JSON.stringify({ theme: "light" })],
+    [STORAGE.progress, JSON.stringify([articleProgress()])],
+  ]);
+  const before = new Map(values);
+  let writes = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        writes += 1;
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        writes += 1;
+        values.delete(key);
+      },
+    },
+  };
+  try {
+    const duplicate = articleProgress({
+      attempts: 2,
+      lastPracticed: "2026-08-01T09:00:00.000Z",
+    });
+    const payload = createBackupPayload({
+      [STORAGE.progress]: [articleProgress(), duplicate],
+    });
+    assert.throws(() => parseBackupPayload(payload), /格式不正确/);
+    assert.throws(() => restoreBackupPayload(payload), /格式不正确/);
+    assert.deepEqual(values, before);
+    assert.equal(writes, 0);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("duplicate progress sums attempts, keeps best speed and completion, and uses latest errors once", () => {
+  const raw = JSON.stringify([
+    articleProgress({
+      attempts: 2,
+      bestSpeed: 90,
+      errors: 7,
+    }),
+    articleProgress({
+      attempts: 3,
+      bestSpeed: 120,
+      completed: true,
+      lastPracticed: "2026-08-02T09:00:00.000Z",
+      errors: 2,
+    }),
+  ]);
+  const values = new Map([[STORAGE.progress, raw]]);
+  let progressWrites = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        if (key === STORAGE.progress) progressWrites += 1;
+        values.set(key, value);
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const expected = [{
+      articleId: "article-a",
+      attempts: 5,
+      bestSpeed: 120,
+      completed: true,
+      lastPracticed: "2026-08-02T09:00:00.000Z",
+      errors: 2,
+    }];
+    assert.deepEqual(getProgress(), expected);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), expected);
+    assert.equal(progressWrites, 1);
+
+    assert.deepEqual(getProgress(), expected);
+    assert.equal(progressWrites, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("saving after article progress repair updates the sole record", () => {
+  const values = new Map([[
+    STORAGE.progress,
+    JSON.stringify([
+      articleProgress({ attempts: 2, bestSpeed: 90, errors: 7 }),
+      articleProgress({
+        attempts: 3,
+        bestSpeed: 120,
+        completed: true,
+        lastPracticed: "2026-08-02T09:00:00.000Z",
+        errors: 2,
+      }),
+    ]),
+  ]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(saveSession(session({
+      id: "progress-after-repair",
+      articleId: "article-a",
+      date: "2026-09-01T09:00:00.000Z",
+      speed: 110,
+      errors: 4,
+    })), true);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), [{
+      articleId: "article-a",
+      attempts: 6,
+      bestSpeed: 120,
+      completed: true,
+      lastPracticed: "2026-09-01T09:00:00.000Z",
+      errors: 6,
+    }]);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("article progress repair discards invalid rows and bounds oversized data", () => {
+  const records = Array.from({ length: 500 }, (_, index) => articleProgress({
+    articleId: `article-${index}`,
+  }));
+  records.push(
+    articleProgress({ articleId: "invalid-date", lastPracticed: "not-a-date" }),
+    articleProgress({ articleId: "invalid-attempts", attempts: -1 }),
+    articleProgress({ articleId: "article-0", attempts: 1_000_000 }),
+    articleProgress({ articleId: "ignored-extra-article" }),
+  );
+  const values = new Map([[STORAGE.progress, JSON.stringify(records)]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const repaired = getProgress();
+    assert.equal(repaired.length, 500);
+    assert.equal(repaired.some((item) => item.articleId === "invalid-date"), false);
+    assert.equal(repaired.some((item) => item.articleId === "invalid-attempts"), false);
+    assert.equal(repaired.some((item) => item.articleId === "ignored-extra-article"), false);
+    assert.equal(repaired.find((item) => item.articleId === "article-0").attempts, 1_000_000);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), repaired);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("failed article progress repair preserves the original stored value", () => {
+  const raw = JSON.stringify([
+    articleProgress({ attempts: 2 }),
+    articleProgress({ attempts: 3 }),
+  ]);
+  const values = new Map([[STORAGE.progress, raw]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: () => {
+        throw new Error("quota");
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.deepEqual(getProgress(), [articleProgress({ attempts: 5 })]);
+    assert.equal(values.get(STORAGE.progress), raw);
   } finally {
     delete globalThis.window;
   }
