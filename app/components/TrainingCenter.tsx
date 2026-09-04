@@ -16,6 +16,7 @@ import {
   getSessions,
   localDateKey,
   readDailyGoal,
+  readHesitationQueue,
   readLocal,
   readSpacedReviewState,
   readSettings,
@@ -107,13 +108,22 @@ export function TrainingCenter({
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [pendingDrillSave, setPendingDrillSave] = useState(false);
+  const [currentHesitationQueue, setCurrentHesitationQueue] =
+    useState<HesitationPracticeQueue | null>(hesitationQueue);
+  const activeLocalDate = useRef(localDateKey(new Date()));
   usePendingSaveGuard(pendingDrillSave);
 
   const refreshLocal = useCallback(() => {
+    const nextLocalDate = localDateKey(new Date());
+    if (activeLocalDate.current !== nextLocalDate) {
+      activeLocalDate.current = nextLocalDate;
+      setActiveDueReview(null);
+    }
     setErrors(getErrors());
     setPhraseOpportunities(getPhraseOpportunities());
     setSessions(getSessions());
     setGoal(readDailyGoal());
+    setCurrentHesitationQueue(readHesitationQueue());
     const syncedReviewState = syncSpacedReviewState();
     setReviewState(syncedReviewState ?? readSpacedReviewState());
     if (!syncedReviewState) {
@@ -125,7 +135,46 @@ export function TrainingCenter({
     );
   }, []);
 
-  useEffect(refreshLocal, [hesitationSaveRevision, refreshLocal]);
+  useEffect(() => {
+    if (!pendingDrillSave) refreshLocal();
+  }, [hesitationSaveRevision, pendingDrillSave, refreshLocal]);
+
+  useEffect(() => {
+    if (
+      !pendingDrillSave &&
+      hesitationQueue?.date === localDateKey(new Date())
+    ) {
+      setCurrentHesitationQueue(hesitationQueue);
+    }
+  }, [hesitationQueue, pendingDrillSave]);
+
+  useEffect(() => {
+    let midnightTimer: number | null = null;
+    const refreshWhenAvailable = () => {
+      if (!pendingDrillSave) refreshLocal();
+    };
+    const scheduleMidnightRefresh = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setDate(nextMidnight.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 50);
+      midnightTimer = window.setTimeout(() => {
+        refreshWhenAvailable();
+        scheduleMidnightRefresh();
+      }, Math.max(1_000, nextMidnight.getTime() - now.getTime()));
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshWhenAvailable();
+    };
+    window.addEventListener("focus", refreshWhenAvailable);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    scheduleMidnightRefresh();
+    return () => {
+      if (midnightTimer !== null) window.clearTimeout(midnightTimer);
+      window.removeEventListener("focus", refreshWhenAvailable);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [pendingDrillSave, refreshLocal]);
 
   useEffect(() => {
     const syncTabFromLocation = () => {
@@ -277,7 +326,7 @@ export function TrainingCenter({
   };
 
   const selectTrainingTab = (next: TrainingTab, force = false) => {
-    if (!force && pendingDrillSave && next !== tab) {
+    if (!force && pendingDrillSave) {
       window.alert("本轮成绩尚未保存，请先重试保存。");
       return false;
     }
@@ -463,8 +512,8 @@ export function TrainingCenter({
             tabIndex={tab === value ? 0 : -1}
             className={tab === value ? "active" : ""}
             onClick={() => {
+              if (!selectTrainingTab(value)) return;
               setActiveDueReview(null);
-              selectTrainingTab(value);
             }}
             onKeyDown={(event) => {
               if (event.key === "ArrowLeft") {
@@ -776,18 +825,18 @@ export function TrainingCenter({
               </div>
               <div
                 className="training-card-stat"
-                aria-label={`卡顿加练已完成 ${hesitationQueue?.items.filter((item) => item.status === "completed").length ?? 0} 项，共 ${hesitationQueue?.items.length ?? 0} 项`}
+                aria-label={`卡顿加练已完成 ${currentHesitationQueue?.items.filter((item) => item.status === "completed").length ?? 0} 项，共 ${currentHesitationQueue?.items.length ?? 0} 项`}
               >
                 <strong>
-                  {hesitationQueue?.items.filter((item) => item.status === "completed").length ?? 0}
-                  <small> / {hesitationQueue?.items.length ?? 0}</small>
+                  {currentHesitationQueue?.items.filter((item) => item.status === "completed").length ?? 0}
+                  <small> / {currentHesitationQueue?.items.length ?? 0}</small>
                 </strong>
                 <span>片段</span>
               </div>
             </header>
-            {hesitationQueue?.items.length ? (
+            {currentHesitationQueue?.items.length ? (
               <ol className="hesitation-queue-list">
-                {hesitationQueue.items.map((item) => {
+                {currentHesitationQueue.items.map((item) => {
                   const statusLabel = item.status === "completed"
                     ? item.outcome === "mastered"
                       ? "已完成 · 暂时掌握"
