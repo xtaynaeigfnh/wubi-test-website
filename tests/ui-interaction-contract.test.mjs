@@ -464,9 +464,35 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   );
   assert.match(component, /if \(!writeLocal\(STORAGE\.settings, next\)\)/);
   assert.match(component, /设置未能保存，原设置保持不变/);
+  assert.match(
+    component,
+    /const previousCurrent = readLocal<string \| null>\(STORAGE\.current, null\)/,
+  );
+  assert.match(
+    component,
+    /const previousGenerated = readLocal<PracticeArticle \| null>\([\s\S]*STORAGE\.currentGenerated/,
+  );
+  assert.match(
+    component,
+    /const previousRecent = readLocalArray<string>\(STORAGE\.recent\)/,
+  );
+  assert.match(
+    component,
+    /const selectionSaved =[\s\S]*writeLocal\(STORAGE\.current, next\.id\)[\s\S]*writeLocal\([\s\S]*STORAGE\.currentGenerated[\s\S]*writeLocal\(STORAGE\.recent, nextRecent\)/,
+  );
+  assert.match(
+    component,
+    /if \(!selectionSaved\) \{[\s\S]*writeLocal\(STORAGE\.current, previousCurrent\);[\s\S]*writeLocal\(STORAGE\.currentGenerated, previousGenerated\);[\s\S]*writeLocal\(STORAGE\.recent, previousRecent\);[\s\S]*return false;/,
+  );
+  assert.match(
+    component,
+    /if \(!selectionSaved\) \{[\s\S]*return false;[\s\S]*\}[\s\S]*setArticle\(next\)/,
+  );
+  assert.match(component, /文章选择未能保存，原练习保持不变/);
+  assert.match(component, /if \(chooseArticle\(buildCommonPracticeArticle/);
 
   assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
-  assert.match(training, /if \(!force && pendingDrillSave && next !== tab\)/);
+  assert.match(training, /if \(!force && pendingDrillSave\)/);
   assert.match(training, /onPendingSaveChange\(true\)/);
   assert.match(training, /disabled=\{Boolean\(prescribedRoots\) \|\| pendingDrillSave\}/);
   assert.match(training, /if \(!writeLocal\(STORAGE\.dailyGoal, next\)\)/);
@@ -503,8 +529,13 @@ test("training tabs keep their URL state in sync", async () => {
   assert.match(training, /url\.searchParams\.set\("tab", next\)/);
   assert.match(
     training,
-    /onClick=\{\(\) => \{[\s\S]*setActiveDueReview\(null\);[\s\S]*selectTrainingTab\(value\);[\s\S]*\}\}/,
+    /onClick=\{\(\) => \{[\s\S]*if \(!selectTrainingTab\(value\)\) return;[\s\S]*setActiveDueReview\(null\);[\s\S]*\}\}/,
   );
+  assert.match(training, /if \(!force && pendingDrillSave\) \{/);
+  assert.match(training, /nextMidnight\.setHours\(0, 0, 0, 50\)/);
+  assert.match(training, /window\.addEventListener\("focus", refreshWhenAvailable\)/);
+  assert.match(training, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
+  assert.match(training, /setCurrentHesitationQueue\(readHesitationQueue\(\)\)/);
   assert.match(training, /loading \|\|[\s\S]*!reviewState \|\|[\s\S]*!entries\.length \|\|[\s\S]*!articles\.length/);
 });
 

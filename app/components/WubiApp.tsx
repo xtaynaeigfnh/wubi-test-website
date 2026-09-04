@@ -563,6 +563,7 @@ function TypingView({
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
   const [articlesError, setArticlesError] = useState("");
+  const [articleSaveError, setArticleSaveError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [customTexts, setCustomTexts] = useState<PracticeArticle[]>([]);
   const [article, setArticle] = useState<PracticeArticle | null>(null);
@@ -828,24 +829,43 @@ function TypingView({
     ) => {
       if (pendingPracticeSave.current) {
         window.alert("本次成绩尚未保存，请先重试保存。");
-        return;
+        return false;
       }
+      const previousCurrent = readLocal<string | null>(STORAGE.current, null);
+      const previousGenerated = readLocal<PracticeArticle | null>(
+        STORAGE.currentGenerated,
+        null,
+      );
+      const previousRecent = readLocalArray<string>(STORAGE.recent);
+      const nextRecent = [
+        next.id,
+        ...previousRecent.filter((id) => id !== next.id),
+      ].slice(0, 10);
+      const selectionSaved =
+        writeLocal(STORAGE.current, next.id) &&
+        writeLocal(
+          STORAGE.currentGenerated,
+          next.kind === "common" ? next : null,
+        ) &&
+        (next.kind === "common" || writeLocal(STORAGE.recent, nextRecent));
+      if (!selectionSaved) {
+        writeLocal(STORAGE.current, previousCurrent);
+        writeLocal(STORAGE.currentGenerated, previousGenerated);
+        if (next.kind !== "common") {
+          writeLocal(STORAGE.recent, previousRecent);
+        }
+        const message =
+          "文章选择未能保存，原练习保持不变。请检查浏览器存储空间后重试。";
+        setArticleSaveError(message);
+        window.alert(message);
+        return false;
+      }
+      setArticleSaveError("");
       if (compositionCommitTimer.current !== null) {
         window.clearTimeout(compositionCommitTimer.current);
         compositionCommitTimer.current = null;
       }
       setArticle(next);
-      writeLocal(STORAGE.current, next.id);
-      if (next.kind === "common") {
-        writeLocal(STORAGE.currentGenerated, next);
-      } else {
-        writeLocal(STORAGE.currentGenerated, null);
-        const recent = readLocalArray<string>(STORAGE.recent);
-        writeLocal(
-          STORAGE.recent,
-          [next.id, ...recent.filter((id) => id !== next.id)].slice(0, 10),
-        );
-      }
       setInputValue("");
       setTyped("");
       setStartedAt(null);
@@ -895,6 +915,7 @@ function TypingView({
         articleTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
         if (focusInput) inputRef.current?.focus();
       }, 50);
+      return true;
     },
     [],
   );
@@ -926,8 +947,9 @@ function TypingView({
     shuffled = false,
   ) => {
     if (!commonData) return;
-    chooseArticle(buildCommonPracticeArticle(commonData, preset, shuffled));
-    setCommonOpen(false);
+    if (chooseArticle(buildCommonPracticeArticle(commonData, preset, shuffled))) {
+      setCommonOpen(false);
+    }
   };
 
   const shuffleCurrentCommonPractice = async () => {
@@ -1654,6 +1676,16 @@ function TypingView({
     else randomArticle();
   };
 
+  if (articleSaveError && !article) {
+    return (
+      <ErrorState
+        title="文章选择没有保存成功"
+        message={articleSaveError}
+        onRetry={() => setLoadAttempt((value) => value + 1)}
+      />
+    );
+  }
+
   if (
     articlesLoading ||
     (!article && (!settingsReady || availableArticles.length > 0))
@@ -1687,6 +1719,11 @@ function TypingView({
 
   return (
     <>
+      {articleSaveError && (
+        <p className="management-message" role="alert">
+          {articleSaveError}
+        </p>
+      )}
       <section className="hero-row">
         <div>
           <span className="eyebrow">今天也写几行</span>
