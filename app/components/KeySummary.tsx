@@ -211,6 +211,19 @@ export function KeySummary() {
   useEffect(() => setUsage(readKeyUsage()), []);
   const summary = useMemo(() => summarizeKeyUsage(usage), [usage]);
   const maxCount = Math.max(1, ...KEYBOARD_KEYS.map((item) => usage[item.code] ?? 0));
+  const leftCount = summary.hands.find((item) => item.name === "left")?.count ?? 0;
+  const rightCount = summary.hands.find((item) => item.name === "right")?.count ?? 0;
+  const handTotal = leftCount + rightCount;
+  const leftRate = percent(leftCount, handTotal);
+  const rightRate = handTotal ? 100 - leftRate : 0;
+  const dominantRow = [...summary.rows].sort((a, b) => b.count - a.count)[0];
+  const handStatus = !handTotal
+    ? "等待记录"
+    : Math.abs(leftRate - rightRate) <= 6
+      ? "左右均衡"
+      : leftRate > rightRate
+        ? "左手偏多"
+        : "右手偏多";
 
   const reset = () => {
     if (!window.confirm("确定清空全部按键使用记录吗？练习成绩和错题不会受到影响。")) return;
@@ -226,15 +239,55 @@ export function KeySummary() {
     <section className="subpage key-summary-page">
       <header className="key-summary-toolbar">
         <div className="key-summary-intro">
-          <span className="eyebrow">KEYBOARD STATISTICS</span>
+          <span className="eyebrow">LOCAL KEYBOARD PROFILE</span>
           <h1>按键使用画像</h1>
-          <p>参照练习期间记录的物理键位，查看热区、左右手均衡、键盘行与手指分工。数据只保存在当前浏览器。</p>
+          <p>把练习期间触发的物理键位整理成一份本机档案，观察热区、双手分工与手指负担。</p>
         </div>
         <div className="key-summary-actions">
+          <small>只记录次数 · 不记录输入内容 · 不上传</small>
           <button className="button danger" type="button" disabled={!summary.total} onClick={reset}>清空按键记录</button>
         </div>
       </header>
       {resetError && <p className="plan-message" role="alert">{resetError}</p>}
+
+      <dl className="key-summary-metrics" aria-label="按键使用概览">
+        <div className="is-primary">
+          <dt>累计按键</dt>
+          <dd>{summary.total.toLocaleString("zh-CN")}</dd>
+          <small>次物理键触发</small>
+        </div>
+        <div>
+          <dt>活跃键位</dt>
+          <dd>{summary.activeKeys}</dd>
+          <small>共追踪 {KEYBOARD_KEYS.length} 个键位</small>
+        </div>
+        <div>
+          <dt>最高频键</dt>
+          <dd>{summary.mostUsed?.label ?? "—"}</dd>
+          <small>{summary.mostUsed ? `${summary.mostUsed.count.toLocaleString("zh-CN")} 次` : "等待首次练习"}</small>
+        </div>
+        <div>
+          <dt>双手状态</dt>
+          <dd>{handStatus}</dd>
+          <small>{handTotal ? `左 ${leftRate}% · 右 ${rightRate}%` : "尚无可比较数据"}</small>
+        </div>
+      </dl>
+
+      <aside className={`key-summary-verdict${summary.total ? " has-data" : ""}`} aria-label="当前键位结论">
+        <span>当前结论</span>
+        <div>
+          <strong>
+            {summary.total
+              ? `${summary.mostUsed?.label ?? "—"} 键最常用，${dominantRow?.label ?? "键盘"}承担最多输入。`
+              : "完成一次练习，这里就会生成你的键位结论。"}
+          </strong>
+          <p>
+            {summary.total
+              ? `${handStatus}；继续积累记录后，热区和手指负担会更有参考价值。`
+              : "文章测速、字码挑战与专项训练都会自动累计实体键次数；左右手均衡会在首次练习后出现。"}
+          </p>
+        </div>
+      </aside>
 
       <section className="keyboard-heatmap-card" aria-labelledby="keyboard-heatmap-title">
         <div className="summary-card-heading keyboard-card-heading">
@@ -242,7 +295,10 @@ export function KeySummary() {
             <span className="eyebrow">PHYSICAL KEY HEATMAP</span>
             <h2 id="keyboard-heatmap-title">键盘热力图</h2>
           </div>
-          <span className="heat-legend" aria-label="颜色越深，使用越多"><i />少 <i />多</span>
+          <div className="keyboard-heading-meta">
+            <strong>{summary.total.toLocaleString("zh-CN")} 次记录</strong>
+            <span className="heat-legend" aria-label="颜色越深，使用越多"><i />少 <i />多</span>
+          </div>
         </div>
 
         <div className="keyboard-scroll-region" tabIndex={0} aria-label="键盘热力图，可横向滚动查看完整键盘">
@@ -277,20 +333,24 @@ export function KeySummary() {
 
         {!summary.total && (
           <div className="key-summary-empty" role="status">
-            <strong>还没有按键记录</strong>
-            <p>完成文章测速、字码挑战或专项训练后，图表会从键盘上生长出来。</p>
-            <Link className="button primary" href="/">开始一轮文章测速</Link>
+            <span aria-hidden="true">01</span>
+            <div>
+              <strong>从第一轮练习开始记录</strong>
+              <p>完成文章测速、字码挑战或专项训练后，键盘会逐渐显出你的真实热区。</p>
+            </div>
+            <Link className="button primary" href="/">开始文章测速</Link>
           </div>
         )}
       </section>
 
-      <div className="key-analysis-grid" aria-label="按键分布分析">
-        <HandBalanceChart rows={summary.hands} />
-        <HorizontalBarChart id="keyboard-row-title" title="不同位置按键使用率" rows={summary.rows} />
-        <FingerComparisonChart fingers={summary.fingers} />
-      </div>
-
-      <FingerDistributionChart fingers={summary.fingers} />
+      {Boolean(summary.total) && (
+        <div className="key-analysis-layout" aria-label="按键分布分析">
+          <HandBalanceChart rows={summary.hands} />
+          <HorizontalBarChart id="keyboard-row-title" title="不同位置按键使用率" rows={summary.rows} />
+          <FingerComparisonChart fingers={summary.fingers} />
+          <FingerDistributionChart fingers={summary.fingers} />
+        </div>
+      )}
     </section>
   );
 }

@@ -6,6 +6,7 @@ import {
   createLightweightStatisticsSummary,
   isMaintenanceLog,
   MAX_HEATMAPS,
+  previewAllCleanup,
   previewCleanup,
   stripSessionLargeObjects,
 } from "../app/data-maintenance.ts";
@@ -158,6 +159,27 @@ test("清理预览明确数量、预计体积和后果", () => {
   assert.equal(preview.count, 1);
   assert.ok(preview.bytes > 0);
   assert.match(preview.consequence, /成绩/);
+});
+
+test("全部清理预览合并所有可清理分类并明确保留成绩摘要", () => {
+  const data = snapshot([
+    session({
+      heatmap: {
+        version: 1,
+        text: "练习正文",
+        baselineMs: 100,
+        thresholdMs: 200,
+        segments: [],
+      },
+      ghostTimeline: { version: 1, samples: [[1, 10]] },
+    }),
+  ]);
+  data.phraseOpportunities = [{ text: "测试", count: 1 }];
+  const preview = previewAllCleanup(data);
+  assert.equal(preview.count, 3);
+  assert.deepEqual(preview.labels, ["卡顿热力图", "幽灵时间线", "词组机会"]);
+  assert.ok(preview.bytes > 0);
+  assert.match(preview.consequence, /成绩摘要.*保留/);
 });
 
 test("轻量摘要只导出汇总统计而不包含正文和时间线", () => {

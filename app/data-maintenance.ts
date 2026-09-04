@@ -45,6 +45,14 @@ export type CleanupTarget =
   | "phrases"
   | "reviews";
 
+export const CLEANUP_TARGETS: CleanupTarget[] = [
+  "heatmaps",
+  "ghosts",
+  "rhythm",
+  "phrases",
+  "reviews",
+];
+
 export interface StorageUsageItem {
   id: "sessions" | CleanupTarget;
   label: string;
@@ -74,6 +82,13 @@ export interface CleanupPreview {
   label: string;
   count: number;
   bytes: number;
+  consequence: string;
+}
+
+export interface AllCleanupPreview {
+  count: number;
+  bytes: number;
+  labels: string[];
   consequence: string;
 }
 
@@ -227,6 +242,21 @@ export function previewCleanup(
     count: item?.count ?? 0,
     bytes: item?.bytes ?? 0,
     consequence: consequences[target],
+  };
+}
+
+export function previewAllCleanup(
+  snapshot: StorageDataSnapshot,
+): AllCleanupPreview {
+  const previews = CLEANUP_TARGETS.map((target) =>
+    previewCleanup(target, snapshot),
+  ).filter((preview) => preview.count > 0);
+  return {
+    count: previews.reduce((sum, preview) => sum + preview.count, 0),
+    bytes: previews.reduce((sum, preview) => sum + preview.bytes, 0),
+    labels: previews.map((preview) => preview.label),
+    consequence:
+      "成绩摘要、趋势、周报和累计指标保留；热力图、幽灵时间线、节奏曲线、词组机会与复习队列会被清除。",
   };
 }
 

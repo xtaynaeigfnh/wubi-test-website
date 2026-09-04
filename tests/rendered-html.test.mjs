@@ -72,9 +72,8 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   const html = await response.text();
   assert.match(html, /按键使用画像/);
   assert.match(html, /键盘热力图/);
-  assert.match(html, /左右手均衡/);
-  assert.match(html, /不同位置按键使用率/);
-  assert.match(html, /手指使用率（分区）/);
+  assert.match(html, /当前键位结论/);
+  assert.match(html, /左右手均衡会在首次练习后出现/);
   assert.match(html, /窄屏可左右滑动查看完整键盘/);
 });
 

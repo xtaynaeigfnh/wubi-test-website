@@ -36,9 +36,11 @@ import {
   appendMaintenanceEvent,
   createLightweightStatisticsSummary,
   isMaintenanceLog,
+  previewAllCleanup,
   previewCleanup,
   stripSessionLargeObjects,
   type CleanupPreview,
+  type AllCleanupPreview,
   type CleanupTarget,
   type MaintenanceEventKind,
   type MaintenanceLog,
@@ -1391,6 +1393,34 @@ function maintenanceSnapshot(): StorageDataSnapshot {
 
 export function inspectCleanup(target: CleanupTarget): CleanupPreview {
   return previewCleanup(target, maintenanceSnapshot());
+}
+
+export function inspectAllCleanup(): AllCleanupPreview {
+  return previewAllCleanup(maintenanceSnapshot());
+}
+
+export function clearAllMaintenanceData(now = new Date()): boolean {
+  const snapshot = maintenanceSnapshot();
+  const preview = previewAllCleanup(snapshot);
+  let sessions = stripSessionLargeObjects(snapshot.sessions, "heatmaps");
+  sessions = stripSessionLargeObjects(sessions, "ghosts");
+  sessions = stripSessionLargeObjects(sessions, "rhythm");
+  return commitLocalWrites(
+    new Map<string, unknown>([
+      [STORAGE.sessions, sessions],
+      [STORAGE.phraseOpportunities, []],
+      [STORAGE.reviewState, createEmptySpacedReviewState()],
+      [STORAGE.trainingPlan, null],
+      [
+        STORAGE.maintenance,
+        nextMaintenanceLog(
+          "cleanup",
+          `已全部清理 ${preview.count} 项附加数据，约释放 ${preview.bytes} 字节。`,
+          now,
+        ),
+      ],
+    ]),
+  );
 }
 
 export function clearMaintenanceTarget(

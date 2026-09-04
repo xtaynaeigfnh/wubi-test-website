@@ -6,13 +6,13 @@ import {
   addCustomArticlesWithinLimit,
   buildLightweightStatisticsSummary,
   buildCustomArticle,
-  clearMaintenanceTarget,
+  clearAllMaintenanceData,
   createLocalId,
   createBackupPayload,
   getPhraseOpportunities,
   getSessions,
   getCustomArticles,
-  inspectCleanup,
+  inspectAllCleanup,
   MAX_BACKUP_BYTES,
   MAX_CUSTOM_TEXT_LENGTH,
   localDateKey,
@@ -28,7 +28,6 @@ import {
 } from "../lib";
 import {
   buildStorageUsageReport,
-  type CleanupTarget,
   type MaintenanceEvent,
   type StorageUsageReport,
 } from "../data-maintenance";
@@ -40,9 +39,11 @@ export function DataManagement() {
   const [revision, setRevision] = useState(0);
   const refreshStorageUsage = () => setRevision((value) => value + 1);
   return (
-    <div className="data-management">
-      <StorageManager revision={revision} onChanged={refreshStorageUsage} />
-      <BackupManager />
+    <div className="data-management" id="settings-data">
+      <div className="data-tools-grid">
+        <StorageManager revision={revision} onChanged={refreshStorageUsage} />
+        <BackupManager />
+      </div>
       <CustomTextManager onChanged={refreshStorageUsage} />
     </div>
   );
@@ -82,25 +83,25 @@ function StorageManager({
     }
   }, [revision]);
 
-  const cleanup = (target: CleanupTarget) => {
+  const cleanupAll = () => {
     try {
-      const preview = inspectCleanup(target);
+      const preview = inspectAllCleanup();
       if (!preview.count) {
-        setMessage(`没有可清理的${preview.label}。`);
+        setMessage("当前没有可清理的附加数据。");
         return;
       }
       const confirmed = window.confirm(
-        `将清理 ${preview.count} 项${preview.label}，预计释放 ${formatBytes(preview.bytes)}。\n\n${preview.consequence}\n\n确定继续吗？`,
+        `将全部清理 ${preview.count} 项附加数据，预计释放 ${formatBytes(preview.bytes)}。\n\n包含：${preview.labels.join("、")}。\n\n${preview.consequence}\n\n此操作无法撤销，确定继续吗？`,
       );
       if (!confirmed) {
         setMessage("已取消清理，本机数据未改变。");
         return;
       }
-      if (!clearMaintenanceTarget(target)) {
+      if (!clearAllMaintenanceData()) {
         setMessage("清理未能保存，本机数据已保持原样。请检查浏览器存储空间。");
         return;
       }
-      setMessage(`已清理 ${preview.count} 项${preview.label}；成绩摘要与趋势所需字段已保留。`);
+      setMessage(`已全部清理 ${preview.count} 项附加数据；成绩摘要、趋势和周报已保留。`);
       onChanged();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "清理失败，本机数据未改变");
@@ -127,16 +128,13 @@ function StorageManager({
   };
 
   return (
-    <section className="management-card storage-manager" aria-labelledby="storage-title">
-      <div className="management-heading">
+    <section className="management-card data-tool-card storage-manager" aria-labelledby="storage-title">
+      <div className="settings-card-title">
+        <span className="settings-section-key" aria-hidden="true">F</span>
         <div>
-          <span className="eyebrow">本机存储 · V0.9</span>
-          <h2 id="storage-title">数据用量与清理</h2>
-          <p>所有估算、清理和导出都只在当前浏览器中完成。</p>
+          <h2 id="storage-title">数据清理</h2>
+          <p>查看本机用量，清理附加数据</p>
         </div>
-        <button className="button secondary" onClick={exportSummary}>
-          导出轻量统计摘要
-        </button>
       </div>
       {report && (
         <>
@@ -145,45 +143,26 @@ function StorageManager({
             <span>本站已管理数据的估算总量</span>
           </div>
           {report.warning && <p className="storage-warning" role="status">{report.warning}</p>}
-          <div className="storage-usage-list" role="list" aria-label="分项数据用量">
-            {report.items.map((item) => {
-              const countRatio = item.countLimit ? item.count / item.countLimit : 0;
-              const byteRatio = item.byteLimit ? item.bytes / item.byteLimit : 0;
-              const ratio = Math.min(1, Math.max(countRatio, byteRatio));
-              return (
-                <article key={item.id} role="listitem">
-                  <div className="storage-usage-heading">
-                    <div>
-                      <strong>{item.label}</strong>
-                      <span>{item.count} 项 · {formatBytes(item.bytes)}</span>
-                    </div>
-                    {item.cleanupTarget && (
-                      <button
-                        className="button small secondary"
-                        disabled={!item.count}
-                        onClick={() => cleanup(item.cleanupTarget as CleanupTarget)}
-                      >
-                        预览清理
-                      </button>
-                    )}
-                  </div>
-                  <div
-                    className="storage-meter"
-                    role="meter"
-                    aria-label={`${item.label}保留额度`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(ratio * 100)}
-                  >
-                    <i style={{ width: `${ratio * 100}%` }} />
-                  </div>
-                  <small>{item.retention}</small>
-                </article>
-              );
-            })}
+          <div className="cleanup-all-action">
+            <div>
+              <strong>全部清理</strong>
+              <span>一次清除热力图、时间线、曲线、词组机会和复习队列；成绩摘要、趋势与周报保留。</span>
+            </div>
+            <button
+              className="button secondary"
+              disabled={!report.items.some((item) => item.cleanupTarget && item.count)}
+              onClick={cleanupAll}
+            >
+              全部清理
+            </button>
           </div>
         </>
       )}
+      <div className="management-actions">
+        <button className="button secondary" onClick={exportSummary}>
+          导出轻量统计摘要
+        </button>
+      </div>
       <details className="maintenance-log">
         <summary>迁移与淘汰记录（{events.length}）</summary>
         {events.length ? (
@@ -291,12 +270,15 @@ function BackupManager() {
   };
 
   return (
-    <section className="management-card" aria-labelledby="backup-title">
-      <div>
-        <span className="eyebrow">数据安全</span>
-        <h2 id="backup-title">备份与恢复</h2>
-        <p>把成绩、错题、设置和自定义文章保存成一个 JSON 文件。</p>
+    <section className="management-card data-tool-card backup-manager" id="settings-backup" aria-labelledby="backup-title">
+      <div className="settings-card-title">
+        <span className="settings-section-key" aria-hidden="true">G</span>
+        <div>
+          <h2 id="backup-title">备份与恢复</h2>
+          <p>导出完整备份，或从文件恢复</p>
+        </div>
       </div>
+      <p>把成绩、错题、设置和自定义文章保存成一个 JSON 文件。</p>
       <div className="management-actions">
         <button className="button primary" onClick={exportBackup}>
           导出完整备份

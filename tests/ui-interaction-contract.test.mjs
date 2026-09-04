@@ -152,7 +152,7 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
 });
 
-test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explanations", async () => {
+test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explanations", async () => {
   const [management, training, weekly, app, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
@@ -160,8 +160,10 @@ test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explan
     readFile(componentPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
-  assert.match(management, /数据用量与清理/);
-  assert.match(management, /预览清理/);
+  assert.match(management, /数据清理/);
+  assert.match(management, />\s*全部清理\s*</);
+  assert.doesNotMatch(management, /预览清理/);
+  assert.doesNotMatch(management, /storage-usage-list|storage-meter/);
   assert.match(management, /导出轻量统计摘要/);
   assert.match(management, /不兼容项：0/);
   assert.match(management, /window\.confirm/);
@@ -169,8 +171,7 @@ test("v0.9 exposes local usage, preview cleanup, lightweight summary, and explan
   assert.match(training, /编码错误 50%、卡顿 30%、回改 20%/);
   assert.match(weekly, /六项能力的精确计算公式/);
   assert.match(app, /这次成绩如何影响后续推荐/);
-  assert.match(styles, /\.storage-usage-list/);
-  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.storage-usage-list\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.doesNotMatch(styles, /\.storage-usage-list|\.storage-meter/);
 });
 
 test("history filters are visually separate and expose pressed state", async () => {
@@ -417,7 +418,7 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 
   assert.match(lookup, /const normalizedQuery = query\.trim\(\);/);
   assert.match(lookup, /const isSearchPending = normalizedQuery !== deferredQuery;/);
-  assert.match(lookup, /\{!normalizedQuery && \(/);
+  assert.match(lookup, /\{!normalizedQuery && ready && \(/);
   assert.match(
     lookup,
     /\{normalizedQuery && !isSearchPending && !loading && !loadError && \(/,
@@ -780,13 +781,17 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.match(summary, /手指使用率（分区）/);
   assert.match(summary, /aria-label="练习按键次数热力图"/);
   assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
-  assert.match(summary, /className="key-analysis-grid" aria-label="按键分布分析"/);
+  assert.match(summary, /className="key-analysis-layout" aria-label="按键分布分析"/);
+  assert.match(summary, /className="key-summary-metrics" aria-label="按键使用概览"/);
+  assert.match(summary, /className={`key-summary-verdict\$\{summary\.total \? " has-data" : ""\}`} aria-label="当前键位结论"/);
+  assert.match(summary, /只记录次数 · 不记录输入内容 · 不上传/);
+  assert.match(summary, /Boolean\(summary\.total\)[\s\S]*<HandBalanceChart/);
   assert.match(summary, /id="finger-usage-title"[\s\S]*className="vertical-chart"/);
   assert.match(summary, /className="axis-bars" role="list"/);
   assert.match(summary, /className="vertical-chart" role="list"/);
   assert.match(summary, /className="vertical-bar"[\s\S]*role="listitem"/);
   assert.match(styles, /\.keyboard-heatmap\s*\{/);
-  assert.match(styles, /\.key-analysis-grid\s*\{/);
+  assert.match(styles, /\.key-analysis-layout\s*\{[^}]*grid-template-columns:\s*repeat\(12,/s);
   assert.match(styles, /\.hand-pie\s*\{[^}]*border-radius:\s*50%/s);
   assert.match(styles, /\.axis-grid\s*\{/);
   assert.match(styles, /\.vertical-bars\s*\{[^}]*grid-template-columns:\s*repeat\(9,/s);
@@ -798,7 +803,7 @@ test("typing surfaces record physical keys and the summary exposes the reference
     styles,
     /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
   );
-  assert.match(styles, /\.key-analysis-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(styles, /\.key-analysis-layout > :nth-child\(2\)\s*\{[^}]*grid-column:\s*span 8/s);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.vertical-chart/s);
   assert.match(
     styles,
@@ -864,11 +869,45 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(component, /role="group"\s+aria-label="当前练习操作"/);
 });
 
-test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
-  const component = await readFile(lookupViewPath, "utf8");
+test("lookup connects selected codes to an ordered keyboard guide and accessible search", async () => {
+  const [component, guide, search, results] = await Promise.all([
+    readFile(lookupViewPath, "utf8"),
+    readFile(new URL("../app/components/lookup/LookupGuide.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/lookup/LookupSearch.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/lookup/LookupResults.tsx", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(component, /QWERTYUIOPASDFGHJKLXCVBNM/);
-  assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBNM/);
+  assert.match(guide, /\["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"\]/);
+  assert.match(guide, /aria-label="二十六字母键盘"/);
+  assert.match(guide, /data-active=\{letters.includes\(letter\)\}/);
+  assert.match(guide, /<small>\{index \+ 1\}<\/small>/);
+  assert.match(component, /setQuery\(value\);\s*setSelection\(null\);/);
+  assert.match(component, /<LookupGuide code=\{ready \? selected\?\.\[1\] \?\? "" : ""\}/);
+  assert.match(component, /aria-busy=\{loading \|\| isSearchPending\}/);
+  assert.doesNotMatch(component, /className=\{styles\.catalog\}/);
+  assert.match(search, /htmlFor="lookup-query"/);
+  assert.match(search, /id="lookup-query"/);
+  assert.match(search, /inputRef.current\?\.focus\(\)/);
+  assert.match(search, /trimmed\.slice\(0, 4\)/);
+  assert.match(search, /onCompositionStart=/);
+  assert.match(search, /onCompositionEnd=/);
+  assert.match(search, /if \(composingRef.current\) onChange\(event.target.value\);/);
+  assert.match(results, /aria-pressed=\{selected\?\.\[0\] === text && selected\[1\] === entry\[1\]\}/);
+  assert.match(results, /await navigator.clipboard.writeText\(code\)/);
+  assert.match(results, /复制未成功，可以选中下方编码手动复制/);
+});
+
+test("lookup workbench adapts to narrow screens and reduced motion with scoped styles", async () => {
+  const styles = await readFile(new URL("../app/components/lookup/LookupWorkspace.module.css", import.meta.url), "utf8");
+
+  assert.match(styles, /\.page\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0/s);
+  assert.match(styles, /\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1.45fr\) minmax\(340px, 1fr\)/s);
+  assert.match(styles, /@media \(max-width: 800px\)[\s\S]*?\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(styles, /@media \(max-width: 540px\)/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(styles, /:focus-visible/);
+  assert.match(styles, /\.searchField\s*\{[^}]*width:\s*min\(560px, 100%\)/s);
+  assert.match(styles, /\.searchField\s*\{[^}]*margin-inline:\s*auto/s);
 });
 
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
@@ -925,6 +964,49 @@ test("theme settings expose six presets and accessible custom color controls", a
   );
   assert.equal(component.match(/type="color"/g)?.length, 2);
   assert.match(component, /恢复当前主题默认配色/);
+});
+
+test("settings layout provides a responsive home-row section index", async () => {
+  const [component, dataManagement, pwa, styles] = await Promise.all([
+    readFile(settingsViewPath, "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
+    readFile(stylesPath, "utf8"),
+  ]);
+
+  for (const [key, target, label] of [
+    ["A", "settings-appearance", "外观"],
+    ["S", "settings-practice", "练习"],
+    ["D", "settings-feedback", "反馈"],
+    ["F", "settings-data", "清理"],
+    ["G", "settings-backup", "备份"],
+    ["H", "settings-device", "设备"],
+    ["J", "settings-license", "版权"],
+  ]) {
+    assert.match(component, new RegExp(`key: "${key}", href: "#${target}", label: "${label}"`));
+  }
+  assert.match(component, /<aside className="settings-index" aria-label="设置分区">/);
+  assert.match(component, /<dl className="settings-heading-summary" aria-label="当前设置摘要">/);
+  assert.match(component, /enabledFeedbackCount === 0[\s\S]*"全部关闭"[\s\S]*"已全部开启"[\s\S]*"已开启 1 项"/);
+  assert.match(component, /<ul aria-label="辅助反馈状态">/);
+  assert.match(component, />编码提示</);
+  assert.match(component, />按键声音</);
+  assert.doesNotMatch(component, /\/ 2 开启/);
+  assert.match(dataManagement, /className="data-management" id="settings-data"/);
+  assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">F<\/span>/);
+  assert.match(dataManagement, /className="data-tools-grid">\s*<StorageManager[^>]*\/>\s*<BackupManager\s*\/>\s*<\/div>/);
+  assert.match(dataManagement, /id="settings-backup" aria-labelledby="backup-title"/);
+  assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">G<\/span>/);
+  assert.match(dataManagement, /<h2 id="storage-title">数据清理<\/h2>/);
+  assert.match(component, /<span>J<\/span><div><h2>内容与版权/);
+  assert.match(pwa, /className="management-card pwa-card" id="settings-device"/);
+  assert.match(pwa, /className="settings-section-key" aria-hidden="true">H<\/span>/);
+  assert.match(styles, /\.settings-workbench\s*\{[^}]*grid-template-columns:\s*176px minmax\(0, 1fr\)/s);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.settings-index nav\s*\{[^}]*grid-template-columns:\s*repeat\(7,/s);
+  assert.match(styles, /\.data-tools-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s);
+  assert.match(styles, /\.data-tool-card\s*\{[^}]*min-width:\s*0/s);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.data-tools-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.settings-quick-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });
 
 test("custom theme preview reports contrast and keeps semantic colors stable", async () => {
