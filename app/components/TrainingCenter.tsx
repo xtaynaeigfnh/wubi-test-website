@@ -14,8 +14,6 @@ import {
   getPhraseOpportunities,
   getProgress,
   getSessions,
-  loadArticles,
-  loadWubiChallenge,
   localDateKey,
   readDailyGoal,
   readLocal,
@@ -32,6 +30,7 @@ import {
   writeTrainingPlan,
   type PhrasePracticeInput,
 } from "../lib";
+import { loadArticles, loadWubiChallenge } from "../content-loader";
 import { calculateAccuracy } from "../typing-metrics";
 import type {
   DailyTrainingPlan,

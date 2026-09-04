@@ -3,7 +3,6 @@
 
 import {
   useCallback,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -31,11 +30,6 @@ import {
   getProgress,
   getSessions,
   lengthLabels,
-  loadArticleMetadata,
-  loadArticles,
-  loadCommonCharacters,
-  loadWubi,
-  loadWubiChallenge,
   MAX_CUSTOM_TEXT_LENGTH,
   readLocal,
   readLocalArray,
@@ -54,6 +48,13 @@ import {
   writeLocal,
   type PhraseOpportunityInput,
 } from "../lib";
+import {
+  loadArticleMetadata,
+  loadArticles,
+  loadCommonCharacters,
+  loadWubi,
+  loadWubiChallenge,
+} from "../content-loader";
 import {
   applyTypingDelaySample,
   buildMinimumCodeLengthIndex,
@@ -119,8 +120,6 @@ import {
   buildHesitationSession,
 } from "../hesitation-practice";
 import { downloadShareCard } from "../share-card";
-import { DataManagement } from "./DataManagement";
-import { PwaControl } from "./PwaControl";
 import { TrainingCenter } from "./TrainingCenter";
 import { AdvancedCenter, RhythmSummaryView } from "./AdvancedCenter";
 import { TrendPanel } from "./TrendPanel";
@@ -129,27 +128,20 @@ import {
   ErrorState,
   Modal,
   SummaryCard,
-  Toggle,
   usePendingSaveGuard,
 } from "./Ui";
 import { KeySummary } from "./KeySummary";
 import { HesitationHeatmap } from "./HesitationHeatmap";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
+import { LookupView } from "./views/LookupView";
+import { SettingsView } from "./views/SettingsView";
 import { buildWeeklyReport } from "../weekly-report";
+import { buildCustomThemeVariables, themeLabels } from "../theme";
 import {
   buildRhythmSummary,
   MAX_PHYSICAL_RHYTHM_SAMPLES,
   type PhysicalRhythmSample,
 } from "../rhythm-lab";
-
-const themeLabels: Record<ThemeId, string> = {
-  system: "系统",
-  light: "浅色",
-  dark: "深色",
-  bamboo: "竹纸",
-  qingdai: "青黛",
-  custom: "自定义",
-};
 
 const PENDING_RHYTHM_SEGMENT_KEY = "wubi-test:pending-rhythm-segment:v1";
 
@@ -166,50 +158,6 @@ function openRhythmSegmentPractice(
 
 type GhostMode = "off" | "best" | "recent";
 
-const themeOptions: Array<{
-  id: ThemeId;
-  description: string;
-  canvas: string;
-  accent: string;
-}> = [
-  {
-    id: "system",
-    description: "随设备外观",
-    canvas: "#E7EDF0",
-    accent: "#086B66",
-  },
-  {
-    id: "light",
-    description: "清爽蓝白",
-    canvas: "#E7EDF0",
-    accent: "#086B66",
-  },
-  {
-    id: "dark",
-    description: "低亮深色",
-    canvas: "#09171A",
-    accent: "#71D0C7",
-  },
-  {
-    id: "bamboo",
-    description: "米纸竹青",
-    canvas: "#F2EBDD",
-    accent: "#B3432B",
-  },
-  {
-    id: "qingdai",
-    description: "静谧蓝灰",
-    canvas: "#DCE5E8",
-    accent: "#315C72",
-  },
-  {
-    id: "custom",
-    description: "自行配色",
-    canvas: "#F2EBDD",
-    accent: "#B3432B",
-  },
-];
-
 const basicThemeCycle: Record<"system" | "light" | "dark", ThemeId> = {
   system: "light",
   light: "dark",
@@ -220,95 +168,6 @@ function getNextQuickTheme(theme: ThemeId): ThemeId {
   return theme === "system" || theme === "light" || theme === "dark"
     ? basicThemeCycle[theme]
     : "system";
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  return [
-    Number.parseInt(hex.slice(1, 3), 16),
-    Number.parseInt(hex.slice(3, 5), 16),
-    Number.parseInt(hex.slice(5, 7), 16),
-  ];
-}
-
-function rgbToHex(red: number, green: number, blue: number): string {
-  return `#${[red, green, blue]
-    .map((channel) => Math.round(channel).toString(16).padStart(2, "0"))
-    .join("")}`.toUpperCase();
-}
-
-function mixHex(from: string, to: string, amount: number): string {
-  const start = hexToRgb(from);
-  const end = hexToRgb(to);
-  return rgbToHex(
-    start[0] + (end[0] - start[0]) * amount,
-    start[1] + (end[1] - start[1]) * amount,
-    start[2] + (end[2] - start[2]) * amount,
-  );
-}
-
-function getRelativeLuminance(hex: string): number {
-  const channels = hexToRgb(hex).map((channel) => {
-    const normalized = channel / 255;
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
-  });
-  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-}
-
-function getContrastRatio(first: string, second: string): number {
-  const lighter = Math.max(
-    getRelativeLuminance(first),
-    getRelativeLuminance(second),
-  );
-  const darker = Math.min(
-    getRelativeLuminance(first),
-    getRelativeLuminance(second),
-  );
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function chooseContrastText(background: string): "#000000" | "#FFFFFF" {
-  return getContrastRatio(background, "#000000") >=
-    getContrastRatio(background, "#FFFFFF")
-    ? "#000000"
-    : "#FFFFFF";
-}
-
-function buildSecondaryText(canvas: string, text: string): string {
-  let low = 0;
-  let high = 1;
-  for (let index = 0; index < 12; index += 1) {
-    const middle = (low + high) / 2;
-    if (getContrastRatio(canvas, mixHex(canvas, text, middle)) >= 4.5) {
-      high = middle;
-    } else {
-      low = middle;
-    }
-  }
-  return mixHex(canvas, text, Math.min(1, high + 0.04));
-}
-
-function buildCustomThemeVariables(accent: string, canvas: string) {
-  const text = chooseContrastText(canvas);
-  const darkCanvas = getRelativeLuminance(canvas) < 0.3;
-  const surfaceTarget = text === "#FFFFFF" ? "#000000" : "#FFFFFF";
-  const paper = mixHex(canvas, surfaceTarget, darkCanvas ? 0.06 : 0.58);
-  const raised = mixHex(canvas, surfaceTarget, darkCanvas ? 0.1 : 0.055);
-  const key = mixHex(canvas, surfaceTarget, darkCanvas ? 0.16 : 0.1);
-  return {
-    "--custom-accent": accent,
-    "--custom-canvas": canvas,
-    "--custom-text": text,
-    "--custom-text-secondary": buildSecondaryText(canvas, text),
-    "--custom-paper": paper,
-    "--custom-raised": raised,
-    "--custom-key": key,
-    "--custom-border": mixHex(canvas, text, darkCanvas ? 0.25 : 0.2),
-    "--custom-border-strong": mixHex(canvas, text, darkCanvas ? 0.42 : 0.34),
-    "--custom-accent-text": chooseContrastText(accent),
-    "--custom-color-scheme": darkCanvas ? "dark" : "light",
-  } as const;
 }
 
 const navItems: Array<{
@@ -3224,133 +3083,6 @@ function ChallengeView({
   );
 }
 
-function LookupView() {
-  const [rows, setRows] = useState<WubiEntry[]>([]);
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [loadAttempt, setLoadAttempt] = useState(0);
-  const deferredQuery = useDeferredValue(query.trim());
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setLoadError("");
-    loadWubi()
-      .then((nextRows) => {
-        if (active) setRows(nextRows);
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setLoadError(
-            error instanceof Error ? error.message : "五笔码表加载失败",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [loadAttempt]);
-
-  const searchIndexes = useMemo(() => {
-    const byCode = new Map<string, WubiEntry[]>();
-    const byText = new Map<string, WubiEntry[]>();
-    rows.forEach((entry) => {
-      const codeEntries = byCode.get(entry[1]) || [];
-      codeEntries.push(entry);
-      byCode.set(entry[1], codeEntries);
-      const textEntries = byText.get(entry[0]) || [];
-      textEntries.push(entry);
-      byText.set(entry[0], textEntries);
-    });
-    return { byCode, byText };
-  }, [rows]);
-
-  const results = useMemo(() => {
-    const value = deferredQuery.toLowerCase();
-    if (!value) return [];
-    const isCode = /^[a-y]{1,4}$/.test(value);
-    const matches = isCode
-      ? searchIndexes.byCode.get(value) ?? []
-      : searchIndexes.byText.get(deferredQuery) ??
-        rows.filter(([text]) => text.includes(deferredQuery));
-    return [...matches].sort((a, b) => b[2] - a[2]).slice(0, 60);
-  }, [deferredQuery, rows, searchIndexes]);
-
-  const groupedResults = useMemo(() => {
-    const map = new Map<string, WubiEntry[]>();
-    results.forEach((entry) => {
-      const list = map.get(entry[0]) || [];
-      list.push(entry);
-      map.set(entry[0], list);
-    });
-    return Array.from(map.entries());
-  }, [results]);
-
-  return (
-    <section className="subpage lookup-page">
-      <div className="subpage-heading lookup-heading">
-        <span className="eyebrow">离线收录 13 万余条编码</span>
-        <h1>86 版五笔查码</h1>
-        <p>输入汉字、词组或 1–4 位编码，结果完全来自本地码表。</p>
-      </div>
-      <div className="lookup-search">
-        <span aria-hidden="true">查</span>
-        <input
-          aria-label="查询汉字、词组或五笔编码"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={loading ? "正在加载离线码表…" : "例如：五笔、测试、ggtt"}
-        />
-        {query && <button onClick={() => setQuery("")}>清除</button>}
-      </div>
-      {loadError && (
-        <ErrorState
-          title="五笔码表没有加载成功"
-          message={loadError}
-          onRetry={() => setLoadAttempt((value) => value + 1)}
-        />
-      )}
-      {!query && (
-        <div className="lookup-empty">
-          <div className="keyboard-visual">
-            {"QWERTYUIOPASDFGHJKLXCVBNM".split("").map((key) => (
-              <span key={key}>{key}</span>
-            ))}
-          </div>
-          <h2>查一个字，也可以反查一组编码</h2>
-          <p>输入中文会匹配汉字与词组；输入英文字母会精确反查编码。</p>
-          <div className="quick-searches">
-            {["五笔", "测试", "输入法", "ggtt"].map((item) => (
-              <button key={item} onClick={() => setQuery(item)}>{item}</button>
-            ))}
-          </div>
-        </div>
-      )}
-      {query && !loading && !loadError && (
-        <div className="lookup-results">
-          <div className="result-heading" role="status" aria-live="polite">
-            <span>查询结果</span><strong>{results.length} 条</strong>
-          </div>
-          {groupedResults.map(([text, entries]) => (
-            <div className="lookup-row" key={text}>
-              <strong>{text}</strong>
-              <div>
-                {entries.map((entry) => <code key={entry[1]}>{entry[1].toUpperCase()}</code>)}
-              </div>
-              <small>{Array.from(text).length === 1 ? "单字" : `${Array.from(text).length} 字词组`}</small>
-            </div>
-          ))}
-          {!results.length && <div className="empty-state">没有找到对应编码，请检查输入内容。</div>}
-        </div>
-      )}
-    </section>
-  );
-}
-
 function sessionRecommendationEvidence(session: SessionResult): string[] {
   const evidence: string[] = [];
   if (session.trainingTaskId) {
@@ -3733,191 +3465,6 @@ function HistoryView({
           </div>
         </aside>
       </div>
-    </section>
-  );
-}
-
-function SettingsView({
-  settings,
-  onChange,
-  playKeySound,
-}: {
-  settings: UserSettings;
-  onChange: (settings: UserSettings) => boolean;
-  playKeySound: KeySoundPlayer;
-}) {
-  const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
-    onChange({ ...settings, [key]: value });
-  const customTheme = settings.customTheme ?? defaultCustomTheme;
-  const customVariables = buildCustomThemeVariables(
-    customTheme.accent,
-    customTheme.canvas,
-  );
-  const canvasTextRatio = getContrastRatio(
-    customTheme.canvas,
-    customVariables["--custom-text"],
-  );
-  const accentTextRatio = getContrastRatio(
-    customTheme.accent,
-    customVariables["--custom-accent-text"],
-  );
-  const accentCanvasRatio = getContrastRatio(
-    customTheme.accent,
-    customTheme.canvas,
-  );
-  const hasLowAccentSeparation = accentCanvasRatio < 3;
-  const updateCustomTheme = (key: "accent" | "canvas", value: string) =>
-    onChange({
-      ...settings,
-      customTheme: { ...customTheme, [key]: value.toUpperCase() },
-    });
-
-  return (
-    <section className="subpage settings-page">
-      <div className="subpage-heading">
-        <span className="eyebrow">按你的习惯调整</span>
-        <h1>练习设置</h1>
-        <p>设置会立即生效，并保存在当前浏览器中。</p>
-      </div>
-      <div className="settings-grid">
-        <div className="settings-card theme-settings-card">
-          <div className="settings-card-title"><span>文</span><div><h2>文字与界面</h2><p>调整跟打区的可读性</p></div></div>
-          <div className="theme-settings">
-            <div className="theme-settings-controls">
-              <label className="range-row">
-                <span><strong>正文字号</strong><small>{settings.fontSize}px</small></span>
-                <input type="range" min={22} max={42} value={settings.fontSize} onChange={(event) => update("fontSize", Number(event.target.value))} />
-              </label>
-              <fieldset className="theme-preset-fieldset">
-                <legend>主题预设</legend>
-                <div className="theme-preset-grid">
-                  {themeOptions.map((option) => {
-                    const selected = settings.theme === option.id;
-                    const swatchCanvas = option.id === "custom"
-                      ? customTheme.canvas
-                      : option.canvas;
-                    const swatchAccent = option.id === "custom"
-                      ? customTheme.accent
-                      : option.accent;
-                    const swatchText = chooseContrastText(swatchCanvas);
-                    return (
-                      <label
-                        key={option.id}
-                        className={`theme-preset-option${selected ? " is-selected" : ""}`}
-                        data-theme-option={option.id}
-                        style={{
-                          "--preset-canvas": swatchCanvas,
-                          "--preset-paper": mixHex(swatchCanvas, swatchText === "#FFFFFF" ? "#000000" : "#FFFFFF", 0.12),
-                          "--preset-text": swatchText,
-                          "--preset-accent": swatchAccent,
-                        } as CSSProperties}
-                      >
-                        <input
-                          type="radio"
-                          name="theme"
-                          value={option.id}
-                          checked={selected}
-                          onChange={() => update("theme", option.id)}
-                        />
-                        <span className="theme-preset-swatch" aria-hidden="true"><i /></span>
-                        <span><strong>{themeLabels[option.id]}</strong><small>{option.description}</small></span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              {settings.theme === "custom" && (
-                <div className="custom-theme-controls">
-                  <div className="custom-theme-heading">
-                    <div><strong>自定义配色</strong><small>语义状态色保持固定，不随这里改变。</small></div>
-                    <button
-                      className="theme-reset-button"
-                      type="button"
-                      onClick={() => update("customTheme", { ...defaultCustomTheme })}
-                    >
-                      恢复当前主题默认配色
-                    </button>
-                  </div>
-                  <div className="color-control-grid">
-                    <label className="color-control" htmlFor="custom-theme-accent">
-                      <span><strong>强调色</strong><small>{customTheme.accent}</small></span>
-                      <input
-                        id="custom-theme-accent"
-                        type="color"
-                        value={customTheme.accent}
-                        aria-describedby="theme-contrast-note"
-                        onChange={(event) => updateCustomTheme("accent", event.target.value)}
-                      />
-                    </label>
-                    <label className="color-control" htmlFor="custom-theme-canvas">
-                      <span><strong>页面背景色</strong><small>{customTheme.canvas}</small></span>
-                      <input
-                        id="custom-theme-canvas"
-                        type="color"
-                        value={customTheme.canvas}
-                        aria-describedby="theme-contrast-note"
-                        onChange={(event) => updateCustomTheme("canvas", event.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <p
-                    id="theme-contrast-note"
-                    className={`theme-contrast-note${hasLowAccentSeparation ? " is-warning" : ""}`}
-                    role="status"
-                  >
-                    {hasLowAccentSeparation
-                      ? `颜色对比度不足：强调色与页面背景较接近（${accentCanvasRatio.toFixed(1)}:1），按钮已自动使用高对比度文字。`
-                      : `文字对比度已自动校准：正文 ${canvasTextRatio.toFixed(1)}:1，按钮 ${accentTextRatio.toFixed(1)}:1，达到 WCAG AA。`}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div
-              className="theme-preview"
-              data-preview-theme={settings.theme}
-              aria-label={`主题即时预览：${themeLabels[settings.theme]}`}
-            >
-              <div className="theme-preview-toolbar"><span>即时预览</span><b>{themeLabels[settings.theme]}</b></div>
-              <div className="theme-preview-card">
-                <div><strong>普通文字与卡片</strong><p>保持安静、清晰，适合长时间练习。</p></div>
-                <span className="theme-preview-button">开始练习</span>
-              </div>
-              <div className="theme-preview-practice"><span>练习区域</span><strong>稳中求快，准确优先。</strong></div>
-            </div>
-          </div>
-        </div>
-        <div className="settings-card">
-          <div className="settings-card-title"><span>键</span><div><h2>练习偏好</h2><p>控制默认训练方式</p></div></div>
-          <label>
-            默认文章长度
-            <select value={settings.preferredLength} onChange={(event) => update("preferredLength", event.target.value as UserSettings["preferredLength"])}>
-              {Object.entries(lengthLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <Toggle label="完成后自动下一篇" note="结算后按钮直接抽取新文章" checked={settings.autoNext} onChange={(value) => update("autoNext", value)} />
-        </div>
-        <div className="settings-card">
-          <div className="settings-card-title"><span>辅</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
-          <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
-          <Toggle
-            label="按键声音"
-            note="文章测速和字码挑战输入时播放轻提示音"
-            checked={settings.sound}
-            onChange={(value) => {
-              if (update("sound", value) && value) playKeySound({ force: true });
-            }}
-          />
-        </div>
-        <div className="settings-card license-card">
-          <div className="settings-card-title"><span>i</span><div><h2>离线与版权</h2><p>数据来源清楚可核对</p></div></div>
-          <p>练习文章为本项目原创生成内容。86 版码表来自 Rime 五笔方案，按 LGPL-3.0 保留原始许可证、作者信息和完整源数据。</p>
-          <a href="https://github.com/rime/rime-wubi" target="_blank" rel="noreferrer">查看 Rime 五笔方案 ↗</a>
-        </div>
-      </div>
-      <DataManagement />
-      <PwaControl />
     </section>
   );
 }
