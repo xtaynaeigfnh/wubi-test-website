@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `settings/page.tsx` → 设置、自定义文章与数据管理
 
 **核心逻辑**:
-- `app/lib.ts` — 客户端共享逻辑：localStorage 读写、文章与码表加载、成绩统计、错题管理、版本化备份校验/恢复，以及基于单字和词组最优分段的理论最小码长计算。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；恢复失败时必须保留原数据。
+- `app/lib.ts` — 客户端共享逻辑：localStorage 读写、文章与码表加载、成绩统计、错题管理、文章进度规范化、版本化备份校验/恢复，以及基于单字和词组最优分段的理论最小码长计算。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
 - `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
 - `app/code-length-coach.ts` / `app/phrase-training.ts` — 理论码长机会与词组专项选题
 - `app/ghost-race.ts` — 幽灵时间线、可比较记录与赛后分段复盘
@@ -47,7 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
 - `app/music.ts` — 音乐目录解析与播放逻辑
 - `app/components/WubiApp.tsx` — 主应用组件，根据 `view` prop 渲染不同页面
-- `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项与卡顿片段加练
+- `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护
 - `app/components/AdvancedCenter.tsx` — 节奏、实战与阶段目标的进阶训练页
 - `app/components/WeeklyReportPanel.tsx` — 周报、能力雷达、改善解释与下一步建议
 - `app/components/HesitationHeatmap.tsx` — 卡顿热力图与片段识别
@@ -56,8 +56,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/components/DataManagement.tsx` — 数据用量与清理、轻量摘要、完整备份、自定义文章和 TXT 批量导入
 - `app/components/TrendPanel.tsx` — 成绩趋势序列
 - `app/components/PwaControl.tsx` — Service Worker 状态和安装提示
-- `app/components/MusicPlayer.tsx` — 跨路由保持状态的根级离线播放器
-- `app/components/Ui.tsx` — 打字练习核心 UI 组件
+- `app/components/MusicPlayer.tsx` — 跨路由保持状态、兼顾指针悬停和键盘焦点的根级离线播放器
+- `app/components/Ui.tsx` — 打字练习核心 UI 组件，以及成绩待保存和未完成练习的共享离开保护
 
 **数据**:
 - `public/data/` — 静态 JSON：文章索引及 short/medium/long/water 四组正文、完整五笔码表、挑战码表、常用字表和音乐目录

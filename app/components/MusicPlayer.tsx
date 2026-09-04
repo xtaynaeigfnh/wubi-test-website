@@ -5,9 +5,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type FocusEvent as ReactFocusEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import { readLocal, STORAGE, writeLocal } from "../lib";
@@ -352,38 +355,150 @@ function MusicDock() {
   } = useMusicPlayer();
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [activityTick, setActivityTick] = useState(0);
+  const dockRef = useRef<HTMLElement>(null);
+  const peekButtonRef = useRef<HTMLButtonElement>(null);
+  const pointerInsideRef = useRef(false);
+  const focusInsideRef = useRef(false);
+  const expandedRef = useRef(false);
+  const collapsedRef = useRef(false);
+  const collapseTimerRef = useRef<number | null>(null);
+  const focusPeekAfterCollapseRef = useRef(false);
+  const focusControlAfterRevealRef = useRef(false);
   const tracks = catalog?.tracks ?? [];
   const unavailable = isLoading || !currentTrack;
   const statusText = isLoading
     ? "正在整理离线曲库…"
     : error || notice || `${tracks.length} 首离线 Lo-fi，数据仍只存本机`;
 
-  const keepDockOpen = useCallback(() => {
-    setActivityTick((value) => value + 1);
+  const clearCollapseTimer = useCallback(() => {
+    if (collapseTimerRef.current !== null) {
+      window.clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = null;
+    }
   }, []);
+
+  const scheduleCollapse = useCallback(() => {
+    clearCollapseTimer();
+    if (
+      pointerInsideRef.current ||
+      focusInsideRef.current ||
+      expandedRef.current ||
+      collapsedRef.current
+    ) {
+      return;
+    }
+    collapseTimerRef.current = window.setTimeout(() => {
+      collapseTimerRef.current = null;
+      if (
+        pointerInsideRef.current ||
+        focusInsideRef.current ||
+        expandedRef.current ||
+        collapsedRef.current
+      ) {
+        return;
+      }
+      if (dockRef.current?.contains(document.activeElement)) {
+        focusPeekAfterCollapseRef.current = true;
+      }
+      expandedRef.current = false;
+      collapsedRef.current = true;
+      setExpanded(false);
+      setCollapsed(true);
+    }, MUSIC_DOCK_COLLAPSE_DELAY);
+  }, [clearCollapseTimer]);
+
+  const keepDockOpen = useCallback(() => {
+    scheduleCollapse();
+  }, [scheduleCollapse]);
 
   const revealDock = useCallback(() => {
+    clearCollapseTimer();
+    if (document.activeElement === peekButtonRef.current) {
+      focusControlAfterRevealRef.current = true;
+      focusInsideRef.current = false;
+    }
+    collapsedRef.current = false;
     setCollapsed(false);
-    keepDockOpen();
-  }, [keepDockOpen]);
+  }, [clearCollapseTimer]);
 
   const collapseDock = useCallback(() => {
+    clearCollapseTimer();
+    if (dockRef.current?.contains(document.activeElement)) {
+      focusPeekAfterCollapseRef.current = true;
+    }
+    expandedRef.current = false;
+    collapsedRef.current = true;
     setExpanded(false);
     setCollapsed(true);
-  }, []);
+  }, [clearCollapseTimer]);
+
+  const handlePointerEnter = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") return;
+    pointerInsideRef.current = true;
+    clearCollapseTimer();
+  };
+
+  const handlePointerLeave = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") return;
+    pointerInsideRef.current = false;
+    scheduleCollapse();
+  };
+
+  const handleFocus = () => {
+    focusInsideRef.current = true;
+    clearCollapseTimer();
+  };
+
+  const handleBlur = (event: ReactFocusEvent<HTMLElement>) => {
+    if (
+      event.relatedTarget instanceof Node &&
+      dockRef.current?.contains(event.relatedTarget)
+    ) {
+      return;
+    }
+    focusInsideRef.current = false;
+    scheduleCollapse();
+  };
+
+  const toggleLibrary = () => {
+    clearCollapseTimer();
+    collapsedRef.current = false;
+    setCollapsed(false);
+    const next = !expanded;
+    expandedRef.current = next;
+    setExpanded(next);
+  };
 
   useEffect(() => {
-    if (expanded || collapsed) return;
-    const timer = window.setTimeout(
-      () => setCollapsed(true),
-      MUSIC_DOCK_COLLAPSE_DELAY,
-    );
-    return () => window.clearTimeout(timer);
-  }, [activityTick, collapsed, expanded]);
+    expandedRef.current = expanded;
+    collapsedRef.current = collapsed;
+    clearCollapseTimer();
+    if (!expanded && !collapsed) scheduleCollapse();
+  }, [clearCollapseTimer, collapsed, expanded, scheduleCollapse]);
+
+  useEffect(() => {
+    return clearCollapseTimer;
+  }, [clearCollapseTimer]);
+
+  useLayoutEffect(() => {
+    if (collapsed && focusPeekAfterCollapseRef.current) {
+      focusPeekAfterCollapseRef.current = false;
+      peekButtonRef.current?.focus();
+      return;
+    }
+    if (!collapsed && focusControlAfterRevealRef.current) {
+      focusControlAfterRevealRef.current = false;
+      dockRef.current
+        ?.querySelector<HTMLButtonElement>(
+          'button:not(.music-dock-peek):not(:disabled)',
+        )
+        ?.focus();
+    }
+  }, [collapsed]);
 
   return (
     <aside
+      ref={dockRef}
       className={[
         "music-dock",
         expanded ? "is-expanded" : "",
@@ -394,12 +509,15 @@ function MusicDock() {
         .join(" ")}
       aria-label="背景音乐播放器"
       onClickCapture={collapsed ? undefined : keepDockOpen}
-      onFocusCapture={collapsed ? undefined : keepDockOpen}
-      onPointerEnter={collapsed ? undefined : keepDockOpen}
+      onFocusCapture={handleFocus}
+      onBlurCapture={handleBlur}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     >
       {collapsed && (
         <button
           type="button"
+          ref={peekButtonRef}
           className="music-dock-peek"
           aria-label="展开专注电台控制栏"
           title="展开专注电台"
@@ -545,10 +663,7 @@ function MusicDock() {
             aria-label={expanded ? "收起曲目列表" : "展开曲目列表"}
             aria-expanded={expanded}
             aria-controls="music-library"
-            onClick={() => {
-              setCollapsed(false);
-              setExpanded((value) => !value);
-            }}
+            onClick={toggleLibrary}
           >
             {expanded ? "收起" : "曲目"}
             <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span>
