@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
 const PENDING_SAVE_HISTORY_KEY = "__wubiPendingSaveGuard";
+const IN_PROGRESS_HISTORY_KEY = "__wubiInProgressLeaveGuard";
 
 export function usePendingSaveGuard(
   blocked: boolean,
@@ -93,6 +94,112 @@ export function usePendingSaveGuard(
         ) {
           const nextState = { ...currentState };
           delete nextState[PENDING_SAVE_HISTORY_KEY];
+          window.history.replaceState(
+            Object.keys(nextState).length ? nextState : originalHistoryState,
+            "",
+            window.location.href,
+          );
+        }
+      } catch {
+        // The guard is already inactive; restricted history access needs no retry.
+      }
+    };
+  }, [blocked, message]);
+}
+
+export function useInProgressLeaveGuard(
+  blocked: boolean,
+  onDiscard: () => void,
+  message = "本轮练习尚未完成，确定放弃并离开吗？",
+) {
+  const onDiscardRef = useRef(onDiscard);
+
+  useEffect(() => {
+    onDiscardRef.current = onDiscard;
+  }, [onDiscard]);
+
+  useEffect(() => {
+    if (!blocked) return;
+    const historyToken = `${Date.now()}-${Math.random()}`;
+    const originalHistoryState = window.history.state;
+    let restoreTimer: number | null = null;
+    let restoringHistory = false;
+    let decisionMade = false;
+    try {
+      const nextState =
+        originalHistoryState && typeof originalHistoryState === "object"
+          ? { ...originalHistoryState, [IN_PROGRESS_HISTORY_KEY]: historyToken }
+          : { [IN_PROGRESS_HISTORY_KEY]: historyToken };
+      window.history.replaceState(nextState, "", window.location.href);
+    } catch {
+      // beforeunload and link capture still protect restricted browser contexts.
+    }
+    const confirmDiscard = () => {
+      if (decisionMade) return true;
+      if (!window.confirm(message)) return false;
+      decisionMade = true;
+      onDiscardRef.current();
+      return true;
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = message;
+    };
+    const onDocumentClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      if (!event.target.closest("a[href]")) return;
+      if (confirmDiscard()) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onNavigate = (event: Event) => {
+      const navigationEvent = event as Event & { navigationType?: string };
+      if (navigationEvent.navigationType !== "traverse" || !event.cancelable) {
+        return;
+      }
+      if (!confirmDiscard()) event.preventDefault();
+    };
+    const onPopState = (event: PopStateEvent) => {
+      if (
+        event.state &&
+        typeof event.state === "object" &&
+        event.state[IN_PROGRESS_HISTORY_KEY] === historyToken
+      ) {
+        restoringHistory = false;
+        if (restoreTimer !== null) window.clearTimeout(restoreTimer);
+        restoreTimer = null;
+        return;
+      }
+      if (decisionMade || restoringHistory || confirmDiscard()) return;
+      restoringHistory = true;
+      window.history.forward();
+      restoreTimer = window.setTimeout(() => {
+        restoringHistory = false;
+        restoreTimer = null;
+      }, 1000);
+    };
+    const navigation = (
+      window as Window & { navigation?: EventTarget }
+    ).navigation;
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", onPopState);
+    document.addEventListener("click", onDocumentClick, true);
+    navigation?.addEventListener("navigate", onNavigate);
+    return () => {
+      if (restoreTimer !== null) window.clearTimeout(restoreTimer);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState);
+      document.removeEventListener("click", onDocumentClick, true);
+      navigation?.removeEventListener("navigate", onNavigate);
+      try {
+        const currentState = window.history.state;
+        if (
+          currentState &&
+          typeof currentState === "object" &&
+          currentState[IN_PROGRESS_HISTORY_KEY] === historyToken
+        ) {
+          const nextState = { ...currentState };
+          delete nextState[IN_PROGRESS_HISTORY_KEY];
           window.history.replaceState(
             Object.keys(nextState).length ? nextState : originalHistoryState,
             "",
