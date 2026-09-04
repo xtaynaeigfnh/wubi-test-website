@@ -109,6 +109,9 @@ export const STORAGE = {
 
 export const STORAGE_KEYS = Object.values(STORAGE);
 
+const MAX_ARTICLE_PROGRESS_ITEMS = 500;
+const MAX_ARTICLE_PROGRESS_VALUE = 1_000_000;
+
 let localIdCounter = 0;
 
 export function createLocalId(): string {
@@ -806,8 +809,13 @@ export function getCustomArticles(): PracticeArticle[] {
   return unique;
 }
 
-export function getProgress() {
-  return readValidatedLocalArray(STORAGE.progress, 500, isArticleProgress);
+export function getProgress(): ArticleProgress[] {
+  const stored = readLocal<unknown>(STORAGE.progress, []);
+  const normalized = normalizeArticleProgress(stored);
+  if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
+    writeLocal(STORAGE.progress, normalized);
+  }
+  return normalized;
 }
 
 export function readTrainingPlan(): DailyTrainingPlan | null {
@@ -1217,20 +1225,40 @@ function persistPracticeOutcome(
   if (session.type === "article" && session.articleId) {
     const existing = progress.find((row) => row.articleId === session.articleId);
     if (existing) {
-      existing.attempts += 1;
-      existing.bestSpeed = Math.max(existing.bestSpeed, session.speed);
+      existing.attempts = Math.min(
+        MAX_ARTICLE_PROGRESS_VALUE,
+        existing.attempts + 1,
+      );
+      existing.bestSpeed = Math.min(
+        MAX_ARTICLE_PROGRESS_VALUE,
+        Math.max(existing.bestSpeed, session.speed),
+      );
       existing.completed = true;
       existing.lastPracticed = session.date;
-      existing.errors += session.errors;
+      existing.errors = Math.min(
+        MAX_ARTICLE_PROGRESS_VALUE,
+        existing.errors + session.errors,
+      );
     } else {
       progress.push({
         articleId: session.articleId,
         attempts: 1,
-        bestSpeed: session.speed,
+        bestSpeed: Math.min(MAX_ARTICLE_PROGRESS_VALUE, session.speed),
         completed: true,
         lastPracticed: session.date,
-        errors: session.errors,
+        errors: Math.min(MAX_ARTICLE_PROGRESS_VALUE, session.errors),
       });
+      if (progress.length > MAX_ARTICLE_PROGRESS_ITEMS) {
+        const oldest = progress.reduce(
+          (oldestIndex, item, index) =>
+            Date.parse(item.lastPracticed) <
+            Date.parse(progress[oldestIndex].lastPracticed)
+              ? index
+              : oldestIndex,
+          0,
+        );
+        progress.splice(oldest, 1);
+      }
     }
   }
   const errors = observations.length
@@ -1265,7 +1293,7 @@ function persistPracticeOutcome(
       new Date(session.date),
     );
   }
-  if (trainingPlan && (session.trainingTaskId || trainingPlan !== currentPlan)) {
+  if (session.trainingTaskId || trainingPlan !== currentPlan) {
     writes.set(STORAGE.trainingPlan, trainingPlan);
   }
   writes.set(STORAGE.reviewState, reviewState);
@@ -1868,6 +1896,10 @@ export function buildTrendSeries(
       (sum, session) => sum + session.durationSeconds / 60,
       0,
     );
+    const attemptedChars = rows.reduce(
+      (sum, session) => sum + session.attemptedChars,
+      0,
+    );
     return {
       date: key,
       label: `${date.getMonth() + 1}/${date.getDate()}`,
@@ -1875,8 +1907,11 @@ export function buildTrendSeries(
       chars: weightedChars,
       minutes: weightedMinutes,
       speed: weightedMinutes > 0 ? Math.round(weightedChars / weightedMinutes) : 0,
-      accuracy: rows.length
-        ? rows.reduce((sum, session) => sum + session.accuracy, 0) / rows.length
+      accuracy: attemptedChars > 0
+        ? rows.reduce(
+            (sum, session) => sum + session.accuracy * session.attemptedChars,
+            0,
+          ) / attemptedChars
         : 0,
     };
   });
@@ -2442,6 +2477,40 @@ function isArticleProgress(value: unknown): value is ArticleProgress {
   );
 }
 
+function normalizeArticleProgress(value: unknown): ArticleProgress[] {
+  if (!Array.isArray(value)) return [];
+  const merged = new Map<string, ArticleProgress>();
+  for (const item of value) {
+    if (!isArticleProgress(item)) continue;
+    const existing = merged.get(item.articleId);
+    if (!existing) {
+      merged.set(item.articleId, { ...item });
+      continue;
+    }
+    existing.attempts = Math.min(
+      MAX_ARTICLE_PROGRESS_VALUE,
+      existing.attempts + item.attempts,
+    );
+    existing.bestSpeed = Math.max(existing.bestSpeed, item.bestSpeed);
+    existing.completed ||= item.completed;
+    if (Date.parse(item.lastPracticed) > Date.parse(existing.lastPracticed)) {
+      existing.lastPracticed = item.lastPracticed;
+      existing.errors = item.errors;
+    }
+  }
+  return Array.from(merged.values()).slice(0, MAX_ARTICLE_PROGRESS_ITEMS);
+}
+
+function isValidArticleProgressCollection(
+  value: unknown,
+): value is ArticleProgress[] {
+  return (
+    validateArray(value, MAX_ARTICLE_PROGRESS_ITEMS, isArticleProgress) &&
+    new Set((value as ArticleProgress[]).map((item) => item.articleId)).size ===
+      (value as ArticleProgress[]).length
+  );
+}
+
 function validateArray(
   value: unknown,
   maximum: number,
@@ -2578,7 +2647,7 @@ function isValidBackupValue(key: string, value: unknown): boolean {
     case STORAGE.errors:
       return validateArray(value, 300, isErrorStat);
     case STORAGE.progress:
-      return validateArray(value, 500, isArticleProgress);
+      return isValidArticleProgressCollection(value);
     case STORAGE.customTexts:
       return (
         validateArray(value, MAX_CUSTOM_ARTICLES, isCustomPracticeArticle) &&

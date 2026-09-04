@@ -61,7 +61,11 @@ import {
   WEAKNESS_RESOLVED_SCORE,
 } from "../training-plan";
 import { buildPhraseTrainingPool } from "../phrase-training";
-import { ErrorState, usePendingSaveGuard } from "./Ui";
+import {
+  ErrorState,
+  useInProgressLeaveGuard,
+  usePendingSaveGuard,
+} from "./Ui";
 
 const TRAINING_TABS = [
   ["plan", "今日计划"],
@@ -108,10 +112,33 @@ export function TrainingCenter({
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [pendingDrillSave, setPendingDrillSave] = useState(false);
+  const [drillInProgress, setDrillInProgress] = useState(false);
+  const [drillResetRevision, setDrillResetRevision] = useState(0);
   const [currentHesitationQueue, setCurrentHesitationQueue] =
     useState<HesitationPracticeQueue | null>(hesitationQueue);
   const activeLocalDate = useRef(localDateKey(new Date()));
+  const drillInProgressRef = useRef(false);
+  const pendingDrillSaveRef = useRef(false);
+  const tabTransitionLockRef = useRef(false);
   usePendingSaveGuard(pendingDrillSave);
+  useInProgressLeaveGuard(
+    drillInProgress && !pendingDrillSave,
+    () => {
+      drillInProgressRef.current = false;
+      setDrillInProgress(false);
+      setDrillResetRevision((value) => value + 1);
+    },
+  );
+
+  const handleDrillProgressChange = useCallback((inProgress: boolean) => {
+    drillInProgressRef.current = inProgress;
+    setDrillInProgress(inProgress);
+  }, []);
+
+  const handlePendingSaveChange = useCallback((pending: boolean) => {
+    pendingDrillSaveRef.current = pending;
+    setPendingDrillSave(pending);
+  }, []);
 
   const refreshLocal = useCallback(() => {
     const nextLocalDate = localDateKey(new Date());
@@ -178,6 +205,7 @@ export function TrainingCenter({
 
   useEffect(() => {
     const syncTabFromLocation = () => {
+      if (pendingDrillSaveRef.current || drillInProgressRef.current) return;
       const requested = new URLSearchParams(window.location.search).get("tab");
       const next = TRAINING_TABS.some(([value]) => value === requested)
         ? (requested as TrainingTab)
@@ -325,11 +353,27 @@ export function TrainingCenter({
     refreshLocal();
   };
 
-  const selectTrainingTab = (next: TrainingTab, force = false) => {
-    if (!force && pendingDrillSave) {
+  const confirmDrillDeparture = () => {
+    if (pendingDrillSaveRef.current) {
       window.alert("本轮成绩尚未保存，请先重试保存。");
       return false;
     }
+    if (!drillInProgressRef.current) return true;
+    if (!window.confirm("本轮练习尚未完成，确定放弃并切换吗？")) return false;
+    drillInProgressRef.current = false;
+    setDrillInProgress(false);
+    setDrillResetRevision((value) => value + 1);
+    tabTransitionLockRef.current = true;
+    window.requestAnimationFrame(() => {
+      tabTransitionLockRef.current = false;
+    });
+    return true;
+  };
+
+  const selectTrainingTab = (next: TrainingTab, force = false) => {
+    if (next === tab) return false;
+    if (!force && tabTransitionLockRef.current) return false;
+    if (!force && !confirmDrillDeparture()) return false;
     setTab(next);
     const url = new URL(window.location.href);
     if (next === "plan") url.searchParams.delete("tab");
@@ -340,6 +384,12 @@ export function TrainingCenter({
       `${url.pathname}${url.search}${url.hash}`,
     );
     return true;
+  };
+
+  const selectRootZone = (nextZone: (typeof ROOT_ZONES)[number]) => {
+    if (nextZone.id === zone.id) return;
+    if (!confirmDrillDeparture()) return;
+    setZone(nextZone);
   };
 
   const moveTrainingTab = (current: TrainingTab, direction: -1 | 1) => {
@@ -354,8 +404,9 @@ export function TrainingCenter({
   };
 
   const startDueReview = (item: SpacedReviewItem) => {
-    setReviewMessage("");
     if (item.targetType === "hesitation" && item.hesitationTarget) {
+      if (!confirmDrillDeparture()) return;
+      setReviewMessage("");
       onPracticeHesitation("", item.hesitationTarget);
       return;
     }
@@ -363,9 +414,11 @@ export function TrainingCenter({
       setReviewMessage("这项复习缺少可用编码，暂时无法开始。");
       return;
     }
-    setActiveDueReview(item);
     const nextTab = item.targetType === "phrase" ? "phrase" : "review";
-    selectTrainingTab(nextTab);
+    if (!confirmDrillDeparture()) return;
+    if (nextTab !== tab && !selectTrainingTab(nextTab, true)) return;
+    setReviewMessage("");
+    setActiveDueReview(item);
     window.requestAnimationFrame(() => {
       document.getElementById(`training-tab-${nextTab}`)?.focus();
     });
@@ -391,6 +444,7 @@ export function TrainingCenter({
   };
 
   const startPlanTask = (task: TrainingTask) => {
+    if (!confirmDrillDeparture()) return false;
     const previousCurrent = readLocal<string | null>(STORAGE.current, null);
     const previousGenerated = readLocal<PracticeArticle | null>(
       STORAGE.currentGenerated,
@@ -419,11 +473,11 @@ export function TrainingCenter({
     setPlan(next);
     setPlanMessage("");
     if (task.type === "review") {
-      selectTrainingTab("review");
+      selectTrainingTab("review", true);
     } else if (task.type === "roots") {
       const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
       if (nextZone) setZone(nextZone);
-      selectTrainingTab("roots");
+      selectTrainingTab("roots", true);
     }
     return true;
   };
@@ -895,9 +949,9 @@ export function TrainingCenter({
           aria-labelledby="training-tab-review"
         >
           <CodeDrill
-            key={activeDueReview?.targetType === "character"
+            key={`${drillResetRevision}:${activeDueReview?.targetType === "character"
               ? `due-${activeDueReview.targetId}`
-              : prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}
+              : prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}`}
             title={activeDueReview?.targetType === "character"
               ? `到期单字 · ${activeDueReview.text}`
               : prescribedReview?.title ?? "高频错题复练"}
@@ -913,7 +967,8 @@ export function TrainingCenter({
             planTask={activeDueReview?.targetType === "character"
               ? undefined
               : prescribedReview}
-            onPendingSaveChange={setPendingDrillSave}
+            onPendingSaveChange={handlePendingSaveChange}
+            onInProgressChange={handleDrillProgressChange}
             onSessionSaved={() => {
               setActiveDueReview(null);
               onSessionSaved();
@@ -949,9 +1004,9 @@ export function TrainingCenter({
             <small>每轮最多 20 题，同一词组不重复出现。</small>
           </aside>
           <CodeDrill
-            key={activeDueReview?.targetType === "phrase"
+            key={`${drillResetRevision}:${activeDueReview?.targetType === "phrase"
               ? `due-${activeDueReview.targetId}`
-              : "phrase-training"}
+              : "phrase-training"}`}
             title={activeDueReview?.targetType === "phrase"
               ? `到期词组 · ${activeDueReview.text}`
               : "词组码长专项"}
@@ -963,7 +1018,8 @@ export function TrainingCenter({
             sessionType="review"
             playKeySound={playKeySound}
             trackPhrasePractice
-            onPendingSaveChange={setPendingDrillSave}
+            onPendingSaveChange={handlePendingSaveChange}
+            onInProgressChange={handleDrillProgressChange}
             onSessionSaved={() => {
               setActiveDueReview(null);
               onSessionSaved();
@@ -990,7 +1046,7 @@ export function TrainingCenter({
                 aria-selected={zone.id === item.id}
                 className={zone.id === item.id ? "active" : ""}
                 disabled={Boolean(prescribedRoots) || pendingDrillSave}
-                onClick={() => setZone(item)}
+                onClick={() => selectRootZone(item)}
               >
                 <b>{item.keys}</b>
                 <strong>{item.label}</strong>
@@ -999,7 +1055,7 @@ export function TrainingCenter({
             ))}
           </div>
           <CodeDrill
-            key={prescribedRoots?.id ?? zone.id}
+            key={`${drillResetRevision}:${prescribedRoots?.id ?? zone.id}`}
             title={prescribedRoots?.title ?? `${zone.label}专项`}
             description={prescribedRoots?.reason ?? `${zone.keys} 为首码的常用单字，集中训练起笔判断与键位记忆。`}
             emptyText={loading ? "正在整理题库…" : "这一分区暂时没有可用题目。"}
@@ -1007,7 +1063,8 @@ export function TrainingCenter({
             sessionType="roots"
             playKeySound={playKeySound}
             planTask={prescribedRoots}
-            onPendingSaveChange={setPendingDrillSave}
+            onPendingSaveChange={handlePendingSaveChange}
+            onInProgressChange={handleDrillProgressChange}
             onSessionSaved={() => {
               onSessionSaved();
               if (prescribedRoots) selectTrainingTab("plan", true);
@@ -1080,6 +1137,7 @@ function CodeDrill({
   planTask,
   trackPhrasePractice = false,
   onPendingSaveChange,
+  onInProgressChange,
   onSessionSaved,
 }: {
   title: string;
@@ -1091,6 +1149,7 @@ function CodeDrill({
   planTask?: TrainingTask;
   trackPhrasePractice?: boolean;
   onPendingSaveChange: (pending: boolean) => void;
+  onInProgressChange: (inProgress: boolean) => void;
   onSessionSaved: () => void;
 }) {
   const limit = planTask ? pool.length : 20;
@@ -1153,8 +1212,9 @@ function CodeDrill({
       if (advanceTimer.current !== null) {
         window.clearTimeout(advanceTimer.current);
       }
+      onInProgressChange(false);
     },
-    [],
+    [onInProgressChange],
   );
 
   useEffect(() => {
@@ -1187,6 +1247,7 @@ function CodeDrill({
     startedAt.current = Date.now();
     hiddenAt.current = null;
     inactiveMs.current = 0;
+    onInProgressChange(true);
     setStarted(true);
     setFinished(false);
     setAnswered(0);
@@ -1201,6 +1262,7 @@ function CodeDrill({
   const finish = (finalAnswered: number, finalCorrect: number) => {
     if (finishedLock.current) return;
     finishedLock.current = true;
+    onInProgressChange(false);
     if (advanceTimer.current !== null) {
       window.clearTimeout(advanceTimer.current);
       advanceTimer.current = null;

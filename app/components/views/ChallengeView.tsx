@@ -15,7 +15,11 @@ import {
 } from "../../typing-metrics";
 import type { SessionResult, WeakObservation, WubiEntry } from "../../types";
 import { downloadShareCard } from "../../share-card";
-import { ErrorState, usePendingSaveGuard } from "../Ui";
+import {
+  ErrorState,
+  useInProgressLeaveGuard,
+  usePendingSaveGuard,
+} from "../Ui";
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -42,8 +46,8 @@ export function ChallengeView({
   const [finishedReason, setFinishedReason] = useState<"complete" | "timeout" | "">("");
   const [lastSession, setLastSession] = useState<SessionResult | null>(null);
   const [challengeSaveFailed, setChallengeSaveFailed] = useState(false);
-  usePendingSaveGuard(challengeSaveFailed);
   const startedAtRef = useRef(0);
+  const startedRef = useRef(false);
   const challengeHiddenAtRef = useRef<number | null>(null);
   const challengeInactiveMsRef = useRef(0);
   const recordedRef = useRef(false);
@@ -57,6 +61,37 @@ export function ChallengeView({
     session: SessionResult;
     observations: WeakObservation[];
   } | null>(null);
+
+  const discardChallenge = useCallback(() => {
+    startedRef.current = false;
+    recordedRef.current = true;
+    if (nextTimerRef.current !== null) {
+      window.clearTimeout(nextTimerRef.current);
+      nextTimerRef.current = null;
+    }
+    challengeHiddenAtRef.current = null;
+    challengeInactiveMsRef.current = 0;
+    seenQuestionsRef.current.clear();
+    challengeObservationsRef.current = [];
+    submitLockRef.current = false;
+    advanceLockRef.current = false;
+    setStarted(false);
+    setQuestion(null);
+    setInput("");
+    setIndex(0);
+    setCorrect(0);
+    setFeedback("idle");
+    setRemaining(60);
+    setMistakes([]);
+    setFinishedReason("");
+    setLastSession(null);
+  }, []);
+
+  usePendingSaveGuard(challengeSaveFailed);
+  useInProgressLeaveGuard(
+    started && !challengeSaveFailed,
+    discardChallenge,
+  );
 
   useEffect(() => {
     let active = true;
@@ -111,6 +146,7 @@ export function ChallengeView({
     ) => {
       if (recordedRef.current) return;
       recordedRef.current = true;
+      startedRef.current = false;
       const now = Date.now();
       const elapsedSeconds = Math.max(
         0,
@@ -203,6 +239,7 @@ export function ChallengeView({
 
   useEffect(
     () => () => {
+      startedRef.current = false;
       if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
     },
     [],
@@ -219,6 +256,7 @@ export function ChallengeView({
     challengeHiddenAtRef.current = null;
     challengeInactiveMsRef.current = 0;
     deadlineRef.current = startedAtRef.current + 60_000;
+    startedRef.current = true;
     setStarted(true);
     setIndex(0);
     setCorrect(0);

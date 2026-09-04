@@ -103,6 +103,18 @@ function session(overrides = {}) {
   };
 }
 
+function articleProgress(overrides = {}) {
+  return {
+    articleId: "article-a",
+    attempts: 1,
+    bestSpeed: 80,
+    completed: false,
+    lastPracticed: "2026-07-29T09:00:00.000Z",
+    errors: 3,
+    ...overrides,
+  };
+}
+
 function hesitationTarget(overrides = {}) {
   const target = {
     version: 1,
@@ -480,6 +492,60 @@ test("daily training plans are deterministic and provide a complete first-use pr
   assert.ok(first.estimatedMinutes >= 3);
 });
 
+test("daily training plans count one local practice day across UTC dates and timezone offsets", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "Asia/Shanghai";
+  try {
+    const input = {
+      date: "2026-08-19",
+      now: new Date("2026-08-19T10:00:00+08:00"),
+      articles: trainingArticles,
+      progress: [],
+      sessions: [
+        session({ id: "after-midnight", date: "2026-08-18T12:30:00-04:00" }),
+        session({ id: "before-midnight", date: "2026-08-19T15:30:00Z" }),
+      ],
+      weakItems: [],
+      entries: trainingEntries,
+      preferredLength: "all",
+    };
+
+    const first = generateDailyTrainingPlan(input);
+    const second = generateDailyTrainingPlan(input);
+
+    assert.deepEqual(first, second);
+    assert.equal(first.tasks.find((task) => task.type === "roots").zoneId, "shu");
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
+
+test("daily training plans count practice days on both sides of local midnight", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "Asia/Shanghai";
+  try {
+    const plan = generateDailyTrainingPlan({
+      date: "2026-08-19",
+      now: new Date("2026-08-19T10:00:00+08:00"),
+      articles: trainingArticles,
+      progress: [],
+      sessions: [
+        session({ id: "before-midnight", date: "2026-08-18T15:30:00Z" }),
+        session({ id: "after-midnight", date: "2026-08-18T16:30:00Z" }),
+      ],
+      weakItems: [],
+      entries: trainingEntries,
+      preferredLength: "all",
+    });
+
+    assert.equal(plan.tasks.find((task) => task.type === "roots").zoneId, "zhe");
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
+
 test("daily training plans place due characters and phrases before ordinary weak items", () => {
   const plan = generateDailyTrainingPlan({
     date: "2026-08-19",
@@ -556,10 +622,16 @@ test("regrouping preserves completed tasks and training summaries compare snapsh
 test("trend series produces daily speed and accuracy summaries", () => {
   const points = buildTrendSeries(
     [
-      session({ correctChars: 200, durationSeconds: 120, accuracy: 98 }),
+      session({
+        correctChars: 200,
+        attemptedChars: 200,
+        durationSeconds: 120,
+        accuracy: 98,
+      }),
       session({
         id: "second",
         correctChars: 100,
+        attemptedChars: 100,
         durationSeconds: 60,
         accuracy: 94,
       }),
@@ -572,7 +644,20 @@ test("trend series produces daily speed and accuracy summaries", () => {
   assert.equal(today.chars, 300);
   assert.equal(today.minutes, 3);
   assert.equal(today.speed, 100);
-  assert.equal(today.accuracy, 96);
+  assert.equal(today.accuracy, 290 / 3);
+});
+
+test("trend accuracy weights sessions by attempted characters", () => {
+  const points = buildTrendSeries(
+    [
+      session({ attemptedChars: 1, accuracy: 0 }),
+      session({ id: "long", attemptedChars: 999, accuracy: 100 }),
+    ],
+    7,
+    new Date("2026-07-29T12:00:00+08:00"),
+  );
+
+  assert.equal(points.at(-1).accuracy, 99.9);
 });
 
 test("all trend range includes sessions older than one year", () => {
@@ -1332,6 +1417,62 @@ test("correct observations only advance existing review targets", () => {
   }
 });
 
+test("standalone review clears a pending plan whose last item was handled", () => {
+  const now = new Date("2026-08-29T09:00:00.000Z");
+  const plan = generateDailyTrainingPlan({
+    date: "2026-08-29",
+    now,
+    articles: trainingArticles,
+    progress: [],
+    sessions: [],
+    weakItems: [],
+    entries: trainingEntries,
+    dueReviewItems: [["测", "imyt", 4]],
+    preferredLength: "all",
+  });
+  const review = plan.tasks.find((task) => task.type === "review");
+  review.items = [["测", "imyt", 4]];
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+    [STORAGE.reviewState, JSON.stringify({ version: 1, items: [reviewItem()] })],
+    [STORAGE.trainingPlan, JSON.stringify(plan)],
+  ]);
+  let failPlanWrite = true;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        if (key === STORAGE.trainingPlan && failPlanWrite) {
+          failPlanWrite = false;
+          throw new Error("quota");
+        }
+        values.set(key, value);
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const result = session({
+      id: "standalone-review",
+      type: "review",
+      articleId: undefined,
+      date: now.toISOString(),
+    });
+    const observations = [
+      { text: "测", code: "imyt", kind: "correct" },
+    ];
+    const before = new Map(values);
+    assert.equal(savePracticeOutcome(result, observations), false);
+    assert.deepEqual(values, before);
+
+    assert.equal(savePracticeOutcome(result, observations), true);
+    assert.equal(JSON.parse(values.get(STORAGE.trainingPlan)), null);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("hesitation outcome atomically saves one idempotent session, weakness and queue", () => {
   const now = new Date("2026-08-19T10:00:00+08:00");
   const target = hesitationTarget();
@@ -1972,6 +2113,186 @@ test("local history readers discard malformed records and self-heal storage", ()
   }
 });
 
+test("backup rejects duplicate article progress without touching local storage", () => {
+  const values = new Map([
+    [STORAGE.settings, JSON.stringify({ theme: "light" })],
+    [STORAGE.progress, JSON.stringify([articleProgress()])],
+  ]);
+  const before = new Map(values);
+  let writes = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        writes += 1;
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        writes += 1;
+        values.delete(key);
+      },
+    },
+  };
+  try {
+    const duplicate = articleProgress({
+      attempts: 2,
+      lastPracticed: "2026-08-01T09:00:00.000Z",
+    });
+    const payload = createBackupPayload({
+      [STORAGE.progress]: [articleProgress(), duplicate],
+    });
+    assert.throws(() => parseBackupPayload(payload), /格式不正确/);
+    assert.throws(() => restoreBackupPayload(payload), /格式不正确/);
+    assert.deepEqual(values, before);
+    assert.equal(writes, 0);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("duplicate progress sums attempts, keeps best speed and completion, and uses latest errors once", () => {
+  const raw = JSON.stringify([
+    articleProgress({
+      attempts: 2,
+      bestSpeed: 90,
+      errors: 7,
+    }),
+    articleProgress({
+      attempts: 3,
+      bestSpeed: 120,
+      completed: true,
+      lastPracticed: "2026-08-02T09:00:00.000Z",
+      errors: 2,
+    }),
+  ]);
+  const values = new Map([[STORAGE.progress, raw]]);
+  let progressWrites = 0;
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        if (key === STORAGE.progress) progressWrites += 1;
+        values.set(key, value);
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const expected = [{
+      articleId: "article-a",
+      attempts: 5,
+      bestSpeed: 120,
+      completed: true,
+      lastPracticed: "2026-08-02T09:00:00.000Z",
+      errors: 2,
+    }];
+    assert.deepEqual(getProgress(), expected);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), expected);
+    assert.equal(progressWrites, 1);
+
+    assert.deepEqual(getProgress(), expected);
+    assert.equal(progressWrites, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("saving after article progress repair updates the sole record", () => {
+  const values = new Map([[
+    STORAGE.progress,
+    JSON.stringify([
+      articleProgress({ attempts: 2, bestSpeed: 90, errors: 7 }),
+      articleProgress({
+        attempts: 3,
+        bestSpeed: 120,
+        completed: true,
+        lastPracticed: "2026-08-02T09:00:00.000Z",
+        errors: 2,
+      }),
+    ]),
+  ]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(saveSession(session({
+      id: "progress-after-repair",
+      articleId: "article-a",
+      date: "2026-09-01T09:00:00.000Z",
+      speed: 110,
+      errors: 4,
+    })), true);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), [{
+      articleId: "article-a",
+      attempts: 6,
+      bestSpeed: 120,
+      completed: true,
+      lastPracticed: "2026-09-01T09:00:00.000Z",
+      errors: 6,
+    }]);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("article progress repair discards invalid rows and bounds oversized data", () => {
+  const records = Array.from({ length: 500 }, (_, index) => articleProgress({
+    articleId: `article-${index}`,
+  }));
+  records.push(
+    articleProgress({ articleId: "invalid-date", lastPracticed: "not-a-date" }),
+    articleProgress({ articleId: "invalid-attempts", attempts: -1 }),
+    articleProgress({ articleId: "article-0", attempts: 1_000_000 }),
+    articleProgress({ articleId: "ignored-extra-article" }),
+  );
+  const values = new Map([[STORAGE.progress, JSON.stringify(records)]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const repaired = getProgress();
+    assert.equal(repaired.length, 500);
+    assert.equal(repaired.some((item) => item.articleId === "invalid-date"), false);
+    assert.equal(repaired.some((item) => item.articleId === "invalid-attempts"), false);
+    assert.equal(repaired.some((item) => item.articleId === "ignored-extra-article"), false);
+    assert.equal(repaired.find((item) => item.articleId === "article-0").attempts, 1_000_000);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), repaired);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("failed article progress repair preserves the original stored value", () => {
+  const raw = JSON.stringify([
+    articleProgress({ attempts: 2 }),
+    articleProgress({ attempts: 3 }),
+  ]);
+  const values = new Map([[STORAGE.progress, raw]]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: () => {
+        throw new Error("quota");
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.deepEqual(getProgress(), [articleProgress({ attempts: 5 })]);
+    assert.equal(values.get(STORAGE.progress), raw);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("session and article progress writes roll back together after storage failure", () => {
   const oldSessions = JSON.stringify([session({ id: "old" })]);
   const oldProgress = JSON.stringify([]);
@@ -2309,6 +2630,26 @@ test("service worker creates valid cached audio range responses", async () => {
     Array.from(new Uint8Array(await offlineAudio.arrayBuffer())),
     [2, 3, 4],
   );
+
+  context.fetch = async () => new Response("missing", { status: 404 });
+  fetchListener({
+    request: {
+      method: "GET",
+      mode: "navigate",
+      url: "https://example.com/wubi/missing",
+      headers: new Headers(),
+    },
+    respondWith: (promise) => {
+      responsePromise = promise;
+    },
+    waitUntil: (promise) => {
+      cachePromise = promise;
+    },
+  });
+  const missingNavigation = await responsePromise;
+  await cachePromise;
+  assert.equal(missingNavigation.status, 404);
+  assert.equal(await missingNavigation.text(), "missing");
 });
 
 test("build lifecycle stays cross-platform and project-rooted", async () => {

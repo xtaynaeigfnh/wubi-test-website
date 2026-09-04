@@ -184,10 +184,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    const networkResponse = fetch(request).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response;
-    });
+    const networkResponse = fetch(request);
     event.waitUntil(
       networkResponse
         .then((response) => {

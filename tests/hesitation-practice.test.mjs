@@ -9,6 +9,7 @@ import {
   calculateHesitationImprovement,
   extractHesitationPracticeExcerpt,
   isHesitationPracticeMastered,
+  isValidHesitationPracticeTarget,
 } from "../app/hesitation-practice.ts";
 
 const sourceSession = {
@@ -98,6 +99,20 @@ test("Unicode 扩展字符按码点统计，换行不占片段索引", () => {
   assert.equal(Array.from(excerpt.text)[0], "𠀀");
   assert.equal(excerpt.focusOffset, 1);
   assert.equal(Array.from(excerpt.text).includes("\n"), false);
+});
+
+test("目标校验按 Unicode 码点限制片段长度", () => {
+  const text = "𠀀".repeat(15);
+  assert.equal(isValidHesitationPracticeTarget(target({
+    text,
+    fingerprint: `${text}\u00000\u00003`,
+  })), true);
+
+  const tooLong = "𠀀".repeat(16);
+  assert.equal(isValidHesitationPracticeTarget(target({
+    text: tooLong,
+    fingerprint: `${tooLong}\u00000\u00003`,
+  })), false);
 });
 
 test("相同片段目标产生稳定 ID，焦点变化会改变 fingerprint 和 ID", () => {

@@ -408,6 +408,20 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(management, /importingRef/);
   assert.match(management, /MAX_CUSTOM_TEXT_FILE_BYTES/);
   assert.match(management, /自定义文章已满 20 篇/);
+  assert.match(management, /<CustomTextManager onChanged=\{refreshStorageUsage\} \/>/);
+  assert.match(management, /setItems\(next\);\s*onChanged\(\);\s*return true;/);
+});
+
+test("lookup keeps trimmed empty input idle and waits for deferred results", async () => {
+  const lookup = await readFile(lookupViewPath, "utf8");
+
+  assert.match(lookup, /const normalizedQuery = query\.trim\(\);/);
+  assert.match(lookup, /const isSearchPending = normalizedQuery !== deferredQuery;/);
+  assert.match(lookup, /\{!normalizedQuery && \(/);
+  assert.match(
+    lookup,
+    /\{normalizedQuery && !isSearchPending && !loading && !loadError && \(/,
+  );
 });
 
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
@@ -492,9 +506,23 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   );
   assert.match(component, /文章选择未能保存，原练习保持不变/);
   assert.match(component, /if \(chooseArticle\(buildCommonPracticeArticle/);
+  assert.match(
+    component,
+    /const practiceInProgress = startedAt !== null && !completed;/,
+  );
+  assert.match(
+    component,
+    /usePendingSaveGuard\([\s\S]*sessionSaveFailed \|\| practiceInProgress[\s\S]*本次练习尚未完成/,
+  );
+  assert.match(
+    component,
+    /if \(!chooseArticle\(custom\)\) \{[\s\S]*writeLocal\(STORAGE\.customTexts, saved\)[\s\S]*return;/,
+  );
+  assert.match(component, /disabled=\{practiceInProgress\}/);
 
   assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
-  assert.match(training, /if \(!force && pendingDrillSave\)/);
+  assert.match(training, /if \(pendingDrillSaveRef\.current\) \{/);
+  assert.match(training, /if \(!force && !confirmDrillDeparture\(\)\) return false;/);
   assert.match(training, /onPendingSaveChange\(true\)/);
   assert.match(training, /disabled=\{Boolean\(prescribedRoots\) \|\| pendingDrillSave\}/);
   assert.match(training, /if \(!writeLocal\(STORAGE\.dailyGoal, next\)\)/);
@@ -533,12 +561,60 @@ test("training tabs keep their URL state in sync", async () => {
     training,
     /onClick=\{\(\) => \{[\s\S]*if \(!selectTrainingTab\(value\)\) return;[\s\S]*setActiveDueReview\(null\);[\s\S]*\}\}/,
   );
-  assert.match(training, /if \(!force && pendingDrillSave\) \{/);
+  assert.match(training, /if \(!force && !confirmDrillDeparture\(\)\) return false;/);
   assert.match(training, /nextMidnight\.setHours\(0, 0, 0, 50\)/);
   assert.match(training, /window\.addEventListener\("focus", refreshWhenAvailable\)/);
   assert.match(training, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
   assert.match(training, /setCurrentHesitationQueue\(readHesitationQueue\(\)\)/);
   assert.match(training, /loading \|\|[\s\S]*!reviewState \|\|[\s\S]*!entries\.length \|\|[\s\S]*!articles\.length/);
+});
+
+test("unfinished drills require one discard decision while failed saves stay blocked", async () => {
+  const [ui, training, challenge] = await Promise.all([
+    readFile(uiPath, "utf8"),
+    readFile(trainingCenterPath, "utf8"),
+    readFile(challengeViewPath, "utf8"),
+  ]);
+
+  assert.match(ui, /export function useInProgressLeaveGuard/);
+  assert.match(ui, /window\.confirm\(message\)/);
+  assert.match(ui, /document\.addEventListener\("click", onDocumentClick, true\)/);
+  assert.match(ui, /window\.addEventListener\("beforeunload", onBeforeUnload\)/);
+  assert.match(ui, /window\.addEventListener\("popstate", onPopState\)/);
+  assert.match(ui, /navigation\?\.addEventListener\("navigate", onNavigate\)/);
+  assert.match(ui, /decisionMade/);
+  assert.match(ui, /onDiscardRef\.current\(\)/);
+
+  assert.match(training, /const \[drillInProgress, setDrillInProgress\] = useState\(false\)/);
+  assert.match(training, /useInProgressLeaveGuard\(\s*drillInProgress && !pendingDrillSave/s);
+  assert.match(
+    training,
+    /if \(pendingDrillSaveRef\.current\) \{\s*window\.alert\("本轮成绩尚未保存，请先重试保存。"\);\s*return false;/s,
+  );
+  assert.match(training, /if \(!window\.confirm\("本轮练习尚未完成，确定放弃并切换吗？"\)\) return false;/);
+  assert.match(training, /onInProgressChange=\{handleDrillProgressChange\}/);
+  assert.match(training, /onClick=\{\(\) => selectRootZone\(item\)\}/);
+  assert.match(training, /if \(pendingDrillSaveRef\.current \|\| drillInProgressRef\.current\) return;/);
+  assert.match(training, /if \(advanceTimer\.current !== null\) \{[\s\S]*window\.clearTimeout\(advanceTimer\.current\)/);
+  assert.match(
+    training,
+    /const selectTrainingTab = [\s\S]*?if \(next === tab\) return false;[\s\S]*?confirmDrillDeparture\(\)/,
+  );
+  assert.match(
+    training,
+    /const startDueReview = [\s\S]*?if \(!confirmDrillDeparture\(\)\) return;[\s\S]*?setActiveDueReview\(item\)/,
+  );
+  assert.match(
+    training,
+    /const startPlanTask = \(task: TrainingTask\) => \{\s*if \(!confirmDrillDeparture\(\)\) return false;[\s\S]*?startTrainingTask\(task\.id\)[\s\S]*?setPlan\(next\)/,
+  );
+  assert.match(training, /key=\{`\$\{drillResetRevision\}:/);
+
+  assert.match(challenge, /useInProgressLeaveGuard\(\s*started && !challengeSaveFailed/s);
+  assert.match(challenge, /const discardChallenge = useCallback/);
+  assert.match(challenge, /window\.clearTimeout\(nextTimerRef\.current\)/);
+  assert.match(challenge, /startedRef\.current = false/);
+  assert.match(challenge, /usePendingSaveGuard\(challengeSaveFailed\)/);
 });
 
 test("spaced review queue stays explainable, deferrable, and usable on narrow screens", async () => {

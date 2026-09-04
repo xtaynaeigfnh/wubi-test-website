@@ -99,6 +99,58 @@ test("清理大对象保留成绩、趋势和周报依赖的汇总字段", () =>
   );
 });
 
+test("节奏清理只统计可移除数据并处理仅有弱片段的汇总", () => {
+  const summaryFields = {
+    version: 1,
+    characterCount: 20,
+    startupMs: 300,
+    medianIntervalMs: 200,
+    p90IntervalMs: 400,
+    fastestTenCpm: 180,
+    variationPercent: 12,
+    recoveryMs: 500,
+    firstHalfMedianMs: 190,
+    secondHalfMedianMs: 210,
+    sameHandMedianMs: 220,
+    crossHandMedianMs: 180,
+  };
+  const weakSegment = { start: 2, text: "甲乙丙丁戊己庚辛", delayMs: 1200 };
+  const sessions = [
+    session({
+      id: "summary-only",
+      rhythmSummary: { ...summaryFields, curve: [], weakSegments: [] },
+    }),
+    session({
+      id: "weak-only",
+      rhythmSummary: {
+        ...summaryFields,
+        curve: [],
+        weakSegments: [weakSegment],
+      },
+    }),
+  ];
+
+  const rhythm = buildStorageUsageReport(snapshot(sessions)).items.find(
+    (item) => item.id === "rhythm",
+  );
+  assert.equal(rhythm.count, 1);
+  assert.equal(
+    rhythm.bytes,
+    new TextEncoder().encode(JSON.stringify({
+      curve: [],
+      weakSegments: [weakSegment],
+    })).byteLength,
+  );
+
+  const cleaned = stripSessionLargeObjects(sessions, "rhythm");
+  assert.equal(cleaned[0], sessions[0]);
+  assert.deepEqual(cleaned[1].rhythmSummary, {
+    ...summaryFields,
+    curve: [],
+    weakSegments: [],
+  });
+});
+
 test("清理预览明确数量、预计体积和后果", () => {
   const preview = previewCleanup("ghosts", snapshot([
     session({ ghostTimeline: { version: 1, samples: [[1, 10]] } }),

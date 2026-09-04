@@ -38,11 +38,12 @@ const MAX_CUSTOM_TEXT_FILE_BYTES = MAX_CUSTOM_TEXT_LENGTH * 4 + 1024;
 
 export function DataManagement() {
   const [revision, setRevision] = useState(0);
+  const refreshStorageUsage = () => setRevision((value) => value + 1);
   return (
     <div className="data-management">
-      <StorageManager revision={revision} onChanged={() => setRevision((value) => value + 1)} />
+      <StorageManager revision={revision} onChanged={refreshStorageUsage} />
       <BackupManager />
-      <CustomTextManager />
+      <CustomTextManager onChanged={refreshStorageUsage} />
     </div>
   );
 }
@@ -342,7 +343,7 @@ function BackupManager() {
   );
 }
 
-function CustomTextManager() {
+function CustomTextManager({ onChanged }: { onChanged: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const importingRef = useRef(false);
   const [items, setItems] = useState<PracticeArticle[]>([]);
@@ -361,6 +362,7 @@ function CustomTextManager() {
       return false;
     }
     setItems(next);
+    onChanged();
     return true;
   };
 
