@@ -418,7 +418,7 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 
   assert.match(lookup, /const normalizedQuery = query\.trim\(\);/);
   assert.match(lookup, /const isSearchPending = normalizedQuery !== deferredQuery;/);
-  assert.match(lookup, /\{!normalizedQuery && \(/);
+  assert.match(lookup, /\{!normalizedQuery && ready && \(/);
   assert.match(
     lookup,
     /\{normalizedQuery && !isSearchPending && !loading && !loadError && \(/,
@@ -869,29 +869,45 @@ test("code hint pairs the current character with a compact toolbar code card", a
   assert.match(component, /role="group"\s+aria-label="当前练习操作"/);
 });
 
-test("lookup restores a centered 26-letter keyboard and compact search field", async () => {
-  const [component, styles] = await Promise.all([
+test("lookup connects selected codes to an ordered keyboard guide and accessible search", async () => {
+  const [component, guide, search, results] = await Promise.all([
     readFile(lookupViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readFile(new URL("../app/components/lookup/LookupGuide.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/lookup/LookupSearch.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/lookup/LookupResults.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(component, /\["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"\]/);
-  assert.match(component, /className="keyboard-row"/);
-  assert.match(component, /aria-label="二十六字母键盘"/);
-  assert.doesNotMatch(component, /<span aria-hidden="true">查<\/span>/);
-  assert.match(component, /className="lookup-search-field"/);
-  assert.match(styles, /\.lookup-search-field\s*\{[^}]*width:\s*min\(680px, 100%\)/s);
-  assert.match(styles, /html\s*\{[^}]*scroll-behavior:\s*smooth/s);
-  assert.match(styles, /@keyframes lookup-keyboard-row-in/);
+  assert.match(guide, /\["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"\]/);
+  assert.match(guide, /aria-label="二十六字母键盘"/);
+  assert.match(guide, /data-active=\{letters.includes\(letter\)\}/);
+  assert.match(guide, /<small>\{index \+ 1\}<\/small>/);
+  assert.match(component, /setQuery\(value\);\s*setSelection\(null\);/);
+  assert.match(component, /<LookupGuide code=\{ready \? selected\?\.\[1\] \?\? "" : ""\}/);
+  assert.match(component, /aria-busy=\{loading \|\| isSearchPending\}/);
+  assert.doesNotMatch(component, /className=\{styles\.catalog\}/);
+  assert.match(search, /htmlFor="lookup-query"/);
+  assert.match(search, /id="lookup-query"/);
+  assert.match(search, /inputRef.current\?\.focus\(\)/);
+  assert.match(search, /trimmed\.slice\(0, 4\)/);
+  assert.match(search, /onCompositionStart=/);
+  assert.match(search, /onCompositionEnd=/);
+  assert.match(search, /if \(composingRef.current\) onChange\(event.target.value\);/);
+  assert.match(results, /aria-pressed=\{selected\?\.\[0\] === text && selected\[1\] === entry\[1\]\}/);
+  assert.match(results, /await navigator.clipboard.writeText\(code\)/);
+  assert.match(results, /复制未成功，可以选中下方编码手动复制/);
 });
 
-test("lookup uses the same full content width as other subpages", async () => {
-  const styles = await readFile(stylesPath, "utf8");
+test("lookup workbench adapts to narrow screens and reduced motion with scoped styles", async () => {
+  const styles = await readFile(new URL("../app/components/lookup/LookupWorkspace.module.css", import.meta.url), "utf8");
 
-  assert.match(
-    styles,
-    /\.lookup-page \.lookup-heading,[\s\S]*?\.lookup-page \.lookup-results\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none/s,
-  );
+  assert.match(styles, /\.page\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0/s);
+  assert.match(styles, /\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1.45fr\) minmax\(340px, 1fr\)/s);
+  assert.match(styles, /@media \(max-width: 800px\)[\s\S]*?\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(styles, /@media \(max-width: 540px\)/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(styles, /:focus-visible/);
+  assert.match(styles, /\.searchField\s*\{[^}]*width:\s*min\(560px, 100%\)/s);
+  assert.match(styles, /\.searchField\s*\{[^}]*margin-inline:\s*auto/s);
 });
 
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {

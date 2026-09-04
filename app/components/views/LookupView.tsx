@@ -5,6 +5,10 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { loadWubi } from "../../content-loader";
 import type { WubiEntry } from "../../types";
 import { ErrorState } from "../Ui";
+import { LookupSearch } from "../lookup/LookupSearch";
+import { LookupDetail, LookupResults } from "../lookup/LookupResults";
+import { LookupGuide } from "../lookup/LookupGuide";
+import styles from "../lookup/LookupWorkspace.module.css";
 
 export function LookupView() {
   const [rows, setRows] = useState<WubiEntry[]>([]);
@@ -12,6 +16,7 @@ export function LookupView() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [selection, setSelection] = useState<WubiEntry | null>(null);
   const normalizedQuery = query.trim();
   const deferredQuery = useDeferredValue(normalizedQuery);
   const isSearchPending = normalizedQuery !== deferredQuery;
@@ -74,66 +79,49 @@ export function LookupView() {
     return Array.from(map.entries());
   }, [results]);
 
+  const example = searchIndexes.byText.get("五")?.find((entry) => entry[1] === "gg");
+  const selected = normalizedQuery ? selection ?? results[0] ?? null : example ?? null;
+  const ready = !loading && !loadError && !isSearchPending;
+  const changeQuery = (value: string) => {
+    setQuery(value);
+    setSelection(null);
+  };
+
   return (
-    <section className="subpage lookup-page">
-      <div className="subpage-heading lookup-heading">
-        <span className="eyebrow">离线收录 13 万余条编码</span>
-        <h1>86 版五笔查码</h1>
-        <p>输入汉字、词组或 1–4 位编码，结果完全来自本地码表。</p>
+    <section className={`subpage ${styles.page}`}>
+      <header className={styles.heading}>
+        <div>
+          <span className={styles.kicker}>WUBI / 字与键之间</span>
+          <h1>五笔查码<span>86 版</span></h1>
+          <p>查到编码，也记住它在键盘上的位置。</p>
+        </div>
+      </header>
+      <LookupSearch query={query} onChange={changeQuery} loading={loading} />
+      <div className={styles.workbench}>
+        <section className={styles.results} aria-labelledby="lookup-results-title" aria-busy={loading || isSearchPending}>
+          <div className={styles.panelHeading}>
+            <h2 id="lookup-results-title">{normalizedQuery ? "查询结果" : "查一个字，从这里开始"}</h2>
+            <span className={styles.resultCount} role="status" aria-live="polite">
+              {loading ? "正在载入码表" : loadError ? "码表未就绪" : isSearchPending ? "正在查询…" : normalizedQuery ? `${results.length} 条编码` : "示例 / 五"}
+            </span>
+          </div>
+          {loadError && <ErrorState title="五笔码表没有加载成功" message={loadError} onRetry={() => setLoadAttempt((value) => value + 1)} />}
+          {!loadError && (loading || isSearchPending) && (
+            <div className={styles.loadingState}><div aria-hidden="true" /><p>{loading ? "正在准备本地码表，载入后即可查询。" : "正在匹配字词与编码…"}</p></div>
+          )}
+          {ready && selected && <LookupDetail key={`${selected[0]}:${selected[1]}`} entry={selected} example={!normalizedQuery} />}
+          {!normalizedQuery && ready && (
+            <div className={styles.idleNote}><span>字 → 码</span><p>想知道怎么打，输入中文。<br />想知道打出什么，输入编码。</p><span>码 → 字</span></div>
+          )}
+          {normalizedQuery && !isSearchPending && !loading && !loadError && (
+            results.length ? <>
+              <LookupResults groups={groupedResults} selected={selected} onSelect={setSelection} />
+              <p className={styles.resultsNote}>按码表词频排序，最多展示 60 条编码。</p>
+            </> : <div className={styles.emptyState}><span aria-hidden="true">?</span><h3>暂时没有找到</h3><p>检查汉字或编码是否正确。编码需为 1–4 位 A–Y 字母。</p><button type="button" onClick={() => changeQuery("五笔")}>试查“五笔”</button></div>
+          )}
+        </section>
+        <LookupGuide code={ready ? selected?.[1] ?? "" : ""} />
       </div>
-      <div className="lookup-search">
-        <div className="lookup-search-field">
-          <input
-            aria-label="查询汉字、词组或五笔编码"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={loading ? "正在加载离线码表…" : "例如：五笔、测试、ggtt"}
-          />
-          {query && <button onClick={() => setQuery("")}>清除</button>}
-        </div>
-      </div>
-      {loadError && (
-        <ErrorState
-          title="五笔码表没有加载成功"
-          message={loadError}
-          onRetry={() => setLoadAttempt((value) => value + 1)}
-        />
-      )}
-      {!normalizedQuery && (
-        <div className="lookup-empty">
-          <div className="keyboard-visual" aria-label="二十六字母键盘">
-            {["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].map((row) => (
-              <div className="keyboard-row" key={row}>
-                {row.split("").map((key) => <span key={key}>{key}</span>)}
-              </div>
-            ))}
-          </div>
-          <h2>查一个字，也可以反查一组编码</h2>
-          <p>输入中文会匹配汉字与词组；输入英文字母会精确反查编码。</p>
-          <div className="quick-searches">
-            {["五笔", "测试", "输入法", "ggtt"].map((item) => (
-              <button key={item} onClick={() => setQuery(item)}>{item}</button>
-            ))}
-          </div>
-        </div>
-      )}
-      {normalizedQuery && !isSearchPending && !loading && !loadError && (
-        <div className="lookup-results">
-          <div className="result-heading" role="status" aria-live="polite">
-            <span>查询结果</span><strong>{results.length} 条</strong>
-          </div>
-          {groupedResults.map(([text, entries]) => (
-            <div className="lookup-row" key={text}>
-              <strong>{text}</strong>
-              <div>
-                {entries.map((entry) => <code key={entry[1]}>{entry[1].toUpperCase()}</code>)}
-              </div>
-              <small>{Array.from(text).length === 1 ? "单字" : `${Array.from(text).length} 字词组`}</small>
-            </div>
-          ))}
-          {!results.length && <div className="empty-state">没有找到对应编码，请检查输入内容。</div>}
-        </div>
-      )}
     </section>
   );
 }
