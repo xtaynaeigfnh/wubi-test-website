@@ -871,6 +871,15 @@ test("lookup keyboard visual includes all 25 Wubi root keys", async () => {
   assert.doesNotMatch(component, /QWERTYUIOPASDFGHJKLZXCVBNM/);
 });
 
+test("lookup uses the same full content width as other subpages", async () => {
+  const styles = await readFile(stylesPath, "utf8");
+
+  assert.match(
+    styles,
+    /\.lookup-page \.lookup-heading,[\s\S]*?\.lookup-page \.lookup-results\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none/s,
+  );
+});
+
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
   const [component, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
