@@ -18,6 +18,7 @@ const uiPath = new URL("../app/components/Ui.tsx", import.meta.url);
 const dataManagementPath = new URL("../app/components/DataManagement.tsx", import.meta.url);
 const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.meta.url);
 const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
+const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
 
 test("interactive controls stay hidden and inert until hydration completes", async () => {
@@ -75,27 +76,27 @@ test("recorded data renders without replay animations", async () => {
 });
 
 test("challenge keeps wrong answers visible until the user advances", async () => {
-  const [component, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [challenge, styles] = await Promise.all([
+    readFile(challengeViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /feedback === "wrong"\) advanceQuestion\(\)/);
-  assert.doesNotMatch(component, /className="giant-code"/);
+  assert.match(challenge, /feedback === "wrong"\) advanceQuestion\(\)/);
+  assert.doesNotMatch(challenge, /className="giant-code"/);
   assert.doesNotMatch(styles, /\.giant-code\s*\{/);
   assert.match(styles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
-  assert.match(component, /你的输入/);
-  assert.match(component, /正确编码/);
-  assert.match(component, /下一题（回车）/);
-  assert.match(component, /role="alert"/);
-  assert.match(component, /const advanceLockRef = useRef\(false\)/);
+  assert.match(challenge, /你的输入/);
+  assert.match(challenge, /正确编码/);
+  assert.match(challenge, /下一题（回车）/);
+  assert.match(challenge, /role="alert"/);
+  assert.match(challenge, /const advanceLockRef = useRef\(false\)/);
   assert.match(
-    component,
+    challenge,
     /if \(advanceLockRef\.current \|\| recordedRef\.current\) return;/,
   );
-  assert.match(component, /pendingChallengeSaveRef/);
-  assert.match(component, /challengeSaveFailed/);
-  assert.match(component, />\s*重试保存\s*<\/button>/);
+  assert.match(challenge, /pendingChallengeSaveRef/);
+  assert.match(challenge, /challengeSaveFailed/);
+  assert.match(challenge, />\s*重试保存\s*<\/button>/);
 });
 
 test("training drills lock repeated submit and advance actions", async () => {
@@ -410,9 +411,10 @@ test("planned articles, custom text counts, and local writes keep UI state consi
 });
 
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
-  const [component, training, advanced, hesitation, ui, management, pwa, music] =
+  const [component, challenge, training, advanced, hesitation, ui, management, pwa, music] =
     await Promise.all([
       readFile(componentPath, "utf8"),
+      readFile(challengeViewPath, "utf8"),
       readFile(trainingCenterPath, "utf8"),
       readFile(advancedCenterPath, "utf8"),
       readFile(hesitationPracticePath, "utf8"),
@@ -430,7 +432,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(ui, /addEventListener\("popstate", onPopState\)/);
   assert.match(ui, /window\.history\.forward\(\)/);
   assert.match(training, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
-  assert.match(component, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
+  assert.match(challenge, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   for (const source of [component, advanced, hesitation]) {
     assert.match(source, /onDrop=\{/);
     assert.match(source, /insertFromDrop/);
