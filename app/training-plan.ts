@@ -48,6 +48,14 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function localDateKey(value: string | number | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function normalizedStat(item: ErrorStat) {
   return {
     codingErrors: item.codingErrors ?? item.count,
@@ -317,7 +325,9 @@ export function generateDailyTrainingPlan(
         : sum;
     }, 0),
   }));
-  const practicedDays = new Set(input.sessions.map((session) => session.date.slice(0, 10))).size;
+  const practicedDays = new Set(
+    input.sessions.map((session) => localDateKey(session.date)),
+  ).size;
   const selectedZone = zoneScores.some(({ score }) => score > 0)
     ? zoneScores.sort(
         (left, right) =>

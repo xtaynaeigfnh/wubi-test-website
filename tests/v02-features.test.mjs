@@ -480,6 +480,60 @@ test("daily training plans are deterministic and provide a complete first-use pr
   assert.ok(first.estimatedMinutes >= 3);
 });
 
+test("daily training plans count one local practice day across UTC dates and timezone offsets", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "Asia/Shanghai";
+  try {
+    const input = {
+      date: "2026-08-19",
+      now: new Date("2026-08-19T10:00:00+08:00"),
+      articles: trainingArticles,
+      progress: [],
+      sessions: [
+        session({ id: "after-midnight", date: "2026-08-18T12:30:00-04:00" }),
+        session({ id: "before-midnight", date: "2026-08-19T15:30:00Z" }),
+      ],
+      weakItems: [],
+      entries: trainingEntries,
+      preferredLength: "all",
+    };
+
+    const first = generateDailyTrainingPlan(input);
+    const second = generateDailyTrainingPlan(input);
+
+    assert.deepEqual(first, second);
+    assert.equal(first.tasks.find((task) => task.type === "roots").zoneId, "shu");
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
+
+test("daily training plans count practice days on both sides of local midnight", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "Asia/Shanghai";
+  try {
+    const plan = generateDailyTrainingPlan({
+      date: "2026-08-19",
+      now: new Date("2026-08-19T10:00:00+08:00"),
+      articles: trainingArticles,
+      progress: [],
+      sessions: [
+        session({ id: "before-midnight", date: "2026-08-18T15:30:00Z" }),
+        session({ id: "after-midnight", date: "2026-08-18T16:30:00Z" }),
+      ],
+      weakItems: [],
+      entries: trainingEntries,
+      preferredLength: "all",
+    });
+
+    assert.equal(plan.tasks.find((task) => task.type === "roots").zoneId, "zhe");
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
+
 test("daily training plans place due characters and phrases before ordinary weak items", () => {
   const plan = generateDailyTrainingPlan({
     date: "2026-08-19",
