@@ -19,6 +19,8 @@ const dataManagementPath = new URL("../app/components/DataManagement.tsx", impor
 const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.meta.url);
 const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
 const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", import.meta.url);
+const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
+const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
 
 test("interactive controls stay hidden and inert until hydration completes", async () => {
@@ -56,13 +58,15 @@ test("settings storage history waits until hydration before reading local data",
 });
 
 test("recorded data renders without replay animations", async () => {
-  const [component, trendPanel, styles] = await Promise.all([
+  const [component, history, trendPanel, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(historyViewPath, "utf8"),
     readFile(trendPanelPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
   assert.doesNotMatch(component, /className="metric-value"/);
+  assert.doesNotMatch(history, /className="metric-value"/);
   assert.doesNotMatch(trendPanel, /pathLength=|<svg\s+key=\{range\}/);
   assert.doesNotMatch(
     styles,
@@ -153,11 +157,11 @@ test("custom text limits and install failures are visible instead of silent", as
 });
 
 test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explanations", async () => {
-  const [management, training, weekly, app, styles] = await Promise.all([
+  const [management, training, weekly, history, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
     readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
-    readFile(componentPath, "utf8"),
+    readFile(historyViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
   assert.match(management, /数据清理/);
@@ -170,41 +174,41 @@ test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explan
   assert.match(training, /为什么这些弱项排在前面/);
   assert.match(training, /编码错误 50%、卡顿 30%、回改 20%/);
   assert.match(weekly, /六项能力的精确计算公式/);
-  assert.match(app, /这次成绩如何影响后续推荐/);
+  assert.match(history, /这次成绩如何影响后续推荐/);
   assert.doesNotMatch(styles, /\.storage-usage-list|\.storage-meter/);
 });
 
 test("history filters are visually separate and expose pressed state", async () => {
-  const [component, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [history, styles] = await Promise.all([
+    readFile(historyViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /className="segmented small history-filter"/);
-  assert.match(component, /aria-pressed=\{type === value\}/);
+  assert.match(history, /className="segmented small history-filter"/);
+  assert.match(history, /aria-pressed=\{type === value\}/);
   assert.match(styles, /\.segmented\.small\.history-filter\s*\{[^}]*gap:\s*6px/s);
   assert.match(
     styles,
     /\.segmented\.small\.history-filter\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
   );
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
-  assert.match(component, />\s*清除练习数据与计划\s*</);
-  const clearResults = component.match(
+  assert.match(history, />\s*清除练习数据与计划\s*</);
+  const clearResults = history.match(
     /const clearResults = \(\) => \{[\s\S]*?\n  \};/,
   )?.[0];
   assert.ok(clearResults);
   assert.doesNotMatch(clearResults, /clearKeyUsage/);
-  assert.match(component, /className="session-practice"/);
-  assert.match(component, /className="session-speed"/);
-  assert.match(component, /className="session-kps"/);
-  assert.match(component, /className="session-code-length"/);
-  assert.match(component, /className="session-accuracy"/);
-  assert.match(component, /className="session-diagnostics"/);
-  assert.match(component, /className="session-share"/);
-  assert.match(component, />\s*操作\s*</);
-  assert.match(component, />\s*速度\s*<\/span>\s*<span>击键<\/span>\s*<span>码长<\/span>\s*<span>字准\s*</);
-  assert.match(component, /session\.codeLength\.toFixed\(2\)/);
-  assert.match(component, /<small>键\/字<\/small>/);
+  assert.match(history, /className="session-practice"/);
+  assert.match(history, /className="session-speed"/);
+  assert.match(history, /className="session-kps"/);
+  assert.match(history, /className="session-code-length"/);
+  assert.match(history, /className="session-accuracy"/);
+  assert.match(history, /className="session-diagnostics"/);
+  assert.match(history, /className="session-share"/);
+  assert.match(history, />\s*操作\s*</);
+  assert.match(history, />\s*速度\s*<\/span>\s*<span>击键<\/span>\s*<span>码长<\/span>\s*<span>字准\s*</);
+  assert.match(history, /session\.codeLength\.toFixed\(2\)/);
+  assert.match(history, /<small>键\/字<\/small>/);
   assert.match(
     styles,
     /\.session-speed,\s*\.session-kps,\s*\.session-code-length,\s*\.session-accuracy\s*\{[^}]*white-space:\s*nowrap/s,
@@ -331,8 +335,9 @@ test("personal ghost races expose selection, live distance, replay, and responsi
 });
 
 test("typing completion and history expose an accessible hesitation heatmap", async () => {
-  const [component, heatmap, practice, training, styles] = await Promise.all([
+  const [component, history, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(historyViewPath, "utf8"),
     readFile(hesitationHeatmapPath, "utf8"),
     readFile(hesitationPracticePath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
@@ -345,14 +350,19 @@ test("typing completion and history expose an accessible hesitation heatmap", as
     /<\/article>[\s\S]*\{completed && \(lastSession\?\.rhythmSummary \|\| lastSession\?\.heatmap\) && \([\s\S]*className="post-practice-review"[\s\S]*<RhythmSummaryView[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
   );
   assert.equal(component.match(/className="post-practice-review"/g)?.length, 1);
-  assert.match(component, /className="session-heatmap-trigger"/);
-  assert.equal(component.match(/<HesitationHeatmap\b/g)?.length, 2);
+  assert.match(history, /className="session-heatmap-trigger"/);
+  assert.equal(component.match(/<HesitationHeatmap\b/g)?.length, 1);
+  assert.equal(history.match(/<HesitationHeatmap\b/g)?.length, 1);
   assert.match(
-    component,
+    history,
     /<HesitationHeatmap[\s\S]*heatmap=\{session\.heatmap\}[\s\S]*compact[\s\S]*source=\{session\}/,
   );
-  assert.match(component, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
-  assert.match(component, /aria-controls=\{`session-heatmap-\$\{session\.id\}`\}/);
+  assert.match(history, /aria-expanded=\{expandedHeatmapId === session\.id\}/);
+  assert.match(history, /aria-controls=\{`session-heatmap-\$\{session\.id\}`\}/);
+  assert.match(
+    component,
+    /view === "history" && \([\s\S]*<HistoryView\s+onPracticeHesitation=\{\(target\) =>\s*setActiveHesitationPractice\(\{ target \}\)\s*\}\s+onAddHesitationToQueue=\{addHesitationToQueue\}\s+queuedFingerprints=\{queuedFingerprints\}\s+masteredAtByFingerprint=\{masteredAtByFingerprint\}\s+hesitationSaveRevision=\{hesitationSaveRevision\}/,
+  );
   assert.match(heatmap, /卡顿位置热力图/);
   assert.match(heatmap, /aria-label="热力等级图例"/);
   assert.match(heatmap, /最明显的五处卡顿/);
@@ -426,7 +436,7 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 });
 
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
-  const [component, challenge, training, advanced, hesitation, ui, management, pwa, music] =
+  const [component, challenge, training, advanced, hesitation, ui, management, pwa, music, rhythmNavigation] =
     await Promise.all([
       readFile(componentPath, "utf8"),
       readFile(challengeViewPath, "utf8"),
@@ -437,6 +447,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
       readFile(dataManagementPath, "utf8"),
       readFile(pwaControlPath, "utf8"),
       readFile(musicPath, "utf8"),
+      readFile(rhythmNavigationPath, "utf8"),
     ]);
 
   assert.match(ui, /event\.isComposing \|\| event\.keyCode === 229/);
@@ -453,7 +464,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
     assert.match(source, /insertFromDrop/);
   }
   assert.match(advanced, /takeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY\)/);
-  assert.match(component, /writeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY/);
+  assert.match(rhythmNavigation, /writeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY/);
   assert.match(management, /readLocalForBackup/);
   assert.match(management, /parseBackupPayload\(createBackupPayload\(data\)\)/);
   assert.match(management, /document\.body\.appendChild\(link\)/);
@@ -812,13 +823,13 @@ test("typing surfaces record physical keys and the summary exposes the reference
 });
 
 test("history exposes an accessible weekly report and local image download", async () => {
-  const [component, weekly, card] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [history, weekly, card] = await Promise.all([
+    readFile(historyViewPath, "utf8"),
     readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/weekly-report-card.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(component, /<WeeklyReportPanel report=\{weeklyReport\}/);
+  assert.match(history, /<WeeklyReportPanel report=\{weeklyReport\}/);
   assert.match(weekly, /能力周报 · V0\.6/);
   assert.match(weekly, /role="img"/);
   assert.match(weekly, /aria-labelledby=\{`\$\{titleId\} \$\{descriptionId\}`\}/);
@@ -838,7 +849,7 @@ test("history exposes an accessible weekly report and local image download", asy
   assert.match(card, /canvas\.toBlob/);
   assert.match(card, /anchor\.download = `五笔周报-/);
   assert.match(card, /window\.setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 1000\)/);
-  assert.match(component, /if \(!clearPracticeHistory\(\)\)/);
+  assert.match(history, /if \(!clearPracticeHistory\(\)\)/);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
@@ -1074,15 +1085,18 @@ test("common-character practice inherits the article reading rhythm", async () =
 });
 
 test("common-character scores stay out of built-in article completion progress", async () => {
-  const component = await readFile(componentPath, "utf8");
+  const [component, history] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(historyViewPath, "utf8"),
+  ]);
 
   assert.match(
     component,
     /article\.kind === "custom" \|\|[\s\S]*article\.kind === "common" \|\|[\s\S]*article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
   );
-  assert.match(component, /文章完成度/);
-  assert.match(component, /loadArticleMetadata\(\)/);
-  assert.match(component, /completedArticleCount \/ articleTotal/);
+  assert.match(history, /文章完成度/);
+  assert.match(history, /loadArticleMetadata\(\)/);
+  assert.match(history, /completedArticleCount \/ articleTotal/);
 });
 
 test("one root-level audio player exposes accessible manual controls", async () => {
