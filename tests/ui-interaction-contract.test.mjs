@@ -19,6 +19,7 @@ const dataManagementPath = new URL("../app/components/DataManagement.tsx", impor
 const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.meta.url);
 const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
 const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", import.meta.url);
+const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.meta.url);
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
@@ -58,14 +59,14 @@ test("settings storage history waits until hydration before reading local data",
 });
 
 test("recorded data renders without replay animations", async () => {
-  const [component, history, trendPanel, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, history, trendPanel, styles] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(historyViewPath, "utf8"),
     readFile(trendPanelPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.doesNotMatch(component, /className="metric-value"/);
+  assert.doesNotMatch(typing, /className="metric-value"/);
   assert.doesNotMatch(history, /className="metric-value"/);
   assert.doesNotMatch(trendPanel, /pathLength=|<svg\s+key=\{range\}/);
   assert.doesNotMatch(
@@ -141,16 +142,20 @@ test("completed training task status keeps its own readable action column", asyn
 });
 
 test("custom text limits and install failures are visible instead of silent", async () => {
-  const [component, management, pwa] = await Promise.all([
+  const [component, typing, management, pwa] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(typingViewPath, "utf8"),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
     readFile(pwaControlPath, "utf8"),
   ]);
 
-  assert.match(component, /length > MAX_CUSTOM_TEXT_LENGTH/);
+  assert.match(typing, /length > MAX_CUSTOM_TEXT_LENGTH/);
   assert.match(management, /length > MAX_CUSTOM_TEXT_LENGTH/);
-  assert.match(component, /hesitationPracticeOpen=\{Boolean\(activeHesitationPractice\)\}/);
-  assert.match(component, /!hesitationPracticeOpen/);
+  assert.match(
+    component,
+    /view === "typing" && \(\s*<TypingView\s+settings=\{settings\}\s+settingsReady=\{settingsReady\}\s+onShowGhostGapChange=\{\(value\) =>\s*updateSettings\(\{\s*\.\.\.settings,\s*showGhostGap: value,\s*\}\)\s*\}\s+playKeySound=\{playKeySound\}\s+onPracticeHesitation=\{\(target\) =>\s*setActiveHesitationPractice\(\{ target \}\)\s*\}\s+onAddHesitationToQueue=\{addHesitationToQueue\}\s+queuedFingerprints=\{queuedFingerprints\}\s+masteredAtByFingerprint=\{masteredAtByFingerprint\}\s+hesitationPracticeOpen=\{Boolean\(activeHesitationPractice\)\}/,
+  );
+  assert.match(typing, /!hesitationPracticeOpen/);
   assert.match(pwa, /catch \{/);
   assert.match(pwa, /安装提示未能打开/);
   assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
@@ -229,35 +234,35 @@ test("history filters are visually separate and expose pressed state", async () 
 });
 
 test("typing exposes every filtered article and resets timing on restart", async () => {
-  const [component, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, styles] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /共 \{filtered\.length\} 篇符合当前筛选条件/);
-  assert.doesNotMatch(component, /filtered\.slice\(0, 60\)/);
-  assert.doesNotMatch(component, /本次练习出现过错字，无法提交成绩/);
-  assert.match(component, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
-  assert.match(component, /autoComplete="off"/);
-  assert.match(component, /autoCorrect="off"/);
-  assert.match(component, /autoCapitalize="none"/);
-  assert.match(component, /isWubiLetterKey\(event\.key, event\.code\)/);
-  assert.match(component, /<CodeLengthMetric/);
-  assert.match(component, /className="typing-diagnostics"/);
-  assert.match(component, /label="键准"/);
-  assert.match(component, /label="打词"/);
-  assert.match(component, /label="左右手"/);
-  assert.match(component, /aria-pressed=\{pausedAt !== null\}/);
+  assert.match(typing, /共 \{filtered\.length\} 篇符合当前筛选条件/);
+  assert.doesNotMatch(typing, /filtered\.slice\(0, 60\)/);
+  assert.doesNotMatch(typing, /本次练习出现过错字，无法提交成绩/);
+  assert.match(typing, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
+  assert.match(typing, /autoComplete="off"/);
+  assert.match(typing, /autoCorrect="off"/);
+  assert.match(typing, /autoCapitalize="none"/);
+  assert.match(typing, /isWubiLetterKey\(event\.key, event\.code\)/);
+  assert.match(typing, /<CodeLengthMetric/);
+  assert.match(typing, /className="typing-diagnostics"/);
+  assert.match(typing, /label="键准"/);
+  assert.match(typing, /label="打词"/);
+  assert.match(typing, /label="左右手"/);
+  assert.match(typing, /aria-pressed=\{pausedAt !== null\}/);
   assert.match(
-    component,
+    typing,
     /retryCount \+ 1,[\s\S]{0,100}startedAt !== null \? activeGhostMode : ghostMode/,
   );
-  assert.doesNotMatch(component, /<Metric\s+label="理论最小码长"/);
-  assert.match(component, /theoreticalValue=\{theoreticalCodeLength\}/);
-  assert.match(component, /theoreticalValue\.toFixed\(2\)/);
-  assert.match(component, />理论下限<\/span>/);
-  assert.match(component, /error\s*\?\s*"暂不可用"/);
-  assert.match(component, /theoreticalValue === null[\s\S]*\? "—"/);
+  assert.doesNotMatch(typing, /<Metric\s+label="理论最小码长"/);
+  assert.match(typing, /theoreticalValue=\{theoreticalCodeLength\}/);
+  assert.match(typing, /theoreticalValue\.toFixed\(2\)/);
+  assert.match(typing, />理论下限<\/span>/);
+  assert.match(typing, /error\s*\?\s*"暂不可用"/);
+  assert.match(typing, /theoreticalValue === null[\s\S]*\? "—"/);
   assert.match(
     styles,
     /\.metric-strip\s*\{[^}]*grid-template-columns:\s*minmax\(168px, 1\.35fr\) repeat\(5,/s,
@@ -275,7 +280,7 @@ test("typing exposes every filtered article and resets timing on restart", async
     /@media \(max-width: 780px\)[\s\S]*\.typing-diagnostics\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s,
   );
   assert.match(
-    component,
+    typing,
     /className="completion-value"><strong>\{speed\}<\/strong><i>字\/分<\/i>/,
   );
   assert.match(
@@ -283,39 +288,39 @@ test("typing exposes every filtered article and resets timing on restart", async
     /\.completion-value\s*\{[^}]*display:\s*inline-flex;[^}]*white-space:\s*nowrap;/s,
   );
   assert.match(
-    component,
+    typing,
     /articlesLoading\s*\|\|\s*\(!article && \(!settingsReady \|\| availableArticles\.length > 0\)\)/,
   );
 });
 
 test("personal ghost races expose selection, live distance, replay, and responsive review", async () => {
-  const [component, styles, ghostLogic] = await Promise.all([
-    readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
+  const [typing, styles, ghostLogic] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/ghost-race.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(component, /name="ghost-mode"/);
-  assert.match(component, /个人最佳/);
-  assert.match(component, /最近一次/);
-  assert.match(component, /disabled=\{!ghostSessions\.best\}/);
-  assert.match(component, /aria-pressed=\{showGhostGap\}/);
-  assert.match(component, /className="ghost-progress-marker"/);
-  assert.match(component, /幽灵赛复盘/);
-  assert.match(component, /再次挑战个人最佳/);
+  assert.match(typing, /name="ghost-mode"/);
+  assert.match(typing, /个人最佳/);
+  assert.match(typing, /最近一次/);
+  assert.match(typing, /disabled=\{!ghostSessions\.best\}/);
+  assert.match(typing, /aria-pressed=\{showGhostGap\}/);
+  assert.match(typing, /className="ghost-progress-marker"/);
+  assert.match(typing, /幽灵赛复盘/);
+  assert.match(typing, /再次挑战个人最佳/);
   assert.match(
-    component,
+    typing,
     /startedAt !== null \? activeGhostMode : ghostMode/,
   );
-  assert.match(component, /\[selectedGhostTimeline, startedAt\]/);
-  assert.match(component, /settings\.autoNext && activeGhostMode !== "off"/);
-  assert.match(component, /showGhostGap \? `，\$\{ghostGapLabel\}` : ""/);
-  assert.match(component, /onShowGhostGapChange\(next\)/);
-  assert.match(component, /split\(\/\[\\r\\n\]\+\//);
-  assert.match(component, /paragraphBoundaries/);
-  assert.doesNotMatch(component, /ghostGapLabel\}[\s\S]{0,80}aria-live=/);
-  assert.match(component, /document\.addEventListener\("visibilitychange"/);
-  assert.match(component, /inactiveDurationMsRef/);
-  assert.match(component, /completionElapsedRef\.current/);
+  assert.match(typing, /\[selectedGhostTimeline, startedAt\]/);
+  assert.match(typing, /settings\.autoNext && activeGhostMode !== "off"/);
+  assert.match(typing, /showGhostGap \? `，\$\{ghostGapLabel\}` : ""/);
+  assert.match(typing, /onShowGhostGapChange\(next\)/);
+  assert.match(typing, /split\(\/\[\\r\\n\]\+\//);
+  assert.match(typing, /paragraphBoundaries/);
+  assert.doesNotMatch(typing, /ghostGapLabel\}[\s\S]{0,80}aria-live=/);
+  assert.match(typing, /document\.addEventListener\("visibilitychange"/);
+  assert.match(typing, /inactiveDurationMsRef/);
+  assert.match(typing, /completionElapsedRef\.current/);
   assert.match(ghostLogic, /MAX_GHOST_TIMELINES = 90/);
   assert.match(ghostLogic, /articleVersion === identity\.articleVersion/);
   assert.match(styles, /\.ghost-progress-marker\s*\{/);
@@ -335,8 +340,9 @@ test("personal ghost races expose selection, live distance, replay, and responsi
 });
 
 test("typing completion and history expose an accessible hesitation heatmap", async () => {
-  const [component, history, heatmap, practice, training, styles] = await Promise.all([
+  const [component, typing, history, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(typingViewPath, "utf8"),
     readFile(historyViewPath, "utf8"),
     readFile(hesitationHeatmapPath, "utf8"),
     readFile(hesitationPracticePath, "utf8"),
@@ -344,14 +350,14 @@ test("typing completion and history expose an accessible hesitation heatmap", as
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
+  assert.match(typing, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.match(
-    component,
+    typing,
     /<\/article>[\s\S]*\{completed && \(lastSession\?\.rhythmSummary \|\| lastSession\?\.heatmap\) && \([\s\S]*className="post-practice-review"[\s\S]*<RhythmSummaryView[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
   );
-  assert.equal(component.match(/className="post-practice-review"/g)?.length, 1);
+  assert.equal(typing.match(/className="post-practice-review"/g)?.length, 1);
   assert.match(history, /className="session-heatmap-trigger"/);
-  assert.equal(component.match(/<HesitationHeatmap\b/g)?.length, 1);
+  assert.equal(typing.match(/<HesitationHeatmap\b/g)?.length, 1);
   assert.equal(history.match(/<HesitationHeatmap\b/g)?.length, 1);
   assert.match(
     history,
@@ -397,19 +403,19 @@ test("typing completion and history expose an accessible hesitation heatmap", as
 });
 
 test("planned articles, custom text counts, and local writes keep UI state consistent", async () => {
-  const [component, training, management] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, training, management] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(component, /trainingPlan\?\.date === localDateKey\(new Date\(\)\)/);
-  assert.match(component, /const currentId = trainingArticleId \?\? storedCurrentId/);
-  assert.match(component, /Boolean\(trainingArticleId\)/);
-  assert.match(component, /Array\.from\(customText\.trim\(\)\)\.length/);
-  assert.match(component, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
-  assert.match(component, /if \(customSaveLock\.current\) return;/);
-  assert.match(component, /custom-\$\{createLocalId\(\)\}/);
+  assert.match(typing, /trainingPlan\?\.date === localDateKey\(new Date\(\)\)/);
+  assert.match(typing, /const currentId = trainingArticleId \?\? storedCurrentId/);
+  assert.match(typing, /Boolean\(trainingArticleId\)/);
+  assert.match(typing, /Array\.from\(customText\.trim\(\)\)\.length/);
+  assert.match(typing, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
+  assert.match(typing, /if \(customSaveLock\.current\) return;/);
+  assert.match(typing, /custom-\$\{createLocalId\(\)\}/);
   assert.match(training, /Math\.round\(value \|\| minimum\)/);
   assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
   assert.match(management, /if \(!saved\) return;/);
@@ -436,9 +442,9 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 });
 
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
-  const [component, challenge, training, advanced, hesitation, ui, management, pwa, music, rhythmNavigation] =
+  const [typing, challenge, training, advanced, hesitation, ui, management, pwa, music, rhythmNavigation] =
     await Promise.all([
-      readFile(componentPath, "utf8"),
+      readFile(typingViewPath, "utf8"),
       readFile(challengeViewPath, "utf8"),
       readFile(trainingCenterPath, "utf8"),
       readFile(advancedCenterPath, "utf8"),
@@ -459,7 +465,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(ui, /window\.history\.forward\(\)/);
   assert.match(training, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   assert.match(challenge, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
-  for (const source of [component, advanced, hesitation]) {
+  for (const source of [typing, advanced, hesitation]) {
     assert.match(source, /onDrop=\{/);
     assert.match(source, /insertFromDrop/);
   }
@@ -474,8 +480,9 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
 });
 
 test("failed local saves cannot be discarded or shown as successful", async () => {
-  const [component, training, summary, advanced, management] = await Promise.all([
+  const [component, typing, training, summary, advanced, management] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(typingViewPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
     readFile(keySummaryPath, "utf8"),
     readFile(advancedCenterPath, "utf8"),
@@ -483,54 +490,54 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   ]);
 
   assert.match(
-    component,
+    typing,
     /if \(pendingPracticeSave\.current\) \{\s*window\.alert\("本次成绩尚未保存，请先重试保存。"\);\s*return;/s,
   );
   assert.match(
-    component,
+    typing,
     /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*pendingPracticeSave\.current[\s\S]*router\.push/,
   );
   assert.match(component, /if \(!writeLocal\(STORAGE\.settings, next\)\)/);
   assert.match(component, /设置未能保存，原设置保持不变/);
   assert.match(
-    component,
+    typing,
     /const previousCurrent = readLocal<string \| null>\(STORAGE\.current, null\)/,
   );
   assert.match(
-    component,
+    typing,
     /const previousGenerated = readLocal<PracticeArticle \| null>\([\s\S]*STORAGE\.currentGenerated/,
   );
   assert.match(
-    component,
+    typing,
     /const previousRecent = readLocalArray<string>\(STORAGE\.recent\)/,
   );
   assert.match(
-    component,
+    typing,
     /const selectionSaved =[\s\S]*writeLocal\(STORAGE\.current, next\.id\)[\s\S]*writeLocal\([\s\S]*STORAGE\.currentGenerated[\s\S]*writeLocal\(STORAGE\.recent, nextRecent\)/,
   );
   assert.match(
-    component,
+    typing,
     /if \(!selectionSaved\) \{[\s\S]*writeLocal\(STORAGE\.current, previousCurrent\);[\s\S]*writeLocal\(STORAGE\.currentGenerated, previousGenerated\);[\s\S]*writeLocal\(STORAGE\.recent, previousRecent\);[\s\S]*return false;/,
   );
   assert.match(
-    component,
+    typing,
     /if \(!selectionSaved\) \{[\s\S]*return false;[\s\S]*\}[\s\S]*setArticle\(next\)/,
   );
-  assert.match(component, /文章选择未能保存，原练习保持不变/);
-  assert.match(component, /if \(chooseArticle\(buildCommonPracticeArticle/);
+  assert.match(typing, /文章选择未能保存，原练习保持不变/);
+  assert.match(typing, /if \(chooseArticle\(buildCommonPracticeArticle/);
   assert.match(
-    component,
+    typing,
     /const practiceInProgress = startedAt !== null && !completed;/,
   );
   assert.match(
-    component,
+    typing,
     /usePendingSaveGuard\([\s\S]*sessionSaveFailed \|\| practiceInProgress[\s\S]*本次练习尚未完成/,
   );
   assert.match(
-    component,
+    typing,
     /if \(!chooseArticle\(custom\)\) \{[\s\S]*writeLocal\(STORAGE\.customTexts, saved\)[\s\S]*return;/,
   );
-  assert.match(component, /disabled=\{practiceInProgress\}/);
+  assert.match(typing, /disabled=\{practiceInProgress\}/);
 
   assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
   assert.match(training, /if \(pendingDrillSaveRef\.current\) \{/);
@@ -549,13 +556,13 @@ test("failed local saves cannot be discarded or shown as successful", async () =
 });
 
 test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {
-  const [component, pwa] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, pwa] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(pwaControlPath, "utf8"),
   ]);
-  assert.match(component, /physicalRhythmSamplesRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
-  assert.match(component, /if \(event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey\) return;/);
-  assert.match(component, /disabled=\{sessionSaveFailed\}/);
+  assert.match(typing, /physicalRhythmSamplesRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
+  assert.match(typing, /if \(event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey\) return;/);
+  assert.match(typing, /disabled=\{sessionSaveFailed\}/);
   assert.match(pwa, /installLockRef\.current/);
   assert.match(pwa, /disabled=\{installing \|\| !promptEvent\}/);
 });
@@ -691,21 +698,21 @@ test("advanced training content stays inside ultra-narrow viewports", async () =
 });
 
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
-  const [component, training, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, training, styles] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /analyzeCodeLengthCoach\(targetText/);
-  assert.match(component, /<h3 id="code-coach-title">码长诊断<\/h3>/);
-  assert.match(component, /label="单字输入基准"/);
-  assert.match(component, /值得留意的推荐机会/);
-  assert.match(component, /无法可靠识别你本次实际采用的分段/);
-  assert.match(component, />\s*练习这些词组\s*<\/button>/);
-  assert.match(component, /router\.push\("\/training\?tab=phrase"\)/);
-  assert.match(component, /sessionSaveFailed[\s\S]*"本次成绩尚未保存"/);
-  assert.match(component, />\s*重试保存\s*<\/button>/);
+  assert.match(typing, /analyzeCodeLengthCoach\(targetText/);
+  assert.match(typing, /<h3 id="code-coach-title">码长诊断<\/h3>/);
+  assert.match(typing, /label="单字输入基准"/);
+  assert.match(typing, /值得留意的推荐机会/);
+  assert.match(typing, /无法可靠识别你本次实际采用的分段/);
+  assert.match(typing, />\s*练习这些词组\s*<\/button>/);
+  assert.match(typing, /router\.push\("\/training\?tab=phrase"\)/);
+  assert.match(typing, /sessionSaveFailed[\s\S]*"本次成绩尚未保存"/);
+  assert.match(typing, />\s*重试保存\s*<\/button>/);
   assert.match(training, /\["phrase", "词组专项"\]/);
   assert.match(training, /getPhraseOpportunities\(\)/);
   assert.match(training, /trackPhrasePractice/);
@@ -731,20 +738,20 @@ test("mobile navigation scrolls the active route into view", async () => {
 });
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
-  const [component, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, styles] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /\["QWERT", "撇区"\]/);
-  assert.match(component, /\["YUIOP", "捺区"\]/);
-  assert.match(component, /\["ASDFG", "横区"\]/);
-  assert.match(component, /\["HJKLM", "竖区"\]/);
-  assert.match(component, /\["XCVBN", "折区"\]/);
-  assert.match(component, /progressRatio \* 5 - index/);
-  assert.match(component, /"--segment-progress": `\$\{segmentProgress \* 100\}%`/);
-  assert.match(component, /role="progressbar"/);
-  assert.doesNotMatch(component, /className="progress-track"/);
+  assert.match(typing, /\["QWERT", "撇区"\]/);
+  assert.match(typing, /\["YUIOP", "捺区"\]/);
+  assert.match(typing, /\["ASDFG", "横区"\]/);
+  assert.match(typing, /\["HJKLM", "竖区"\]/);
+  assert.match(typing, /\["XCVBN", "折区"\]/);
+  assert.match(typing, /progressRatio \* 5 - index/);
+  assert.match(typing, /"--segment-progress": `\$\{segmentProgress \* 100\}%`/);
+  assert.match(typing, /role="progressbar"/);
+  assert.doesNotMatch(typing, /className="progress-track"/);
   assert.match(styles, /transition:\s*width 120ms linear/);
 });
 
@@ -767,18 +774,19 @@ test("key sound is shared by typing, challenge, and the settings preview", async
 });
 
 test("typing surfaces record physical keys and the summary exposes the reference analyses", async () => {
-  const [component, training, summary, styles] = await Promise.all([
+  const [component, typing, training, summary, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(typingViewPath, "utf8"),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(keySummaryPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /recordKeyUsage\(event\.code\)/);
+  assert.match(typing, /recordKeyUsage\(event\.code\)/);
   assert.match(training, /recordKeyUsage\(event\.code\)/);
   assert.match(component, /view: "summary", href: "\/summary", label: "统计"/);
-  assert.doesNotMatch(component, /查看按键画像/);
-  assert.doesNotMatch(component, /key-profile-entry/);
+  assert.doesNotMatch(typing, /查看按键画像/);
+  assert.doesNotMatch(typing, /key-profile-entry/);
   assert.match(styles, /\.button\s*\{[^}]*display:\s*inline-flex/s);
   assert.doesNotMatch(styles, /key-profile-entry/);
   assert.doesNotMatch(summary, /返回本地成绩/);
@@ -853,18 +861,18 @@ test("history exposes an accessible weekly report and local image download", asy
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
-  const [component, styles] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, styles] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, /className="article-toolbar-actions"/);
-  assert.match(component, /className="article-restart"/);
-  assert.doesNotMatch(component, /<strong>\{progressPercent\}%<\/strong>/);
-  assert.match(component, /className="code-hint-character"/);
-  assert.match(component, /当前字 · 编码/);
-  assert.match(component, /targetCharacters\[typedCharacters\.length\]/);
-  assert.match(component, /aria-live="polite"/);
+  assert.match(typing, /className="article-toolbar-actions"/);
+  assert.match(typing, /className="article-restart"/);
+  assert.doesNotMatch(typing, /<strong>\{progressPercent\}%<\/strong>/);
+  assert.match(typing, /className="code-hint-character"/);
+  assert.match(typing, /当前字 · 编码/);
+  assert.match(typing, /targetCharacters\[typedCharacters\.length\]/);
+  assert.match(typing, /aria-live="polite"/);
   assert.match(styles, /\.code-hint-card\s*\{[^}]*grid-template-columns:\s*30px/s);
   assert.match(styles, /\.code-hint-character\s*\{[^}]*font:\s*500 19px\/1/s);
   assert.match(styles, /\.code-hint-copy b\s*\{[^}]*font:\s*760 15px\/1\.05/s);
@@ -877,7 +885,7 @@ test("code hint pairs the current character with a compact toolbar code card", a
     styles,
     /@media \(max-width: 420px\)[\s\S]*\.article-restart \.toolbar-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
   );
-  assert.match(component, /role="group"\s+aria-label="当前练习操作"/);
+  assert.match(typing, /role="group"\s+aria-label="当前练习操作"/);
 });
 
 test("lookup connects selected codes to an ordered keyboard guide and accessible search", async () => {
@@ -922,20 +930,21 @@ test("lookup workbench adapts to narrow screens and reduced motion with scoped s
 });
 
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
-  const [component, styles] = await Promise.all([
+  const [component, typing, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
+    readFile(typingViewPath, "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
 
-  assert.match(component, />\s*常用字练习\s*</);
-  assert.match(component, /选择常用字范围/);
-  assert.match(component, /commonCharacterPresets\.map/);
-  assert.match(component, /分成 10 组，每组 50 字/);
+  assert.match(typing, />\s*常用字练习\s*</);
+  assert.match(typing, /选择常用字范围/);
+  assert.match(typing, /commonCharacterPresets\.map/);
+  assert.match(typing, /分成 10 组，每组 50 字/);
   assert.match(component, /className="theme-switch"/);
   assert.match(component, /点击切换为/);
-  assert.match(component, />\s*\{commonLoading \? "载入中…" : "乱序"\}\s*</);
-  assert.match(component, /isCommonPracticeArticle\(article\)/);
-  assert.match(component, /STORAGE\.currentGenerated/);
+  assert.match(typing, />\s*\{commonLoading \? "载入中…" : "乱序"\}\s*</);
+  assert.match(typing, /isCommonPracticeArticle\(article\)/);
+  assert.match(typing, /STORAGE\.currentGenerated/);
   assert.match(styles, /\.common-range-grid\s*\{/);
   assert.match(styles, /\.common-range-grid button:last-child\s*\{/);
   assert.match(styles, /\.toolbar-actions \.shuffle-action\s*\{/);
@@ -1085,13 +1094,13 @@ test("common-character practice inherits the article reading rhythm", async () =
 });
 
 test("common-character scores stay out of built-in article completion progress", async () => {
-  const [component, history] = await Promise.all([
-    readFile(componentPath, "utf8"),
+  const [typing, history] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
     readFile(historyViewPath, "utf8"),
   ]);
 
   assert.match(
-    component,
+    typing,
     /article\.kind === "custom" \|\|[\s\S]*article\.kind === "common" \|\|[\s\S]*article\.id\.startsWith\("custom-"\)[\s\S]*\? undefined[\s\S]*: article\.id/,
   );
   assert.match(history, /文章完成度/);

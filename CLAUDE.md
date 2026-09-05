@@ -46,7 +46,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/share-card.ts` — 本地成绩卡 PNG 生成
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
 - `app/music.ts` — 音乐目录解析与播放逻辑
-- `app/components/WubiApp.tsx` — 主应用组件，根据 `view` prop 渲染不同页面
+- `app/components/WubiApp.tsx` — 应用外壳，根据 `view` prop 分发页面，管理共享设置、主题、音效与卡顿加练状态
+- `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的状态与副作用仍整体保留在 `TypingView.tsx`
 - `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护
 - `app/components/AdvancedCenter.tsx` — 节奏、实战与阶段目标的进阶训练页
 - `app/components/WeeklyReportPanel.tsx` — 周报、能力雷达、改善解释与下一步建议

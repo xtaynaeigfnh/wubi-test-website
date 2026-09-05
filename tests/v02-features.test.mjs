@@ -2672,8 +2672,9 @@ test("build lifecycle stays cross-platform and project-rooted", async () => {
 });
 
 test("all nine v0.2 feature surfaces stay wired into the product", async () => {
-  const [app, training, management, trends, pwa, share] = await Promise.all([
+  const [app, typing, training, management, trends, pwa, share] = await Promise.all([
     readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/views/TypingView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/TrendPanel.tsx", import.meta.url), "utf8"),
@@ -2698,7 +2699,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(trends, /速度与字准/);
   assert.match(pwa, /serviceWorker/);
   assert.match(share, /canvas\.toDataURL/);
-  assert.match(app, /downloadShareCard/);
+  assert.match(typing, /downloadShareCard/);
   assert.match(app, /TrainingCenter/);
   assert.match(app, /KeySummary/);
 });
