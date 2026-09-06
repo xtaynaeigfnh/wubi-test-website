@@ -197,6 +197,7 @@ export function ChallengeView({
         window.clearTimeout(nextTimerRef.current);
         nextTimerRef.current = null;
       }
+      setIndex(answered);
       setFinishedReason(reason);
       setStarted(false);
     },
@@ -246,7 +247,7 @@ export function ChallengeView({
   );
 
   const start = () => {
-    if (!pool.length || challengeSaveFailed) return;
+    if (startedRef.current || !pool.length || challengeSaveFailed) return;
     if (nextTimerRef.current) window.clearTimeout(nextTimerRef.current);
     recordedRef.current = false;
     advanceLockRef.current = false;
@@ -294,6 +295,12 @@ export function ChallengeView({
   );
 
   const submit = () => {
+    if (!startedRef.current || recordedRef.current) return;
+    if (timed && Date.now() >= deadlineRef.current) {
+      const answered = index + (feedback === "idle" ? 0 : 1);
+      finishChallenge(answered, correct, "timeout");
+      return;
+    }
     if (!question || !input || feedback !== "idle" || submitLockRef.current) return;
     submitLockRef.current = true;
     const isRight = input.toLowerCase() === question[1];
