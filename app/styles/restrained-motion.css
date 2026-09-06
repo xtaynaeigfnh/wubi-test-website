@@ -1,0 +1,162 @@
+@media (max-width: 620px) {
+  .due-review-list,
+  .hesitation-queue-list {
+    grid-template-columns: 1fr;
+  }
+
+  .due-review-list li,
+  .hesitation-queue-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .due-review-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .due-review-actions .button,
+  .hesitation-queue-list .button {
+    width: 100%;
+  }
+
+  .hesitation-practice-modal {
+    max-height: calc(100dvh - 96px);
+    padding: 14px;
+  }
+
+  .hesitation-practice-meta,
+  .hesitation-practice-ready,
+  .hesitation-practice-done,
+  .hesitation-save-error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hesitation-practice-meta > span {
+    text-align: left;
+  }
+
+  .hesitation-practice-target {
+    padding: 14px 10px;
+    font-size: 23px;
+  }
+
+  .hesitation-round-result {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hesitation-round-result .button {
+    grid-column: 1 / -1;
+  }
+
+  .hesitation-practice-ready .button,
+  .hesitation-practice-done .button,
+  .hesitation-save-error .button {
+    width: 100%;
+  }
+
+  .hesitation-segment-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .hesitation-segment-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heatmap-segment-button,
+  .hesitation-practice-modal *,
+  .hesitation-practice-modal *::before,
+  .hesitation-practice-modal *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+/* Restrained motion: progress settles, tabs respond, rhythm reveals in sequence. */
+
+.training-tabs button,
+.advanced-tabs button {
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 180ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .training-tabs button:hover:not(.active),
+  .advanced-tabs button:hover:not(.active) {
+    transform: translateY(-1px);
+  }
+}
+
+.training-tabs button.active,
+.advanced-tabs button.active {
+  animation: tab-settle-in 220ms var(--ease-out) both;
+}
+
+.goal-row > i {
+  position: relative;
+}
+
+.goal-row > i b {
+  transform-origin: left center;
+  animation: goal-fill-in 520ms var(--ease-out) both;
+}
+
+.goal-row[data-complete="true"] > i::after {
+  content: "";
+  width: 32%;
+  position: absolute;
+  inset: 0 auto 0 -32%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-on-accent) 55%, transparent), transparent);
+  animation: goal-complete-sheen 460ms 180ms var(--ease-out) both;
+}
+
+.advanced-rhythm-curve i {
+  transform-origin: center bottom;
+  animation: rhythm-bar-rise 420ms calc(70ms + var(--rhythm-index) * 24ms) var(--ease-out) both;
+}
+
+@keyframes tab-settle-in {
+  from {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes goal-fill-in {
+  from {
+    opacity: 0.55;
+    transform: scaleX(0);
+  }
+}
+
+@keyframes goal-complete-sheen {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(412.5%);
+  }
+}
+
+@keyframes rhythm-bar-rise {
+  from {
+    opacity: 0.2;
+    transform: scaleY(0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .training-tabs button,
+  .advanced-tabs button,
+  .goal-row > i b,
+  .goal-row[data-complete="true"] > i::after,
+  .advanced-rhythm-curve i {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -23,6 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **框架**: Next.js 16 + Vinext（Vite-based Next.js 运行时）。`.openai/hosting.json`、`vite.config.ts`、`build/sites-vite-plugin.ts` 和 `worker/index.ts` 用于 Sites/Cloudflare Worker 构建与部署；`next.config.ts` 与 `.github/workflows/pages.yml` 用于 GitHub Pages 静态导出。当前 hosting 配置不使用 D1 或 R2。`next.config.ts` 中基于 `process.cwd()` 的 Turbopack 根目录设置用于保证中文路径下的静态构建稳定，不要移除。
 
 **路由结构** (`app/`):
+全局样式以 `app/globals.css` 为唯一入口，按功能物理拆分到 `app/styles/` 下的各文件中，入口仅保留按原级联顺序排列的 `@import` 清单。
 - `page.tsx` → 首页文章测速（WubiApp view="typing"）
 - `training/page.tsx` → 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练
 - `advanced/page.tsx` → 进阶训练：节奏实验室、中文实战场与阶段目标
