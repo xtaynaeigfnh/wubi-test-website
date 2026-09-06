@@ -139,6 +139,7 @@ export function TrainingCenter({
   }, []);
 
   const refreshLocal = useCallback(() => {
+    if (pendingDrillSaveRef.current || drillInProgressRef.current) return;
     const nextLocalDate = localDateKey(new Date());
     if (activeLocalDate.current !== nextLocalDate) {
       activeLocalDate.current = nextLocalDate;
@@ -162,7 +163,7 @@ export function TrainingCenter({
 
   useEffect(() => {
     if (!pendingDrillSave) refreshLocal();
-  }, [hesitationSaveRevision, pendingDrillSave, refreshLocal]);
+  }, [hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal]);
 
   useEffect(() => {
     if (

@@ -81,20 +81,24 @@ export function commitLocalWrites(writes: Map<string, unknown>): boolean {
   } catch {
     return false;
   }
+  const writtenKeys: string[] = [];
   try {
     for (const [key, value] of writes) {
       window.localStorage.setItem(key, JSON.stringify(value));
+      writtenKeys.push(key);
     }
     return true;
   } catch {
-    try {
-      for (const [key, oldValue] of previous) {
+    // Reverse successful writes to revisit storage states that already fit the
+    // quota. Restoring in forward order can grow a key before freeing later writes.
+    for (const key of writtenKeys.reverse()) {
+      try {
+        const oldValue = previous.get(key)!;
         if (oldValue === null) window.localStorage.removeItem(key);
         else window.localStorage.setItem(key, oldValue);
+      } catch {
+        // A blocked key must not prevent the remaining keys from being restored.
       }
-    } catch {
-      // The original write already failed; keep the API non-throwing for a
-      // completed practice while making a best effort to restore every key.
     }
     return false;
   }

@@ -21,6 +21,13 @@ function isSamePageAnchor(anchor: Element, currentHref: string) {
   return href !== null && href.includes("#") && isSamePageUrl(href, currentHref);
 }
 
+function isCurrentPageNavigationClick(event: MouseEvent, anchor: Element) {
+  const target = anchor.getAttribute("target");
+  return !event.defaultPrevented && event.button === 0 &&
+    !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey &&
+    !anchor.hasAttribute("download") && (!target || target.toLowerCase() === "_self");
+}
+
 export function usePendingSaveGuard(
   blocked: boolean,
   message = "本次成绩尚未保存，请先重试保存。",
@@ -57,6 +64,7 @@ export function usePendingSaveGuard(
       if (!(event.target instanceof Element)) return;
       const anchor = event.target.closest("a[href]");
       if (!anchor || isSamePageAnchor(anchor, window.location.href)) return;
+      if (!isCurrentPageNavigationClick(event, anchor)) return;
       event.preventDefault();
       event.stopPropagation();
       window.alert(message);
@@ -175,6 +183,7 @@ export function useInProgressLeaveGuard(
       if (!(event.target instanceof Element)) return;
       const anchor = event.target.closest("a[href]");
       if (!anchor || isSamePageAnchor(anchor, window.location.href)) return;
+      if (!isCurrentPageNavigationClick(event, anchor)) return;
       if (confirmDiscard()) return;
       event.preventDefault();
       event.stopPropagation();

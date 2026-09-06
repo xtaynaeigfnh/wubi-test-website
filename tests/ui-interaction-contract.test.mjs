@@ -35,13 +35,13 @@ const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.
 const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
 
 async function readTypingSource() {
-  const hookNames = (await readdir(typingHooksDir))
-    .filter((name) => name.endsWith(".ts"))
+  const typingSourceNames = (await readdir(typingHooksDir))
+    .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
     .sort();
-  const hookSources = await Promise.all(
-    hookNames.map((name) => readFile(new URL(name, typingHooksDir), "utf8")),
+  const typingSources = await Promise.all(
+    typingSourceNames.map((name) => readFile(new URL(name, typingHooksDir), "utf8")),
   );
-  return [await readFile(typingViewPath, "utf8"), ...hookSources].join("\n");
+  return [await readFile(typingViewPath, "utf8"), ...typingSources].join("\n");
 }
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
@@ -182,6 +182,32 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(pwa, /catch \{/);
   assert.match(pwa, /安装提示未能打开/);
   assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
+});
+
+test("typing display responsibilities stay in focused components", async () => {
+  const [typing, articlePicker, commonPicker, customModal, completion] =
+    await Promise.all([
+      readFile(typingViewPath, "utf8"),
+      readFile(new URL("ArticlePicker.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("CommonCharacterPicker.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("CustomTextModal.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("CompletionPanel.tsx", typingHooksDir), "utf8"),
+    ]);
+
+  assert.match(typing, /<ArticlePicker\s/);
+  assert.match(typing, /<CommonCharacterPicker\s/);
+  assert.match(typing, /<CustomTextModal\s/);
+  assert.match(typing, /<CompletionPanel\s/);
+  assert.doesNotMatch(typing, /<Modal title="选择练习文章"/);
+  assert.doesNotMatch(typing, /<Modal title="选择常用字范围"/);
+  assert.doesNotMatch(typing, /<Modal title="粘贴自定义文本"/);
+  assert.match(articlePicker, /export function ArticlePicker/);
+  assert.match(commonPicker, /export function CommonCharacterPicker/);
+  assert.match(customModal, /export function CustomTextModal/);
+  assert.match(completion, /export function CompletionPanel/);
+  for (const source of [articlePicker, commonPicker, customModal, completion]) {
+    assert.doesNotMatch(source, /from ["']\.\.\/TypingView/);
+  }
 });
 
 test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explanations", async () => {
@@ -335,7 +361,7 @@ test("personal ghost races expose selection, live distance, replay, and responsi
     /startedAt !== null \? activeGhostMode : ghostMode/,
   );
   assert.match(typing, /\[selectedGhostTimeline, startedAt\]/);
-  assert.match(typing, /settings\.autoNext && activeGhostMode !== "off"/);
+  assert.match(typing, /autoNext && activeGhostMode !== "off"/);
   assert.match(typing, /showGhostGap \? `，\$\{ghostGapLabel\}` : ""/);
   assert.match(typing, /onShowGhostGapChange\(next\)/);
   assert.match(typing, /split\(\/\[\\r\\n\]\+\//);
@@ -435,7 +461,7 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(typing, /trainingPlan\?\.date === localDateKey\(new Date\(\)\)/);
   assert.match(typing, /const currentId = trainingArticleId \?\? storedCurrentId/);
   assert.match(typing, /Boolean\(trainingArticleId\)/);
-  assert.match(typing, /Array\.from\(customText\.trim\(\)\)\.length/);
+  assert.match(typing, /Array\.from\((?:customText|text)\.trim\(\)\)\.length/);
   assert.match(typing, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
   assert.match(typing, /if \(customSaveLock\.current\) return;/);
   assert.match(typing, /custom-\$\{createLocalId\(\)\}/);
@@ -1236,9 +1262,10 @@ test("leave guards allow same-page anchors and hash history while protecting oth
       removeEventListener() {},
     };
     class Element {
-      constructor(href) { this.href = href; }
+      constructor(href, attributes = {}) { this.attributes = { href, ...attributes }; }
       closest() { return this; }
-      getAttribute() { return this.href; }
+      getAttribute(name) { return this.attributes[name] ?? null; }
+      hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
     }
     const exports = {};
     new Function("require", "exports", "window", "document", "Element", compiled)(
@@ -1250,7 +1277,7 @@ test("leave guards allow same-page anchors and hash history while protecting oth
     exports[hookName](true, hookName === "useInProgressLeaveGuard" ? () => { discards += 1; } : "待保存");
     const dispatch = (name, values) => {
       const event = {
-        cancelable: true, prevented: false,
+        cancelable: true, prevented: false, button: 0,
         preventDefault() { this.prevented = true; },
         stopPropagation() {},
         ...values,
@@ -1261,6 +1288,16 @@ test("leave guards allow same-page anchors and hash history while protecting oth
 
     for (const href of ["#main-content", `${page}#main-content`, `${page}#`]) {
       assert.equal(dispatch("click", { target: new Element(href) }).prevented, false, hookName);
+    }
+    const otherPage = "/wubi-test-website/history/";
+    for (const values of [
+      { metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true },
+      { button: 1 }, { defaultPrevented: true },
+      { target: new Element(otherPage, { target: "_blank" }) },
+      { target: new Element(otherPage, { target: "report-window" }) },
+      { target: new Element(otherPage, { download: "成绩.json" }) },
+    ]) {
+      assert.equal(dispatch("click", { target: new Element(otherPage), ...values }).prevented, false, hookName);
     }
     window.location.href = `${page}#main-content`;
     dispatch("popstate", { state: null });
@@ -1284,6 +1321,89 @@ test("leave guards allow same-page anchors and hash history while protecting oth
     dispatch("popstate", { state: null });
     assert.equal(forwards, 1, hookName);
     assert.equal(discards, 0, hookName);
+    if (hookName === "useInProgressLeaveGuard") {
+      window.confirm = () => true;
+      assert.equal(dispatch("click", {
+        target: new Element(otherPage, { target: "_self" }),
+      }).prevented, false);
+      assert.equal(discards, 1, "ordinary same-tab navigation still discards after confirmation");
+    }
     for (const cleanup of cleanups) cleanup();
   }
+});
+
+test("training refresh preserves an active drill across midnight and resumes when it ends", async () => {
+  const source = await readFile(trainingCenterPath, "utf8");
+  const refreshBody = source.match(/const refreshLocal = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[\]\);/)?.[1];
+  assert.ok(refreshBody, "training refresh callback is available for behavioral verification");
+  const pendingDrillSaveRef = { current: false };
+  const drillInProgressRef = { current: true };
+  const activeLocalDate = { current: "2026-09-06" };
+  let activeDueReview = { targetId: "字", targetType: "character" };
+  let localReads = 0;
+  const dependencies = {
+    pendingDrillSaveRef, drillInProgressRef, activeLocalDate,
+    localDateKey: () => "2026-09-07",
+    setActiveDueReview(value) { activeDueReview = value; },
+    getErrors() { localReads += 1; return []; },
+    getPhraseOpportunities: () => [], getSessions: () => [],
+    readDailyGoal: () => ({}), readHesitationQueue: () => null,
+    syncSpacedReviewState: () => ({}), readSpacedReviewState: () => ({}),
+    readTrainingPlan: () => null,
+    setErrors() {}, setPhraseOpportunities() {}, setSessions() {}, setGoal() {},
+    setCurrentHesitationQueue() {}, setReviewState() {}, setReviewMessage() {}, setPlan() {},
+  };
+  const refresh = new Function(...Object.keys(dependencies), refreshBody)
+    .bind(null, ...Object.values(dependencies));
+  refresh();
+  assert.equal(activeLocalDate.current, "2026-09-06");
+  assert.equal(activeDueReview.targetId, "字");
+  assert.equal(localReads, 0, "midnight/focus refresh must not replace active drill data");
+
+  drillInProgressRef.current = false;
+  pendingDrillSaveRef.current = true;
+  refresh();
+  assert.equal(activeDueReview.targetId, "字");
+  assert.equal(localReads, 0, "finished but unsaved drill remains protected");
+
+  pendingDrillSaveRef.current = false;
+  refresh();
+  assert.equal(activeLocalDate.current, "2026-09-07");
+  assert.equal(activeDueReview, null);
+  assert.equal(localReads, 1);
+  assert.match(source, /useEffect\(\(\) => \{\s*if \(!pendingDrillSave\) refreshLocal\(\);\s*\}, \[hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal\]\)/,
+    "finishing or discarding a drill must retry the deferred refresh without another focus event");
+});
+
+test("all nine v0.2 feature surfaces stay wired into the product", async () => {
+  const [app, typing, training, management, trends, pwa, share] = await Promise.all([
+    readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/views/TypingView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/TrendPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/share-card.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(management, /备份与恢复/);
+  assert.match(management, /自定义文章管理/);
+  assert.match(management, /multiple/);
+  assert.match(management, /取消收藏/);
+  assert.match(training, /高频错题复练/);
+  assert.match(training, /自适应训练处方/);
+  assert.match(training, /换一组/);
+  assert.match(training, /待开始/);
+  assert.match(training, /进行中/);
+  assert.match(training, /已完成/);
+  assert.match(training, /training-card-header/);
+  assert.match(training, /training-card-stat/);
+  assert.match(training, /连续/);
+  assert.match(training, /五码根专项/);
+  assert.match(trends, /速度与字准/);
+  assert.match(pwa, /serviceWorker/);
+  assert.match(share, /canvas\.toDataURL/);
+  assert.match(typing, /downloadShareCard/);
+  assert.match(app, /TrainingCenter/);
+  assert.match(app, /KeySummary/);
 });

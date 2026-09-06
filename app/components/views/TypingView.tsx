@@ -9,11 +9,9 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
-  commonCharacterPresets,
   formatDuration,
   isCommonPracticeArticle,
   lengthLabels,
-  MAX_CUSTOM_TEXT_LENGTH,
 } from "../../lib";
 import { FALLBACK_ARTICLE_COUNT } from "../../content-loader";
 import {
@@ -32,7 +30,6 @@ import { RhythmSummaryView } from "../AdvancedCenter";
 import {
   DiagnosticMetric,
   ErrorState,
-  Modal,
   usePendingSaveGuard,
 } from "../Ui";
 import { HesitationHeatmap } from "../HesitationHeatmap";
@@ -51,6 +48,10 @@ import {
   type GhostMode,
   type GhostRaceApi,
 } from "./typing/useGhostRace";
+import { ArticlePicker } from "./typing/ArticlePicker";
+import { CommonCharacterPicker } from "./typing/CommonCharacterPicker";
+import { CompletionPanel } from "./typing/CompletionPanel";
+import { CustomTextModal } from "./typing/CustomTextModal";
 
 export type { KeySoundPlayer };
 
@@ -843,252 +844,49 @@ export function TypingView({
             <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
           </div>
           {completed && (
-            <div className="completion-panel">
-              <div className="completion-copy">
-                <span className="completion-icon">
-                  {sessionSaveFailed ? "待" : "成"}
-                </span>
-                <div>
-                  <span>
-                    {sessionSaveFailed
-                      ? "本次成绩尚未保存"
-                      : "本次成绩已存入本机"}
-                  </span>
-                  <strong>
-                    {sessionSaveFailed ? "请重试保存" : "完成本次练习"}
-                  </strong>
-                </div>
-              </div>
-              <div className="completion-results" aria-label="本次练习成绩">
-                <span><small>速度</small><span className="completion-value"><strong>{speed}</strong><i>字/分</i></span></span>
-                <span><small>击键</small><span className="completion-value"><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span></span>
-                <span><small>码长</small><span className="completion-value"><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span></span>
-                <span><small>字准</small><span className="completion-value"><strong>{accuracy.toFixed(1)}</strong><i>%</i></span></span>
-                <span><small>错字</small><span className="completion-value"><strong>{errorCount}</strong><i>处</i></span></span>
-              </div>
-              <div className="completion-diagnostics" aria-label="本次输入诊断">
-                <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
-                <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
-                <DiagnosticMetric
-                  label="理论码长"
-                  value={
-                    theoreticalCodeLength === null
-                      ? "—"
-                      : theoreticalCodeLength.toFixed(2)
-                  }
-                  unit=""
-                />
-                <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
-                <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
-                <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
-                <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
-                <DiagnosticMetric label="左右手" value={`${leftHandKeys} / ${rightHandKeys}`} unit="" />
-                <DiagnosticMetric label="暂停" value={`${pauseCount} / ${pauseSeconds.toFixed(1)}`} unit="次/秒" />
-                <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
-              </div>
-              <section className="code-coach" aria-labelledby="code-coach-title">
-                <div className="code-coach-summary">
-                  <div className="code-coach-heading">
-                    <small>CODE LENGTH COACH</small>
-                    <h3 id="code-coach-title">码长诊断</h3>
-                    <p>
-                      {minimumCodeError
-                        ? "码表数据暂时不可用，无法生成本次建议。"
-                        : theoreticalGap !== null && theoreticalGap > 0
-                          ? `实际码长距理论下限还有 ${theoreticalGap.toFixed(2)} 键/字的空间。`
-                          : "本次实际码长已接近理论下限。"}
-                    </p>
-                  </div>
-                  <div className="code-coach-metrics" aria-label="码长对比">
-                    <CodeCoachMetric
-                      label="实际码长"
-                      value={codeLength.toFixed(2)}
-                      unit="键/字"
-                    />
-                    <CodeCoachMetric
-                      label="理论下限"
-                      value={
-                        codeLengthAnalysis?.theoreticalAverageCodeLength?.toFixed(
-                          2,
-                        ) ?? "—"
-                      }
-                      unit={
-                        (codeLengthAnalysis?.theoreticalAverageCodeLength ??
-                          null) === null
-                          ? ""
-                          : "键/字"
-                      }
-                    />
-                    <CodeCoachMetric
-                      label="单字输入基准"
-                      value={
-                        codeLengthAnalysis?.singleCharacterAverageCodeLength?.toFixed(
-                          2,
-                        ) ?? "—"
-                      }
-                      unit={
-                        (codeLengthAnalysis?.singleCharacterAverageCodeLength ??
-                          null) === null
-                          ? ""
-                          : "键/字"
-                      }
-                    />
-                    <CodeCoachMetric
-                      label="已使用词组比例"
-                      value={phraseRate.toFixed(1)}
-                      unit="%"
-                    />
-                  </div>
-                </div>
-                <div className="code-coach-opportunities">
-                  <div className="code-coach-list-heading">
-                    <strong>值得留意的推荐机会</strong>
-                    <span>
-                      {codeLengthAnalysis?.potentialSavedKeys
-                        ? `相比全部单字输入，理论可少 ${codeLengthAnalysis.potentialSavedKeys} 键`
-                        : "仅按码表提示，不判定你的实际分段"}
-                    </span>
-                  </div>
-                  {recommendedPhrases.length ? (
-                    <ol className="code-coach-list">
-                      {recommendedPhrases.map((opportunity, index) => (
-                        <li key={`${opportunity.start}-${opportunity.text}`}>
-                          <span className="code-coach-rank">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <span className="code-coach-phrase">
-                            <strong>{opportunity.text}</strong>
-                            <small>
-                              第 {opportunity.start + 1} 字起 · {opportunity.code}
-                            </small>
-                          </span>
-                          <span className="code-coach-saving">
-                            <small>推荐机会</small>
-                            <strong>可少 {opportunity.savedKeys} 键</strong>
-                          </span>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <div className="code-coach-empty">
-                      <span>
-                        {minimumCodeError
-                          ? "码表数据暂时不可用。"
-                          : codeLengthAnalysis
-                            ? "本篇暂未发现可节省按键的二至四字词组推荐机会。"
-                            : "正在准备码长诊断数据…"}
-                      </span>
-                      {minimumCodeError && (
-                        <button
-                          className="button secondary"
-                          onClick={retryCodeLengthLoad}
-                        >
-                          重试加载码表
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  <div className="code-coach-actions">
-                    <p>
-                      推荐基于当前 86 版码表和文本位置，无法可靠识别你本次实际采用的分段。
-                    </p>
-                    <button
-                      className="button secondary"
-                      disabled={!recommendedPhrases.length}
-                      onClick={startRecommendedPhrasePractice}
-                    >
-                      练习这些词组
-                    </button>
-                  </div>
-                </div>
-              </section>
-              {ghostSegmentComparison.length > 0 && (
-                <section
-                  className="ghost-review"
-                  aria-labelledby="ghost-review-title"
-                >
-                  <div>
-                    <small>PERSONAL GHOST</small>
-                    <h3 id="ghost-review-title">幽灵赛复盘</h3>
-                    <p>{ghostGapLabel}</p>
-                  </div>
-                  <ol>
-                    {ghostSegmentComparison.map((segment, index) => (
-                      <li key={`${segment.start}-${segment.end}`}>
-                        <span>第 {index + 1} 段</span>
-                        <strong>
-                          {segment.result === "recovered"
-                            ? "追回"
-                            : segment.result === "lost"
-                              ? "丢失"
-                              : "持平"}{" "}
-                          {Math.abs(segment.changeMs / 1000).toFixed(1)} 秒
-                        </strong>
-                        <small>
-                          第 {segment.start + 1}–{segment.end} 字
-                        </small>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              )}
-              <div className="completion-next">
-                <p>练习记录只保存在当前浏览器。</p>
-                {sessionSaveFailed && (
-                  <button className="button danger" onClick={retryPracticeSave}>
-                    重试保存
-                  </button>
-                )}
-                <button
-                  className="button secondary"
-                  disabled={!lastSession}
-                  onClick={() => lastSession && downloadShareCard(lastSession)}
-                >
-                  下载成绩卡
-                </button>
-                {settings.autoNext && activeGhostMode !== "off" && (
-                  <button
-                    className="button secondary"
-                    disabled={sessionSaveFailed}
-                    onClick={() =>
-                      chooseArticle(
-                        article,
-                        true,
-                        retryCount + 1,
-                        activeGhostMode,
-                      )
-                    }
-                  >
-                    {activeGhostMode === "best"
-                      ? "再次挑战个人最佳"
-                      : "再次挑战最近一次"}
-                  </button>
-                )}
-                <button
-                  className="button primary"
-                  disabled={sessionSaveFailed}
-                  onClick={
-                    settings.autoNext
-                      ? randomArticle
-                      : () =>
-                          chooseArticle(
-                            article,
-                            true,
-                            retryCount + 1,
-                            activeGhostMode,
-                          )
-                  }
-                >
-                  {settings.autoNext
-                    ? "下一篇"
-                    : activeGhostMode === "best"
-                      ? "再次挑战个人最佳"
-                      : activeGhostMode === "recent"
-                        ? "再次挑战最近一次"
-                        : "再练一次"}
-                </button>
-              </div>
-            </div>
+            <CompletionPanel
+              sessionSaveFailed={sessionSaveFailed}
+              speed={speed}
+              kps={kps}
+              codeLength={codeLength}
+              accuracy={accuracy}
+              errorCount={errorCount}
+              keyCount={keyCount}
+              keyAccuracy={keyAccuracy}
+              theoreticalCodeLength={theoreticalCodeLength}
+              correctionCount={correctionCount}
+              backspaceCount={backspaceCount}
+              selectionCount={selectionCount}
+              phraseRate={phraseRate}
+              leftHandKeys={leftHandKeys}
+              rightHandKeys={rightHandKeys}
+              pauseCount={pauseCount}
+              pauseSeconds={pauseSeconds}
+              retryCount={retryCount}
+              minimumCodeError={minimumCodeError}
+              theoreticalGap={theoreticalGap}
+              codeLengthAnalysis={codeLengthAnalysis}
+              recommendedPhrases={recommendedPhrases}
+              onRetryCodeLengthLoad={retryCodeLengthLoad}
+              onStartRecommendedPhrasePractice={startRecommendedPhrasePractice}
+              ghostSegmentComparison={ghostSegmentComparison}
+              ghostGapLabel={ghostGapLabel}
+              lastSession={lastSession}
+              onRetryPracticeSave={retryPracticeSave}
+              onDownloadShareCard={() => {
+                if (lastSession) downloadShareCard(lastSession);
+              }}
+              autoNext={settings.autoNext}
+              activeGhostMode={activeGhostMode}
+              onChallengeAgain={() =>
+                chooseArticle(article, true, retryCount + 1, activeGhostMode)
+              }
+              onNextPractice={
+                settings.autoNext
+                  ? randomArticle
+                  : () => chooseArticle(article, true, retryCount + 1, activeGhostMode)
+              }
+            />
           )}
         </article>
 
@@ -1187,113 +985,36 @@ export function TypingView({
       </section>
 
       {pickerOpen && (
-        <Modal title="选择练习文章" onClose={() => setPickerOpen(false)}>
-          <div className="article-list">
-            <div className="article-list-summary" role="status">
-              共 {filtered.length} 篇符合当前筛选条件
-            </div>
-            {filtered.map((item) => {
-              const record = progressMap.get(item.id);
-              return (
-                <button key={item.id} onClick={() => chooseArticle(item)}>
-                  <span className="article-card-copy">
-                    <small>{item.topic}</small>
-                    <strong>{item.title}</strong>
-                    <span>{lengthLabels[item.length]} · {item.wordCount} 字</span>
-                  </span>
-                  <span className={record ? "article-record practiced" : "article-record"}>
-                    <small>{record ? "个人最佳" : "练习状态"}</small>
-                    <strong>{record ? `${record.bestSpeed} 字/分` : "未练习"}</strong>
-                    <i>{record ? `${record.attempts} 次记录` : "从这篇开始"}</i>
-                  </span>
-                </button>
-              );
-            })}
-            {!filtered.length && <div className="empty-state">当前筛选条件下没有文章。</div>}
-          </div>
-        </Modal>
+        <ArticlePicker
+          filtered={filtered}
+          progressMap={progressMap}
+          onClose={() => setPickerOpen(false)}
+          onChoose={chooseArticle}
+        />
       )}
 
       {commonOpen && (
-        <Modal title="选择常用字范围" onClose={() => setCommonOpen(false)}>
-          <div className="common-practice-picker">
-            <div className="common-practice-intro">
-              <span aria-hidden="true">1500</span>
-              <div>
-                <strong>按字频分段练习</strong>
-                <p>前 500 常用字按字频分成 10 组，每组 50 字。进入后可随时点击“乱序”。</p>
-              </div>
-            </div>
-            {commonError ? (
-              <ErrorState
-                title="常用字表没有加载成功"
-                message={commonError}
-                onRetry={() => void fetchCommonCharacterData()}
-              />
-            ) : (
-              <div
-                className="common-range-grid"
-                aria-busy={commonLoading}
-                aria-label="常用字范围"
-              >
-                {commonCharacterPresets.map((range, index) => (
-                  <button
-                    key={range.id}
-                    data-modal-autofocus={
-                      index === 0 && commonData && !commonLoading
-                        ? true
-                        : undefined
-                    }
-                    disabled={commonLoading || !commonData}
-                    onClick={() => startCommonPractice(range.id)}
-                  >
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <strong>{range.label}</strong>
-                    <small>{range.description}</small>
-                    <i aria-hidden="true">→</i>
-                  </button>
-                ))}
-              </div>
-            )}
-            <p className="common-source-note">
-              {commonLoading
-                ? "正在读取离线字频表…"
-                : "字频来源：北京语言大学“现代汉语研究语料库”"}
-            </p>
-          </div>
-        </Modal>
+        <CommonCharacterPicker
+          commonData={commonData}
+          commonLoading={commonLoading}
+          commonError={commonError}
+          onClose={() => setCommonOpen(false)}
+          onRetry={() => void fetchCommonCharacterData()}
+          onStart={startCommonPractice}
+        />
       )}
 
       {customOpen && (
-        <Modal title="粘贴自定义文本" onClose={() => setCustomOpen(false)}>
-          <div className="custom-form">
-            <label>标题<input data-modal-autofocus value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} /></label>
-            <label>正文<textarea value={customText} maxLength={MAX_CUSTOM_TEXT_LENGTH * 2} onChange={(event) => {
-              setCustomText(
-                Array.from(event.target.value)
-                  .slice(0, MAX_CUSTOM_TEXT_LENGTH)
-                  .join(""),
-              );
-              setCustomError("");
-            }} placeholder="粘贴 10–5000 字的纯文本…" /></label>
-            <div className="modal-actions">
-              <span>
-                {Array.from(customText.trim()).length} / {MAX_CUSTOM_TEXT_LENGTH} 字
-              </span>
-              <button
-                className="button primary"
-                disabled={
-                  Array.from(customText.trim()).length < 10 ||
-                  Array.from(customText.trim()).length > MAX_CUSTOM_TEXT_LENGTH
-                }
-                onClick={useCustomText}
-              >
-                开始练习
-              </button>
-            </div>
-            {customError && <p className="management-message" role="status">{customError}</p>}
-          </div>
-        </Modal>
+        <CustomTextModal
+          title={customTitle}
+          text={customText}
+          error={customError}
+          onClose={() => setCustomOpen(false)}
+          onTitleChange={setCustomTitle}
+          onTextChange={setCustomText}
+          onErrorChange={setCustomError}
+          onUse={useCustomText}
+        />
       )}
     </>
   );
@@ -1326,26 +1047,6 @@ function Metric({
       <strong>{value}</strong>
       <small>{unit}</small>
     </div>
-  );
-}
-
-function CodeCoachMetric({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-}) {
-  return (
-    <span className="code-coach-metric">
-      <small>{label}</small>
-      <span>
-        <strong>{value}</strong>
-        {unit && <i>{unit}</i>}
-      </span>
-    </span>
   );
 }
 

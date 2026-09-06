@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import * as legacy from "../app/lib.ts";
+import { createLocalId } from "../app/practice-store.ts";
 import {
   STORAGE,
   STORAGE_KEYS,
@@ -227,4 +228,90 @@ test("事务写入和回滚均失败时返回 false 而不抛出异常", (contex
   };
   installWindow(context, { localStorage: storage });
   assert.equal(commitLocalWrites(new Map([["existing", "changed"], ["failing", 2]])), false);
+});
+
+test("事务先缩小再扩大数据后超出配额时完整恢复旧值", (context) => {
+  const entries = [
+    ["sessions", '"1234567890"'],
+    ["progress", '"a"'],
+    ["review", '"a"'],
+  ];
+  const storage = memoryStorage(entries);
+  const write = storage.setItem;
+  storage.setItem = (key, value) => {
+    const size = [...storage.values].reduce(
+      (total, [storedKey, storedValue]) => total + (storedKey === key ? 0 : storedValue.length),
+      String(value).length,
+    );
+    if (size > 20) throw new DOMException("quota exceeded", "QuotaExceededError");
+    write(key, value);
+  };
+  installWindow(context, { localStorage: storage });
+  assert.equal(commitLocalWrites(new Map([
+    ["sessions", "1"],
+    ["progress", "1234567890"],
+    ["review", "1234567890"],
+  ])), false);
+  assert.deepEqual([...storage.values], entries);
+});
+
+test("单个键无法回滚时仍恢复其他已写入键且不触碰未写入键", (context) => {
+  const storage = memoryStorage([
+    ["first", "original-first"],
+    ["blocked", "original-blocked"],
+    ["third", "original-third"],
+    ["failing", "original-failing"],
+    ["untouched", "original-untouched"],
+  ]);
+  const write = storage.setItem;
+  const mutations = [];
+  storage.setItem = (key, value) => {
+    mutations.push(key);
+    if (key === "failing" || value === "original-blocked") {
+      throw new Error("storage unavailable");
+    }
+    write(key, value);
+  };
+  installWindow(context, { localStorage: storage });
+  assert.equal(commitLocalWrites(new Map([
+    ["first", "changed"],
+    ["blocked", "changed"],
+    ["third", "changed"],
+    ["failing", "changed"],
+    ["untouched", "changed"],
+  ])), false);
+  assert.equal(storage.values.get("first"), "original-first");
+  assert.equal(storage.values.get("blocked"), '"changed"');
+  assert.equal(storage.values.get("third"), "original-third");
+  assert.equal(storage.values.get("failing"), "original-failing");
+  assert.equal(storage.values.get("untouched"), "original-untouched");
+  assert.equal(mutations.filter((key) => key === "failing").length, 1);
+  assert.equal(mutations.includes("untouched"), false);
+});
+
+test("local IDs and temporary session values survive restricted browser capabilities", () => {
+  assert.match(createLocalId(), /^[a-z0-9-]{8,}$/i);
+  const values = new Map();
+  globalThis.window = {
+    sessionStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    assert.equal(writeSessionValue("pending", "value"), true);
+    assert.equal(takeSessionValue("pending"), "value");
+    assert.equal(takeSessionValue("pending"), null);
+    window.sessionStorage.setItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    assert.equal(writeSessionValue("pending", "value"), false);
+    window.sessionStorage.getItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    assert.equal(takeSessionValue("pending"), null);
+  } finally {
+    delete globalThis.window;
+  }
 });
