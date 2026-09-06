@@ -18,9 +18,8 @@ import {
   readSettings,
   saveHesitationPracticeOutcome,
   startHesitationQueueItem,
-  STORAGE,
-  writeLocal,
 } from "../lib";
+import { STORAGE, writeLocal } from "../storage";
 import type {
   AppView,
   HesitationPracticeAttempt,

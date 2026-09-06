@@ -13,13 +13,10 @@ import {
 import {
   createLocalId,
   getSessions,
-  readLocal,
   saveAdvancedPracticeOutcome,
   savePracticeOutcome,
-  STORAGE,
-  takeSessionValue,
-  writeLocal,
 } from "../lib";
+import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
 import { loadArticles } from "../content-loader";
 import {
   applyTypingDelaySample,

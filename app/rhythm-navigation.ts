@@ -1,7 +1,7 @@
 "use client";
 
 import type { useRouter } from "next/navigation";
-import { writeSessionValue } from "./lib";
+import { writeSessionValue } from "./storage";
 import type { RhythmWeakSegment } from "./types";
 
 const PENDING_RHYTHM_SEGMENT_KEY = "wubi-test:pending-rhythm-segment:v1";

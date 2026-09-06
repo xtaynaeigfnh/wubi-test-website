@@ -23,18 +23,15 @@ import {
   getSessions,
   lengthLabels,
   MAX_CUSTOM_TEXT_LENGTH,
-  readLocal,
-  readLocalArray,
   readTrainingPlan,
   recordKeyUsage,
   savePracticeOutcome,
   isCommonPracticeArticle,
   localDateKey,
   selectInitialArticle,
-  STORAGE,
-  writeLocal,
   type PhraseOpportunityInput,
 } from "../../lib";
+import { readLocal, readLocalArray, STORAGE, writeLocal } from "../../storage";
 import {
   FALLBACK_ARTICLE_COUNT,
   loadArticles,

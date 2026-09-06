@@ -13,7 +13,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { readLocal, STORAGE, writeLocal } from "../lib";
+import { readLocal, STORAGE, writeLocal } from "../storage";
 import {
   DEFAULT_MUSIC_PREFERENCES,
   formatAudioTime,
