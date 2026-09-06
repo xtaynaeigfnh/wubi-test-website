@@ -807,11 +807,17 @@ function emptyHesitationQueue(now: Date): HesitationPracticeQueue {
 
 export function readHesitationQueue(
   now = new Date(),
+  options: { resetOnDateMismatch?: boolean } = {},
 ): HesitationPracticeQueue {
+  const resetOnDateMismatch = options.resetOnDateMismatch !== false;
   const empty = emptyHesitationQueue(now);
   const value = readLocal<unknown>(STORAGE.hesitationQueue, null);
-  if (isHesitationPracticeQueue(value) && value.date === empty.date) {
-    return value;
+  if (isHesitationPracticeQueue(value)) {
+    if (value.date === empty.date || !resetOnDateMismatch) {
+      return value;
+    }
+  } else if (!resetOnDateMismatch) {
+    return empty;
   }
   writeLocal(STORAGE.hesitationQueue, empty);
   return empty;
@@ -1126,9 +1132,12 @@ export function saveHesitationPracticeOutcome(
   if (getSessions().some((item) => item.id === session.id)) return true;
   if (!queueItemId) return persistPracticeOutcome(session, observations);
 
-  const queue = readHesitationQueue(new Date(session.date));
+  // 队列条目可能已被按日重置；成绩本身仍要落库，不能因为找不到条目而整轮丢弃。
+  const queue = readHesitationQueue(new Date(session.date), {
+    resetOnDateMismatch: false,
+  });
   const index = queue.items.findIndex((item) => item.id === queueItemId);
-  if (index < 0) return false;
+  if (index < 0) return persistPracticeOutcome(session, observations);
   const current = queue.items[index];
   const result = session.hesitationPractice;
   if (
@@ -1664,10 +1673,7 @@ function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
       error.correctStreak ?? 0,
     );
     existing.code = existing.code ?? error.code;
-    existing.mastery = Math.min(
-      5,
-      (existing.mastery ?? 0) + (error.mastery ?? 0),
-    );
+    existing.mastery = Math.max(existing.mastery ?? 0, error.mastery ?? 0);
     if (error.lastSeen > existing.lastSeen) {
       existing.lastSeen = error.lastSeen;
     }
@@ -2440,10 +2446,13 @@ function normalizeArticleProgress(value: unknown): ArticleProgress[] {
       existing.attempts + item.attempts,
     );
     existing.bestSpeed = Math.max(existing.bestSpeed, item.bestSpeed);
+    existing.errors = Math.min(
+      MAX_ARTICLE_PROGRESS_VALUE,
+      existing.errors + item.errors,
+    );
     existing.completed ||= item.completed;
     if (Date.parse(item.lastPracticed) > Date.parse(existing.lastPracticed)) {
       existing.lastPracticed = item.lastPracticed;
-      existing.errors = item.errors;
     }
   }
   return Array.from(merged.values()).slice(0, MAX_ARTICLE_PROGRESS_ITEMS);
