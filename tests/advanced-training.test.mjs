@@ -38,6 +38,12 @@ import {
   STORAGE,
 } from "../app/lib.ts";
 
+import {
+  readAdvancedSeasonArchive,
+  writeAdvancedSeasonArchive,
+  saveCurrentAdvancedPracticeOutcome,
+} from "../app/advanced-season-storage.ts";
+
 function session(overrides = {}) {
   return {
     id: "advanced-session",
@@ -947,4 +953,62 @@ test("advanced page exposes the complete v0.8 goal and assessment contract", asy
   assert.match(component, /assessmentIdentity: buildAdvancedAssessmentIdentity\(identitySource\)/);
   assert.match(component, /assessmentIdentity: target\.assessmentIdentity/);
   assert.match(component, /seasonId: target\.season\?\.id,\s*seasonDay: target\.seasonDay/);
+});
+
+
+test("a stale tab cannot revive a cancelled season or replace a newer plan", () => {
+  const season = createAdvancedSeason("shared-season", new Date("2026-08-01T00:00:00.000Z"));
+  const original = { version: 1, active: season, history: [] };
+  const cancelled = archiveFinishedSeason(original, cancelAdvancedSeason(season, new Date("2026-08-02T00:00:00.000Z")));
+  const values = new Map([[STORAGE.advancedSeason, JSON.stringify(original)]]);
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  } };
+  try {
+    assert.equal(writeAdvancedSeasonArchive(original, cancelled), true);
+    const paused = { ...original, active: pauseAdvancedSeason(season, new Date("2026-08-02T01:00:00.000Z")) };
+    assert.equal(writeAdvancedSeasonArchive(original, paused), false);
+    assert.equal(JSON.stringify(readAdvancedSeasonArchive()), JSON.stringify(cancelled));
+    const newer = { ...cancelled, active: createAdvancedSeason("new-plan", new Date("2026-08-02T02:00:00.000Z")) };
+    assert.equal(writeAdvancedSeasonArchive(cancelled, newer), true);
+    assert.equal(writeAdvancedSeasonArchive(cancelled, { ...cancelled, active: season }), false);
+    assert.equal(JSON.stringify(readAdvancedSeasonArchive()), JSON.stringify(newer));
+    // A practice already open in the cancelled plan can save its score only.
+    assert.equal(saveCurrentAdvancedPracticeOutcome(assessmentSession(season, 1)), true);
+    assert.equal(JSON.stringify(readAdvancedSeasonArchive()), JSON.stringify(newer));
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("season completion reads current progress and keeps newer history on retry", () => {
+  const season = createAdvancedSeason("current-season", new Date("2026-07-31T08:00:00.000Z"));
+  const archived = cancelAdvancedSeason(createAdvancedSeason("older", new Date("2026-07-30T00:00:00.000Z")), new Date("2026-07-31T00:00:00.000Z"));
+  const original = { version: 1, active: season, history: [archived] };
+  const values = new Map([[STORAGE.advancedSeason, JSON.stringify(original)]]);
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  } };
+  try {
+    const result = assessmentSession(season, 1);
+    assert.equal(saveCurrentAdvancedPracticeOutcome(result), true);
+    assert.equal(readAdvancedSeasonArchive().active.currentDay, 2);
+    assert.equal(saveCurrentAdvancedPracticeOutcome(result), true);
+    assert.equal(readAdvancedSeasonArchive().active.currentDay, 2);
+    assert.equal(JSON.stringify(readAdvancedSeasonArchive().history), JSON.stringify([archived]));
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    values.set(STORAGE.advancedSeason, "broken JSON");
+    assert.equal(writeAdvancedSeasonArchive(original, original), false);
+    assert.equal(saveCurrentAdvancedPracticeOutcome(result), false);
+    assert.equal(values.get(STORAGE.advancedSeason), "broken JSON");
+    window.localStorage.getItem = () => { throw new Error("blocked storage"); };
+    assert.equal(saveCurrentAdvancedPracticeOutcome(result), false);
+  } finally {
+    delete globalThis.window;
+  }
 });

@@ -13,10 +13,13 @@ import {
 import {
   createLocalId,
   getSessions,
-  saveAdvancedPracticeOutcome,
-  savePracticeOutcome,
 } from "../lib";
 import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
+import {
+  readAdvancedSeasonArchive,
+  writeAdvancedSeasonArchive,
+  saveCurrentAdvancedPracticeOutcome,
+} from "../advanced-season-storage";
 import { loadArticles } from "../content-loader";
 import {
   applyTypingDelaySample,
@@ -38,7 +41,6 @@ import {
   buildAdvancedScenarioLibrary,
   canCompleteAdvancedSeasonToday,
   cancelAdvancedSeason,
-  completeAdvancedSeasonDay,
   createAdvancedSeason,
   expireAdvancedSeason,
   getAdvancedGoalValue,
@@ -728,7 +730,7 @@ export function AdvancedCenter() {
       const normalized = archiveFinishedSeason(stored, active);
       setArchive(normalized);
       if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
-        writeLocal(STORAGE.advancedSeason, normalized);
+        writeAdvancedSeasonArchive(stored, normalized);
       }
     } else {
       setArchive(stored);
@@ -764,10 +766,28 @@ export function AdvancedCenter() {
   }, []);
 
   useEffect(() => {
+    const refreshArchive = () => {
+      const current = readAdvancedSeasonArchive();
+      if (current) setArchive(current);
+      setSeasonClock(Date.now());
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE.advancedSeason || event.key === null) refreshArchive();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refreshArchive);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refreshArchive);
+    };
+  }, []);
+
+  useEffect(() => {
     const baselineScenario = scenarios.find((item) => item.id === "quiet-office-one");
     if (!baselineScenario) return;
     const currentIdentity = buildAdvancedAssessmentIdentity(baselineScenario);
-    setArchive((current) => {
+    setArchive((previous) => {
+      const current = readAdvancedSeasonArchive() ?? previous;
       if (!current.active) return current;
       const invalidated = invalidateAdvancedSeasonForContent(
         current.active,
@@ -775,7 +795,7 @@ export function AdvancedCenter() {
       );
       if (invalidated === current.active) return current;
       const next = archiveFinishedSeason(current, invalidated);
-      if (!writeLocal(STORAGE.advancedSeason, next)) {
+      if (!writeAdvancedSeasonArchive(current, next)) {
         setSeasonSaveFailed(true);
         setSeasonMessage("正文变化状态未能保存，请检查浏览器存储空间。");
         return current;
@@ -816,21 +836,19 @@ export function AdvancedCenter() {
   const completePractice = (session: SessionResult) => {
     setLatestSession(session);
     setCompletionMessage(`${session.title}已完成，成绩已保存。`);
-    if (session.seasonId && archive.active?.id === session.seasonId) {
-      const season = completeAdvancedSeasonDay(archive.active, session, new Date(session.date));
-      const nextArchive = archiveFinishedSeason(archive, season);
-      setArchive(nextArchive);
-      if (season.days[(session.seasonDay ?? 1) - 1]?.sessionId === session.id) {
-        setSeasonMessage(`第 ${session.seasonDay} 个训练日已完成，成绩已保存。`);
-      }
-      if (season.days[(session.seasonDay ?? 1) - 1]?.sessionId === session.id) {
-        setOptionalPractice({
-          id: `optional-${session.seasonDay}`,
-          title: `第 ${session.seasonDay} 天 · 可选三分钟短练`,
-          text: Array.from(RHYTHM_PRACTICE_TEXT).slice(0, 48).join(""),
-          type: "rhythm",
-        });
-      }
+    const savedArchive = readAdvancedSeasonArchive();
+    if (savedArchive) setArchive(savedArchive);
+    const savedSeason = savedArchive?.active?.id === session.seasonId
+      ? savedArchive?.active
+      : savedArchive?.history.find((season) => season.id === session.seasonId);
+    if (savedSeason?.days[(session.seasonDay ?? 1) - 1]?.sessionId === session.id) {
+      setSeasonMessage(`第 ${session.seasonDay} 个训练日已完成，成绩已保存。`);
+      setOptionalPractice({
+        id: `optional-${session.seasonDay}`,
+        title: `第 ${session.seasonDay} 天 · 可选三分钟短练`,
+        text: Array.from(RHYTHM_PRACTICE_TEXT).slice(0, 48).join(""),
+        type: "rhythm",
+      });
     }
     if (repeat) {
       const completed = repeat.completed + 1;
@@ -854,13 +872,13 @@ export function AdvancedCenter() {
       goalMetric,
     });
     const next = { ...archive, active: season };
-    if (writeLocal(STORAGE.advancedSeason, next)) {
+    if (writeAdvancedSeasonArchive(archive, next)) {
       setArchive(next);
       setSeasonSaveFailed(false);
       setSeasonMessage("阶段目标已建立；完成第一天后会生成个人观察区间。");
     } else {
       setSeasonSaveFailed(true);
-      setSeasonMessage("计划未能保存，请检查浏览器存储空间后重试。");
+      setSeasonMessage("计划未能保存，其他页面可能已更新计划。请刷新后重试，并检查浏览器存储空间。");
     }
     window.setTimeout(() => { seasonActionLockRef.current = false; }, 0);
   };
@@ -873,13 +891,13 @@ export function AdvancedCenter() {
     seasonActionLockRef.current = true;
     const season = update(archive.active);
     const next = archiveFinishedSeason(archive, season);
-    if (writeLocal(STORAGE.advancedSeason, next)) {
+    if (writeAdvancedSeasonArchive(archive, next)) {
       setArchive(next);
       setSeasonSaveFailed(false);
       setSeasonMessage(successMessage);
     } else {
       setSeasonSaveFailed(true);
-      setSeasonMessage("计划状态未能保存，原状态保持不变。");
+      setSeasonMessage("计划状态未能保存，其他页面可能已更新计划。请刷新后重试，并检查浏览器存储空间。");
     }
     window.setTimeout(() => { seasonActionLockRef.current = false; }, 0);
   };
@@ -902,7 +920,7 @@ export function AdvancedCenter() {
     const current = expireAdvancedSeason(archive.active);
     if (current.status !== "active") {
       const next = archiveFinishedSeason(archive, current);
-      if (writeLocal(STORAGE.advancedSeason, next)) setArchive(next);
+      if (writeAdvancedSeasonArchive(archive, next)) setArchive(next);
       else setSeasonSaveFailed(true);
       return;
     }
@@ -932,16 +950,7 @@ export function AdvancedCenter() {
           target={practice}
           roundLabel={repeat ? `三连复练 · 第 ${repeat.completed + 1} 轮` : practice.seasonDay ? `阶段目标 · 第 ${practice.seasonDay} 天` : undefined}
           onCancel={() => { setPractice(null); setRepeat(null); }}
-          onSave={(session) => {
-            if (!session.seasonId || archive.active?.id !== session.seasonId) {
-              return savePracticeOutcome(session);
-            }
-            const season = completeAdvancedSeasonDay(archive.active, session, new Date(session.date));
-            return saveAdvancedPracticeOutcome(
-              session,
-              archiveFinishedSeason(archive, season),
-            );
-          }}
+          onSave={saveCurrentAdvancedPracticeOutcome}
           onComplete={completePractice}
         />
       </section>
