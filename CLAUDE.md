@@ -35,7 +35,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **核心逻辑**:
 - `app/storage.ts` — 存储键、基础 localStorage/sessionStorage 读写和多键写入失败回滚，无业务模块依赖。
 - `app/content-loader.ts` / `app/typing-metrics.ts` — 内容加载与打字指标纯计算。
-- `app/lib.ts` — 业务数据读写、成绩与错题管理、文章进度规范化及版本化备份校验/恢复；保留基础存储、内容加载与打字指标的兼容导出。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
+- `app/practice-schema.ts` — 业务读取与备份共用的纯校验、文章进度与目标规范化，以及配套默认值和自定义文章构造；不执行存储 I/O。
+- `app/lib.ts` — 业务数据读写、成绩与错题管理、存储键对应的版本化备份校验编排/恢复；保留基础存储、共享校验中的原公开 API、内容加载与打字指标的兼容导出。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
 - `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
 - `app/code-length-coach.ts` / `app/phrase-training.ts` — 理论码长机会与词组专项选题
 - `app/ghost-race.ts` — 幽灵时间线、可比较记录与赛后分段复盘
