@@ -135,3 +135,40 @@ test("文章索引缺少对应正文时拒绝加载并可重试", async (context
   assert.equal(round, 2);
   assert.deepEqual(articles, [{ ...articleMetadata, text: "用于测试" }]);
 });
+
+test("文章索引与正文不一致后重试会重新加载旧索引", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const updatedMetadata = { ...articleMetadata, id: "short-002", version: 2 };
+  let indexRequests = 0;
+  let bodyRequests = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("articles-index.json")) {
+      indexRequests += 1;
+      return jsonResponse([
+        indexRequests === 1 ? articleMetadata : updatedMetadata,
+      ]);
+    }
+    if (String(url).endsWith("articles-short.json")) {
+      bodyRequests += 1;
+      return jsonResponse([{ id: updatedMetadata.id, text: "更新正文" }]);
+    }
+    return jsonResponse([]);
+  };
+
+  const { loadArticleMetadata, loadArticles } = await import(
+    `../app/content-loader.ts?stale-index=${Date.now()}`
+  );
+  assert.deepEqual(await loadArticleMetadata(), [articleMetadata]);
+  await assert.rejects(loadArticles(), /文章索引与正文数据不一致/);
+
+  const articles = await loadArticles();
+  assert.deepEqual(articles, [{ ...updatedMetadata, text: "更新正文" }]);
+  assert.deepEqual(await loadArticleMetadata(), [updatedMetadata]);
+  assert.strictEqual(await loadArticles(), articles);
+  assert.equal(indexRequests, 2);
+  assert.equal(bodyRequests, 2);
+});

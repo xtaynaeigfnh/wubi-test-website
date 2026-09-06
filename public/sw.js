@@ -191,7 +191,10 @@ self.addEventListener("fetch", (event) => {
           if (!response.ok) return;
           return caches
             .open(CACHE_NAME)
-            .then((cache) => cache.put(request, response.clone()));
+            // Cache.put 规范禁止 navigate 模式的请求，改用同 URL 的普通 GET 请求作键。
+            .then((cache) =>
+              cache.put(new Request(request.url), response.clone()),
+            );
         })
         .catch(() => undefined)
     );

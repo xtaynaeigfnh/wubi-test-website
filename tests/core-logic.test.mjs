@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 
 import {
   buildCommonPracticeArticle,
@@ -1072,4 +1073,115 @@ test("music navigation wraps and assets preserve the deployment base path", () =
     withBasePath("/audio/tracks/test.mp3", "/wubi-test-website"),
     "/wubi-test-website/audio/tracks/test.mp3",
   );
+});
+
+// Execute the component's actual handler with a clock that has passed the
+// deadline before the 250 ms display interval gets its next turn.
+async function createChallengeSubmission(overrides = {}) {
+  const source = await readFile(new URL("../app/components/views/ChallengeView.tsx", import.meta.url), "utf8");
+  const handler = source.match(/  const submit = \(\) => \{([\s\S]*?)\n  \};/);
+  assert.ok(handler, "challenge submission handler exists");
+  const results = { finishes: [], feedback: [], correct: [], mistakes: [], timers: [] };
+  const context = {
+    startedRef: { current: true },
+    recordedRef: { current: false },
+    timed: true,
+    Date: { now: () => 60_000 },
+    deadlineRef: { current: 60_000 },
+    index: 3,
+    correct: 2,
+    feedback: "idle",
+    question: ["工", "aaaa"],
+    input: "aaaa",
+    submitLockRef: { current: false },
+    challengeObservationsRef: { current: [] },
+    nextTimerRef: { current: null },
+    setFeedback: (value) => results.feedback.push(value),
+    setCorrect: (value) => results.correct.push(value),
+    setMistakes: (update) => results.mistakes.push(...update([])),
+    window: { setTimeout: (callback, delay) => results.timers.push({ callback, delay }) },
+    advanceQuestion: () => {},
+    ...overrides,
+  };
+  context.finishChallenge = (...args) => {
+    results.finishes.push(args);
+    context.recordedRef.current = true;
+    context.startedRef.current = false;
+  };
+  const submit = new Function(...Object.keys(context), handler[1]).bind(null, ...Object.values(context));
+  return { submit, context, results };
+}
+
+test("challenge rejects answers at or after the deadline before the display timer updates", async () => {
+  for (const now of [60_000, 60_001, 65_000]) {
+    const { submit, context, results } = await createChallengeSubmission({ Date: { now: () => now } });
+    submit();
+    submit();
+    assert.deepEqual(results.finishes, [[3, 2, "timeout"]]);
+    assert.deepEqual(results.feedback, []);
+    assert.deepEqual(results.correct, []);
+    assert.deepEqual(results.mistakes, []);
+    assert.deepEqual(results.timers, []);
+    assert.deepEqual(context.challengeObservationsRef.current, []);
+  }
+});
+
+test("challenge accepts one answer before the deadline and untimed answers without a deadline", async () => {
+  for (const overrides of [{ Date: { now: () => 59_999 } }, { timed: false }]) {
+    const { submit, context, results } = await createChallengeSubmission(overrides);
+    submit();
+    submit();
+    assert.deepEqual(results.finishes, []);
+    assert.deepEqual(results.feedback, ["right"]);
+    assert.deepEqual(results.correct, [3]);
+    assert.equal(results.timers.length, 1);
+    assert.deepEqual(context.challengeObservationsRef.current, [{ text: "工", code: "aaaa", kind: "correct" }]);
+  }
+});
+
+test("challenge ignores submissions outside an active run and preserves an already answered question on timeout", async () => {
+  for (const overrides of [{ startedRef: { current: false } }, { recordedRef: { current: true } }]) {
+    const { submit, context, results } = await createChallengeSubmission(overrides);
+    submit();
+    assert.deepEqual(results.finishes, []);
+    assert.deepEqual(results.feedback, []);
+    assert.deepEqual(context.challengeObservationsRef.current, []);
+  }
+  const { submit, results } = await createChallengeSubmission({ feedback: "right", correct: 3 });
+  submit();
+  assert.deepEqual(results.finishes, [[4, 3, "timeout"]]);
+  assert.deepEqual(results.correct, []);
+});
+
+test("challenge starts once when the start control fires twice before a render", async () => {
+  const source = await readFile(new URL("../app/components/views/ChallengeView.tsx", import.meta.url), "utf8");
+  const handler = source.match(/  const start = \(\) => \{([\s\S]*?)\n  \};/);
+  assert.ok(handler, "challenge start handler exists");
+  let nextQuestionCount = 0;
+  const context = {
+    pool: [["工", "aaaa"]],
+    challengeSaveFailed: false,
+    startedRef: { current: false },
+    nextTimerRef: { current: null },
+    recordedRef: { current: true },
+    advanceLockRef: { current: true },
+    challengeObservationsRef: { current: [] },
+    seenQuestionsRef: { current: new Set() },
+    startedAtRef: { current: 0 },
+    challengeHiddenAtRef: { current: null },
+    challengeInactiveMsRef: { current: 0 },
+    deadlineRef: { current: 0 },
+    Date: { now: () => 1_000 },
+    nextQuestion: () => { nextQuestionCount += 1; },
+  };
+  for (const setter of ["setStarted", "setIndex", "setCorrect", "setRemaining", "setMistakes", "setFinishedReason", "setLastSession"]) {
+    context[setter] = () => {};
+  }
+  const start = new Function(...Object.keys(context), handler[1]).bind(null, ...Object.values(context));
+  start();
+  start();
+  assert.equal(nextQuestionCount, 1);
+  assert.equal(context.startedRef.current, true);
+  assert.equal(context.recordedRef.current, false);
+  assert.equal(context.deadlineRef.current, 61_000);
 });

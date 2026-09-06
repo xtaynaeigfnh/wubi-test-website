@@ -1175,3 +1175,92 @@ test("music dock waits for both pointer and focus to leave before collapsing", a
   assert.match(music, /return clearCollapseTimer/);
   assert.doesNotMatch(music, /activityTick/);
 });
+
+test("leave guards allow same-page anchors and hash history while protecting other routes", async () => {
+  const { transpileModule, ModuleKind } = await import("typescript");
+  const source = (await readFile(uiPath, "utf8")).split("export function SummaryCard")[0];
+  const compiled = transpileModule(source, {
+    compilerOptions: { module: ModuleKind.CommonJS },
+  }).outputText;
+
+  for (const hookName of ["usePendingSaveGuard", "useInProgressLeaveGuard"]) {
+    const handlers = new Map();
+    const cleanups = [];
+    let warnings = 0;
+    let discards = 0;
+    let forwards = 0;
+    const page = "https://example.test/wubi-test-website/challenge/?mode=timed";
+    const window = {
+      location: { href: page },
+      history: {
+        state: null,
+        replaceState(state) { this.state = state; },
+        forward() { forwards += 1; },
+      },
+      alert() { warnings += 1; },
+      confirm() { warnings += 1; return false; },
+      setTimeout(callback) { callback(); return 1; },
+      clearTimeout() {},
+      addEventListener(name, handler) { handlers.set(name, handler); },
+      removeEventListener() {},
+      navigation: {
+        addEventListener(name, handler) { handlers.set(name, handler); },
+        removeEventListener() {},
+      },
+    };
+    const document = {
+      addEventListener(name, handler) { handlers.set(name, handler); },
+      removeEventListener() {},
+    };
+    class Element {
+      constructor(href) { this.href = href; }
+      closest() { return this; }
+      getAttribute() { return this.href; }
+    }
+    const exports = {};
+    new Function("require", "exports", "window", "document", "Element", compiled)(
+      () => ({
+        useEffect(callback) { const cleanup = callback(); if (cleanup) cleanups.push(cleanup); },
+        useRef(current) { return { current }; },
+      }), exports, window, document, Element,
+    );
+    exports[hookName](true, hookName === "useInProgressLeaveGuard" ? () => { discards += 1; } : "待保存");
+    const dispatch = (name, values) => {
+      const event = {
+        cancelable: true, prevented: false,
+        preventDefault() { this.prevented = true; },
+        stopPropagation() {},
+        ...values,
+      };
+      handlers.get(name)(event);
+      return event;
+    };
+
+    for (const href of ["#main-content", `${page}#main-content`, `${page}#`]) {
+      assert.equal(dispatch("click", { target: new Element(href) }).prevented, false, hookName);
+    }
+    window.location.href = `${page}#main-content`;
+    dispatch("popstate", { state: null });
+    assert.equal(dispatch("navigate", {
+      navigationType: "traverse", destination: { url: page },
+    }).prevented, false);
+    window.location.href = page;
+    dispatch("popstate", { state: null });
+    assert.equal(warnings, 0, hookName);
+    assert.equal(discards, 0, hookName);
+    assert.equal(forwards, 0, hookName);
+
+    for (const href of ["/wubi-test-website/history/#main-content", "?mode=count#main-content", "https://other.test/#main-content"]) {
+      assert.equal(dispatch("click", { target: new Element(href) }).prevented, true, hookName);
+    }
+    assert.equal(warnings, 3, hookName);
+    assert.equal(dispatch("navigate", {
+      navigationType: "traverse", destination: { url: "https://example.test/wubi-test-website/history/" },
+    }).prevented, true);
+    window.location.href = "https://example.test/wubi-test-website/history/";
+    dispatch("popstate", { state: null });
+    assert.equal(forwards, 1, hookName);
+    assert.equal(discards, 0, hookName);
+    for (const cleanup of cleanups) cleanup();
+  }
+});

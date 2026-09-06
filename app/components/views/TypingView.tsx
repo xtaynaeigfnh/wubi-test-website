@@ -529,8 +529,11 @@ export function TypingView({
 
   const shuffleCurrentCommonPractice = async () => {
     if (!isCommonPracticeArticle(article)) return;
+    const targetId = article.id;
     const data = commonData ?? (await fetchCommonCharacterData());
     if (!data) return;
+    // 加载期间用户可能已换到别的文章，不能再把旧范围的常用字强行切回来。
+    if (readLocal<string | null>(STORAGE.current, null) !== targetId) return;
     chooseArticle(buildCommonPracticeArticle(data, article.preset, true));
   };
 
@@ -1549,6 +1552,7 @@ export function TypingView({
                     <>
                       <button
                         className="common-toolbar-action range-action"
+                        disabled={practiceInProgress}
                         aria-label="更换常用字练习范围"
                         title="更换常用字练习范围"
                         onClick={openCommonPractice}
@@ -1557,7 +1561,7 @@ export function TypingView({
                       </button>
                       <button
                         className="common-toolbar-action shuffle-action"
-                        disabled={commonLoading}
+                        disabled={commonLoading || practiceInProgress}
                         aria-label="打乱当前范围并从头开始"
                         title="打乱当前范围并从头开始"
                         onClick={() => void shuffleCurrentCommonPractice()}
@@ -1566,7 +1570,12 @@ export function TypingView({
                       </button>
                     </>
                   ) : (
-                    <button onClick={() => setPickerOpen(true)}>选文章</button>
+                    <button
+                      disabled={practiceInProgress}
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      选文章
+                    </button>
                   )}
                   <button
                     className="restart-action"

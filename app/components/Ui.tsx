@@ -5,6 +5,22 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 const PENDING_SAVE_HISTORY_KEY = "__wubiPendingSaveGuard";
 const IN_PROGRESS_HISTORY_KEY = "__wubiInProgressLeaveGuard";
 
+function isSamePageUrl(href: string, currentHref: string) {
+  try {
+    const target = new URL(href, currentHref);
+    const current = new URL(currentHref);
+    return target.origin === current.origin &&
+      target.pathname === current.pathname && target.search === current.search;
+  } catch {
+    return false;
+  }
+}
+
+function isSamePageAnchor(anchor: Element, currentHref: string) {
+  const href = anchor.getAttribute("href");
+  return href !== null && href.includes("#") && isSamePageUrl(href, currentHref);
+}
+
 export function usePendingSaveGuard(
   blocked: boolean,
   message = "本次成绩尚未保存，请先重试保存。",
@@ -13,6 +29,7 @@ export function usePendingSaveGuard(
     if (!blocked) return;
     const historyToken = `${Date.now()}-${Math.random()}`;
     const originalHistoryState = window.history.state;
+    const guardedHref = window.location.href;
     let restoreTimer: number | null = null;
     let alertTimer: number | null = null;
     let restoringHistory = false;
@@ -38,13 +55,19 @@ export function usePendingSaveGuard(
     };
     const onDocumentClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
-      if (!event.target.closest("a[href]")) return;
+      const anchor = event.target.closest("a[href]");
+      if (!anchor || isSamePageAnchor(anchor, window.location.href)) return;
       event.preventDefault();
       event.stopPropagation();
       window.alert(message);
     };
     const onNavigate = (event: Event) => {
-      const navigationEvent = event as Event & { navigationType?: string };
+      const navigationEvent = event as Event & {
+        navigationType?: string;
+        destination?: { url: string };
+      };
+      if (navigationEvent.destination &&
+        isSamePageUrl(navigationEvent.destination.url, guardedHref)) return;
       if (navigationEvent.navigationType !== "traverse" || !event.cancelable) {
         return;
       }
@@ -62,6 +85,8 @@ export function usePendingSaveGuard(
         restoreTimer = null;
         return;
       }
+      // Hash history entries may have no state, but still keep this practice open.
+      if (isSamePageUrl(window.location.href, guardedHref)) return;
       if (restoringHistory) return;
       restoringHistory = true;
       window.history.forward();
@@ -122,6 +147,7 @@ export function useInProgressLeaveGuard(
     if (!blocked) return;
     const historyToken = `${Date.now()}-${Math.random()}`;
     const originalHistoryState = window.history.state;
+    const guardedHref = window.location.href;
     let restoreTimer: number | null = null;
     let restoringHistory = false;
     let decisionMade = false;
@@ -147,13 +173,19 @@ export function useInProgressLeaveGuard(
     };
     const onDocumentClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
-      if (!event.target.closest("a[href]")) return;
+      const anchor = event.target.closest("a[href]");
+      if (!anchor || isSamePageAnchor(anchor, window.location.href)) return;
       if (confirmDiscard()) return;
       event.preventDefault();
       event.stopPropagation();
     };
     const onNavigate = (event: Event) => {
-      const navigationEvent = event as Event & { navigationType?: string };
+      const navigationEvent = event as Event & {
+        navigationType?: string;
+        destination?: { url: string };
+      };
+      if (navigationEvent.destination &&
+        isSamePageUrl(navigationEvent.destination.url, guardedHref)) return;
       if (navigationEvent.navigationType !== "traverse" || !event.cancelable) {
         return;
       }
@@ -170,6 +202,8 @@ export function useInProgressLeaveGuard(
         restoreTimer = null;
         return;
       }
+      // Hash history entries may have no state, but still keep this practice open.
+      if (isSamePageUrl(window.location.href, guardedHref)) return;
       if (decisionMade || restoringHistory || confirmDiscard()) return;
       restoringHistory = true;
       window.history.forward();

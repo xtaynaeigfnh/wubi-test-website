@@ -778,7 +778,7 @@ test("error mastery merges legacy records for the same text", () => {
         correctionCount: 0,
         seenCount: 1,
         correctStreak: 1,
-        mastery: 4,
+        mastery: 3,
         lastSeen: "2026-07-29T09:00:00.000Z",
         lastCorrect: updated[0].lastCorrect,
       },
@@ -789,7 +789,7 @@ test("error mastery merges legacy records for the same text", () => {
     assert.equal(stored.length, 1);
     assert.equal(stored[0].count, 6);
     assert.equal(stored[0].code, "imyt");
-    assert.equal(stored[0].mastery, 3);
+    assert.equal(stored[0].mastery, 2);
   } finally {
     delete globalThis.window;
   }
@@ -1597,6 +1597,151 @@ test("hesitation outcome rolls back when any participating storage key fails", (
   delete globalThis.window;
 });
 
+test("hesitation outcome saved across midnight keeps the queue and lands the session", () => {
+  const now = new Date("2026-08-19T10:00:00+08:00");
+  const target = hesitationTarget();
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const added = addHesitationQueueItem(target, now);
+    const queueId = added.queue.items[0].id;
+    assert.ok(startHesitationQueueItem(queueId, now));
+    const result = hesitationSession(target, {
+      date: "2026-08-20T23:35:00+08:00",
+    });
+
+    assert.equal(saveHesitationPracticeOutcome(result, [], queueId), true);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    const completed = readHesitationQueue(now);
+    assert.equal(completed.items[0].status, "completed");
+    assert.equal(completed.items[0].sessionId, result.id);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("hesitation outcome still saves once the queue has rolled over to a new day", () => {
+  const now = new Date("2026-08-19T10:00:00+08:00");
+  const nextDay = new Date("2026-08-20T23:30:00+08:00");
+  const target = hesitationTarget();
+  const values = new Map([
+    [STORAGE.sessions, JSON.stringify([])],
+    [STORAGE.errors, JSON.stringify([])],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const added = addHesitationQueueItem(target, now);
+    const queueId = added.queue.items[0].id;
+    assert.ok(startHesitationQueueItem(queueId, now));
+    const rolledOver = readHesitationQueue(nextDay);
+    assert.equal(rolledOver.items.length, 0);
+    const queueAfterRoll = values.get(STORAGE.hesitationQueue);
+    const result = hesitationSession(target, {
+      id: "hesitation-result-late",
+      date: "2026-08-20T23:35:00+08:00",
+    });
+
+    assert.equal(saveHesitationPracticeOutcome(result, [], queueId), true);
+    assert.equal(JSON.parse(values.get(STORAGE.sessions)).length, 1);
+    assert.equal(values.get(STORAGE.hesitationQueue), queueAfterRoll);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("duplicate error entries merge mastery by keeping the higher stage", () => {
+  const values = new Map([
+    [
+      STORAGE.errors,
+      JSON.stringify([
+        {
+          text: "数",
+          code: "ovg",
+          count: 2,
+          lastSeen: "2026-07-29T09:00:00.000Z",
+          mastery: 3,
+        },
+        {
+          text: "数",
+          code: "ovg",
+          count: 1,
+          lastSeen: "2026-07-28T09:00:00.000Z",
+          mastery: 2,
+        },
+      ]),
+    ],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const errors = getErrors();
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].mastery, 3);
+    assert.equal(errors[0].count, 3);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("duplicate article progress merges accumulated errors", () => {
+  const values = new Map([
+    [
+      STORAGE.progress,
+      JSON.stringify([
+        articleProgress({
+          attempts: 2,
+          bestSpeed: 80,
+          errors: 3,
+          lastPracticed: "2026-07-29T09:00:00.000Z",
+        }),
+        articleProgress({
+          attempts: 1,
+          bestSpeed: 95,
+          errors: 5,
+          lastPracticed: "2026-07-30T09:00:00.000Z",
+        }),
+      ]),
+    ],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const progress = getProgress();
+    assert.equal(progress.length, 1);
+    assert.equal(progress[0].attempts, 3);
+    assert.equal(progress[0].errors, 8);
+    assert.equal(progress[0].bestSpeed, 95);
+    assert.equal(progress[0].lastPracticed, "2026-07-30T09:00:00.000Z");
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("settings read old and new themes while normalizing custom colors", () => {
   const values = new Map();
   globalThis.window = {
@@ -2150,7 +2295,7 @@ test("backup rejects duplicate article progress without touching local storage",
   }
 });
 
-test("duplicate progress sums attempts, keeps best speed and completion, and uses latest errors once", () => {
+test("duplicate progress sums attempts and errors, keeps best speed and completion", () => {
   const raw = JSON.stringify([
     articleProgress({
       attempts: 2,
@@ -2184,7 +2329,7 @@ test("duplicate progress sums attempts, keeps best speed and completion, and use
       bestSpeed: 120,
       completed: true,
       lastPracticed: "2026-08-02T09:00:00.000Z",
-      errors: 2,
+      errors: 9,
     }];
     assert.deepEqual(getProgress(), expected);
     assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), expected);
@@ -2232,7 +2377,7 @@ test("saving after article progress repair updates the sole record", () => {
       bestSpeed: 120,
       completed: true,
       lastPracticed: "2026-09-01T09:00:00.000Z",
-      errors: 6,
+      errors: 13,
     }]);
   } finally {
     delete globalThis.window;
@@ -2286,7 +2431,7 @@ test("failed article progress repair preserves the original stored value", () =>
     },
   };
   try {
-    assert.deepEqual(getProgress(), [articleProgress({ attempts: 5 })]);
+    assert.deepEqual(getProgress(), [articleProgress({ attempts: 5, errors: 6 })]);
     assert.equal(values.get(STORAGE.progress), raw);
   } finally {
     delete globalThis.window;

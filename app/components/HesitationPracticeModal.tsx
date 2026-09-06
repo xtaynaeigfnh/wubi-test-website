@@ -65,7 +65,10 @@ export function HesitationPracticeModal({
   const [liveErrorCount, setLiveErrorCount] = useState(0);
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState("");
-  usePendingSaveGuard(phase === "save-error");
+  usePendingSaveGuard(
+    phase === "save-error" || phase === "running" || phase === "round-result",
+    "本轮卡顿练习还未完成，离开会丢失进度或未保存的成绩。",
+  );
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const compositionCommitTimerRef = useRef<number | null>(null);
