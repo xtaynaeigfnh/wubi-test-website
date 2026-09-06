@@ -1,0 +1,315 @@
+.data-management {
+  margin-top: 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.management-card {
+  padding: 24px;
+}
+
+.management-card > div:first-child > p,
+.management-heading p,
+.pwa-card p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.management-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.restore-preview {
+  margin-top: 18px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--accent-vermilion);
+  border-radius: var(--radius-medium);
+  background: color-mix(in srgb, var(--accent-vermilion) 6%, var(--bg-paper));
+}
+
+.restore-preview strong,
+.restore-preview span,
+.restore-preview small {
+  display: block;
+}
+
+.restore-preview span {
+  margin-top: 5px;
+}
+
+.restore-preview small {
+  margin-top: 5px;
+  color: var(--text-secondary);
+}
+
+.management-message {
+  margin: 14px 0 0;
+  color: var(--accent-bamboo);
+  font-size: 11px;
+}
+
+.storage-total {
+  margin-top: 20px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  border-left: 3px solid var(--accent-bamboo);
+  background: var(--bg-raised);
+}
+
+.storage-total strong {
+  font: 750 23px/1 var(--font-data);
+}
+
+.storage-total span,
+.maintenance-log p {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.storage-warning {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  color: var(--state-error);
+  border: 1px solid color-mix(in srgb, var(--state-error) 45%, var(--border-default));
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--state-error) 6%, var(--bg-paper));
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.cleanup-all-action {
+  margin-top: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent-vermilion) 45%, var(--border-default));
+  border-radius: var(--radius-medium);
+  background: color-mix(in srgb, var(--accent-vermilion) 5%, var(--bg-paper));
+}
+
+.cleanup-all-action strong,
+.cleanup-all-action span {
+  display: block;
+}
+
+.cleanup-all-action strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.cleanup-all-action span {
+  max-width: 78ch;
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.cleanup-all-action .button {
+  flex: none;
+}
+
+.maintenance-log,
+.priority-explanation {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.maintenance-log summary,
+.priority-explanation summary {
+  cursor: pointer;
+  color: var(--accent-bamboo);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.maintenance-log ol,
+.priority-explanation ol {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.maintenance-log li {
+  padding: 8px 0;
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.maintenance-log time {
+  color: var(--text-secondary);
+  font: 500 9px/1.5 var(--font-data);
+}
+
+.priority-explanation > p {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.priority-explanation li {
+  padding: 9px 0;
+  display: grid;
+  grid-template-columns: 28px 54px 1fr;
+  gap: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.priority-explanation li b {
+  color: var(--accent-vermilion);
+  font: 700 10px/1.6 var(--font-data);
+}
+
+.priority-explanation li span {
+  color: var(--text-secondary);
+}
+
+.management-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.custom-manager-list {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.custom-manager-list article {
+  min-height: 154px;
+  padding: 16px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.custom-manager-list article strong,
+.custom-manager-list article span {
+  display: block;
+}
+
+.custom-manager-list article span {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+
+.custom-manager-list article p {
+  margin: 12px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.custom-manager-list article > div:last-child {
+  display: flex;
+  gap: 14px;
+}
+
+.custom-manager-list article button {
+  padding: 0;
+  color: var(--accent-bamboo);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.custom-manager-list article button.danger-text {
+  color: var(--state-error);
+}
+
+.custom-edit {
+  padding: 16px;
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  border: 1px solid var(--accent-bamboo);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.custom-edit label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.custom-edit input,
+.custom-edit textarea {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-paper);
+}
+
+.custom-edit textarea {
+  min-height: 180px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.custom-edit > div {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 10px;
+}
+
+.custom-edit > div span {
+  margin-right: auto;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.pwa-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--accent-bamboo) 9%, transparent),
+      transparent 60%
+    ),
+    var(--bg-paper);
+}
+
+.pwa-card small {
+  margin-top: 8px;
+  display: block;
+  color: var(--text-secondary);
+}
+

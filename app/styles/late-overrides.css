@@ -1,0 +1,133 @@
+.switch-row input:checked {
+  border-color: var(--accent-bamboo-fill);
+  background: var(--accent-bamboo-fill);
+}
+
+.training-heading {
+  align-items: center;
+}
+
+.goal-seal {
+  width: 144px;
+  height: 144px;
+  border: 10px solid var(--bg-key);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--bg-paper) 0 56%, transparent 57%),
+    conic-gradient(var(--accent-vermilion) var(--goal-progress), var(--border-subtle) 0);
+}
+
+.goal-seal strong {
+  color: var(--accent-bamboo);
+}
+
+.daily-progress-card,
+.smart-plan-card,
+.due-review-card {
+  border-top: 3px solid var(--accent-bamboo);
+}
+
+.plan-steps li > span:first-child {
+  color: var(--text-on-accent);
+  border-radius: var(--radius-small);
+  background: var(--accent-vermilion-fill);
+  font-family: var(--font-data);
+}
+
+.root-zone-rail button.active {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+.root-zone-rail button.active strong,
+.root-zone-rail button.active small {
+  color: inherit;
+}
+
+.code-drill {
+  border-color: var(--border-default);
+  border-top: 3px solid var(--accent-bamboo);
+  border-radius: var(--radius-medium);
+  background: var(--bg-paper);
+  box-shadow: var(--shadow-panel);
+}
+
+.error-card {
+  border-left: 5px solid var(--state-error);
+  border-radius: var(--radius-small);
+}
+
+.empty-state,
+.training-empty,
+.lookup-empty {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-medium);
+  background:
+    linear-gradient(135deg, transparent 0 49%, var(--grid-line) 50% 51%, transparent 52%) 0 0 / 18px 18px,
+    var(--bg-paper);
+}
+
+.modal-backdrop {
+  background: color-mix(in srgb, var(--text-primary) 65%, transparent);
+  backdrop-filter: blur(5px);
+}
+
+.modal {
+  border: 1px solid var(--border-strong);
+  border-top: 4px solid var(--accent-vermilion);
+  border-radius: var(--radius-medium);
+  box-shadow: 0 30px 100px color-mix(in srgb, var(--text-primary) 24%, transparent);
+}
+
+.site-footer {
+  min-height: 60px;
+  margin-top: 28px;
+  padding: 14px 84px 14px 20px;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-bottom: 0;
+  background: var(--bg-paper);
+  line-height: 1.5;
+}
+
+.site-footer b {
+  margin-right: 10px;
+  color: var(--accent-bamboo);
+  font: 800 9px/1 var(--font-data);
+  letter-spacing: 0.1em;
+}
+
+.music-dock {
+  color: var(--dock-text);
+  border-top: 3px solid var(--accent-vermilion);
+  background: color-mix(in srgb, var(--dock-bg) 97%, transparent);
+  box-shadow: 0 -12px 36px rgba(8, 28, 32, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.music-dock-bar {
+  min-height: 72px;
+}
+
+.music-station::before {
+  content: "♫";
+  color: var(--accent-vermilion);
+  font: 700 24px/1 var(--font-display);
+}
+
+.station-pulse {
+  display: none;
+}
+
+.music-transport .music-play-button {
+  border-color: var(--accent-vermilion-dark);
+  background: var(--accent-vermilion-fill);
+  box-shadow: 0 2px 0 var(--accent-vermilion-dark);
+}
+
+.music-ruler button.active,
+.music-progress input,
+.music-volume input {
+  accent-color: var(--accent-vermilion);
+}
+

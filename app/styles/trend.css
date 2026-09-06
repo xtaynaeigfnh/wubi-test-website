@@ -1,0 +1,137 @@
+.trend-panel {
+  margin: 20px 0;
+  padding: 24px;
+}
+
+.trend-range {
+  padding: 3px;
+  display: flex;
+  gap: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+}
+
+.trend-range button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.trend-range button.active {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+.trend-summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.trend-summary span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trend-summary i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.speed-dot {
+  background: var(--accent-bamboo-fill);
+}
+
+.accuracy-dot {
+  background: var(--accent-vermilion-fill);
+}
+
+.trend-chart {
+  position: relative;
+}
+
+.trend-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.chart-grid {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.speed-line,
+.accuracy-line {
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.speed-line {
+  stroke: var(--accent-bamboo-fill);
+}
+
+.accuracy-line {
+  stroke: var(--accent-vermilion-fill);
+  stroke-dasharray: 7 6;
+}
+
+.trend-labels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font: 9px/1 var(--font-data);
+}
+
+.trend-empty {
+  margin-top: 14px;
+  padding: 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+  font-size: 11px;
+}
+
+.session-share {
+  min-height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  justify-self: end;
+  color: var(--accent-bamboo);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 140ms ease, border-color 140ms ease, transform 140ms var(--ease-press);
+}
+
+.session-share:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-bamboo);
+  transform: translateY(-1px);
+}
+
+.session-share span {
+  font: 800 13px/1 var(--font-data);
+}
+

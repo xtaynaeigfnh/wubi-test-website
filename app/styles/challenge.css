@@ -1,0 +1,235 @@
+.subpage-heading {
+  max-width: 760px;
+  margin-bottom: 36px;
+}
+
+.subpage-heading.centered {
+  max-width: 760px;
+  margin: 0 auto 38px;
+  text-align: center;
+}
+
+.lookup-heading {
+  margin-inline: auto;
+  text-align: left;
+}
+
+.subpage-heading.with-action {
+  max-width: none;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.challenge-card {
+  min-height: 540px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(90deg, transparent 49.9%, color-mix(in srgb, var(--border-default) 32%, transparent) 50%, transparent 50.1%),
+    var(--bg-paper);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.challenge-card.has-error {
+  border-color: var(--state-error);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--state-error) 28%, transparent);
+}
+
+.challenge-start,
+.challenge-running {
+  width: min(540px, calc(100% - 48px));
+  text-align: center;
+}
+
+.challenge-start h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 30px;
+}
+
+.challenge-start p {
+  margin: 0 0 24px;
+  color: var(--text-secondary);
+}
+
+.result-score {
+  margin: 16px;
+}
+
+.result-score strong {
+  color: var(--accent-vermilion);
+  font: 800 48px/1 var(--font-data);
+}
+
+.result-score span {
+  color: var(--text-secondary);
+}
+
+.challenge-status,
+.code-slots,
+.quick-searches {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.challenge-status span {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  border: 0;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  font: 10px/1 var(--font-data);
+}
+
+.question-character {
+  margin: 44px 0 28px;
+  font-family: var(--font-display);
+  font-size: clamp(68px, 10vw, 112px);
+  font-weight: 600;
+}
+
+.code-slots {
+  margin-bottom: 16px;
+}
+
+.code-slots span,
+.keyboard-visual span {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-key);
+  font-family: var(--font-data);
+}
+
+.code-slots span {
+  width: 58px;
+  height: 64px;
+  color: var(--text-secondary);
+  font-size: 26px;
+  font-weight: 750;
+  border-radius: var(--radius-small);
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms var(--ease-out);
+}
+
+.code-slots span.filled {
+  color: var(--text-on-accent);
+  border-color: var(--accent-bamboo-fill);
+  background: var(--accent-bamboo-fill);
+  transform: translateY(-2px);
+}
+
+.code-input {
+  width: min(280px, 100%);
+  height: 48px;
+  padding: 0 14px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+  text-align: center;
+  font: 700 18px/1 var(--font-data);
+}
+
+.code-input.right {
+  border-color: var(--state-success);
+}
+
+.code-input.wrong {
+  border-color: var(--state-error);
+  background: color-mix(in srgb, var(--state-error) 8%, var(--bg-raised));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-error) 16%, transparent);
+}
+
+.challenge-running.is-wrong .code-slots span.filled {
+  border-color: var(--state-error-fill);
+  background: var(--state-error-fill);
+}
+
+.feedback-region {
+  min-height: 116px;
+  margin-top: 14px;
+  display: grid;
+  place-items: start center;
+}
+
+.feedback {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.feedback.right {
+  color: var(--state-success);
+  animation: feedback-in 180ms var(--ease-out) both;
+}
+
+.feedback.wrong {
+  color: var(--state-error);
+  animation: feedback-in 180ms var(--ease-out) both;
+}
+
+.question-swap {
+  animation: question-swap-in 220ms var(--ease-out) both;
+}
+
+.wrong-answer {
+  width: min(400px, 100%);
+  padding: 14px 16px 16px;
+  color: var(--text-primary);
+  border: 1px solid var(--state-error);
+  background: color-mix(in srgb, var(--state-error) 9%, var(--bg-raised));
+  border-radius: var(--radius-small);
+  text-align: left;
+}
+
+.wrong-answer > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--state-error);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.wrong-answer p {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.wrong-answer del,
+.wrong-answer strong {
+  font: 800 20px/1 var(--font-data);
+}
+
+.wrong-answer del {
+  color: var(--state-error);
+  text-decoration-thickness: 2px;
+}
+
+.wrong-answer strong {
+  color: var(--state-success);
+}
+
+.wrong-answer i {
+  color: var(--text-secondary);
+  font-style: normal;
+}
+
+.wrong-answer .button {
+  width: 100%;
+  min-height: 44px;
+}
+

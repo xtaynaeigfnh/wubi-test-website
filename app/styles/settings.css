@@ -1,0 +1,76 @@
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.settings-card {
+  padding: 28px;
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow 180ms ease;
+}
+
+.settings-card-title {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.settings-card-title > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  border-radius: 4px 7px 5px 6px;
+  background: var(--accent-bamboo-fill);
+  font-family: var(--font-display);
+  font-size: 19px;
+}
+
+.settings-card-title h2,
+.settings-card-title p {
+  margin: 0;
+}
+
+.settings-card-title h2 {
+  font-family: var(--font-display);
+  font-size: 19px;
+}
+
+.settings-card-title p {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.range-row {
+  grid-template-columns: 1fr !important;
+}
+
+.range-row > span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.range-row input {
+  width: 100%;
+  accent-color: var(--accent-bamboo);
+}
+
+.license-card > p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.license-card > a {
+  color: var(--accent-bamboo);
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
