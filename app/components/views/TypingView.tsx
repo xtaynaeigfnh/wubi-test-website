@@ -1549,6 +1549,7 @@ export function TypingView({
                     <>
                       <button
                         className="common-toolbar-action range-action"
+                        disabled={practiceInProgress}
                         aria-label="更换常用字练习范围"
                         title="更换常用字练习范围"
                         onClick={openCommonPractice}
@@ -1557,7 +1558,7 @@ export function TypingView({
                       </button>
                       <button
                         className="common-toolbar-action shuffle-action"
-                        disabled={commonLoading}
+                        disabled={commonLoading || practiceInProgress}
                         aria-label="打乱当前范围并从头开始"
                         title="打乱当前范围并从头开始"
                         onClick={() => void shuffleCurrentCommonPractice()}
@@ -1566,7 +1567,12 @@ export function TypingView({
                       </button>
                     </>
                   ) : (
-                    <button onClick={() => setPickerOpen(true)}>选文章</button>
+                    <button
+                      disabled={practiceInProgress}
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      选文章
+                    </button>
                   )}
                   <button
                     className="restart-action"
