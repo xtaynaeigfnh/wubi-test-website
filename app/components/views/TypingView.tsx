@@ -529,8 +529,11 @@ export function TypingView({
 
   const shuffleCurrentCommonPractice = async () => {
     if (!isCommonPracticeArticle(article)) return;
+    const targetId = article.id;
     const data = commonData ?? (await fetchCommonCharacterData());
     if (!data) return;
+    // 加载期间用户可能已换到别的文章，不能再把旧范围的常用字强行切回来。
+    if (readLocal<string | null>(STORAGE.current, null) !== targetId) return;
     chooseArticle(buildCommonPracticeArticle(data, article.preset, true));
   };
 
