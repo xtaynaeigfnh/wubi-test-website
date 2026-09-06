@@ -21,11 +21,9 @@ import {
   readLocalForBackup,
   readSpacedReviewState,
   restoreBackupPayload,
-  STORAGE,
-  STORAGE_KEYS,
   truncateUnicode,
-  writeLocal,
 } from "../lib";
+import { STORAGE, STORAGE_KEYS, writeLocal } from "../storage";
 import {
   buildStorageUsageReport,
   type MaintenanceEvent,

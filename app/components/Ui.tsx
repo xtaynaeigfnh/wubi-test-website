@@ -374,3 +374,21 @@ export function Modal({
     </div>
   );
 }
+
+export function DiagnosticMetric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <span className="diagnostic-metric">
+      <small>{label}</small>
+      <strong>{value}</strong>
+      {unit && <i>{unit}</i>}
+    </span>
+  );
+}

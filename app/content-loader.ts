@@ -7,6 +7,8 @@ import type {
   WubiEntry,
 } from "./types";
 
+export const FALLBACK_ARTICLE_COUNT = 300;
+
 let articlesPromise: Promise<PracticeArticle[]> | null = null;
 let articleMetadataPromise: Promise<ArticleMetadata[]> | null = null;
 let wubiPromise: Promise<WubiEntry[]> | null = null;

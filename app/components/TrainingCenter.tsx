@@ -17,20 +17,18 @@ import {
   localDateKey,
   readDailyGoal,
   readHesitationQueue,
-  readLocal,
   readSpacedReviewState,
   readSettings,
   readTrainingPlan,
   recordKeyUsage,
   savePracticeOutcome,
   startTrainingTask,
-  STORAGE,
   syncSpacedReviewState,
   deferSpacedReviewTarget,
-  writeLocal,
   writeTrainingPlan,
   type PhrasePracticeInput,
 } from "../lib";
+import { readLocal, STORAGE, writeLocal } from "../storage";
 import { loadArticles, loadWubiChallenge } from "../content-loader";
 import { calculateAccuracy } from "../typing-metrics";
 import type {
