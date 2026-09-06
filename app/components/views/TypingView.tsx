@@ -20,7 +20,6 @@ import {
   formatDuration,
   getCustomArticles,
   getProgress,
-  getSessions,
   lengthLabels,
   MAX_CUSTOM_TEXT_LENGTH,
   readTrainingPlan,
@@ -55,22 +54,11 @@ import {
   isWubiLetterKey,
   shouldDeferInputCommit,
 } from "../../typing-metrics";
-import {
-  buildGhostTimeline,
-  compareGhostSegments,
-  getGhostArticleIdentity,
-  getGhostElapsedAtProgress,
-  getGhostPositionAtElapsed,
-  getGhostSampleStep,
-  selectGhostSessions,
-  type GhostProgressPoint,
-} from "../../ghost-race";
 import type {
   ArticleFilter,
   ArticleProgress,
   CommonCharacterData,
   CommonCharacterPreset,
-  GhostTimeline,
   HesitationPracticeTarget,
   PracticeArticle,
   SessionResult,
@@ -93,10 +81,13 @@ import {
   type PhysicalRhythmSample,
 } from "../../rhythm-lab";
 import { useTypingDiagnostics } from "./typing/useTypingDiagnostics";
+import {
+  useGhostRace,
+  type GhostMode,
+  type GhostRaceApi,
+} from "./typing/useGhostRace";
 
 export type KeySoundPlayer = (options?: { force?: boolean }) => void;
-
-type GhostMode = "off" | "best" | "recent";
 
 export function TypingView({
   settings,
@@ -193,18 +184,8 @@ export function TypingView({
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
   const customSaveLock = useRef(false);
-  const [ghostMode, setGhostMode] = useState<GhostMode>("off");
-  const [showGhostGap, setShowGhostGap] = useState(settings.showGhostGap);
-  const [ghostRevision, setGhostRevision] = useState(0);
   const [, setClockRevision] = useState(0);
-  const [completedGhostTimeline, setCompletedGhostTimeline] =
-    useState<GhostTimeline | null>(null);
-  const [activeGhostTimelineState, setActiveGhostTimelineState] =
-    useState<GhostTimeline | null>(null);
-  const [activeGhostMode, setActiveGhostMode] =
-    useState<GhostMode>("off");
-  const ghostProgressPointsRef = useRef<GhostProgressPoint[]>([]);
-  const selectedGhostTimelineRef = useRef<GhostTimeline | null>(null);
+  const ghostApiRef = useRef<GhostRaceApi | null>(null);
   const completionElapsedRef = useRef<number | null>(null);
   const inactiveAtRef = useRef<number | null>(null);
   const inactiveDurationMsRef = useRef(0);
@@ -310,10 +291,9 @@ export function TypingView({
     const now = Date.now();
     startedAtRef.current = now;
     lastTimingAtRef.current = now;
-    setActiveGhostTimelineState(selectedGhostTimelineRef.current);
-    setActiveGhostMode(selectedGhostTimelineRef.current ? ghostMode : "off");
+    ghostApiRef.current?.armActiveRace();
     setStartedAt(now);
-  }, [ghostMode]);
+  }, []);
 
   const chooseArticle = useCallback(
     (
@@ -384,10 +364,7 @@ export function TypingView({
       setCompleted(false);
       setLastSession(null);
       setSessionSaveFailed(false);
-      setGhostMode(nextGhostMode);
-      setCompletedGhostTimeline(null);
-      setActiveGhostTimelineState(null);
-      setActiveGhostMode("off");
+      ghostApiRef.current?.resetForArticle(nextGhostMode);
       pendingPracticeSave.current = null;
       composing.current = false;
       recorded.current = false;
@@ -399,8 +376,6 @@ export function TypingView({
       physicalRhythmSamplesRef.current = [];
       correctionPositionsRef.current = new Map();
       errorPositions.current = new Set();
-      ghostProgressPointsRef.current = [];
-      selectedGhostTimelineRef.current = null;
       completionElapsedRef.current = null;
       inactiveAtRef.current = null;
       inactiveDurationMsRef.current = 0;
@@ -574,45 +549,6 @@ export function TypingView({
     wubiCodesRef,
     retryCodeLengthLoad,
   } = useTypingDiagnostics(targetText, settings.showCodeHints);
-  const paragraphBoundaries = useMemo(
-    () =>
-      visibleText
-      .split(/[\r\n]+/)
-      .filter((paragraph) => paragraph.length > 0)
-        .reduce<number[]>((boundaries, paragraph) => {
-          const previous = boundaries.at(-1) ?? 0;
-          return [...boundaries, previous + Array.from(paragraph).length];
-        }, []),
-    [visibleText],
-  );
-  const ghostIdentity = useMemo(
-    () => (article ? getGhostArticleIdentity(article) : null),
-    [article],
-  );
-  const ghostSessions = useMemo(
-    () => {
-      void ghostRevision;
-      return ghostIdentity
-        ? selectGhostSessions(getSessions(), ghostIdentity)
-        : { best: null, recent: null };
-    },
-    [ghostIdentity, ghostRevision],
-  );
-  const selectedGhostSession =
-    ghostMode === "best"
-      ? ghostSessions.best
-      : ghostMode === "recent"
-        ? ghostSessions.recent
-        : null;
-  const selectedGhostTimeline = selectedGhostSession?.ghostTimeline ?? null;
-  useEffect(() => {
-    if (startedAt === null) {
-      selectedGhostTimelineRef.current = selectedGhostTimeline;
-    }
-  }, [selectedGhostTimeline, startedAt]);
-  useEffect(() => {
-    if (startedAtRef.current === null) setShowGhostGap(settings.showGhostGap);
-  }, [settings.showGhostGap]);
   const targetCharacters = useMemo(() => Array.from(targetText), [targetText]);
   const typedCharacters = useMemo(() => Array.from(typed), [typed]);
   const displayCharacters = useMemo(() => {
@@ -630,6 +566,33 @@ export function TypingView({
   }, [visibleText]);
 
   const seconds = completed ? elapsed : elapsed || 0;
+  const ghost = useGhostRace({
+    article,
+    startedAt,
+    startedAtRef,
+    seconds,
+    targetCharacterCount: targetCharacters.length,
+    typedCharacterCount: typedCharacters.length,
+    showGhostGapSetting: settings.showGhostGap,
+    onShowGhostGapChange,
+  });
+  const {
+    ghostMode,
+    setGhostMode,
+    ghostSessions,
+    showGhostGap,
+    toggleGhostGap,
+    activeGhostTimeline,
+    displayGhostMode,
+    activeGhostMode,
+    ghostProgressPercent,
+    ghostGapLabel,
+    ghostSegmentComparison,
+    refreshSessions,
+  } = ghost;
+  useEffect(() => {
+    ghostApiRef.current = ghost;
+  });
   const {
     correctChars,
     speed,
@@ -682,49 +645,13 @@ export function TypingView({
     pendingPracticeSave.current = null;
     setSessionSaveFailed(false);
     setProgress(getProgress());
-    setGhostRevision((value) => value + 1);
+    refreshSessions();
   };
   const progressRatio = Math.min(
     1,
     typedCharacters.length / Math.max(1, targetCharacters.length),
   );
   const progressPercent = Math.round(progressRatio * 100);
-  const activeGhostTimeline =
-    startedAt !== null
-      ? activeGhostTimelineState
-      : selectedGhostTimeline;
-  const displayGhostMode = startedAt !== null ? activeGhostMode : ghostMode;
-  const ghostPosition = activeGhostTimeline
-    ? getGhostPositionAtElapsed(activeGhostTimeline, seconds * 1000)
-    : 0;
-  const ghostProgressPercent = activeGhostTimeline
-    ? Math.min(100, (ghostPosition / Math.max(1, targetCharacters.length)) * 100)
-    : 0;
-  const ghostCharacterGap = activeGhostTimeline
-    ? typedCharacters.length - ghostPosition
-    : 0;
-  const ghostTimeGapMs = activeGhostTimeline
-    ? seconds * 1000 -
-      getGhostElapsedAtProgress(activeGhostTimeline, typedCharacters.length)
-    : 0;
-  const ghostGapLabel = activeGhostTimeline
-    ? `${ghostCharacterGap >= 0 ? "领先" : "落后"} ${Math.abs(
-        ghostCharacterGap,
-      ).toFixed(1)} 字 · ${ghostTimeGapMs <= 0 ? "快" : "慢"} ${Math.abs(
-        ghostTimeGapMs / 1000,
-      ).toFixed(1)} 秒`
-    : "普通练习";
-  const ghostSegmentComparison = useMemo(
-    () =>
-      completedGhostTimeline && activeGhostTimelineState
-        ? compareGhostSegments(
-            completedGhostTimeline,
-            activeGhostTimelineState,
-            paragraphBoundaries,
-          )
-        : [],
-    [activeGhostTimelineState, completedGhostTimeline, paragraphBoundaries],
-  );
 
   useEffect(() => {
     const viewport = articleTextRef.current;
@@ -865,18 +792,11 @@ export function TypingView({
         task.status === "in-progress" &&
         task.articleId === articleId,
     )?.id;
-    let ghostTimeline: GhostTimeline | undefined;
-    if (ghostIdentity) {
-      const finalPoint = {
-        characterCount: targetCharacters.length,
-        elapsedMs: finalSeconds * 1000,
-      };
-      ghostProgressPointsRef.current.push(finalPoint);
-      ghostTimeline =
-        buildGhostTimeline(ghostIdentity, ghostProgressPointsRef.current) ??
-        undefined;
-      setCompletedGhostTimeline(ghostTimeline ?? null);
-    }
+    const ghostTimeline =
+      ghostApiRef.current?.finalizeTimeline(
+        targetCharacters.length,
+        finalSeconds,
+      ) ?? undefined;
     const session: SessionResult = {
       id: createLocalId(),
       type: "article",
@@ -935,7 +855,7 @@ export function TypingView({
     } else {
       pendingPracticeSave.current = null;
       setSessionSaveFailed(false);
-      setGhostRevision((value) => value + 1);
+      refreshSessions();
     }
     setLastSession(session);
   }, [
@@ -948,7 +868,6 @@ export function TypingView({
     correctAttemptCount,
     elapsed,
     enterCount,
-    ghostIdentity,
     keyCount,
     leftHandKeys,
     letterKeys,
@@ -957,6 +876,7 @@ export function TypingView({
     pausedAt,
     pausedDurationMs,
     phraseChars,
+    refreshSessions,
     retryCount,
     rightHandKeys,
     selectionCount,
@@ -983,27 +903,18 @@ export function TypingView({
     const now = Date.now();
     const previousCharacterCount = Array.from(previous).length;
     const committedCharacterCount = Array.from(committed).length;
-    if (ghostIdentity && committedCharacterCount > previousCharacterCount) {
-      const characterCount = committedCharacterCount;
-      const previousPoint = ghostProgressPointsRef.current.at(-1);
-      const step = getGhostSampleStep(ghostIdentity.characterCount);
-      if (
-        characterCount === ghostIdentity.characterCount ||
-        characterCount >= (previousPoint?.characterCount ?? 0) + step
-      ) {
-        ghostProgressPointsRef.current.push({
-          characterCount,
-          elapsedMs:
-            calculateActiveDurationSeconds({
-              startedAt: startedAtRef.current,
-              now,
-              pausedDurationMs,
-              pausedAt,
-              inactiveDurationMs: inactiveDurationMsRef.current,
-              inactiveAt: inactiveAtRef.current,
-            }) * 1000,
-        });
-      }
+    if (committedCharacterCount > previousCharacterCount) {
+      ghostApiRef.current?.recordProgressSample(
+        committedCharacterCount,
+        calculateActiveDurationSeconds({
+          startedAt: startedAtRef.current,
+          now,
+          pausedDurationMs,
+          pausedAt,
+          inactiveDurationMs: inactiveDurationMsRef.current,
+          inactiveAt: inactiveAtRef.current,
+        }) * 1000,
+      );
     }
     const transitionMs = calculateTypingTransitionMs({
       lastActiveAt: lastTimingAtRef.current,
@@ -1117,12 +1028,6 @@ export function TypingView({
     lastTimingAtRef.current = null;
     setPausedAt(now);
     setPauseCount((value) => value + 1);
-  };
-
-  const toggleGhostGap = () => {
-    const next = !showGhostGap;
-    setShowGhostGap(next);
-    onShowGhostGapChange(next);
   };
 
   const useCustomText = () => {
