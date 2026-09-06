@@ -36,16 +36,13 @@ import {
   FALLBACK_ARTICLE_COUNT,
   loadArticles,
   loadCommonCharacters,
-  loadWubi,
 } from "../../content-loader";
 import {
   applyTypingDelaySample,
-  buildMinimumCodeLengthIndex,
   buildTypingHeatmap,
   calculateActiveDurationSeconds,
   calculateKeyAccuracy,
   calculatePhraseRate,
-  calculateTheoreticalMinimumCodeLength,
   calculateTypingTransitionMs,
   calculateTypingMetrics,
   canCompleteTyping,
@@ -56,15 +53,8 @@ import {
   getHesitationLevel,
   isImeSelectionKey,
   isWubiLetterKey,
-  preferShortestWubiCodes,
   shouldDeferInputCommit,
-  type MinimumCodeLengthIndex,
 } from "../../typing-metrics";
-import {
-  analyzeCodeLengthCoach,
-  buildCodeLengthCoachIndex,
-  type CodeLengthCoachIndex,
-} from "../../code-length-coach";
 import {
   buildGhostTimeline,
   compareGhostSegments,
@@ -102,6 +92,7 @@ import {
   MAX_PHYSICAL_RHYTHM_SAMPLES,
   type PhysicalRhythmSample,
 } from "../../rhythm-lab";
+import { useTypingDiagnostics } from "./typing/useTypingDiagnostics";
 
 export type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -196,21 +187,12 @@ export function TypingView({
   const typingDelaysRef = useRef<number[]>([]);
   const physicalRhythmSamplesRef = useRef<PhysicalRhythmSample[]>([]);
   const correctionPositionsRef = useRef(new Map<number, number>());
-  const wubiCodesRef = useRef(new Map<string, string>());
   const compositionCommitTimer = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const errorPositions = useRef(new Set<number>());
   const customSaveLock = useRef(false);
-  const [codeHints, setCodeHints] = useState<Map<string, string>>(new Map());
-  const [codeHintsError, setCodeHintsError] = useState("");
-  const [minimumCodeIndex, setMinimumCodeIndex] =
-    useState<MinimumCodeLengthIndex | null>(null);
-  const [codeLengthCoachIndex, setCodeLengthCoachIndex] =
-    useState<CodeLengthCoachIndex | null>(null);
-  const [minimumCodeError, setMinimumCodeError] = useState("");
-  const [codeLengthLoadAttempt, setCodeLengthLoadAttempt] = useState(0);
   const [ghostMode, setGhostMode] = useState<GhostMode>("off");
   const [showGhostGap, setShowGhostGap] = useState(settings.showGhostGap);
   const [ghostRevision, setGhostRevision] = useState(0);
@@ -255,33 +237,6 @@ export function TypingView({
   }, []);
 
   useEffect(() => {
-    let active = true;
-    setMinimumCodeError("");
-    loadWubi()
-      .then((rows) => {
-        if (active) {
-          setMinimumCodeIndex(buildMinimumCodeLengthIndex(rows));
-          setCodeLengthCoachIndex(buildCodeLengthCoachIndex(rows));
-          wubiCodesRef.current = new Map(
-            preferShortestWubiCodes(
-              rows.filter(([text]) => Array.from(text).length === 1),
-            ).map(([text, code]) => [text, code]),
-          );
-        }
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setMinimumCodeError(
-            error instanceof Error ? error.message : "理论码长计算数据加载失败",
-          );
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [codeLengthLoadAttempt]);
-
-  useEffect(() => {
     setFilter((value) => ({
       ...value,
       length: settings.preferredLength,
@@ -311,41 +266,6 @@ export function TypingView({
       delete root.dataset.focusMode;
     };
   }, [commonOpen, customOpen, focusMode, hesitationPracticeOpen, pickerOpen]);
-
-  useEffect(() => {
-    if (!settings.showCodeHints) {
-      setCodeHints(new Map());
-      setCodeHintsError("");
-      return;
-    }
-    let active = true;
-    setCodeHintsError("");
-    loadWubi()
-      .then((rows) => {
-        if (!active) return;
-        const singleCharacters = rows.filter(
-          ([text]) => Array.from(text).length === 1,
-        );
-        setCodeHints(
-          new Map(
-            preferShortestWubiCodes(singleCharacters).map(([text, code]) => [
-              text,
-              code,
-            ]),
-          ),
-        );
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setCodeHintsError(
-            error instanceof Error ? error.message : "编码提示加载失败",
-          );
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [settings.showCodeHints]);
 
   useEffect(
     () => () => {
@@ -645,6 +565,15 @@ export function TypingView({
     () => visibleText.replace(/[\r\n]/g, ""),
     [visibleText],
   );
+  const {
+    codeHints,
+    codeHintsError,
+    minimumCodeError,
+    theoreticalCodeLength,
+    codeLengthAnalysis,
+    wubiCodesRef,
+    retryCodeLengthLoad,
+  } = useTypingDiagnostics(targetText, settings.showCodeHints);
   const paragraphBoundaries = useMemo(
     () =>
       visibleText
@@ -686,22 +615,6 @@ export function TypingView({
   }, [settings.showGhostGap]);
   const targetCharacters = useMemo(() => Array.from(targetText), [targetText]);
   const typedCharacters = useMemo(() => Array.from(typed), [typed]);
-  const theoreticalCodeLength = useMemo(
-    () =>
-      minimumCodeIndex
-        ? calculateTheoreticalMinimumCodeLength(targetText, minimumCodeIndex)
-        : null,
-    [minimumCodeIndex, targetText],
-  );
-  const codeLengthAnalysis = useMemo(
-    () =>
-      codeLengthCoachIndex
-        ? analyzeCodeLengthCoach(targetText, codeLengthCoachIndex, {
-            maxRecommendations: 5,
-          })
-        : null,
-    [codeLengthCoachIndex, targetText],
-  );
   const displayCharacters = useMemo(() => {
     let targetIndex = 0;
     return Array.from(visibleText).map((character, visibleIndex) => {
@@ -1054,6 +967,7 @@ export function TypingView({
     typed,
     typedCharacters,
     visibleText,
+    wubiCodesRef,
   ]);
 
   const commitTypedValue = (nextValue: string) => {
@@ -1898,9 +1812,7 @@ export function TypingView({
                       {minimumCodeError && (
                         <button
                           className="button secondary"
-                          onClick={() =>
-                            setCodeLengthLoadAttempt((value) => value + 1)
-                          }
+                          onClick={retryCodeLengthLoad}
                         >
                           重试加载码表
                         </button>

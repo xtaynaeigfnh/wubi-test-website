@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
@@ -20,6 +20,17 @@ const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.
 const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
 const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", import.meta.url);
 const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.meta.url);
+const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
+
+async function readTypingSource() {
+  const hookNames = (await readdir(typingHooksDir))
+    .filter((name) => name.endsWith(".ts"))
+    .sort();
+  const hookSources = await Promise.all(
+    hookNames.map((name) => readFile(new URL(name, typingHooksDir), "utf8")),
+  );
+  return [await readFile(typingViewPath, "utf8"), ...hookSources].join("\n");
+}
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
@@ -60,7 +71,7 @@ test("settings storage history waits until hydration before reading local data",
 
 test("recorded data renders without replay animations", async () => {
   const [typing, history, trendPanel, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(historyViewPath, "utf8"),
     readFile(trendPanelPath, "utf8"),
     readFile(stylesPath, "utf8"),
@@ -144,7 +155,7 @@ test("completed training task status keeps its own readable action column", asyn
 test("custom text limits and install failures are visible instead of silent", async () => {
   const [component, typing, management, pwa] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
     readFile(pwaControlPath, "utf8"),
   ]);
@@ -235,7 +246,7 @@ test("history filters are visually separate and expose pressed state", async () 
 
 test("typing exposes every filtered article and resets timing on restart", async () => {
   const [typing, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(stylesPath, "utf8"),
   ]);
 
@@ -295,7 +306,7 @@ test("typing exposes every filtered article and resets timing on restart", async
 
 test("personal ghost races expose selection, live distance, replay, and responsive review", async () => {
   const [typing, styles, ghostLogic] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/ghost-race.ts", import.meta.url), "utf8"),
   ]);
@@ -342,7 +353,7 @@ test("personal ghost races expose selection, live distance, replay, and responsi
 test("typing completion and history expose an accessible hesitation heatmap", async () => {
   const [component, typing, history, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(historyViewPath, "utf8"),
     readFile(hesitationHeatmapPath, "utf8"),
     readFile(hesitationPracticePath, "utf8"),
@@ -404,7 +415,7 @@ test("typing completion and history expose an accessible hesitation heatmap", as
 
 test("planned articles, custom text counts, and local writes keep UI state consistent", async () => {
   const [typing, training, management] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
   ]);
@@ -444,7 +455,7 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
   const [typing, challenge, training, advanced, hesitation, ui, management, pwa, music, rhythmNavigation] =
     await Promise.all([
-      readFile(typingViewPath, "utf8"),
+      readTypingSource(),
       readFile(challengeViewPath, "utf8"),
       readFile(trainingCenterPath, "utf8"),
       readFile(advancedCenterPath, "utf8"),
@@ -482,7 +493,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
 test("failed local saves cannot be discarded or shown as successful", async () => {
   const [component, typing, training, summary, advanced, management] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(trainingCenterPath, "utf8"),
     readFile(keySummaryPath, "utf8"),
     readFile(advancedCenterPath, "utf8"),
@@ -557,7 +568,7 @@ test("failed local saves cannot be discarded or shown as successful", async () =
 
 test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {
   const [typing, pwa] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(pwaControlPath, "utf8"),
   ]);
   assert.match(typing, /physicalRhythmSamplesRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
@@ -699,7 +710,7 @@ test("advanced training content stays inside ultra-narrow viewports", async () =
 
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
   const [typing, training, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(stylesPath, "utf8"),
   ]);
@@ -739,7 +750,7 @@ test("mobile navigation scrolls the active route into view", async () => {
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
   const [typing, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(stylesPath, "utf8"),
   ]);
 
@@ -776,7 +787,7 @@ test("key sound is shared by typing, challenge, and the settings preview", async
 test("typing surfaces record physical keys and the summary exposes the reference analyses", async () => {
   const [component, typing, training, summary, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(keySummaryPath, "utf8"),
     readFile(stylesPath, "utf8"),
@@ -862,7 +873,7 @@ test("history exposes an accessible weekly report and local image download", asy
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
   const [typing, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(stylesPath, "utf8"),
   ]);
 
@@ -932,7 +943,7 @@ test("lookup workbench adapts to narrow screens and reduced motion with scoped s
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
   const [component, typing, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(stylesPath, "utf8"),
   ]);
 
@@ -1095,7 +1106,7 @@ test("common-character practice inherits the article reading rhythm", async () =
 
 test("common-character scores stay out of built-in article completion progress", async () => {
   const [typing, history] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(historyViewPath, "utf8"),
   ]);
 
