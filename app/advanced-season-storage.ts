@@ -1,6 +1,7 @@
 "use client";
 
-import { STORAGE, writeLocal, savePracticeOutcome, saveAdvancedPracticeOutcome } from "./lib.ts";
+import { STORAGE, writeLocal } from "./storage.ts";
+import { savePracticeOutcome, saveAdvancedPracticeOutcome } from "./lib.ts";
 import { archiveFinishedSeason, completeAdvancedSeasonDay, isAdvancedSeasonArchive } from "./advanced-training.ts";
 import type { AdvancedSeasonArchive, SessionResult } from "./types.ts";
 

@@ -10,10 +10,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
-import {
-  createLocalId,
-  getSessions,
-} from "../lib";
+import { createLocalId, getSessions } from "../lib";
 import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
 import {
   readAdvancedSeasonArchive,
