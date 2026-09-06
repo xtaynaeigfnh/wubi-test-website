@@ -1,0 +1,864 @@
+@media (max-width: 1120px) {
+  .music-dock-bar {
+    grid-template-columns:
+      auto minmax(220px, 280px) minmax(90px, 1fr) minmax(150px, 0.9fr)
+      96px auto;
+  }
+
+  .music-station {
+    display: none;
+  }
+
+  .header-inner {
+    grid-template-columns: auto 1fr;
+  }
+
+  .local-badge {
+    display: none;
+  }
+
+  .nav-item {
+    min-width: auto;
+  }
+
+  .nav-item span {
+    display: none;
+  }
+
+  .metric-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .typing-diagnostics {
+    grid-template-columns: repeat(5, minmax(80px, 1fr));
+  }
+
+  .metric:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .metric:nth-child(-n + 3) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .workspace-grid,
+  .challenge-layout,
+  .history-grid,
+  .training-plan {
+    grid-template-columns: 1fr;
+  }
+
+  .code-drill {
+    grid-template-columns: minmax(200px, 0.65fr) minmax(320px, 1.35fr);
+  }
+
+  .side-panel {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .side-heading,
+  .tip-box {
+    grid-column: 1 / -1;
+  }
+
+  .side-panel label {
+    margin-top: 0;
+  }
+
+  .side-action {
+    margin-top: 0;
+  }
+
+  .completion-panel {
+    grid-template-columns: 180px 1fr;
+  }
+
+  .completion-results {
+    border-right: 0;
+  }
+
+  .completion-next {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    border-top: 1px solid color-mix(in srgb, var(--state-success) 32%, transparent);
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .completion-next .button {
+    width: auto;
+  }
+
+  .completion-diagnostics {
+    grid-row: 2;
+    grid-template-columns: repeat(5, minmax(80px, 1fr));
+  }
+
+  .code-coach {
+    grid-template-columns: 1fr;
+  }
+
+  .ghost-review {
+    grid-row: 4;
+    grid-template-columns: 1fr;
+  }
+
+  .hesitation-ranking {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .music-content {
+    padding-bottom: 20px;
+  }
+
+  .music-dock-bar {
+    width: 100%;
+    min-height: 64px;
+    padding: 0 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .music-ruler,
+  .music-progress,
+  .music-volume {
+    display: none;
+  }
+
+  .music-transport {
+    gap: 3px;
+  }
+
+  .music-transport button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .music-transport .music-play-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .music-now-playing {
+    gap: 8px;
+  }
+
+  .music-now-playing > span {
+    font-size: 8px;
+  }
+
+  .music-now-playing strong {
+    font-size: 10px;
+  }
+
+  .music-library-toggle {
+    padding-inline: 7px;
+  }
+
+  .music-dock.is-collapsed {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .music-library {
+    width: calc(100% - 20px);
+    max-height: calc(100dvh - 86px);
+    margin-bottom: 6px;
+  }
+
+  .music-library-heading {
+    min-height: 66px;
+    padding: 12px 14px;
+  }
+
+  .music-library-heading > div {
+    display: grid;
+    gap: 5px;
+  }
+
+  .music-library-heading strong {
+    font-size: 18px;
+  }
+
+  .music-library-heading small {
+    display: none;
+  }
+
+  .music-mobile-controls {
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr 0.72fr;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-raised);
+  }
+
+  .music-mobile-controls label {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+
+  .music-mobile-controls span {
+    color: var(--text-secondary);
+    font-size: 9px;
+  }
+
+  .music-track-row {
+    min-height: 54px;
+    padding: 9px 14px;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .music-track-row small {
+    display: none;
+  }
+
+  .header-inner,
+  .page-wrap,
+  .site-footer {
+    width: min(100% - 28px, 1480px);
+  }
+
+  .site-header {
+    position: static;
+  }
+
+  .header-inner {
+    min-height: auto;
+    padding-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .brand {
+    width: 100%;
+    min-height: 52px;
+  }
+
+  .main-nav {
+    width: 100%;
+    justify-content: start;
+    overflow-x: auto;
+  }
+
+  .nav-item {
+    min-height: 46px;
+    flex: none;
+  }
+
+  .hero-row {
+    min-height: auto;
+    padding: 24px 0 20px;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 18px;
+  }
+
+  .hero-row h1,
+  .subpage-heading h1 {
+    font-size: clamp(32px, 8vw, 44px);
+  }
+
+  .hero-row h1 em {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .hero-actions {
+    width: 100%;
+  }
+
+  .hero-actions .button {
+    flex: 1 1 calc(50% - 4px);
+    padding-inline: 10px;
+  }
+
+  .hero-actions .common-entry {
+    flex-basis: 100%;
+  }
+
+  .common-range-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .common-range-grid button:last-child {
+    grid-column: auto;
+  }
+
+  .metric-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .typing-diagnostics {
+    padding-inline: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric:nth-child(3n) {
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .metric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .metric:nth-child(-n + 4) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .typing-toolbar {
+    min-height: 72px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .article-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .practice-commandbar {
+    padding: 8px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .practice-mode {
+    overflow-x: auto;
+  }
+
+  .practice-actions button {
+    flex: 1;
+  }
+
+  .practice-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ghost-mode-picker {
+    width: 100%;
+    order: 3;
+    overflow-x: auto;
+  }
+
+  .ghost-mode-picker label {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+
+  .ghost-live-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .ghost-live-card small {
+    margin-left: 0;
+  }
+
+  .root-rail {
+    min-height: 44px;
+  }
+
+  .root-rail > span {
+    padding: 9px 5px;
+    text-align: center;
+  }
+
+  .root-rail b {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+
+  .root-rail small {
+    display: none;
+  }
+
+  .article-text {
+    min-height: 300px;
+    padding: 26px 20px;
+  }
+
+  .typing-input {
+    padding: 17px 20px;
+  }
+
+  .typing-footer {
+    min-height: 52px;
+    align-items: start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .code-hint-card {
+    min-width: 108px;
+    grid-template-columns: 28px minmax(72px, 1fr);
+  }
+
+  .code-hint-character {
+    min-height: 32px;
+    font-size: 18px;
+  }
+
+  .code-hint-copy b {
+    font-size: 14px;
+  }
+
+  .completion-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .completion-copy {
+    grid-column: 1;
+    grid-row: 1;
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--state-success) 32%, transparent);
+  }
+
+  .completion-results {
+    grid-column: 1;
+    grid-row: 2;
+    overflow-x: auto;
+  }
+
+  .completion-diagnostics {
+    grid-column: 1;
+    grid-row: 3;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .code-coach {
+    padding: 15px;
+    grid-row: 4;
+  }
+
+  .ghost-review {
+    grid-row: 5;
+  }
+
+  .ghost-review ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .code-coach-list {
+    grid-template-columns: 1fr;
+  }
+
+  .code-coach-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .code-coach-actions .button {
+    width: 100%;
+  }
+
+  .completion-next {
+    grid-column: auto;
+    grid-row: 6;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .completion-next .button {
+    width: 100%;
+  }
+
+  .hesitation-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hesitation-threshold {
+    text-align: left;
+  }
+
+  .hesitation-ranking {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .side-panel {
+    display: block;
+  }
+
+  .side-panel label {
+    margin-top: 15px;
+  }
+
+  .side-action {
+    margin-top: 10px;
+  }
+
+  .subpage {
+    padding: 40px 0;
+  }
+
+  .subpage-heading.with-action {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .training-heading {
+    align-items: start;
+  }
+
+  .goal-seal {
+    width: 108px;
+    height: 108px;
+  }
+
+  .root-zone-rail {
+    grid-template-columns: repeat(5, minmax(104px, 1fr));
+    overflow-x: auto;
+  }
+
+  .code-drill {
+    min-height: auto;
+    padding: 18px;
+    grid-template-columns: 1fr;
+  }
+
+  .code-drill-copy {
+    padding: 18px;
+  }
+
+  .drill-start,
+  .drill-running {
+    min-height: 360px;
+  }
+
+  .trend-panel,
+  .management-card {
+    padding: 18px;
+  }
+
+  .trend-panel .panel-title {
+    align-items: start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .trend-summary {
+    padding-block: 10px;
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .custom-manager-list {
+    grid-template-columns: 1fr;
+  }
+
+  .management-heading,
+  .pwa-card,
+  .restore-preview,
+  .cleanup-all-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .maintenance-log li,
+  .priority-explanation li {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .panel-title:has(.history-filter) {
+    min-height: auto;
+    padding-block: 14px;
+    align-items: start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .segmented.small.history-filter {
+    width: 100%;
+  }
+
+  .summary-grid,
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .table-row {
+    padding: 13px 16px;
+    grid-template-columns: 1fr repeat(2, auto);
+  }
+
+  .table-row > span:last-child {
+    display: none;
+  }
+
+  .lookup-row {
+    grid-template-columns: 80px 1fr;
+  }
+
+  .lookup-row small {
+    display: none;
+  }
+
+  .keyboard-visual span {
+    width: 26px;
+    height: 34px;
+  }
+
+  .keyboard-row {
+    grid-auto-columns: 26px;
+    gap: 3px;
+  }
+
+  .site-footer {
+    flex-direction: column;
+  }
+
+  .error-card {
+    grid-template-columns: auto 1fr;
+  }
+
+  .error-card .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .article-list {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-focus-mode="true"] .page-wrap {
+    width: min(100% - 20px, 1480px);
+    padding-top: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .music-dock-bar {
+    padding-inline: 8px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  .music-dock.is-collapsed {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .music-dock-peek {
+    width: 52px;
+    min-width: 52px;
+    min-height: 52px;
+    padding: 5px;
+    grid-template-columns: 1fr;
+    place-items: center;
+    border-radius: 50%;
+  }
+
+  .music-dock-peek > span:nth-child(2),
+  .music-dock-peek > b {
+    display: none;
+  }
+
+  .music-library-toggle > span {
+    display: none;
+  }
+
+  .music-now-playing > span {
+    display: none;
+  }
+
+  .music-mobile-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  .nav-item {
+    padding-inline: 11px;
+    font-size: 12px;
+  }
+
+  .metric {
+    min-height: 76px;
+    padding: 14px;
+  }
+
+  .metric strong {
+    font-size: 24px;
+  }
+
+  .metric.primary-metric strong {
+    font-size: 29px;
+  }
+
+  .typing-toolbar {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .article-restart {
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+
+  .article-restart .toolbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .toolbar-actions button {
+    width: 100%;
+    white-space: nowrap;
+  }
+
+  .toolbar-actions .common-toolbar-action {
+    min-width: 0;
+    padding-inline: 38px 8px;
+  }
+
+  .toolbar-actions .range-action {
+    min-width: 0;
+  }
+
+  .toolbar-actions .common-toolbar-action::before {
+    width: 26px;
+  }
+
+  .toolbar-actions .restart-action {
+    grid-column: 1 / -1;
+  }
+
+  .common-practice-picker {
+    padding: 14px;
+  }
+
+  .common-practice-intro {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .common-practice-intro > span {
+    font-size: 32px;
+  }
+
+  .article-text {
+    padding-inline: 16px;
+  }
+
+  .practice-mode > span:not(.practice-mode-mark) {
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+
+  .article-list > button {
+    min-height: 122px;
+    padding: 13px;
+    gap: 10px;
+  }
+
+  .article-record {
+    min-width: 86px;
+    padding-left: 10px;
+  }
+
+  .quick-searches {
+    flex-wrap: wrap;
+  }
+
+  .training-heading {
+    flex-direction: column;
+  }
+
+  .goal-seal {
+    align-self: center;
+  }
+
+  .training-tabs {
+    overflow-x: auto;
+  }
+
+  .training-tabs button {
+    min-width: 110px;
+  }
+
+  .daily-progress-card,
+  .smart-plan-card,
+  .due-review-card,
+  .hesitation-queue-card {
+    padding: 17px;
+  }
+
+  .goal-row {
+    grid-template-columns: 72px minmax(70px, 1fr);
+  }
+
+  .goal-row > strong {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .goal-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-steps li {
+    padding: 14px 0;
+    grid-template-columns: 38px 1fr;
+  }
+
+  .plan-steps li > :last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .drill-question {
+    min-height: 92px;
+  }
+
+  .code-drill .code-slots span {
+    width: 48px;
+    height: 56px;
+  }
+
+  .custom-edit > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .custom-edit > div span {
+    margin-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+

@@ -23,6 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **框架**: Next.js 16 + Vinext（Vite-based Next.js 运行时）。`.openai/hosting.json`、`vite.config.ts`、`build/sites-vite-plugin.ts` 和 `worker/index.ts` 用于 Sites/Cloudflare Worker 构建与部署；`next.config.ts` 与 `.github/workflows/pages.yml` 用于 GitHub Pages 静态导出。当前 hosting 配置不使用 D1 或 R2。`next.config.ts` 中基于 `process.cwd()` 的 Turbopack 根目录设置用于保证中文路径下的静态构建稳定，不要移除。
 
 **路由结构** (`app/`):
+全局样式以 `app/globals.css` 为唯一入口，按功能物理拆分到 `app/styles/` 下的各文件中，入口仅保留按原级联顺序排列的 `@import` 清单。
 - `page.tsx` → 首页文章测速（WubiApp view="typing"）
 - `training/page.tsx` → 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练
 - `advanced/page.tsx` → 进阶训练：节奏实验室、中文实战场与阶段目标
@@ -35,7 +36,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **核心逻辑**:
 - `app/storage.ts` — 存储键、基础 localStorage/sessionStorage 读写和多键写入失败回滚，无业务模块依赖。
 - `app/content-loader.ts` / `app/typing-metrics.ts` — 内容加载与打字指标纯计算。
-- `app/lib.ts` — 业务数据读写、成绩与错题管理、文章进度规范化及版本化备份校验/恢复；保留基础存储、内容加载与打字指标的兼容导出。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
+- `app/practice-schema.ts` — 业务读取与备份共用的纯校验、文章进度与目标规范化，以及配套默认值和自定义文章构造；不执行存储 I/O。
+- `app/lib.ts` — 业务数据读写、成绩与错题管理、存储键对应的版本化备份校验编排/恢复；保留基础存储、共享校验中的原公开 API、内容加载与打字指标的兼容导出。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
 - `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
 - `app/code-length-coach.ts` / `app/phrase-training.ts` — 理论码长机会与词组专项选题
 - `app/ghost-race.ts` — 幽灵时间线、可比较记录与赛后分段复盘
@@ -49,7 +51,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
 - `app/music.ts` — 音乐目录解析与播放逻辑
 - `app/components/WubiApp.tsx` — 应用外壳，根据 `view` prop 分发页面，管理共享设置、主题、音效与卡顿加练状态
-- `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的状态与副作用仍整体保留在 `TypingView.tsx`
+- `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的文章库、练习会话、幽灵赛与码长诊断 Hook 位于 `typing/` 下的 `useArticleLibrary.ts`、`useTypingSession.ts`、`useGhostRace.ts` 和 `useTypingDiagnostics.ts`，`TypingView.tsx` 保留页面组装、实时指标计算与结算展示
 - `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护
 - `app/components/AdvancedCenter.tsx` — 节奏、实战与阶段目标的进阶训练页
 - `app/components/WeeklyReportPanel.tsx` — 周报、能力雷达、改善解释与下一步建议

@@ -1,0 +1,417 @@
+@media (max-width: 1180px) {
+  .header-inner {
+    grid-template-columns: 230px minmax(520px, 1fr) auto;
+  }
+
+  .local-badge {
+    display: none;
+  }
+
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+}
+
+@media (max-width: 900px) {
+  body::before {
+    width: calc(100% - 24px);
+  }
+
+  .header-inner,
+  .page-wrap,
+  .site-footer {
+    width: min(100% - 24px, 1480px);
+  }
+
+  .site-header {
+    position: sticky;
+  }
+
+  .header-inner {
+    padding-top: 0;
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr) 44px;
+    gap: 0;
+  }
+
+  .brand {
+    width: auto;
+    min-height: 70px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    grid-template-columns: 1fr 15px;
+  }
+
+  .brand-mark i {
+    font-size: 21px;
+  }
+
+  .brand strong {
+    font-size: 15px;
+  }
+
+  .main-nav {
+    width: auto;
+    justify-content: stretch;
+  }
+
+  .nav-item {
+    min-height: 70px;
+    padding-inline: 8px;
+  }
+
+  .nav-item > strong {
+    font-size: 11px;
+  }
+
+  .hero-row,
+  .subpage-heading {
+    min-height: 210px;
+    padding-inline: 18px;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .post-practice-review,
+  .workspace-grid > .side-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .side-panel {
+    display: grid;
+  }
+
+  .settings-card,
+  .settings-card:nth-child(n) {
+    grid-column: span 6;
+  }
+
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .table-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-areas:
+      "practice practice practice practice action"
+      "speed kps code-length accuracy duration"
+      "diagnostics diagnostics diagnostics diagnostics diagnostics";
+    gap: 12px 10px;
+  }
+
+  .session-practice {
+    grid-area: practice;
+  }
+
+  .session-speed {
+    grid-area: speed;
+  }
+
+  .session-kps {
+    grid-area: kps;
+  }
+
+  .session-code-length {
+    grid-area: code-length;
+  }
+
+  .session-accuracy {
+    grid-area: accuracy;
+  }
+
+  .session-duration {
+    display: block;
+    grid-area: duration;
+  }
+
+  .session-actions {
+    grid-area: action;
+    align-self: start;
+  }
+
+  .session-diagnostics {
+    grid-area: diagnostics;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  body {
+    background-size: 28px 28px;
+  }
+
+  .post-practice-review {
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .header-inner,
+  .page-wrap,
+  .site-footer {
+    width: 100%;
+  }
+
+  .panel-title:has(.history-filter) {
+    padding: 14px 16px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .history-filter {
+    width: 100%;
+  }
+
+  .history-filter button {
+    min-height: 40px;
+  }
+
+  .table-row {
+    padding: 14px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "practice action"
+      "speed kps"
+      "code-length accuracy"
+      "duration duration"
+      "diagnostics diagnostics";
+  }
+
+  .session-actions {
+    grid-area: action;
+  }
+
+  .session-diagnostics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hesitation-heatmap {
+    padding: 16px;
+  }
+
+  .hesitation-heatmap.compact {
+    padding-inline: 0;
+  }
+
+  .heatmap-passage {
+    padding: 14px 12px;
+    font-size: 17px;
+  }
+
+  .hesitation-ranking {
+    grid-template-columns: 1fr;
+  }
+
+  .site-header {
+    position: static;
+  }
+
+  .header-inner {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+
+  .brand {
+    width: 100%;
+    min-height: 66px;
+    padding-inline: 14px;
+  }
+
+  .header-utilities {
+    position: absolute;
+    top: 16px;
+    right: 14px;
+  }
+
+  .theme-switch {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .theme-switch b {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .main-nav {
+    border-top: 1px solid var(--border-default);
+    border-inline: 0;
+    scrollbar-width: thin;
+  }
+
+  .nav-item {
+    min-width: 92px;
+    min-height: 56px;
+  }
+
+  .nav-item:nth-child(n) {
+    display: flex;
+  }
+
+  .hero-row {
+    min-height: auto;
+    padding: 34px 16px 28px;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .subpage-heading {
+    min-height: 194px;
+    margin-bottom: 18px;
+    padding: 34px 16px 28px;
+  }
+
+  .hero-row::before,
+  .subpage-heading::before {
+    top: 16px;
+    right: 16px;
+    font-size: 70px;
+  }
+
+  .hero-row h1,
+  .subpage-heading h1 {
+    max-width: 86%;
+    font-size: clamp(34px, 10vw, 46px);
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hero-actions .button,
+  .hero-actions .common-entry {
+    min-width: 0;
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .hero-actions .common-entry {
+    grid-column: 1 / -1;
+  }
+
+  .metric-strip {
+    border-inline: 0;
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--accent-bamboo) 18%, var(--border-default));
+  }
+
+  .metric {
+    min-height: 82px;
+  }
+
+  .workspace-grid,
+  .challenge-layout,
+  .history-grid,
+  .training-plan,
+  .settings-grid {
+    gap: 12px;
+  }
+
+  .workspace-grid {
+    margin-top: 18px;
+  }
+
+  .typing-card,
+  .side-panel,
+  .challenge-card,
+  .history-panel,
+  .settings-card,
+  .summary-card,
+  .trend-panel,
+  .daily-progress-card,
+  .smart-plan-card,
+  .due-review-card,
+  .hesitation-queue-card,
+  .management-card,
+  .pwa-card,
+  .code-drill {
+    border-radius: 0;
+    border-inline: 0;
+    box-shadow: none;
+  }
+
+  .subpage-heading.with-action {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .heading-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .challenge-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .challenge-card {
+    min-height: 430px;
+  }
+
+  .lookup-page .lookup-heading,
+  .lookup-page .lookup-search,
+  .lookup-page .keyboard-visual,
+  .lookup-page .lookup-empty,
+  .lookup-page .lookup-results {
+    width: calc(100% - 28px);
+  }
+
+  .summary-grid,
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card,
+  .settings-card:nth-child(n) {
+    grid-column: auto;
+  }
+
+  .goal-seal {
+    width: 112px;
+    height: 112px;
+  }
+
+  .daily-progress-card .training-card-header,
+  .smart-plan-card .training-card-header,
+  .due-review-card .training-card-header,
+  .hesitation-queue-card .training-card-header {
+    min-height: auto;
+    padding-bottom: 20px;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .training-card-stat {
+    min-width: 0;
+    padding: 12px 0 0;
+    place-content: center start;
+    border-top: 1px solid var(--border-subtle);
+    border-left: 0;
+  }
+
+  .site-footer {
+    margin-top: 20px;
+    padding: 14px 72px 14px 16px;
+  }
+}
+

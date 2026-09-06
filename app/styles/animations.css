@@ -1,0 +1,98 @@
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes nav-marker-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) rotate(-1.5deg) scaleX(0.65);
+  }
+}
+
+@keyframes article-swap-in {
+  from {
+    opacity: 0.45;
+    transform: translateY(5px);
+  }
+}
+
+@keyframes current-character-in {
+  from {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-vermilion-fill) 24%, transparent);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes completion-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes question-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.98);
+  }
+}
+
+@keyframes feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes list-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+:root[data-focus-mode="true"] .site-header,
+:root[data-focus-mode="true"] .hero-row,
+:root[data-focus-mode="true"] .side-panel,
+:root[data-focus-mode="true"] .site-footer {
+  display: none;
+}
+
+:root[data-focus-mode="true"] .page-wrap {
+  width: min(1540px, calc(100% - 48px));
+  padding-top: 22px;
+}
+
+:root[data-focus-mode="true"] .workspace-grid {
+  grid-template-columns: 1fr;
+}
+
+:root[data-focus-mode="true"] .metric-strip {
+  margin-bottom: 14px;
+}
+
+:root[data-focus-mode="true"] .typing-card {
+  box-shadow: 0 20px 52px rgba(32, 38, 34, 0.1);
+}
+
+:root[data-focus-mode="true"] .article-text {
+  height: clamp(420px, 58dvh, 680px);
+  max-height: none;
+}
+

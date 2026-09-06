@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   addHesitationQueueItem,
   defaultCustomTheme,
@@ -33,16 +34,46 @@ import {
   buildHesitationPracticeResult,
   buildHesitationSession,
 } from "../hesitation-practice";
-import { TrainingCenter } from "./TrainingCenter";
-import { AdvancedCenter } from "./AdvancedCenter";
-import { KeySummary } from "./KeySummary";
-import { HesitationPracticeModal } from "./HesitationPracticeModal";
-import { LookupView } from "./views/LookupView";
-import { SettingsView } from "./views/SettingsView";
-import { ChallengeView } from "./views/ChallengeView";
-import { HistoryView } from "./views/HistoryView";
 import { buildCustomThemeVariables, themeLabels } from "../theme";
-import { TypingView, type KeySoundPlayer } from "./views/TypingView";
+import { HesitationPracticeModal } from "./HesitationPracticeModal";
+import type { KeySoundPlayer } from "./views/TypingView";
+
+const TrainingCenter = dynamic(
+  () =>
+    import("./TrainingCenter").then((m) => ({ default: m.TrainingCenter })),
+  { loading: () => null },
+);
+const AdvancedCenter = dynamic(
+  () =>
+    import("./AdvancedCenter").then((m) => ({ default: m.AdvancedCenter })),
+  { loading: () => null },
+);
+const KeySummary = dynamic(
+  () => import("./KeySummary").then((m) => ({ default: m.KeySummary })),
+  { loading: () => null },
+);
+const LookupView = dynamic(
+  () => import("./views/LookupView").then((m) => ({ default: m.LookupView })),
+  { loading: () => null },
+);
+const SettingsView = dynamic(
+  () =>
+    import("./views/SettingsView").then((m) => ({ default: m.SettingsView })),
+  { loading: () => null },
+);
+const ChallengeView = dynamic(
+  () =>
+    import("./views/ChallengeView").then((m) => ({ default: m.ChallengeView })),
+  { loading: () => null },
+);
+const HistoryView = dynamic(
+  () => import("./views/HistoryView").then((m) => ({ default: m.HistoryView })),
+  { loading: () => null },
+);
+const TypingView = dynamic(
+  () => import("./views/TypingView").then((m) => ({ default: m.TypingView })),
+  { loading: () => null },
+);
 
 const basicThemeCycle: Record<"system" | "light" | "dark", ThemeId> = {
   system: "light",

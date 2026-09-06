@@ -1,0 +1,160 @@
+@media (max-width: 900px) {
+  .settings-heading {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 22px;
+  }
+
+  .settings-heading-summary {
+    width: 100%;
+  }
+
+  .settings-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-index {
+    position: static;
+  }
+
+  .settings-index-heading,
+  .settings-index-status {
+    display: none;
+  }
+
+  .settings-index nav {
+    grid-template-columns: repeat(7, minmax(96px, 1fr));
+    overflow-x: auto;
+  }
+
+  .settings-index nav a {
+    min-height: 56px;
+    grid-template-columns: 28px 1fr;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 0;
+  }
+
+  .settings-index kbd {
+    width: 28px;
+    height: 28px;
+  }
+
+  .settings-card.theme-settings-card,
+  .settings-card:has(.theme-settings) {
+    grid-column: 1 / -1;
+  }
+
+  .settings-page .theme-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-preview {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-heading {
+    display: flex;
+  }
+
+  .settings-heading-summary > div {
+    padding-inline: 10px;
+  }
+
+  .settings-workbench {
+    gap: 12px;
+  }
+
+  .settings-index {
+    margin-inline: 14px;
+    border-radius: var(--radius-small);
+  }
+
+  .settings-page .settings-grid {
+    gap: 12px;
+  }
+
+  .settings-quick-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .data-tools-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .data-tool-card {
+    padding-inline: 16px;
+  }
+
+  .settings-quick-grid .settings-card {
+    min-height: 0;
+  }
+
+  .settings-page .settings-card {
+    padding-inline: 16px;
+  }
+
+  .settings-page .settings-card-title {
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+
+  .settings-page .license-card {
+    display: block;
+  }
+
+  .settings-page .license-card > a {
+    margin-top: 12px;
+    display: inline-block;
+  }
+
+  .settings-content .pwa-card {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .settings-content .pwa-card > .button {
+    grid-column: 1 / -1;
+  }
+
+  .theme-settings-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .theme-settings-heading p {
+    text-align: left;
+  }
+
+  .theme-preset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .custom-theme-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-reset-button {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .theme-preset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .due-review-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-preset-option {
+    transition: none;
+  }
+}
+

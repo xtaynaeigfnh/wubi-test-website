@@ -1,0 +1,107 @@
+:root {
+  color-scheme: light;
+  --text-on-accent: #fff;
+  --bg-canvas: #eeece6;
+  --bg-paper: #faf9f5;
+  --bg-raised: #f4f2ec;
+  --bg-key: #e7e3da;
+  --text-primary: #202622;
+  --text-secondary: #60675f;
+  --border-default: #d2cec4;
+  --border-subtle: #e3dfd6;
+  --border-strong: #aaa59a;
+  --accent-vermilion: #aa382c;
+  --accent-vermilion-fill: #9e3328;
+  --accent-vermilion-dark: #7e281f;
+  --accent-bamboo: #315f50;
+  --accent-bamboo-fill: #31594d;
+  --progress-fill: #c8d8d1;
+  --state-success: #2e6753;
+  --state-success-fill: #2e6753;
+  --state-error: #9f332b;
+  --state-error-fill: #8f2e27;
+  --heat-smooth: #ece8de;
+  --heat-mild: #e7c87a;
+  --heat-clear: #d77b45;
+  --heat-severe: #a9362c;
+  --heat-severe-text: #fff8ee;
+  --focus-ring: #1f5f94;
+  --shadow-key: 0 1px 0 #b2ada2;
+  --shadow-panel: 0 10px 28px rgba(32, 38, 34, 0.045);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-press: cubic-bezier(0.2, 0, 0, 1);
+  --font-display: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  --font-reading: "Songti SC", "STSong", "SimSun", serif;
+  --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-data: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+  --radius-small: 6px;
+  --radius-medium: 10px;
+  --radius-large: 14px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --text-on-accent: #fff;
+  --bg-canvas: #111714;
+  --bg-paper: #1a211d;
+  --bg-raised: #222a25;
+  --bg-key: #303a34;
+  --text-primary: #f0ede2;
+  --text-secondary: #b5b8ae;
+  --border-default: #414b44;
+  --border-subtle: #303a34;
+  --border-strong: #626c64;
+  --accent-vermilion: #ed695c;
+  --accent-vermilion-fill: #a9342a;
+  --accent-vermilion-dark: #ff8a7f;
+  --accent-bamboo: #6eb29a;
+  --accent-bamboo-fill: #2d6654;
+  --progress-fill: #2d6654;
+  --state-success: #70c19d;
+  --state-success-fill: #24664d;
+  --state-error: #ff8279;
+  --state-error-fill: #8f2722;
+  --heat-smooth: #303832;
+  --heat-mild: #786a3f;
+  --heat-clear: #9b5335;
+  --heat-severe: #b64237;
+  --heat-severe-text: #fff8ee;
+  --focus-ring: #8bc8ff;
+  --shadow-key: 0 2px 0 #111714;
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --text-on-accent: #fff;
+    --bg-canvas: #111714;
+    --bg-paper: #1a211d;
+    --bg-raised: #222a25;
+    --bg-key: #303a34;
+    --text-primary: #f0ede2;
+    --text-secondary: #b5b8ae;
+    --border-default: #414b44;
+    --border-subtle: #303a34;
+    --border-strong: #626c64;
+    --accent-vermilion: #ed695c;
+    --accent-vermilion-fill: #a9342a;
+    --accent-vermilion-dark: #ff8a7f;
+    --accent-bamboo: #6eb29a;
+    --accent-bamboo-fill: #2d6654;
+    --progress-fill: #2d6654;
+    --state-success: #70c19d;
+    --state-success-fill: #24664d;
+    --state-error: #ff8279;
+    --state-error-fill: #8f2722;
+    --heat-smooth: #303832;
+    --heat-mild: #786a3f;
+    --heat-clear: #9b5335;
+    --heat-severe: #b64237;
+    --heat-severe-text: #fff8ee;
+    --focus-ring: #8bc8ff;
+    --shadow-key: 0 2px 0 #111714;
+    --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.28);
+  }
+}
+

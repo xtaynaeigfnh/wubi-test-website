@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
-const stylesPath = new URL("../app/globals.css", import.meta.url);
+const stylesDirPath = new URL("../app/styles/", import.meta.url);
+const readStyles = async () => {
+  const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const styleFiles = [...globals.matchAll(/@import "\.\/styles\/([^"]+)";/g)].map((match) => match[1]);
+  if (styleFiles.length === 0) {
+    assert.fail("globals.css 应导入拆分后的样式文件（@import \"./styles/xxx.css\"）");
+  }
+  let styles = "";
+  for (const styleFile of styleFiles) {
+    styles += await readFile(new URL(styleFile, stylesDirPath), "utf8");
+  }
+  return styles;
+};
 const keySummaryPath = new URL("../app/components/KeySummary.tsx", import.meta.url);
 const hesitationHeatmapPath = new URL("../app/components/HesitationHeatmap.tsx", import.meta.url);
 const hesitationPracticePath = new URL("../app/components/HesitationPracticeModal.tsx", import.meta.url);
@@ -20,6 +32,17 @@ const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.
 const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
 const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", import.meta.url);
 const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.meta.url);
+const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
+
+async function readTypingSource() {
+  const typingSourceNames = (await readdir(typingHooksDir))
+    .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
+    .sort();
+  const typingSources = await Promise.all(
+    typingSourceNames.map((name) => readFile(new URL(name, typingHooksDir), "utf8")),
+  );
+  return [await readFile(typingViewPath, "utf8"), ...typingSources].join("\n");
+}
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
@@ -28,7 +51,7 @@ test("interactive controls stay hidden and inert until hydration completes", asy
   const [boundary, layout, styles] = await Promise.all([
     readFile(hydrationBoundaryPath, "utf8"),
     readFile(layoutPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(boundary, /const \[ready, setReady\] = useState\(false\)/);
@@ -60,10 +83,10 @@ test("settings storage history waits until hydration before reading local data",
 
 test("recorded data renders without replay animations", async () => {
   const [typing, history, trendPanel, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(historyViewPath, "utf8"),
     readFile(trendPanelPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.doesNotMatch(typing, /className="metric-value"/);
@@ -83,7 +106,7 @@ test("recorded data renders without replay animations", async () => {
 test("challenge keeps wrong answers visible until the user advances", async () => {
   const [challenge, styles] = await Promise.all([
     readFile(challengeViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(challenge, /feedback === "wrong"\) advanceQuestion\(\)/);
@@ -125,7 +148,7 @@ test("training drills lock repeated submit and advance actions", async () => {
 test("completed training task status keeps its own readable action column", async () => {
   const [training, styles] = await Promise.all([
     readFile(trainingCenterPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(training, /className="plan-task-done"[^>]*>✓ 已完成<\/span>/);
@@ -144,7 +167,7 @@ test("completed training task status keeps its own readable action column", asyn
 test("custom text limits and install failures are visible instead of silent", async () => {
   const [component, typing, management, pwa] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
     readFile(pwaControlPath, "utf8"),
   ]);
@@ -161,13 +184,39 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(pwa, /const currentPrompt = promptEvent;[\s\S]*setPromptEvent\(null\);[\s\S]*try \{/);
 });
 
+test("typing display responsibilities stay in focused components", async () => {
+  const [typing, articlePicker, commonPicker, customModal, completion] =
+    await Promise.all([
+      readFile(typingViewPath, "utf8"),
+      readFile(new URL("ArticlePicker.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("CommonCharacterPicker.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("CustomTextModal.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("CompletionPanel.tsx", typingHooksDir), "utf8"),
+    ]);
+
+  assert.match(typing, /<ArticlePicker\s/);
+  assert.match(typing, /<CommonCharacterPicker\s/);
+  assert.match(typing, /<CustomTextModal\s/);
+  assert.match(typing, /<CompletionPanel\s/);
+  assert.doesNotMatch(typing, /<Modal title="选择练习文章"/);
+  assert.doesNotMatch(typing, /<Modal title="选择常用字范围"/);
+  assert.doesNotMatch(typing, /<Modal title="粘贴自定义文本"/);
+  assert.match(articlePicker, /export function ArticlePicker/);
+  assert.match(commonPicker, /export function CommonCharacterPicker/);
+  assert.match(customModal, /export function CustomTextModal/);
+  assert.match(completion, /export function CompletionPanel/);
+  for (const source of [articlePicker, commonPicker, customModal, completion]) {
+    assert.doesNotMatch(source, /from ["']\.\.\/TypingView/);
+  }
+});
+
 test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explanations", async () => {
   const [management, training, weekly, history, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
     readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
     readFile(historyViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
   assert.match(management, /数据清理/);
   assert.match(management, />\s*全部清理\s*</);
@@ -186,7 +235,7 @@ test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explan
 test("history filters are visually separate and expose pressed state", async () => {
   const [history, styles] = await Promise.all([
     readFile(historyViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(history, /className="segmented small history-filter"/);
@@ -235,8 +284,8 @@ test("history filters are visually separate and expose pressed state", async () 
 
 test("typing exposes every filtered article and resets timing on restart", async () => {
   const [typing, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readTypingSource(),
+    readStyles(),
   ]);
 
   assert.match(typing, /共 \{filtered\.length\} 篇符合当前筛选条件/);
@@ -295,8 +344,8 @@ test("typing exposes every filtered article and resets timing on restart", async
 
 test("personal ghost races expose selection, live distance, replay, and responsive review", async () => {
   const [typing, styles, ghostLogic] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readTypingSource(),
+    readStyles(),
     readFile(new URL("../app/ghost-race.ts", import.meta.url), "utf8"),
   ]);
   assert.match(typing, /name="ghost-mode"/);
@@ -312,7 +361,7 @@ test("personal ghost races expose selection, live distance, replay, and responsi
     /startedAt !== null \? activeGhostMode : ghostMode/,
   );
   assert.match(typing, /\[selectedGhostTimeline, startedAt\]/);
-  assert.match(typing, /settings\.autoNext && activeGhostMode !== "off"/);
+  assert.match(typing, /autoNext && activeGhostMode !== "off"/);
   assert.match(typing, /showGhostGap \? `，\$\{ghostGapLabel\}` : ""/);
   assert.match(typing, /onShowGhostGapChange\(next\)/);
   assert.match(typing, /split\(\/\[\\r\\n\]\+\//);
@@ -342,12 +391,12 @@ test("personal ghost races expose selection, live distance, replay, and responsi
 test("typing completion and history expose an accessible hesitation heatmap", async () => {
   const [component, typing, history, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(historyViewPath, "utf8"),
     readFile(hesitationHeatmapPath, "utf8"),
     readFile(hesitationPracticePath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(typing, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
@@ -404,7 +453,7 @@ test("typing completion and history expose an accessible hesitation heatmap", as
 
 test("planned articles, custom text counts, and local writes keep UI state consistent", async () => {
   const [typing, training, management] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
   ]);
@@ -412,7 +461,7 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(typing, /trainingPlan\?\.date === localDateKey\(new Date\(\)\)/);
   assert.match(typing, /const currentId = trainingArticleId \?\? storedCurrentId/);
   assert.match(typing, /Boolean\(trainingArticleId\)/);
-  assert.match(typing, /Array\.from\(customText\.trim\(\)\)\.length/);
+  assert.match(typing, /Array\.from\((?:customText|text)\.trim\(\)\)\.length/);
   assert.match(typing, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
   assert.match(typing, /if \(customSaveLock\.current\) return;/);
   assert.match(typing, /custom-\$\{createLocalId\(\)\}/);
@@ -444,7 +493,7 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
   const [typing, challenge, training, advanced, hesitation, ui, management, pwa, music, rhythmNavigation] =
     await Promise.all([
-      readFile(typingViewPath, "utf8"),
+      readTypingSource(),
       readFile(challengeViewPath, "utf8"),
       readFile(trainingCenterPath, "utf8"),
       readFile(advancedCenterPath, "utf8"),
@@ -482,7 +531,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
 test("failed local saves cannot be discarded or shown as successful", async () => {
   const [component, typing, training, summary, advanced, management] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(trainingCenterPath, "utf8"),
     readFile(keySummaryPath, "utf8"),
     readFile(advancedCenterPath, "utf8"),
@@ -557,7 +606,7 @@ test("failed local saves cannot be discarded or shown as successful", async () =
 
 test("typing samples, PWA install, and failed result navigation have synchronous locks", async () => {
   const [typing, pwa] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(pwaControlPath, "utf8"),
   ]);
   assert.match(typing, /physicalRhythmSamplesRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
@@ -640,7 +689,7 @@ test("spaced review queue stays explainable, deferrable, and usable on narrow sc
   const [training, component, styles] = await Promise.all([
     readFile(trainingCenterPath, "utf8"),
     readFile(componentPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(training, /buildDueReviewQueue/);
@@ -677,7 +726,7 @@ test("restrained motion connects progress, tabs, and rhythm without ignoring red
   const [training, advanced, styles] = await Promise.all([
     readFile(trainingCenterPath, "utf8"),
     readFile(advancedCenterPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(training, /data-complete=\{rate === 1\}/);
@@ -692,16 +741,16 @@ test("restrained motion connects progress, tabs, and rhythm without ignoring red
 });
 
 test("advanced training content stays inside ultra-narrow viewports", async () => {
-  const styles = await readFile(stylesPath, "utf8");
+  const styles = await readStyles();
 
   assert.match(styles, /\.advanced-page > \*\s*\{[^}]*min-width:\s*0/s);
 });
 
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
   const [typing, training, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(typing, /analyzeCodeLengthCoach\(targetText/);
@@ -739,8 +788,8 @@ test("mobile navigation scrolls the active route into view", async () => {
 
 test("typing progress fills the five correct Wubi root zones continuously", async () => {
   const [typing, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readTypingSource(),
+    readStyles(),
   ]);
 
   assert.match(typing, /\["QWERT", "撇区"\]/);
@@ -776,10 +825,10 @@ test("key sound is shared by typing, challenge, and the settings preview", async
 test("typing surfaces record physical keys and the summary exposes the reference analyses", async () => {
   const [component, typing, training, summary, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
     readFile(keySummaryPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(typing, /recordKeyUsage\(event\.code\)/);
@@ -862,8 +911,8 @@ test("history exposes an accessible weekly report and local image download", asy
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
   const [typing, styles] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readTypingSource(),
+    readStyles(),
   ]);
 
   assert.match(typing, /className="article-toolbar-actions"/);
@@ -932,8 +981,8 @@ test("lookup workbench adapts to narrow screens and reduced motion with scoped s
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
   const [component, typing, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(typingViewPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readTypingSource(),
+    readStyles(),
   ]);
 
   assert.match(typing, />\s*常用字练习\s*</);
@@ -991,7 +1040,7 @@ test("settings layout provides a responsive home-row section index", async () =>
     readFile(settingsViewPath, "utf8"),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   for (const [key, target, label] of [
@@ -1034,7 +1083,7 @@ test("custom theme preview reports contrast and keeps semantic colors stable", a
     readFile(settingsViewPath, "utf8"),
     readFile(componentPath, "utf8"),
     readFile(themePath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(theme, /function getContrastRatio\s*\(/);
@@ -1081,7 +1130,7 @@ test("header theme shortcut cycles basic themes and leaves presets for system", 
 });
 
 test("common-character practice inherits the article reading rhythm", async () => {
-  const styles = await readFile(stylesPath, "utf8");
+  const styles = await readStyles();
   const commonTextRule =
     styles.match(/\.article-text\.common-character-text\s*\{([^}]*)\}/)?.[1] ??
     "";
@@ -1095,7 +1144,7 @@ test("common-character practice inherits the article reading rhythm", async () =
 
 test("common-character scores stay out of built-in article completion progress", async () => {
   const [typing, history] = await Promise.all([
-    readFile(typingViewPath, "utf8"),
+    readTypingSource(),
     readFile(historyViewPath, "utf8"),
   ]);
 
@@ -1112,7 +1161,7 @@ test("one root-level audio player exposes accessible manual controls", async () 
   const [music, layout, styles] = await Promise.all([
     readFile(musicPath, "utf8"),
     readFile(layoutPath, "utf8"),
-    readFile(stylesPath, "utf8"),
+    readStyles(),
   ]);
 
   assert.match(layout, /<PwaProvider>[\s\S]*<MusicProvider>\{children\}<\/MusicProvider>/);
@@ -1213,9 +1262,10 @@ test("leave guards allow same-page anchors and hash history while protecting oth
       removeEventListener() {},
     };
     class Element {
-      constructor(href) { this.href = href; }
+      constructor(href, attributes = {}) { this.attributes = { href, ...attributes }; }
       closest() { return this; }
-      getAttribute() { return this.href; }
+      getAttribute(name) { return this.attributes[name] ?? null; }
+      hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
     }
     const exports = {};
     new Function("require", "exports", "window", "document", "Element", compiled)(
@@ -1227,7 +1277,7 @@ test("leave guards allow same-page anchors and hash history while protecting oth
     exports[hookName](true, hookName === "useInProgressLeaveGuard" ? () => { discards += 1; } : "待保存");
     const dispatch = (name, values) => {
       const event = {
-        cancelable: true, prevented: false,
+        cancelable: true, prevented: false, button: 0,
         preventDefault() { this.prevented = true; },
         stopPropagation() {},
         ...values,
@@ -1238,6 +1288,16 @@ test("leave guards allow same-page anchors and hash history while protecting oth
 
     for (const href of ["#main-content", `${page}#main-content`, `${page}#`]) {
       assert.equal(dispatch("click", { target: new Element(href) }).prevented, false, hookName);
+    }
+    const otherPage = "/wubi-test-website/history/";
+    for (const values of [
+      { metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true },
+      { button: 1 }, { defaultPrevented: true },
+      { target: new Element(otherPage, { target: "_blank" }) },
+      { target: new Element(otherPage, { target: "report-window" }) },
+      { target: new Element(otherPage, { download: "成绩.json" }) },
+    ]) {
+      assert.equal(dispatch("click", { target: new Element(otherPage), ...values }).prevented, false, hookName);
     }
     window.location.href = `${page}#main-content`;
     dispatch("popstate", { state: null });
@@ -1261,6 +1321,89 @@ test("leave guards allow same-page anchors and hash history while protecting oth
     dispatch("popstate", { state: null });
     assert.equal(forwards, 1, hookName);
     assert.equal(discards, 0, hookName);
+    if (hookName === "useInProgressLeaveGuard") {
+      window.confirm = () => true;
+      assert.equal(dispatch("click", {
+        target: new Element(otherPage, { target: "_self" }),
+      }).prevented, false);
+      assert.equal(discards, 1, "ordinary same-tab navigation still discards after confirmation");
+    }
     for (const cleanup of cleanups) cleanup();
   }
+});
+
+test("training refresh preserves an active drill across midnight and resumes when it ends", async () => {
+  const source = await readFile(trainingCenterPath, "utf8");
+  const refreshBody = source.match(/const refreshLocal = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[\]\);/)?.[1];
+  assert.ok(refreshBody, "training refresh callback is available for behavioral verification");
+  const pendingDrillSaveRef = { current: false };
+  const drillInProgressRef = { current: true };
+  const activeLocalDate = { current: "2026-09-06" };
+  let activeDueReview = { targetId: "字", targetType: "character" };
+  let localReads = 0;
+  const dependencies = {
+    pendingDrillSaveRef, drillInProgressRef, activeLocalDate,
+    localDateKey: () => "2026-09-07",
+    setActiveDueReview(value) { activeDueReview = value; },
+    getErrors() { localReads += 1; return []; },
+    getPhraseOpportunities: () => [], getSessions: () => [],
+    readDailyGoal: () => ({}), readHesitationQueue: () => null,
+    syncSpacedReviewState: () => ({}), readSpacedReviewState: () => ({}),
+    readTrainingPlan: () => null,
+    setErrors() {}, setPhraseOpportunities() {}, setSessions() {}, setGoal() {},
+    setCurrentHesitationQueue() {}, setReviewState() {}, setReviewMessage() {}, setPlan() {},
+  };
+  const refresh = new Function(...Object.keys(dependencies), refreshBody)
+    .bind(null, ...Object.values(dependencies));
+  refresh();
+  assert.equal(activeLocalDate.current, "2026-09-06");
+  assert.equal(activeDueReview.targetId, "字");
+  assert.equal(localReads, 0, "midnight/focus refresh must not replace active drill data");
+
+  drillInProgressRef.current = false;
+  pendingDrillSaveRef.current = true;
+  refresh();
+  assert.equal(activeDueReview.targetId, "字");
+  assert.equal(localReads, 0, "finished but unsaved drill remains protected");
+
+  pendingDrillSaveRef.current = false;
+  refresh();
+  assert.equal(activeLocalDate.current, "2026-09-07");
+  assert.equal(activeDueReview, null);
+  assert.equal(localReads, 1);
+  assert.match(source, /useEffect\(\(\) => \{\s*if \(!pendingDrillSave\) refreshLocal\(\);\s*\}, \[hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal\]\)/,
+    "finishing or discarding a drill must retry the deferred refresh without another focus event");
+});
+
+test("all nine v0.2 feature surfaces stay wired into the product", async () => {
+  const [app, typing, training, management, trends, pwa, share] = await Promise.all([
+    readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/views/TypingView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/TrendPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/share-card.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(management, /备份与恢复/);
+  assert.match(management, /自定义文章管理/);
+  assert.match(management, /multiple/);
+  assert.match(management, /取消收藏/);
+  assert.match(training, /高频错题复练/);
+  assert.match(training, /自适应训练处方/);
+  assert.match(training, /换一组/);
+  assert.match(training, /待开始/);
+  assert.match(training, /进行中/);
+  assert.match(training, /已完成/);
+  assert.match(training, /training-card-header/);
+  assert.match(training, /training-card-stat/);
+  assert.match(training, /连续/);
+  assert.match(training, /五码根专项/);
+  assert.match(trends, /速度与字准/);
+  assert.match(pwa, /serviceWorker/);
+  assert.match(share, /canvas\.toDataURL/);
+  assert.match(typing, /downloadShareCard/);
+  assert.match(app, /TrainingCenter/);
+  assert.match(app, /KeySummary/);
 });
