@@ -155,6 +155,7 @@ export async function loadArticles(): Promise<PracticeArticle[]> {
         index.some((metadata) => !texts.has(metadata.id)) ||
         bodies.some((body) => !index.some((metadata) => metadata.id === body.id))
       ) {
+        articleMetadataPromise = null;
         throw new Error("文章索引与正文数据不一致");
       }
       return index.map((metadata) => ({
