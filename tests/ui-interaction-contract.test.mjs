@@ -1049,8 +1049,9 @@ test("settings layout provides a responsive home-row section index", async () =>
     ["D", "settings-feedback", "反馈"],
     ["F", "settings-data", "清理"],
     ["G", "settings-backup", "备份"],
-    ["H", "settings-device", "设备"],
-    ["J", "settings-license", "版权"],
+    ["H", "settings-custom", "文章"],
+    ["J", "settings-device", "设备"],
+    ["K", "settings-license", "版权"],
   ]) {
     assert.match(component, new RegExp(`key: "${key}", href: "#${target}", label: "${label}"`));
   }
@@ -1066,12 +1067,14 @@ test("settings layout provides a responsive home-row section index", async () =>
   assert.match(dataManagement, /className="data-tools-grid">\s*<StorageManager[^>]*\/>\s*<BackupManager\s*\/>\s*<\/div>/);
   assert.match(dataManagement, /id="settings-backup" aria-labelledby="backup-title"/);
   assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">G<\/span>/);
+  assert.match(dataManagement, /id="settings-custom" aria-labelledby="custom-title"/);
+  assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">H<\/span>/);
   assert.match(dataManagement, /<h2 id="storage-title">数据清理<\/h2>/);
-  assert.match(component, /<span>J<\/span><div><h2>内容与版权/);
+  assert.match(component, /<span>K<\/span><div><h2>内容与版权/);
   assert.match(pwa, /className="management-card pwa-card" id="settings-device"/);
-  assert.match(pwa, /className="settings-section-key" aria-hidden="true">H<\/span>/);
+  assert.match(pwa, /className="settings-section-key" aria-hidden="true">J<\/span>/);
   assert.match(styles, /\.settings-workbench\s*\{[^}]*grid-template-columns:\s*176px minmax\(0, 1fr\)/s);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.settings-index nav\s*\{[^}]*grid-template-columns:\s*repeat\(7,/s);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.settings-index nav\s*\{[^}]*grid-template-columns:\s*repeat\(8,/s);
   assert.match(styles, /\.data-tools-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s);
   assert.match(styles, /\.data-tool-card\s*\{[^}]*min-width:\s*0/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.data-tools-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
