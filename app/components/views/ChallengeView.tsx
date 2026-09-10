@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   buildChallengePool,
   createLocalId,
@@ -25,8 +25,10 @@ type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
 export function ChallengeView({
   playKeySound,
+  leaveGuardRef,
 }: {
   playKeySound: KeySoundPlayer;
+  leaveGuardRef?: RefObject<(() => boolean) | null>;
 }) {
   const [rows, setRows] = useState<WubiEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +88,22 @@ export function ChallengeView({
     setFinishedReason("");
     setLastSession(null);
   }, []);
+
+  useEffect(() => {
+    if (!leaveGuardRef) return;
+    leaveGuardRef.current = () => {
+      if (challengeSaveFailed) {
+        window.alert("本次成绩尚未保存，请先重试保存。");
+        return false;
+      }
+      if (started) {
+        if (!window.confirm("本次挑战尚未完成，切换模块将放弃本次练习，确定继续吗？")) return false;
+        discardChallenge();
+      }
+      return true;
+    };
+    return () => { leaveGuardRef.current = null; };
+  }, [challengeSaveFailed, discardChallenge, leaveGuardRef, started]);
 
   usePendingSaveGuard(challengeSaveFailed);
   useInProgressLeaveGuard(
@@ -323,10 +341,10 @@ export function ChallengeView({
   };
 
   return (
-    <section className="subpage">
-      <div className="subpage-heading">
+    <section className="challenge-module">
+      <div className="challenge-module-heading">
         <span className="eyebrow">A–Y 原码输入</span>
-        <h1>字码挑战</h1>
+        <h2>字码挑战</h2>
         <p>绕过系统输入法，直接检验你对 86 版五笔编码的熟练度。</p>
       </div>
       {loadError ? (

@@ -8,7 +8,7 @@ export function LookupGuide({ code }: { code: string }) {
     <aside className={styles.guide} aria-labelledby="lookup-keyboard-title">
       <div className={styles.panelHeading}>
         <h2 id="lookup-keyboard-title">键位对照</h2>
-        <span className={styles.kicker}>KEY MAP</span>
+        <span className={styles.kicker}>A—Y</span>
       </div>
       <div className={styles.guideBody}>
         <div className={styles.sequence} aria-label={code ? `按键顺序 ${letters.join("、")}` : "等待选择编码"}>
@@ -28,7 +28,7 @@ export function LookupGuide({ code }: { code: string }) {
         </div>
         <p className={styles.keyboardNote}>高亮对应编码中的字母；上方数字表示按键顺序。</p>
         <div className={styles.guideNotes}>
-          <h3>两种查法，一个入口</h3>
+          <h3>查询小贴士</h3>
           <dl>
             <div><dt><span>字</span> 中文查码</dt><dd>输入汉字或词组，查看收录的编码；同一字词可能有多种码长。</dd></div>
             <div><dt><span>A</span> 编码反查</dt><dd>输入 1–4 位 A–Y 字母，精确查找对应字词，不区分大小写。</dd></div>

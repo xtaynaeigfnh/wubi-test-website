@@ -424,12 +424,14 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
   };
 
   return (
-    <section className="management-card custom-manager" aria-labelledby="custom-title">
+    <section className="management-card custom-manager" id="settings-custom" aria-labelledby="custom-title">
       <div className="management-heading">
-        <div>
-          <span className="eyebrow">我的内容</span>
-          <h2 id="custom-title">自定义文章管理</h2>
-          <p>编辑、删除或从 TXT 文件导入，最多保留 20 篇。</p>
+        <div className="settings-card-title">
+          <span className="settings-section-key" aria-hidden="true">H</span>
+          <div>
+            <h2 id="custom-title">自定义文章管理</h2>
+            <p>编辑、删除或从 TXT 文件导入，最多保留 20 篇。</p>
+          </div>
         </div>
         <button
           className="button secondary"

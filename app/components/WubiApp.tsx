@@ -61,11 +61,6 @@ const SettingsView = dynamic(
     import("./views/SettingsView").then((m) => ({ default: m.SettingsView })),
   { loading: () => null },
 );
-const ChallengeView = dynamic(
-  () =>
-    import("./views/ChallengeView").then((m) => ({ default: m.ChallengeView })),
-  { loading: () => null },
-);
 const HistoryView = dynamic(
   () => import("./views/HistoryView").then((m) => ({ default: m.HistoryView })),
   { loading: () => null },
@@ -95,15 +90,14 @@ const navItems: Array<{
 }> = [
   { view: "typing", href: "/", label: "文章测速", coordinate: "QW" },
   { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
-  { view: "advanced", href: "/advanced", label: "进阶", coordinate: "DF" },
-  { view: "challenge", href: "/challenge", label: "字码挑战", coordinate: "TY" },
+  { view: "advanced", href: "/advanced", label: "进阶训练", coordinate: "DF" },
   { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
   { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
   { view: "summary", href: "/summary", label: "统计", coordinate: "JK" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
 
-const isNavItemActive = (view: AppView, itemView: AppView) => view === itemView;
+const isNavItemActive = (view: AppView, itemView: AppView) => (view === "challenge" ? "advanced" : view) === itemView;
 
 type HesitationAttemptTuple = [
   HesitationPracticeAttempt,
@@ -407,9 +401,8 @@ export function WubiApp({ view }: { view: AppView }) {
             onPracticeHesitation={startQueuedHesitationPractice}
           />
         )}
-        {view === "advanced" && <AdvancedCenter />}
-        {view === "challenge" && (
-          <ChallengeView playKeySound={playKeySound} />
+        {(view === "advanced" || view === "challenge") && (
+          <AdvancedCenter playKeySound={playKeySound} initialTab={view === "challenge" ? "challenge" : "rhythm"} />
         )}
         {view === "lookup" && <LookupView />}
         {view === "history" && (

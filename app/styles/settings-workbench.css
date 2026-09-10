@@ -236,7 +236,8 @@
 }
 
 .settings-content > .data-management,
-.settings-content > .pwa-card {
+.settings-content > .pwa-card,
+.settings-page .custom-manager {
   scroll-margin-top: 96px;
 }
 
