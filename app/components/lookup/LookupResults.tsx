@@ -25,9 +25,10 @@ export function LookupDetail({ entry, example = false }: { entry: WubiEntry; exa
       <div className={styles.character} data-phrase={Array.from(text).length > 1}>
         <span>{text}</span>
       </div>
+      <span className={styles.connection} aria-hidden="true">→</span>
       <div className={styles.detailBody}>
         <span className={styles.kicker}>{example ? "查码示例" : "当前选中"} / {Array.from(text).length === 1 ? "单字" : "词组"}</span>
-        <h3>{example ? "从一个字，找到它的编码" : `${text} · ${code.length} 位编码`}</h3>
+        <h3>{example ? "五 · 二级简码" : `${text} · ${code.length} 位编码`}</h3>
         <div className={styles.codeKeys} aria-label={`编码 ${code.toUpperCase()}`}>
           {Array.from(code.toUpperCase()).map((letter, index) => (
             <kbd key={index}>{letter}</kbd>

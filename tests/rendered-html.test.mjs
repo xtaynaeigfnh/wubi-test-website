@@ -31,7 +31,7 @@ test("server-renders the finished Chinese product shell", async () => {
   assert.match(html, /<html lang="zh-CN"/);
   assert.match(html, /<title>五笔测试网站<\/title>/);
   assert.match(html, /文章测速/);
-  assert.match(html, /字码挑战/);
+  assert.match(html, /进阶训练/);
   assert.match(html, /五笔查码/);
   assert.match(html, /本地成绩/);
   assert.match(html, /专注电台/);
@@ -72,9 +72,9 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   const html = await response.text();
   assert.match(html, /按键使用画像/);
   assert.match(html, /键盘热力图/);
-  assert.match(html, /当前键位结论/);
-  assert.match(html, /左右手均衡会在首次练习后出现/);
-  assert.match(html, /窄屏可左右滑动查看完整键盘/);
+  assert.match(html, /按键使用概览/);
+  assert.match(html, /点选键位查看详情/);
+  assert.match(html, /左右滑动查看完整键盘/);
 });
 
 test("history route server-renders the weekly report shell", async () => {

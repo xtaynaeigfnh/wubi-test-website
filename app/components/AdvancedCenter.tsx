@@ -10,6 +10,9 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import type { KeySoundPlayer } from "./views/TypingView";
 import { createLocalId, getSessions } from "../lib";
 import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
 import {
@@ -66,7 +69,12 @@ import type {
 } from "../types";
 import { ErrorState, usePendingSaveGuard } from "./Ui";
 
-type AdvancedTab = "rhythm" | "scenario" | "season";
+const ChallengeView = dynamic(
+  () => import("./views/ChallengeView").then((m) => m.ChallengeView),
+  { loading: () => <p role="status">正在加载字码挑战…</p> },
+);
+
+type AdvancedTab = "rhythm" | "scenario" | "season" | "challenge";
 
 interface PracticeTarget {
   id: string;
@@ -83,6 +91,7 @@ const tabs: Array<{ id: AdvancedTab; label: string; note: string }> = [
   { id: "rhythm", label: "节奏", note: "看清启动、波动与恢复" },
   { id: "scenario", label: "实战", note: "日常、办公与文学" },
   { id: "season", label: "阶段目标", note: "7 或 14 日同条件评测" },
+  { id: "challenge", label: "字码挑战", note: "单字、词组与限时原码输入" },
 ];
 
 const categoryLabels: Record<ScenarioCategory, string> = {
@@ -664,8 +673,30 @@ function SeasonEvaluationView({
   );
 }
 
-export function AdvancedCenter() {
-  const [tab, setTab] = useState<AdvancedTab>("rhythm");
+export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
+  playKeySound: KeySoundPlayer;
+  initialTab?: AdvancedTab;
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState<AdvancedTab>(initialTab);
+  const challengeLeaveRef = useRef<(() => boolean) | null>(null);
+  useEffect(() => {
+    if (initialTab === "challenge") {
+      router.replace("/advanced?tab=challenge");
+      return;
+    }
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (tabs.some((item) => item.id === requested)) setTab(requested as AdvancedTab);
+  }, [initialTab, router]);
+  const selectTab = (next: AdvancedTab) => {
+    if (next === tab) return true;
+    if (challengeLeaveRef.current && !challengeLeaveRef.current()) return false;
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(window.history.state, "", url);
+    return true;
+  };
   const [scenarios, setScenarios] = useState<AdvancedScenario[]>([]);
   const [practice, setPractice] = useState<PracticeTarget | null>(null);
   const [latestSession, setLatestSession] = useState<SessionResult | null>(null);
@@ -959,7 +990,7 @@ export function AdvancedCenter() {
       <div className="subpage-heading advanced-heading">
         <span className="eyebrow">静流 · 高手进阶</span>
         <h1>不催促，只看见节奏</h1>
-        <p>从一次输入的启动、稳定与恢复出发，把熟练变成可以理解、可以复练的手感。</p>
+        <p>从字码熟练度到输入节奏、中文实战与阶段目标，把熟练变成可以理解、可以复练的手感。</p>
       </div>
       <div className="advanced-tabs" role="tablist" aria-label="进阶训练模块">
         {tabs.map((item, index) => (
@@ -971,13 +1002,13 @@ export function AdvancedCenter() {
             aria-controls="advanced-panel"
             tabIndex={tab === item.id ? 0 : -1}
             className={tab === item.id ? "active" : ""}
-            onClick={() => setTab(item.id)}
+            onClick={() => selectTab(item.id)}
             onKeyDown={(event) => {
               if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
               event.preventDefault();
               const offset = event.key === "ArrowRight" ? 1 : -1;
               const next = tabs[(index + offset + tabs.length) % tabs.length];
-              setTab(next.id);
+              if (!selectTab(next.id)) return;
               window.requestAnimationFrame(() => document.getElementById(`advanced-tab-${next.id}`)?.focus());
             }}
           >
@@ -986,7 +1017,7 @@ export function AdvancedCenter() {
           </button>
         ))}
       </div>
-      {scenarioLoadError && tab !== "rhythm" && (
+      {scenarioLoadError && (tab === "scenario" || tab === "season") && (
         <ErrorState
           title="进阶实战题库没有加载成功"
           message={scenarioLoadError}
@@ -1002,6 +1033,7 @@ export function AdvancedCenter() {
         aria-labelledby={`advanced-tab-${activeTab.id}`}
         tabIndex={-1}
       >
+        {tab === "challenge" && <ChallengeView playKeySound={playKeySound} leaveGuardRef={challengeLeaveRef} />}
         {tab === "rhythm" && (
           <>
             <div className="advanced-module-heading">

@@ -89,18 +89,21 @@ export function LookupView() {
 
   return (
     <section className={`subpage ${styles.page}`}>
-      <header className={styles.heading}>
-        <div>
-          <span className={styles.kicker}>WUBI / 字与键之间</span>
-          <h1>五笔查码<span>86 版</span></h1>
-          <p>查到编码，也记住它在键盘上的位置。</p>
-        </div>
-      </header>
-      <LookupSearch query={query} onChange={changeQuery} loading={loading} />
+      <div className={styles.searchDesk}>
+        <header className={styles.heading}>
+          <div>
+            <span className={styles.kicker}>WUBI 86 / 字码检索</span>
+            <h1>五笔查码<span>86 版</span></h1>
+            <p>一个字，一组编码。
+              <br />从字形找到指尖的位置。</p>
+          </div>
+        </header>
+        <LookupSearch query={query} onChange={changeQuery} loading={loading} />
+      </div>
       <div className={styles.workbench}>
         <section className={styles.results} aria-labelledby="lookup-results-title" aria-busy={loading || isSearchPending}>
           <div className={styles.panelHeading}>
-            <h2 id="lookup-results-title">{normalizedQuery ? "查询结果" : "查一个字，从这里开始"}</h2>
+            <h2 id="lookup-results-title">{normalizedQuery ? "查询结果" : "字码对照"}</h2>
             <span className={styles.resultCount} role="status" aria-live="polite">
               {loading ? "正在载入码表" : loadError ? "码表未就绪" : isSearchPending ? "正在查询…" : normalizedQuery ? `${results.length} 条编码` : "示例 / 五"}
             </span>

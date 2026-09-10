@@ -814,7 +814,9 @@ test("key sound is shared by typing, challenge, and the settings preview", async
   assert.match(component, /context\.state === "suspended"/);
   assert.match(component, /context\.resume\(\)\.then\(emit/);
   assert.match(component, /<TypingView[\s\S]*playKeySound=\{playKeySound\}/);
-  assert.match(component, /<ChallengeView playKeySound=\{playKeySound\}/);
+  assert.match(component, /<AdvancedCenter playKeySound=\{playKeySound\}/);
+  const advanced = await readFile(new URL("../app/components/AdvancedCenter.tsx", import.meta.url), "utf8");
+  assert.match(advanced, /<ChallengeView playKeySound=\{playKeySound\}/);
   assert.match(settings, /if \(update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
   assert.match(
     settings,
@@ -840,43 +842,29 @@ test("typing surfaces record physical keys and the summary exposes the reference
   assert.doesNotMatch(styles, /key-profile-entry/);
   assert.doesNotMatch(summary, /返回本地成绩/);
   assert.match(summary, /按键使用画像/);
-  assert.match(summary, /键盘热力图/);
-  assert.match(summary, /左右手均衡情况/);
-  assert.match(summary, /className="hand-pie"/);
-  assert.match(summary, /aria-label=\{`左右手按键使用热力分布/);
-  assert.match(summary, /不同位置按键使用率/);
-  assert.match(summary, /title="手指使用率"/);
-  assert.match(summary, /手指使用率（分区）/);
-  assert.match(summary, /aria-label="练习按键次数热力图"/);
-  assert.match(summary, /className="keyboard-scroll-region" tabIndex=\{0\}/);
-  assert.match(summary, /className="key-analysis-layout" aria-label="按键分布分析"/);
+  assert.match(summary, /<KeyboardHeatmap usage=\{usage\} total=\{summary.total\}/);
+  const keyboard = await readFile(new URL("../app/components/summary/KeyboardHeatmap.tsx", import.meta.url), "utf8");
+  const charts = await readFile(new URL("../app/components/summary/UsageCharts.tsx", import.meta.url), "utf8");
+  assert.match(keyboard, /aria-label="练习按键次数热力图"/);
+  assert.match(keyboard, /aria-pressed=\{selectedCode === item.code\}/);
+  assert.match(keyboard, /onKeyDown=/);
+  assert.match(keyboard, /ArrowRight/);
+  assert.match(keyboard, /ArrowLeft/);
+  assert.match(keyboard, /aria-live="polite" aria-atomic="true"/);
   assert.match(summary, /className="key-summary-metrics" aria-label="按键使用概览"/);
-  assert.match(summary, /className={`key-summary-verdict\$\{summary\.total \? " has-data" : ""\}`} aria-label="当前键位结论"/);
   assert.match(summary, /只记录次数 · 不记录输入内容 · 不上传/);
-  assert.match(summary, /Boolean\(summary\.total\)[\s\S]*<HandBalanceChart/);
-  assert.match(summary, /id="finger-usage-title"[\s\S]*className="vertical-chart"/);
-  assert.match(summary, /className="axis-bars" role="list"/);
-  assert.match(summary, /className="vertical-chart" role="list"/);
-  assert.match(summary, /className="vertical-bar"[\s\S]*role="listitem"/);
-  assert.match(styles, /\.keyboard-heatmap\s*\{/);
-  assert.match(styles, /\.key-analysis-layout\s*\{[^}]*grid-template-columns:\s*repeat\(12,/s);
-  assert.match(styles, /\.hand-pie\s*\{[^}]*border-radius:\s*50%/s);
-  assert.match(styles, /\.axis-grid\s*\{/);
-  assert.match(styles, /\.vertical-bars\s*\{[^}]*grid-template-columns:\s*repeat\(9,/s);
-  assert.match(styles, /@keyframes heat-key-rise/);
-  assert.match(styles, /@keyframes pie-sweep-in/);
-  assert.match(styles, /@keyframes bar-grow-in/);
-  assert.match(styles, /@keyframes vertical-bar-grow-in/);
-  assert.match(
-    styles,
-    /\.key-summary-actions \.button\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
-  );
-  assert.match(styles, /\.key-analysis-layout > :nth-child\(2\)\s*\{[^}]*grid-column:\s*span 8/s);
-  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.vertical-chart/s);
-  assert.match(
-    styles,
-    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.key-summary-page \*[\s\S]*animation-delay:\s*0\.01ms !important/s,
-  );
+  assert.match(summary, /Boolean\(summary.total\).*<UsageCharts/);
+  assert.match(summary, /role="alert"/);
+  assert.match(summary, /headingRef.current\?\.focus\(\)/);
+  assert.match(charts, /使用次数的分布，不代表熟练度或准确率/);
+  assert.match(charts, /空格单独计入拇指/);
+  assert.match(charts, /双手分工/);
+  assert.match(charts, /键盘行分布/);
+  assert.match(charts, /手指使用分布/);
+  assert.match(styles, /\.keyboard-scroll-region\s*\{[^}]*overflow-x: auto/s);
+  assert.match(styles, /\.key-summary-page :focus-visible/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\).*?\.key-summary-page \.heat-key/s);
+
 });
 
 test("history exposes an accessible weekly report and local image download", async () => {
@@ -969,13 +957,13 @@ test("lookup workbench adapts to narrow screens and reduced motion with scoped s
   const styles = await readFile(new URL("../app/components/lookup/LookupWorkspace.module.css", import.meta.url), "utf8");
 
   assert.match(styles, /\.page\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0/s);
-  assert.match(styles, /\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1.45fr\) minmax\(340px, 1fr\)/s);
+  assert.match(styles, /\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1.5fr\) minmax\(320px, 1fr\)/s);
   assert.match(styles, /@media \(max-width: 800px\)[\s\S]*?\.workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(styles, /@media \(max-width: 540px\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /:focus-visible/);
-  assert.match(styles, /\.searchField\s*\{[^}]*width:\s*min\(560px, 100%\)/s);
-  assert.match(styles, /\.searchField\s*\{[^}]*margin-inline:\s*auto/s);
+  assert.match(styles, /\.searchField\s*\{[^}]*width:\s*100%/s);
+  assert.match(styles, /\.searchDesk\s*\{[^}]*display:\s*grid/s);
 });
 
 test("typing offers ordered common-character ranges with explicit reshuffling", async () => {
@@ -1409,4 +1397,22 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(typing, /downloadShareCard/);
   assert.match(app, /TrainingCenter/);
   assert.match(app, /KeySummary/);
+});
+
+test("advanced training contains code challenge and preserves legacy entry and switch guards", async () => {
+  const [shell, advanced, challenge] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/components/AdvancedCenter.tsx", import.meta.url), "utf8"),
+    readFile(challengeViewPath, "utf8"),
+  ]);
+  assert.doesNotMatch(shell, /href: "\/challenge"/);
+  assert.match(shell, /initialTab=\{view === "challenge" \? "challenge" : "rhythm"\}/);
+  assert.match(advanced, /router.replace\("\/advanced\?tab=challenge"\)/);
+  assert.match(advanced, /id: "challenge", label: "字码挑战"/);
+  assert.match(advanced, /onClick=\{\(\) => selectTab\(item.id\)\}/);
+  assert.match(advanced, /if \(!selectTab\(next.id\)\) return/);
+  assert.match(advanced, /challengeLeaveRef.current && !challengeLeaveRef.current\(\)/);
+  assert.match(challenge, /if \(challengeSaveFailed\) \{[\s\S]*?return false/);
+  assert.match(challenge, /if \(!window.confirm\([\s\S]*?return false;\s*discardChallenge\(\)/);
+  assert.doesNotMatch(challenge, /<h1>/);
 });
