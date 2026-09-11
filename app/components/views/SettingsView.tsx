@@ -13,6 +13,8 @@ import type { ThemeId, UserSettings } from "../../types";
 import { DataManagement } from "../DataManagement";
 import { PwaControl } from "../PwaControl";
 import { Toggle } from "../Ui";
+import { PetArt, petLabels } from "../PetArt";
+import type { PetSpecies } from "../../types";
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
@@ -100,12 +102,12 @@ export function SettingsView({
     customTheme.canvas,
   );
   const hasLowAccentSeparation = accentCanvasRatio < 3;
-  const enabledFeedbackCount = [settings.showCodeHints, settings.sound].filter(Boolean).length;
+  const enabledFeedbackCount = [settings.showCodeHints, settings.sound, settings.petEnabled].filter(Boolean).length;
   const feedbackSummary = enabledFeedbackCount === 0
     ? "全部关闭"
-    : enabledFeedbackCount === 2
+    : enabledFeedbackCount === 3
       ? "已全部开启"
-      : "已开启 1 项";
+      : `已开启 ${enabledFeedbackCount} 项`;
   const updateCustomTheme = (key: "accent" | "canvas", value: string) =>
     onChange({
       ...settings,
@@ -144,6 +146,12 @@ export function SettingsView({
             <span>辅助反馈</span>
             <strong>{feedbackSummary}</strong>
             <ul aria-label="辅助反馈状态">
+              <li>
+                <span>宠物陪伴</span>
+                <b className={settings.petEnabled ? "is-on" : ""}>
+                  {settings.petEnabled ? "已开启" : "已关闭"}
+                </b>
+              </li>
               <li>
                 <span>编码提示</span>
                 <b className={settings.showCodeHints ? "is-on" : ""}>
@@ -284,6 +292,14 @@ export function SettingsView({
               </section>
               <section className="settings-card" id="settings-feedback">
                 <div className="settings-card-title"><span>D</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
+                <Toggle label="宠物陪伴" note="角落里的小伙伴，输入时自动收起" checked={settings.petEnabled} onChange={(value) => update("petEnabled", value)} />
+                <div className="pet-choices" role="group" aria-label="选择陪伴宠物">
+                  {(Object.keys(petLabels) as PetSpecies[]).map((species) => (
+                    <button key={species} type="button" aria-pressed={settings.petSpecies === species} onClick={() => update("petSpecies", species)}>
+                      <PetArt species={species} /><span>{petLabels[species]}</span>
+                    </button>
+                  ))}
+                </div>
                 <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
                 <Toggle
                   label="按键声音"

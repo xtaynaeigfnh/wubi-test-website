@@ -430,7 +430,11 @@ export interface CustomTheme {
   canvas: string;
 }
 
+export type PetSpecies = "cat" | "dog" | "rabbit";
+
 export interface UserSettings {
+  petEnabled: boolean;
+  petSpecies: PetSpecies;
   fontSize: number;
   preferredLength: ArticleLength | "all";
   showCodeHints: boolean;

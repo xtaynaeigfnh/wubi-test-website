@@ -1,4 +1,5 @@
 "use client";
+import { PRACTICE_SAVED_EVENT } from "./pet-events.ts";
 
 import {
   MAX_ARTICLE_PROGRESS_ITEMS,
@@ -791,6 +792,7 @@ function persistPracticeOutcome(
   for (const [key, value] of extraWrites) writes.set(key, value);
   const persisted = commitLocalWrites(writes);
   if (persisted) {
+    window.dispatchEvent?.(new CustomEvent(PRACTICE_SAVED_EVENT, { detail: { sessionId: session.id } }));
     const byId = new Map(sessions.map((item) => [item.id, item]));
     const evictedLargeObject = currentSessions.some((item) => {
       const retained = byId.get(item.id);

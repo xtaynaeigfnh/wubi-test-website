@@ -1033,7 +1033,7 @@ test("settings layout provides a responsive home-row section index", async () =>
   }
   assert.match(component, /<aside className="settings-index" aria-label="设置分区">/);
   assert.match(component, /<dl className="settings-heading-summary" aria-label="当前设置摘要">/);
-  assert.match(component, /enabledFeedbackCount === 0[\s\S]*"全部关闭"[\s\S]*"已全部开启"[\s\S]*"已开启 1 项"/);
+  assert.match(component, /enabledFeedbackCount === 0[\s\S]*"全部关闭"[\s\S]*"已全部开启"[\s\S]*已开启 \$\{enabledFeedbackCount\} 项/);
   assert.match(component, /<ul aria-label="辅助反馈状态">/);
   assert.match(component, />编码提示</);
   assert.match(component, />按键声音</);
@@ -1403,4 +1403,16 @@ test("advanced training contains code challenge and preserves legacy entry and s
   assert.match(challenge, /if \(challengeSaveFailed\) \{[\s\S]*?return false/);
   assert.match(challenge, /if \(!window.confirm\([\s\S]*?return false;\s*discardChallenge\(\)/);
   assert.doesNotMatch(challenge, /<h1>/);
+});
+
+test("pet settings expose three accessible choices and companion respects focus and motion", async () => {
+  const settings = await readFile(new URL("../app/components/views/SettingsView.tsx", import.meta.url), "utf8");
+  const companion = await readFile(new URL("../app/components/PetCompanion.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/styles/pet.css", import.meta.url), "utf8");
+  assert.match(settings, /label="宠物陪伴"/);
+  assert.match(settings, /aria-label="选择陪伴宠物"/);
+  assert.match(settings, /aria-pressed=/);
+  assert.match(companion, /hidden=\{hidden\}/);
+  assert.match(companion, /又完成一轮啦！/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
 });

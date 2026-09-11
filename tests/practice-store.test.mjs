@@ -1096,3 +1096,34 @@ test("duplicate progress sums attempts and errors, keeps best speed and completi
     delete globalThis.window;
   }
 });
+
+test("practice completion notifies only after a successful new save, including retry", () => {
+  const values = new Map();
+  const events = [];
+  let fail = true;
+  globalThis.window = {
+    dispatchEvent: (event) => { events.push(event); return true; },
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        if (fail) throw new Error("quota");
+        values.set(key, value);
+      },
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    const result = session();
+    assert.equal(savePracticeOutcome(result), false);
+    assert.equal(events.length, 0);
+    fail = false;
+    assert.equal(savePracticeOutcome(result), true);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, "wubi:practice-saved");
+    assert.equal(events[0].detail.sessionId, result.id);
+    assert.equal(savePracticeOutcome(result), true);
+    assert.equal(events.length, 1);
+  } finally {
+    delete globalThis.window;
+  }
+});

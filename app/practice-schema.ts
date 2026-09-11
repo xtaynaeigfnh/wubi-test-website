@@ -60,6 +60,8 @@ export function normalizeCustomTheme(value: unknown): CustomTheme {
 }
 
 export const defaultSettings: UserSettings = {
+  petEnabled: false,
+  petSpecies: "cat",
   fontSize: 30,
   preferredLength: "all",
   showCodeHints: false,
@@ -764,6 +766,9 @@ export function validateArray(
 export function isSettings(value: unknown): value is UserSettings {
   return (
     isRecord(value) &&
+    (!Object.hasOwn(value, "petEnabled") || typeof value.petEnabled === "boolean") &&
+    (!Object.hasOwn(value, "petSpecies") ||
+      (typeof value.petSpecies === "string" && ["cat", "dog", "rabbit"].includes(value.petSpecies))) &&
     isFiniteRange(value.fontSize, 22, 42) &&
     ["all", "short", "medium", "long", "water"].includes(
       String(value.preferredLength),
@@ -788,6 +793,9 @@ export function normalizeBackupSettings(value: unknown): UserSettings | null {
   const knownKeys = new Set(Object.keys(defaultSettings));
   if ([...keys].some((key) => !knownKeys.has(key))) return null;
   if (
+    (keys.has("petEnabled") && typeof value.petEnabled !== "boolean") ||
+    (keys.has("petSpecies") &&
+      (typeof value.petSpecies !== "string" || !["cat", "dog", "rabbit"].includes(value.petSpecies))) ||
     (keys.has("fontSize") && !isFiniteRange(value.fontSize, 22, 42)) ||
     (keys.has("preferredLength") &&
       !["all", "short", "medium", "long", "water"].includes(
