@@ -176,7 +176,7 @@ test("custom text limits and install failures are visible instead of silent", as
   assert.match(management, /length > MAX_CUSTOM_TEXT_LENGTH/);
   assert.match(
     component,
-    /view === "typing" && \(\s*<TypingView\s+settings=\{settings\}\s+settingsReady=\{settingsReady\}\s+onShowGhostGapChange=\{\(value\) =>\s*updateSettings\(\{\s*\.\.\.settings,\s*showGhostGap: value,\s*\}\)\s*\}\s+playKeySound=\{playKeySound\}\s+onPracticeHesitation=\{\(target\) =>\s*setActiveHesitationPractice\(\{ target \}\)\s*\}\s+onAddHesitationToQueue=\{addHesitationToQueue\}\s+queuedFingerprints=\{queuedFingerprints\}\s+masteredAtByFingerprint=\{masteredAtByFingerprint\}\s+hesitationPracticeOpen=\{Boolean\(activeHesitationPractice\)\}/,
+    /view === "typing" && \(\s*<TypingView\s+settings=\{settings\}\s+settingsReady=\{settingsReady\}\s+onShowGhostGapChange=\{\(value\) =>\s*updateSettings\(\{\s*\.\.\.settings,\s*showGhostGap: value,\s*\}\)\s*\}\s+playKeySound=\{playKeySound\}\s+hesitationPracticeOpen=\{Boolean\(activeHesitationPractice\)\}/,
   );
   assert.match(typing, /!hesitationPracticeOpen/);
   assert.match(pwa, /catch \{/);
@@ -388,7 +388,7 @@ test("personal ghost races expose selection, live distance, replay, and responsi
   );
 });
 
-test("typing completion and history expose an accessible hesitation heatmap", async () => {
+test("typing saves review data and only history displays heatmap and rhythm", async () => {
   const [component, typing, history, heatmap, practice, training, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
     readTypingSource(),
@@ -400,13 +400,9 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   ]);
 
   assert.match(typing, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
-  assert.match(
-    typing,
-    /<\/article>[\s\S]*\{completed && \(lastSession\?\.rhythmSummary \|\| lastSession\?\.heatmap\) && \([\s\S]*className="post-practice-review"[\s\S]*<RhythmSummaryView[\s\S]*<HesitationHeatmap[\s\S]*heatmap=\{lastSession\.heatmap\}[\s\S]*source=\{lastSession\}[\s\S]*<aside className="side-panel">/,
-  );
-  assert.equal(typing.match(/className="post-practice-review"/g)?.length, 1);
+  assert.doesNotMatch(typing, /<HesitationHeatmap\b|<RhythmSummaryView\b|post-practice-review/);
   assert.match(history, /className="session-heatmap-trigger"/);
-  assert.equal(typing.match(/<HesitationHeatmap\b/g)?.length, 1);
+  assert.match(history, /<RhythmSummaryView\s+summary=\{session\.rhythmSummary\}/);
   assert.equal(history.match(/<HesitationHeatmap\b/g)?.length, 1);
   assert.match(
     history,
@@ -433,19 +429,11 @@ test("typing completion and history expose an accessible hesitation heatmap", as
   assert.match(styles, /--heat-mild:/);
   assert.match(
     styles,
-    /\.post-practice-review\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;[^}]*display:\s*grid;[^}]*gap:\s*1px;[^}]*border-top:\s*3px solid var\(--accent-vermilion\)/s,
-  );
-  assert.match(
-    styles,
     /\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/s,
   );
   assert.match(
     styles,
-    /@media \(max-width: 900px\)[\s\S]*\.post-practice-review,[\s\S]*\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*auto;/s,
-  );
-  assert.match(
-    styles,
-    /@media \(max-width: 620px\)[\s\S]*\.post-practice-review\s*\{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;/s,
+    /@media \(max-width: 900px\)[\s\S]*\.workspace-grid > \.side-panel\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*auto;/s,
   );
   assert.match(styles, /\.heatmap-passage\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*\.hesitation-ranking\s*\{[^}]*grid-template-columns:\s*1fr/s);

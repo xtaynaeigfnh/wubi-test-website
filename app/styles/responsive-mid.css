@@ -77,7 +77,6 @@
     grid-template-columns: 1fr;
   }
 
-  .post-practice-review,
   .workspace-grid > .side-panel {
     grid-column: 1;
     grid-row: auto;
@@ -148,11 +147,6 @@
 @media (max-width: 620px) {
   body {
     background-size: 28px 28px;
-  }
-
-  .post-practice-review {
-    border-inline: 0;
-    border-radius: 0;
   }
 
   body::before {

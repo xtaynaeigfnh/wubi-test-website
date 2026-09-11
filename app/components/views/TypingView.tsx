@@ -22,18 +22,14 @@ import {
 } from "../../typing-metrics";
 import type {
   ArticleFilter,
-  HesitationPracticeTarget,
   UserSettings,
 } from "../../types";
 import { downloadShareCard } from "../../share-card";
-import { RhythmSummaryView } from "../AdvancedCenter";
 import {
   DiagnosticMetric,
   ErrorState,
   usePendingSaveGuard,
 } from "../Ui";
-import { HesitationHeatmap } from "../HesitationHeatmap";
-import { openRhythmSegmentPractice } from "../../rhythm-navigation";
 import {
   useArticleLibrary,
   type PracticeControls,
@@ -60,20 +56,12 @@ export function TypingView({
   settingsReady,
   onShowGhostGapChange,
   playKeySound,
-  onPracticeHesitation,
-  onAddHesitationToQueue,
-  queuedFingerprints,
-  masteredAtByFingerprint,
   hesitationPracticeOpen,
 }: {
   settings: UserSettings;
   settingsReady: boolean;
   onShowGhostGapChange: (value: boolean) => void;
   playKeySound: KeySoundPlayer;
-  onPracticeHesitation: (target: HesitationPracticeTarget) => void;
-  onAddHesitationToQueue: (target: HesitationPracticeTarget) => void;
-  queuedFingerprints: ReadonlySet<string>;
-  masteredAtByFingerprint: ReadonlyMap<string, string>;
   hesitationPracticeOpen: boolean;
 }) {
   const router = useRouter();
@@ -889,27 +877,6 @@ export function TypingView({
             />
           )}
         </article>
-
-        {completed && (lastSession?.rhythmSummary || lastSession?.heatmap) && (
-          <div className="post-practice-review">
-            {lastSession.rhythmSummary && (
-              <RhythmSummaryView
-                summary={lastSession.rhythmSummary}
-                onPractice={(segment) => openRhythmSegmentPractice(router, segment)}
-              />
-            )}
-            {lastSession.heatmap && (
-              <HesitationHeatmap
-                heatmap={lastSession.heatmap}
-                source={lastSession}
-                onPractice={onPracticeHesitation}
-                onAddToQueue={onAddHesitationToQueue}
-                queuedFingerprints={queuedFingerprints}
-                masteredAtByFingerprint={masteredAtByFingerprint}
-              />
-            )}
-          </div>
-        )}
 
         <aside className="side-panel">
           <div className="side-heading">

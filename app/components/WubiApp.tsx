@@ -384,12 +384,6 @@ export function WubiApp({ view }: { view: AppView }) {
               })
             }
             playKeySound={playKeySound}
-            onPracticeHesitation={(target) =>
-              setActiveHesitationPractice({ target })
-            }
-            onAddHesitationToQueue={addHesitationToQueue}
-            queuedFingerprints={queuedFingerprints}
-            masteredAtByFingerprint={masteredAtByFingerprint}
             hesitationPracticeOpen={Boolean(activeHesitationPractice)}
           />
         )}

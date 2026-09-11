@@ -1097,25 +1097,6 @@
   background: var(--bg-paper);
 }
 
-.post-practice-review {
-  min-width: 0;
-  grid-column: 1;
-  grid-row: 2;
-  display: grid;
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-top: 3px solid var(--accent-vermilion);
-  border-radius: var(--radius-medium);
-  background: var(--bg-paper);
-  box-shadow: var(--shadow-panel);
-}
-
-.post-practice-review > .rhythm-result,
-.post-practice-review > .hesitation-heatmap {
-  min-width: 0;
-}
-
 .workspace-grid > .side-panel {
   grid-column: 2;
   grid-row: 1;
