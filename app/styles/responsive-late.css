@@ -158,3 +158,29 @@
   }
 }
 
+
+/* Keep the collapsed music control in the header, outside practice content. */
+#music-header-slot {
+  width: 44px;
+  min-width: 44px;
+  align-self: center;
+}
+#music-header-slot .music-dock.is-collapsed {
+  position: static;
+}
+#music-header-slot .music-dock-peek {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+@media (min-width: 621px) and (max-width: 900px) {
+  .header-inner {
+    grid-template-columns: 190px minmax(0, 1fr) 100px;
+  }
+}
+@media (max-width: 620px) {
+  .header-utilities { gap: 8px; top: 11px; }
+  .brand { padding-right: 108px; }
+}

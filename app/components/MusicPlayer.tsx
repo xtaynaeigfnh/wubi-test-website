@@ -13,6 +13,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { readLocal, STORAGE, writeLocal } from "../storage";
 import {
   DEFAULT_MUSIC_PREFERENCES,
@@ -355,6 +356,14 @@ function MusicDock() {
   } = useMusicPlayer();
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const syncSlot = () => setHeaderSlot(document.getElementById("music-header-slot"));
+    syncSlot();
+    const observer = new MutationObserver(syncSlot);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
   const dockRef = useRef<HTMLElement>(null);
   const peekButtonRef = useRef<HTMLButtonElement>(null);
   const pointerInsideRef = useRef(false);
@@ -496,7 +505,7 @@ function MusicDock() {
     }
   }, [collapsed]);
 
-  return (
+  const dock = (
     <aside
       ref={dockRef}
       className={[
@@ -738,4 +747,5 @@ function MusicDock() {
       </div>
     </aside>
   );
+  return collapsed && headerSlot ? createPortal(dock, headerSlot) : dock;
 }

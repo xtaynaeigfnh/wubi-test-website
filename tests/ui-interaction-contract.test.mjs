@@ -1416,3 +1416,22 @@ test("pet settings expose three accessible choices and companion respects focus 
   assert.match(companion, /又完成一轮啦！/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
 });
+
+test("short viewports keep dialog bodies scrollable and music outside content", async () => {
+  const [ui, music, shell, styles] = await Promise.all([
+    readFile(uiPath, "utf8"), readFile(musicPath, "utf8"),
+    readFile(componentPath, "utf8"), readStyles(),
+  ]);
+  assert.match(styles, /\.modal\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column/s);
+  assert.match(styles, /\.modal > header\s*\{[^}]*flex-shrink:\s*0/s);
+  assert.match(styles, /\.modal > :not\(header\)\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto/s);
+  assert.match(ui, /window\.visualViewport/);
+  for (const event of ["resize", "scroll"]) {
+    assert.ok(ui.includes(`viewport?.addEventListener("${event}", syncViewport)`));
+    assert.ok(ui.includes(`viewport?.removeEventListener("${event}", syncViewport)`));
+  }
+  assert.match(styles, /\.phrase-training\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+  assert.match(shell, /id="music-header-slot"/);
+  assert.match(music, /createPortal\(dock, headerSlot\)/);
+  assert.match(styles, /#music-header-slot \.music-dock\.is-collapsed\s*\{[^}]*position:\s*static/s);
+});

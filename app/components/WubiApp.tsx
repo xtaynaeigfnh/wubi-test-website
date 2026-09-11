@@ -350,6 +350,7 @@ export function WubiApp({ view }: { view: AppView }) {
             ))}
           </nav>
           <div className="header-utilities">
+            <div id="music-header-slot" />
             <button
               className="theme-switch"
               type="button"
