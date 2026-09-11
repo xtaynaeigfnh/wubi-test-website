@@ -32,3 +32,5 @@
 @import "./styles/key-summary-charts.css"; /* v0.6/v0.7 统计页图表与重排 */
 @import "./styles/responsive-late.css"; /* 设置与统计页收尾响应式（900/620/380） */
 @import "./styles/restrained-motion.css"; /* 卡顿复练、训练与进阶的收尾响应式与动效收束 */
+
+@import "./styles/pet.css"; /* 轻量宠物陪伴 */

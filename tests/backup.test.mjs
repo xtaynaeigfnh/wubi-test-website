@@ -104,6 +104,8 @@ test("backup format only accepts known versioned storage keys", () => {
     {
       [STORAGE.sessions]: [session()],
       [STORAGE.settings]: {
+        petEnabled: true,
+        petSpecies: "cat",
         fontSize: 30,
         preferredLength: "all",
         showCodeHints: false,
@@ -225,6 +227,8 @@ test("backup format only accepts known versioned storage keys", () => {
       data: { [STORAGE.settings]: { theme: "dark" } },
     }).data[STORAGE.settings],
     {
+      petEnabled: false,
+      petSpecies: "cat",
       fontSize: 30,
       preferredLength: "all",
       showCodeHints: false,
@@ -869,6 +873,36 @@ test("phrase opportunities stay bounded, survive backup validation, and track pr
         ),
       /格式不正确/,
     );
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("pet preferences round trip through backups and old settings gain defaults", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    values.set(STORAGE.settings, JSON.stringify({ theme: "dark" }));
+    const old = parseBackupPayload(createBackupPayload({ [STORAGE.settings]: readLocalForBackup(STORAGE.settings) })).data[STORAGE.settings];
+    assert.equal(old.petEnabled, false);
+    assert.equal(old.petSpecies, "cat");
+    values.set(STORAGE.settings, JSON.stringify({ ...old, petEnabled: false, petSpecies: "rabbit" }));
+    const backup = createBackupPayload({ [STORAGE.settings]: readLocalForBackup(STORAGE.settings) });
+    const parsed = parseBackupPayload(backup);
+    values.clear();
+    restoreBackupPayload(parsed);
+    assert.equal(readLocalForBackup(STORAGE.settings).petSpecies, "rabbit");
+    assert.equal(readLocalForBackup(STORAGE.settings).petEnabled, false);
+    for (const invalid of [{ ...old, petEnabled: 1 }, { ...old, petSpecies: "dragon" }, { ...old, petSpecies: ["cat"] }]) {
+      values.set(STORAGE.settings, JSON.stringify(invalid));
+      assert.throws(() => parseBackupPayload(createBackupPayload({ [STORAGE.settings]: readLocalForBackup(STORAGE.settings) })));
+    }
   } finally {
     delete globalThis.window;
   }

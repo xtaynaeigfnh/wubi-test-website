@@ -1,0 +1,21 @@
+.pet-companion { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 40; color: var(--text-primary); }
+.pet-companion[hidden] { display: none; }
+.pet-touch { display: block; width: 88px; height: 88px; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 22px; touch-action: manipulation; }
+.pet-touch:focus-visible, .pet-choices button:focus-visible { outline: 3px solid var(--accent-vermilion); outline-offset: 3px; }
+.pet-art { display: block; width: 100%; height: 100%; overflow: visible; }
+.pet-bubble { position: absolute; bottom: calc(100% + 8px); left: 0; width: max-content; max-width: 180px; padding: 9px 12px; border: 1px solid var(--border-subtle); border-radius: 14px 14px 14px 3px; background: var(--bg-paper); color: var(--text-primary); font-size: 13px; box-shadow: 0 4px 16px #00000012; }
+.pet-choices { display: flex; gap: 10px; margin: 12px 0 20px; }
+.pet-choices button { flex: 1; min-width: 0; padding: 8px; border: 1px solid var(--border-subtle); border-radius: 14px; background: transparent; color: inherit; cursor: pointer; }
+.pet-choices button[aria-pressed="true"] { border: 2px solid var(--accent-vermilion); background: color-mix(in srgb, var(--accent-vermilion) 8%, transparent); padding: 7px; }
+.pet-choices .pet-art { width: 64px; height: 64px; max-width: 100%; margin: 0 auto 5px; }
+.pet-body, .pet-head, .pet-eyes { transform-box: fill-box; transform-origin: center bottom; }
+.pet-idle .pet-body { animation: pet-breathe 5s ease-in-out infinite; }
+.pet-idle .pet-eyes { animation: pet-blink 7s infinite; }
+.pet-reply .pet-head { animation: pet-nuzzle .65s ease-in-out 3; }
+.pet-celebrate .pet-body { animation: pet-hop .65s ease-in-out 4; }
+@keyframes pet-breathe { 50% { transform: scaleY(1.025); } }
+@keyframes pet-blink { 0%, 44%, 48%, 100% { transform: scaleY(1); } 46% { transform: scaleY(.15); } }
+@keyframes pet-nuzzle { 50% { transform: rotate(-9deg); } }
+@keyframes pet-hop { 50% { transform: translateY(-9px) rotate(3deg); } }
+@media (max-width: 620px) { .pet-touch { width: 60px; height: 60px; } .pet-companion { left: max(10px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .pet-companion * { animation: none !important; } }

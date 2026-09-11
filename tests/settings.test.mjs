@@ -34,6 +34,8 @@ test("settings read old and new themes while normalizing custom colors", () => {
       }),
     );
     assert.deepEqual(readSettings(), {
+      petEnabled: false,
+      petSpecies: "cat",
       fontSize: 34,
       preferredLength: "all",
       showCodeHints: false,
@@ -53,6 +55,27 @@ test("settings read old and new themes while normalizing custom colors", () => {
     );
     assert.equal(readSettings().theme, "system");
     assert.deepEqual(readSettings().customTheme, defaultCustomTheme);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("pet preferences preserve choices and normalize old or invalid local values", () => {
+  let stored = {};
+  globalThis.window = { localStorage: { getItem: () => JSON.stringify(stored) } };
+  try {
+    assert.equal(readSettings().petEnabled, false);
+    assert.equal(readSettings().petSpecies, "cat");
+    for (const species of ["cat", "dog", "rabbit"]) {
+      stored = { petEnabled: false, petSpecies: species };
+      assert.equal(readSettings().petEnabled, false);
+      assert.equal(readSettings().petSpecies, species);
+    }
+    stored = { petEnabled: true, petSpecies: "cat" };
+    assert.equal(readSettings().petEnabled, true);
+    stored = { petEnabled: "false", petSpecies: "dragon" };
+    assert.equal(readSettings().petEnabled, false);
+    assert.equal(readSettings().petSpecies, "cat");
   } finally {
     delete globalThis.window;
   }

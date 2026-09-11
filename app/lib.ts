@@ -117,6 +117,8 @@ export function readSettings(): UserSettings {
   }
   const partial = value as Partial<UserSettings>;
   return {
+    petEnabled: typeof partial.petEnabled === "boolean" ? partial.petEnabled : defaultSettings.petEnabled,
+    petSpecies: partial.petSpecies && ["cat", "dog", "rabbit"].includes(partial.petSpecies) ? partial.petSpecies : defaultSettings.petSpecies,
     fontSize:
       typeof partial.fontSize === "number" &&
       partial.fontSize >= 22 &&
