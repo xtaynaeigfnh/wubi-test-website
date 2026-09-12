@@ -44,6 +44,22 @@ async function readTypingSource() {
   return [await readFile(typingViewPath, "utf8"), ...typingSources].join("\n");
 }
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
+
+test("code drills restore input focus after a mouse advances a wrong answer", async () => {
+  for (const path of [challengeViewPath, trainingCenterPath]) {
+    const source = await readFile(path, "utf8");
+    assert.match(source, /if \(started && feedback === "idle"\) inputRef\.current\?\.focus\(\)/);
+    assert.match(source, /\[started, feedback, question\]/);
+    assert.match(source, /<input\s+ref=\{inputRef\}\s+autoFocus/);
+  }
+});
+
+test("completion does not praise code length when physical letter events are missing", async () => {
+  const source = await readFile(new URL("CompletionPanel.tsx", typingHooksDir), "utf8");
+  assert.match(source, /codeLength <= 0\s*\? "本次未采集到字母按键，无法评价实际码长。"/);
+  assert.match(source, /theoreticalGap === null\s*\? "理论码长暂不可用，无法比较本次实际码长。"/);
+  assert.match(source, /label="实际码长" value=\{codeLength > 0 \? codeLength\.toFixed\(2\) : "—"\}/);
+});
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
 

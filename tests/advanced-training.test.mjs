@@ -1,6 +1,84 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createAdvancedPracticeHarness } from "./helpers/advanced-practice-harness.mjs";
+
+for (const interruption of ["pause", "background"]) {
+  test(`advanced practice preserves active hesitation across ${interruption}`, async () => {
+    const practice = await createAdvancedPracticeHarness("甲乙");
+    practice.key();
+    practice.at(1000);
+    practice.input("onChange", "甲");
+    practice.at(3000);
+    if (interruption === "pause") practice.pause();
+    else practice.visibility("hidden");
+    practice.at(10000);
+    if (interruption === "pause") practice.pause();
+    else practice.visibility("visible");
+    practice.flush();
+    practice.at(11000);
+    practice.input("onChange", "甲乙");
+    assert.equal(practice.sessions.length, 1);
+    assert.equal(practice.sessions[0].durationSeconds, 4);
+    assert.equal(practice.sessions[0].rhythmSummary.medianIntervalMs, 2000);
+    if (interruption === "pause") assert.equal(practice.focused, 1);
+  });
+}
+
+test("advanced practice records physical keys and plays sound without counting modifiers or shortcuts", async () => {
+  const practice = await createAdvancedPracticeHarness();
+  practice.key("a", "KeyA");
+  practice.key("Process", "KeyB", { nativeEvent: { isComposing: true } });
+  practice.key("Shift", "ShiftLeft");
+  practice.key("c", "KeyC", { ctrlKey: true });
+  assert.deepEqual(practice.keys, ["KeyA", "KeyB"]);
+  assert.equal(practice.sounds, 2);
+});
+
+for (const ordering of ["input-before-end", "end-before-input"]) {
+  test(`advanced IME commits Chinese once with ${ordering}`, async () => {
+    const practice = await createAdvancedPracticeHarness("你好");
+    practice.input("onCompositionStart");
+    practice.at(500);
+    practice.input("onChange", "nihao", { isComposing: true });
+    assert.equal(practice.value, "nihao");
+    assert.equal(practice.sessions.length, 0);
+    practice.at(1000);
+    if (ordering === "input-before-end") {
+      practice.input("onChange", "你好", { isComposing: true });
+      practice.input("onCompositionEnd", "你好");
+    } else {
+      practice.input("onCompositionEnd", "nihao");
+      practice.input("onChange", "你好", { isComposing: false });
+    }
+    practice.flush();
+    assert.equal(practice.sessions.length, 1);
+    assert.equal(practice.sessions[0].correctChars, 2);
+    assert.equal(practice.sessions[0].accuracy, 100);
+    assert.equal(practice.value, "你好");
+  });
+}
+
+test("advanced practice accepts Chinese input without physical key events", async () => {
+  const practice = await createAdvancedPracticeHarness("你好");
+  practice.input("onChange", "你", { inputType: "insertText" });
+  practice.at(1000);
+  practice.input("onChange", "你好", { inputType: "insertText" });
+  assert.equal(practice.sessions.length, 1);
+  assert.equal(practice.sessions[0].accuracy, 100);
+  assert.equal(practice.sessions[0].keyCount, 0);
+});
+
+test("cancelling a Chinese composition does not create a result", async () => {
+  const practice = await createAdvancedPracticeHarness("你好");
+  practice.input("onCompositionStart");
+  practice.input("onChange", "nihao", { isComposing: true });
+  practice.input("onCompositionEnd", "");
+  practice.input("onChange", "", { isComposing: false });
+  practice.flush();
+  assert.equal(practice.value, "");
+  assert.equal(practice.sessions.length, 0);
+});
 
 import {
   buildRhythmSummary,

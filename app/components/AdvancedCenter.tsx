@@ -13,7 +13,7 @@ import {
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { KeySoundPlayer } from "./views/TypingView";
-import { createLocalId, getSessions } from "../lib";
+import { createLocalId, getSessions, recordKeyUsage } from "../lib";
 import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
 import {
   readAdvancedSeasonArchive,
@@ -189,12 +189,14 @@ export function RhythmSummaryView({
 
 function AdvancedPractice({
   target,
+  playKeySound,
   roundLabel,
   onCancel,
   onSave,
   onComplete,
 }: {
   target: PracticeTarget;
+  playKeySound: KeySoundPlayer;
   roundLabel?: string;
   onCancel: () => void;
   onSave: (session: SessionResult) => boolean;
@@ -268,7 +270,6 @@ function AdvancedPractice({
       } else if (inactiveAtRef.current !== null) {
         inactiveMsRef.current += Math.max(0, now - inactiveAtRef.current);
         inactiveAtRef.current = null;
-        lastCommitAtRef.current = activeElapsed(now);
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -414,6 +415,8 @@ function AdvancedPractice({
     }
     if (!["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(event.key)) {
       keyCountRef.current += 1;
+      recordKeyUsage(event.code);
+      playKeySound();
     }
     if (event.key === "Backspace") backspaceCountRef.current += 1;
     if (
@@ -437,8 +440,8 @@ function AdvancedPractice({
     if (paused) {
       if (pauseAtRef.current !== null) pausedMsRef.current += Math.max(0, now - pauseAtRef.current);
       pauseAtRef.current = null;
-      lastCommitAtRef.current = activeElapsed(now);
       setPaused(false);
+      window.setTimeout(() => inputRef.current?.focus(), 0);
     } else {
       pauseAtRef.current = now;
       pauseCountRef.current += 1;
@@ -976,6 +979,7 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
         <AdvancedPractice
           key={practiceKey}
           target={practice}
+          playKeySound={playKeySound}
           roundLabel={repeat ? `三连复练 · 第 ${repeat.completed + 1} 轮` : practice.seasonDay ? `阶段目标 · 第 ${practice.seasonDay} 天` : undefined}
           onCancel={() => { setPractice(null); setRepeat(null); }}
           onSave={saveCurrentAdvancedPracticeOutcome}

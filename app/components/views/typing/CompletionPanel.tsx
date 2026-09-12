@@ -89,7 +89,7 @@ export function CompletionPanel({
       <div className="completion-results" aria-label="本次练习成绩">
         <span><small>速度</small><span className="completion-value"><strong>{speed}</strong><i>字/分</i></span></span>
         <span><small>击键</small><span className="completion-value"><strong>{kps.toFixed(2)}</strong><i>次/秒</i></span></span>
-        <span><small>码长</small><span className="completion-value"><strong>{codeLength.toFixed(2)}</strong><i>键/字</i></span></span>
+        <span><small>码长</small><span className="completion-value"><strong>{codeLength > 0 ? codeLength.toFixed(2) : "—"}</strong><i>键/字</i></span></span>
         <span><small>字准</small><span className="completion-value"><strong>{accuracy.toFixed(1)}</strong><i>%</i></span></span>
         <span><small>错字</small><span className="completion-value"><strong>{errorCount}</strong><i>处</i></span></span>
       </div>
@@ -117,13 +117,17 @@ export function CompletionPanel({
             <p>
               {minimumCodeError
                 ? "码表数据暂时不可用，无法生成本次建议。"
-                : theoreticalGap !== null && theoreticalGap > 0
-                  ? `实际码长距理论下限还有 ${theoreticalGap.toFixed(2)} 键/字的空间。`
-                  : "本次实际码长已接近理论下限。"}
+                : codeLength <= 0
+                  ? "本次未采集到字母按键，无法评价实际码长。"
+                  : theoreticalGap === null
+                    ? "理论码长暂不可用，无法比较本次实际码长。"
+                    : theoreticalGap > 0
+                      ? `实际码长距理论下限还有 ${theoreticalGap.toFixed(2)} 键/字的空间。`
+                      : "本次实际码长已接近理论下限。"}
             </p>
           </div>
           <div className="code-coach-metrics" aria-label="码长对比">
-            <CodeCoachMetric label="实际码长" value={codeLength.toFixed(2)} unit="键/字" />
+            <CodeCoachMetric label="实际码长" value={codeLength > 0 ? codeLength.toFixed(2) : "—"} unit="键/字" />
             <CodeCoachMetric
               label="理论下限"
               value={codeLengthAnalysis?.theoreticalAverageCodeLength?.toFixed(2) ?? "—"}

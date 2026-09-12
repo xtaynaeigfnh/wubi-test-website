@@ -1177,6 +1177,11 @@ function CodeDrill({
   const submitLock = useRef(false);
   const advanceLock = useRef(false);
   const finishedLock = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (started && feedback === "idle") inputRef.current?.focus();
+  }, [started, feedback, question]);
 
   const nextQuestion = useCallback(() => {
     if (planTask) {
@@ -1432,6 +1437,7 @@ function CodeDrill({
             ))}
           </div>
           <input
+            ref={inputRef}
             autoFocus
             className={`code-input ${feedback}`}
             aria-label={`${question?.[0]}的五笔编码`}
