@@ -58,6 +58,7 @@ export function ChallengeView({
   const seenQuestionsRef = useRef(new Set<string>());
   const submitLockRef = useRef(false);
   const advanceLockRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const challengeObservationsRef = useRef<WeakObservation[]>([]);
   const pendingChallengeSaveRef = useRef<{
     session: SessionResult;
@@ -137,6 +138,10 @@ export function ChallengeView({
   const pool = useMemo(() => {
     return buildChallengePool(rows, mode);
   }, [mode, rows]);
+
+  useEffect(() => {
+    if (started && feedback === "idle") inputRef.current?.focus();
+  }, [started, feedback, question]);
 
   const nextQuestion = useCallback(() => {
     if (!pool.length) return;
@@ -419,6 +424,7 @@ export function ChallengeView({
                 ))}
               </div>
               <input
+                ref={inputRef}
                 autoFocus
                 className={`code-input ${feedback}`}
                 value={input}

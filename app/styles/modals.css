@@ -1,6 +1,7 @@
 .modal-backdrop {
   position: fixed;
-  inset: 0;
+  inset: var(--modal-viewport-top, 0px) 0 auto;
+  height: var(--modal-viewport-height, 100dvh);
   z-index: 100;
   padding: 24px;
   display: grid;
@@ -11,7 +12,9 @@
 
 .modal {
   width: min(760px, 100%);
-  max-height: min(760px, calc(100dvh - 48px));
+  max-height: min(760px, calc(var(--modal-viewport-height, 100dvh) - 48px));
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--text-primary);
   border-radius: var(--radius-medium);
@@ -21,6 +24,7 @@
 }
 
 .modal > header {
+  flex-shrink: 0;
   min-height: 64px;
   padding: 0 20px;
   display: flex;
@@ -29,6 +33,12 @@
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-raised);
+}
+
+.modal > :not(header) {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal > header h2 {
@@ -305,4 +315,3 @@
   white-space: nowrap;
   border: 0;
 }
-

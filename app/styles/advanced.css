@@ -767,6 +767,7 @@
 
 .phrase-training {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -797,6 +798,15 @@
 
 .phrase-training-note small {
   text-align: right;
+}
+
+@media (max-width: 1120px) {
+  .phrase-training-note {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .phrase-training-note small {
+    text-align: left;
+  }
 }
 
 @media (max-width: 760px) {

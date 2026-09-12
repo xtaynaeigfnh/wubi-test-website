@@ -334,6 +334,7 @@ export function Modal({
   children: ReactNode;
 }) {
   const titleId = useId();
+  const backdropRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
 
@@ -349,6 +350,16 @@ export function Modal({
     const modal = modalRef.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Mobile keyboards can shrink/pan the visual viewport without changing dvh.
+    const viewport = window.visualViewport;
+    const syncViewport = () => {
+      backdropRef.current?.style.setProperty("--modal-viewport-height", `${viewport?.height ?? window.innerHeight}px`);
+      backdropRef.current?.style.setProperty("--modal-viewport-top", `${viewport?.offsetTop ?? 0}px`);
+    };
+    syncViewport();
+    viewport?.addEventListener("resize", syncViewport);
+    viewport?.addEventListener("scroll", syncViewport);
+    window.addEventListener("resize", syncViewport);
 
     const getFocusable = () =>
       Array.from(
@@ -391,6 +402,9 @@ export function Modal({
     document.addEventListener("keydown", onKeyDown);
     return () => {
       window.clearTimeout(focusTimer);
+      viewport?.removeEventListener("resize", syncViewport);
+      viewport?.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("resize", syncViewport);
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
@@ -398,7 +412,7 @@ export function Modal({
   }, []);
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div ref={backdropRef} className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
         ref={modalRef}
         className="modal"
