@@ -26,13 +26,6 @@
   }
 }
 
-@keyframes completion-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-
 @keyframes question-swap-in {
   from {
     opacity: 0;

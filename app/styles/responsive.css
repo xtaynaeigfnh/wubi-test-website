@@ -71,41 +71,6 @@
     margin-top: 0;
   }
 
-  .completion-panel {
-    grid-template-columns: 180px 1fr;
-  }
-
-  .completion-results {
-    border-right: 0;
-  }
-
-  .completion-next {
-    grid-column: 1 / -1;
-    grid-row: 5;
-    border-top: 1px solid color-mix(in srgb, var(--state-success) 32%, transparent);
-    align-items: center;
-    flex-direction: row;
-    justify-content: space-between;
-  }
-
-  .completion-next .button {
-    width: auto;
-  }
-
-  .completion-diagnostics {
-    grid-row: 2;
-    grid-template-columns: repeat(5, minmax(80px, 1fr));
-  }
-
-  .code-coach {
-    grid-template-columns: 1fr;
-  }
-
-  .ghost-review {
-    grid-row: 4;
-    grid-template-columns: 1fr;
-  }
-
   .hesitation-ranking {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -416,66 +381,6 @@
 
   .code-hint-copy b {
     font-size: 14px;
-  }
-
-  .completion-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .completion-copy {
-    grid-column: 1;
-    grid-row: 1;
-    border-right: 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--state-success) 32%, transparent);
-  }
-
-  .completion-results {
-    grid-column: 1;
-    grid-row: 2;
-    overflow-x: auto;
-  }
-
-  .completion-diagnostics {
-    grid-column: 1;
-    grid-row: 3;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .code-coach {
-    padding: 15px;
-    grid-row: 4;
-  }
-
-  .ghost-review {
-    grid-row: 5;
-  }
-
-  .ghost-review ol {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .code-coach-list {
-    grid-template-columns: 1fr;
-  }
-
-  .code-coach-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .code-coach-actions .button {
-    width: 100%;
-  }
-
-  .completion-next {
-    grid-column: auto;
-    grid-row: 6;
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .completion-next .button {
-    width: 100%;
   }
 
   .hesitation-heading {

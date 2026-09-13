@@ -34,14 +34,6 @@ const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", i
 const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.meta.url);
 const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
 
-test("完成练习后成绩替换正文与输入框，再练时恢复跟打区域", async () => {
-  const typing = await readFile(typingViewPath, "utf8");
-  assert.match(typing, /className="typing-workspace">\s*\{completed \? \([\s\S]*?<CompletionPanel[\s\S]*?\) : \([\s\S]*?className=\{`article-text[\s\S]*?<textarea[\s\S]*?className="typing-footer"/);
-  assert.match(typing, /completionRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
-  const styles = await readStyles();
-  assert.match(styles, /\.typing-completion > \.completion-panel\s*\{\s*margin: 0;/);
-});
-
 async function readTypingSource() {
   const typingSourceNames = (await readdir(typingHooksDir))
     .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
@@ -62,12 +54,6 @@ test("code drills restore input focus after a mouse advances a wrong answer", as
   }
 });
 
-test("completion does not praise code length when physical letter events are missing", async () => {
-  const source = await readFile(new URL("CompletionPanel.tsx", typingHooksDir), "utf8");
-  assert.match(source, /codeLength <= 0\s*\? "本次未采集到字母按键，无法评价实际码长。"/);
-  assert.match(source, /theoreticalGap === null\s*\? "理论码长暂不可用，无法比较本次实际码长。"/);
-  assert.match(source, /label="实际码长" value=\{codeLength > 0 \? codeLength\.toFixed\(2\) : "—"\}/);
-});
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
 
@@ -215,20 +201,20 @@ test("typing display responsibilities stay in focused components", async () => {
       readFile(new URL("ArticlePicker.tsx", typingHooksDir), "utf8"),
       readFile(new URL("CommonCharacterPicker.tsx", typingHooksDir), "utf8"),
       readFile(new URL("CustomTextModal.tsx", typingHooksDir), "utf8"),
-      readFile(new URL("CompletionPanel.tsx", typingHooksDir), "utf8"),
+      readFile(new URL("InputReview.tsx", typingHooksDir), "utf8"),
     ]);
 
   assert.match(typing, /<ArticlePicker\s/);
   assert.match(typing, /<CommonCharacterPicker\s/);
   assert.match(typing, /<CustomTextModal\s/);
-  assert.match(typing, /<CompletionPanel\s/);
+  assert.match(typing, /<InputReview\s/);
   assert.doesNotMatch(typing, /<Modal title="选择练习文章"/);
   assert.doesNotMatch(typing, /<Modal title="选择常用字范围"/);
   assert.doesNotMatch(typing, /<Modal title="粘贴自定义文本"/);
   assert.match(articlePicker, /export function ArticlePicker/);
   assert.match(commonPicker, /export function CommonCharacterPicker/);
   assert.match(customModal, /export function CustomTextModal/);
-  assert.match(completion, /export function CompletionPanel/);
+  assert.match(completion, /export const InputReview/);
   for (const source of [articlePicker, commonPicker, customModal, completion]) {
     assert.doesNotMatch(source, /from ["']\.\.\/TypingView/);
   }
@@ -354,14 +340,6 @@ test("typing exposes every filtered article and resets timing on restart", async
   );
   assert.match(
     typing,
-    /className="completion-value"><strong>\{speed\}<\/strong><i>字\/分<\/i>/,
-  );
-  assert.match(
-    styles,
-    /\.completion-value\s*\{[^}]*display:\s*inline-flex;[^}]*white-space:\s*nowrap;/s,
-  );
-  assert.match(
-    typing,
     /articlesLoading\s*\|\|\s*\(!article && \(!settingsReady \|\| availableArticles\.length > 0\)\)/,
   );
 });
@@ -378,7 +356,7 @@ test("personal ghost races expose selection, live distance, replay, and responsi
   assert.match(typing, /disabled=\{!ghostSessions\.best\}/);
   assert.match(typing, /aria-pressed=\{showGhostGap\}/);
   assert.match(typing, /className="ghost-progress-marker"/);
-  assert.match(typing, /幽灵赛复盘/);
+  assert.doesNotMatch(typing, /className="ghost-review"/);
   assert.match(typing, /再次挑战个人最佳/);
   assert.match(
     typing,
@@ -397,11 +375,6 @@ test("personal ghost races expose selection, live distance, replay, and responsi
   assert.match(ghostLogic, /MAX_GHOST_TIMELINES = 90/);
   assert.match(ghostLogic, /articleVersion === identity\.articleVersion/);
   assert.match(styles, /\.ghost-progress-marker\s*\{/);
-  assert.match(styles, /\.ghost-review\s*\{/);
-  assert.match(
-    styles,
-    /@media \(max-width: 780px\)[\s\S]*\.ghost-review ol\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
-  );
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.practice-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
@@ -766,10 +739,9 @@ test("code length coach exposes recommendations and phrase practice on desktop a
   ]);
 
   assert.match(typing, /analyzeCodeLengthCoach\(targetText/);
-  assert.match(typing, /<h3 id="code-coach-title">码长诊断<\/h3>/);
-  assert.match(typing, /label="单字输入基准"/);
-  assert.match(typing, /值得留意的推荐机会/);
-  assert.match(typing, /无法可靠识别你本次实际采用的分段/);
+  assert.match(typing, /<InputReview/);
+  assert.match(typing, /selectInputReviewOpportunities/);
+  assert.doesNotMatch(typing, /<CompletionPanel|code-coach-list|downloadShareCard/);
   assert.match(typing, />\s*练习这些词组\s*<\/button>/);
   assert.match(typing, /router\.push\("\/training\?tab=phrase"\)/);
   assert.match(typing, /sessionSaveFailed[\s\S]*"本次成绩尚未保存"/);
@@ -780,11 +752,8 @@ test("code length coach exposes recommendations and phrase practice on desktop a
   assert.match(training, /phrasePracticeAnswers\.current\.push/);
   assert.match(training, /: "phrase-training"/);
   assert.match(training, /new URLSearchParams\(window\.location\.search\)\.get\("tab"\)/);
-  assert.match(styles, /\.code-coach\s*\{[^}]*grid-template-columns:/s);
-  assert.match(
-    styles,
-    /@media \(max-width: 780px\)[\s\S]*\.code-coach-list\s*\{[^}]*grid-template-columns:\s*1fr/s,
-  );
+  assert.match(styles, /\.input-review/);
+
 });
 
 test("mobile navigation scrolls the active route into view", async () => {
@@ -1406,7 +1375,8 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(trends, /速度与字准/);
   assert.match(pwa, /serviceWorker/);
   assert.match(share, /canvas\.toDataURL/);
-  assert.match(typing, /downloadShareCard/);
+  assert.doesNotMatch(typing, /downloadShareCard/);
+  assert.match(await readFile(historyViewPath, "utf8"), /downloadShareCard/);
   assert.match(app, /TrainingCenter/);
   assert.match(app, /KeySummary/);
 });
@@ -1462,4 +1432,17 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
   assert.match(shell, /id="music-header-slot"/);
   assert.match(music, /createPortal\(dock, headerSlot\)/);
   assert.match(styles, /#music-header-slot \.music-dock\.is-collapsed\s*\{[^}]*position:\s*static/s);
+});
+
+
+test("completed input stays in place with save recovery and the original article", async () => {
+  const typing = await readFile(typingViewPath, "utf8");
+  assert.match(typing, /className=\{`article-text/);
+  assert.match(typing, /completed \? \(\s*<InputReview[\s\S]*?text=\{typed\}[\s\S]*?height=\{inputHeight\}[\s\S]*?\) : \(\s*<textarea/);
+  assert.match(typing, /new ResizeObserver/);
+  assert.match(typing, /reviewRef\.current\?\.focus/);
+  assert.match(typing, /className="typing-review-save" role="status"/);
+  assert.match(typing, /disabled=\{sessionSaveFailed\}/);
+  const history = await readFile(historyViewPath, "utf8");
+  assert.match(history, /downloadShareCard/);
 });

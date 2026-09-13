@@ -9,6 +9,7 @@
 @import "./styles/base.css"; /* 重置与元素默认 */
 @import "./styles/shell.css"; /* 壳层、页头导航、hero 与共享按钮 */
 @import "./styles/typing.css"; /* 文章测速页（指标、文章、输入、幽灵赛、码长、结算、卡顿热力图与复练） */
+@import "./styles/input-review.css"; /* 输入区内词组复盘 */
 @import "./styles/challenge.css"; /* 子页框架与字码挑战 */
 @import "./styles/controls.css"; /* 通用分段、开关控件与错误摘要 */
 @import "./styles/lookup.css"; /* 五笔查码页 */
