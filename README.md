@@ -7,6 +7,12 @@
 常用字练习提供前 100、前 500、中 500、后 500 和前 1500 五个范围。
 默认按字频顺序练习，也可以在练习工具栏中点击“乱序”重新排列。
 
+## 0.1.1 维护更新
+
+更新 Next.js、React 与 Vinext/Vite/Cloudflare 构建链的安全补丁，保持 React 19.2 系列。离线缓存升级到 `wubi-test-v19`，联网更新后重新准备页面和数据缓存；本地成绩、设置及备份结构保持兼容。
+
+`package.json` 的 `overrides` 仅将 `@esbuild-kit/core-utils` 内的 esbuild 固定到 `0.25.12`，用于修补 Drizzle Kit 旧加载器携带的开发服务器漏洞，避免自动修复将 Drizzle Kit 降级。后续 Drizzle Kit 移除旧加载器后，应重新评估并移除这项覆盖。升级依赖后需运行 `npm audit`、lint、类型检查、完整测试及 Pages 子路径构建。
+
 ## 快速开始
 
 需要 Node.js 22.13 或更高版本。克隆或解压项目后运行：
