@@ -1,0 +1,155 @@
+.input-review {
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+}
+
+.input-review:focus-visible {
+  outline: 2px solid var(--accent-bamboo);
+  outline-offset: -2px;
+}
+
+.input-review-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 20px 28px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.input-review-text:focus-visible {
+  outline: 2px solid var(--accent-bamboo);
+  outline-offset: -2px;
+}
+
+.input-review-phrase {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  color: var(--accent-vermilion);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  white-space: inherit;
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.input-review-phrase:hover,
+.input-review-phrase[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent-vermilion) 10%, transparent);
+}
+
+.input-review-phrase:focus-visible {
+  outline: 2px solid var(--accent-vermilion);
+  outline-offset: 2px;
+}
+
+.input-review-hint {
+  flex: 0 0 auto;
+  max-height: calc(100% - 70px);
+  padding: 4px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.input-review-hint strong,
+.input-review-hint code {
+  color: var(--text-primary);
+}
+
+.input-review-hint code {
+  font-family: var(--font-data);
+}
+
+.input-review-hint button {
+  padding: 2px 8px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-paper);
+  cursor: pointer;
+}
+
+.input-review-explanation {
+  flex-basis: 100%;
+}
+
+.typing-review-actions {
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.typing-review-save {
+  min-width: 0;
+  flex: 1 1 200px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.typing-review-buttons {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.typing-review-buttons .button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
+@media (max-width: 780px) {
+  .input-review-text {
+    padding: 17px 20px;
+  }
+
+  .input-review-hint {
+    max-height: calc(100% - 64px);
+    padding: 4px 20px;
+  }
+
+  .typing-review-actions {
+    padding: 12px 20px;
+  }
+
+  .typing-review-buttons {
+    flex: 1 1 100%;
+  }
+
+  .typing-review-buttons .button {
+    flex: 1 1 auto;
+  }
+}
