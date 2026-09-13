@@ -431,7 +431,7 @@ export function WubiApp({ view }: { view: AppView }) {
       )}
 
       {settingsReady && settings.petEnabled && (
-        <PetCompanion key={view} species={settings.petSpecies} />
+        <PetCompanion species={settings.petSpecies} />
       )}
       <footer className="site-footer">
         <span><b>86 / OFFLINE</b> 慢慢练，手会记住。</span>

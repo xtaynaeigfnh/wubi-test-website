@@ -1421,14 +1421,18 @@ test("advanced training contains code challenge and preserves legacy entry and s
   assert.doesNotMatch(challenge, /<h1>/);
 });
 
-test("pet settings expose three accessible choices and companion respects focus and motion", async () => {
+test("pet settings expose three accessible choices and companion stays visible with movement and reduced motion", async () => {
   const settings = await readFile(new URL("../app/components/views/SettingsView.tsx", import.meta.url), "utf8");
   const companion = await readFile(new URL("../app/components/PetCompanion.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/styles/pet.css", import.meta.url), "utf8");
   assert.match(settings, /label="宠物陪伴"/);
   assert.match(settings, /aria-label="选择陪伴宠物"/);
   assert.match(settings, /aria-pressed=/);
-  assert.match(companion, /hidden=\{hidden\}/);
+  assert.doesNotMatch(companion, /hidden=|setHidden|MutationObserver/);
+  assert.match(companion, /usePetPosition/);
+  assert.match(companion, /可拖动或用方向键移动/);
+  assert.match(settings, /开启后一直陪伴，可拖动调整位置/);
+  assert.match(styles, /touch-action: none/);
   assert.match(companion, /又完成一轮啦！/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
 });

@@ -292,7 +292,7 @@ export function SettingsView({
               </section>
               <section className="settings-card" id="settings-feedback">
                 <div className="settings-card-title"><span>D</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
-                <Toggle label="宠物陪伴" note="角落里的小伙伴，输入时自动收起" checked={settings.petEnabled} onChange={(value) => update("petEnabled", value)} />
+                <Toggle label="宠物陪伴" note="开启后一直陪伴，可拖动调整位置" checked={settings.petEnabled} onChange={(value) => update("petEnabled", value)} />
                 <div className="pet-choices" role="group" aria-label="选择陪伴宠物">
                   {(Object.keys(petLabels) as PetSpecies[]).map((species) => (
                     <button key={species} type="button" aria-pressed={settings.petSpecies === species} onClick={() => update("petSpecies", species)}>
