@@ -608,6 +608,18 @@
   display: none;
 }
 
+.typing-workspace {
+  min-width: 0;
+}
+
+.typing-completion > .completion-panel {
+  margin: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+}
+
 .typing-input {
   width: 100%;
   min-height: 96px;
@@ -1786,4 +1798,3 @@ select,
 .subpage {
   padding: 56px 0 72px;
 }
-

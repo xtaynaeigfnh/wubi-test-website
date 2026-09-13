@@ -34,6 +34,14 @@ const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", i
 const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.meta.url);
 const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
 
+test("完成练习后成绩替换正文与输入框，再练时恢复跟打区域", async () => {
+  const typing = await readFile(typingViewPath, "utf8");
+  assert.match(typing, /className="typing-workspace">\s*\{completed \? \([\s\S]*?<CompletionPanel[\s\S]*?\) : \([\s\S]*?className=\{`article-text[\s\S]*?<textarea[\s\S]*?className="typing-footer"/);
+  assert.match(typing, /completionRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
+  const styles = await readStyles();
+  assert.match(styles, /\.typing-completion > \.completion-panel\s*\{\s*margin: 0;/);
+});
+
 async function readTypingSource() {
   const typingSourceNames = (await readdir(typingHooksDir))
     .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))

@@ -67,6 +67,7 @@ export function TypingView({
   const router = useRouter();
   const [focusMode, setFocusMode] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const completionRef = useRef<HTMLDivElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const [, setClockRevision] = useState(0);
@@ -181,6 +182,10 @@ export function TypingView({
     composing: composingRef,
     compositionCommitTimer: compositionCommitTimerRef,
   } = session;
+  useEffect(() => {
+    if (completed) completionRef.current?.focus({ preventScroll: true });
+  }, [completed]);
+
   const practiceInProgress = startedAt !== null && !completed;
   usePendingSaveGuard(
     sessionSaveFailed || practiceInProgress,
@@ -714,168 +719,173 @@ export function TypingView({
               />
             )}
           </div>
-          <div
-            key={article.id}
-            ref={articleTextRef}
-            className={`article-text article-swap ${
-              isCommonPracticeArticle(article) ? "common-character-text" : ""
-            }`}
-            style={{ fontSize: `${settings.fontSize}px` }}
-            onClick={() => inputRef.current?.focus()}
-            aria-live="off"
-          >
-            {displayCharacters.map(({ character, visibleIndex, targetIndex }) => {
-              if (targetIndex === null) {
-                return (
-                  <span className="paragraph-break" key={`${visibleIndex}-break`}>
-                    {character}
-                  </span>
-                );
-              }
-              const state =
-                targetIndex >= typedCharacters.length
-                  ? targetIndex === typedCharacters.length
-                    ? "current"
-                    : "pending"
-                  : typedCharacters[targetIndex] === character
-                    ? "correct"
-                    : "wrong";
-              return (
-                <span
-                  ref={state === "current" ? currentCharacterRef : undefined}
-                  className={`${state}${
-                    isCommonPracticeArticle(article) &&
-                    (targetIndex + 1) % 10 === 0
-                      ? " common-decade-end"
-                      : ""
-                  }${
-                    isCommonPracticeArticle(article) &&
-                    (targetIndex + 1) % 50 === 0
-                      ? " common-section-end"
-                      : ""
+          <div className="typing-workspace">
+            {completed ? (
+              <div ref={completionRef} tabIndex={-1} role="region" aria-label="练习完成" className="typing-completion">
+                <CompletionPanel
+                  sessionSaveFailed={sessionSaveFailed}
+                  speed={speed}
+                  kps={kps}
+                  codeLength={codeLength}
+                  accuracy={accuracy}
+                  errorCount={errorCount}
+                  keyCount={keyCount}
+                  keyAccuracy={keyAccuracy}
+                  theoreticalCodeLength={theoreticalCodeLength}
+                  correctionCount={correctionCount}
+                  backspaceCount={backspaceCount}
+                  selectionCount={selectionCount}
+                  phraseRate={phraseRate}
+                  leftHandKeys={leftHandKeys}
+                  rightHandKeys={rightHandKeys}
+                  pauseCount={pauseCount}
+                  pauseSeconds={pauseSeconds}
+                  retryCount={retryCount}
+                  minimumCodeError={minimumCodeError}
+                  theoreticalGap={theoreticalGap}
+                  codeLengthAnalysis={codeLengthAnalysis}
+                  recommendedPhrases={recommendedPhrases}
+                  onRetryCodeLengthLoad={retryCodeLengthLoad}
+                  onStartRecommendedPhrasePractice={startRecommendedPhrasePractice}
+                  ghostSegmentComparison={ghostSegmentComparison}
+                  ghostGapLabel={ghostGapLabel}
+                  lastSession={lastSession}
+                  onRetryPracticeSave={retryPracticeSave}
+                  onDownloadShareCard={() => {
+                    if (lastSession) downloadShareCard(lastSession);
+                  }}
+                  autoNext={settings.autoNext}
+                  activeGhostMode={activeGhostMode}
+                  onChallengeAgain={() =>
+                    chooseArticle(article, true, retryCount + 1, activeGhostMode)
+                  }
+                  onNextPractice={
+                    settings.autoNext
+                      ? randomArticle
+                      : () => chooseArticle(article, true, retryCount + 1, activeGhostMode)
+                  }
+                />
+              </div>
+            ) : (
+              <>
+                <div
+                  key={article.id}
+                  ref={articleTextRef}
+                  className={`article-text article-swap ${
+                    isCommonPracticeArticle(article) ? "common-character-text" : ""
                   }`}
-                  key={`${visibleIndex}-${character}`}
+                  style={{ fontSize: `${settings.fontSize}px` }}
+                  onClick={() => inputRef.current?.focus()}
+                  aria-live="off"
                 >
-                  {character}
-                </span>
-              );
-            })}
+                  {displayCharacters.map(({ character, visibleIndex, targetIndex }) => {
+                    if (targetIndex === null) {
+                      return (
+                        <span className="paragraph-break" key={`${visibleIndex}-break`}>
+                          {character}
+                        </span>
+                      );
+                    }
+                    const state =
+                      targetIndex >= typedCharacters.length
+                        ? targetIndex === typedCharacters.length
+                          ? "current"
+                          : "pending"
+                        : typedCharacters[targetIndex] === character
+                          ? "correct"
+                          : "wrong";
+                    return (
+                      <span
+                        ref={state === "current" ? currentCharacterRef : undefined}
+                        className={`${state}${
+                          isCommonPracticeArticle(article) &&
+                          (targetIndex + 1) % 10 === 0
+                            ? " common-decade-end"
+                            : ""
+                        }${
+                          isCommonPracticeArticle(article) &&
+                          (targetIndex + 1) % 50 === 0
+                            ? " common-section-end"
+                            : ""
+                        }`}
+                        key={`${visibleIndex}-${character}`}
+                      >
+                        {character}
+                      </span>
+                    );
+                  })}
+                </div>
+                <textarea
+                  ref={inputRef}
+                  className="typing-input"
+                  value={inputValue}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    const nativeEvent = event.nativeEvent as InputEvent;
+                    if (next) startTimer();
+                    if (
+                      shouldDeferInputCommit(
+                        composingRef.current,
+                        nativeEvent.isComposing,
+                      )
+                    ) {
+                      // Keep the IME's full pre-edit buffer (for example "qingxi").
+                      // Truncating it to the few remaining article characters cancels
+                      // candidate selection near the end of an article in Safari.
+                      setInputValue(next);
+                      return;
+                    }
+                    commitTypedValue(next);
+                  }}
+                  onCompositionStart={() => {
+                    composingRef.current = true;
+                    startTimer();
+                  }}
+                  onCompositionEnd={(event) => {
+                    composingRef.current = false;
+                    const endedValue = event.currentTarget.value;
+                    if (compositionCommitTimerRef.current !== null) {
+                      window.clearTimeout(compositionCommitTimerRef.current);
+                    }
+                    // Safari may expose the pre-edit Latin buffer on compositionend
+                    // and deliver the committed Chinese text in the following input
+                    // event. Wait one task, then read the textarea's final value.
+                    compositionCommitTimerRef.current = window.setTimeout(() => {
+                      compositionCommitTimerRef.current = null;
+                      commitTypedValue(inputRef.current?.value ?? endedValue);
+                    }, 0);
+                  }}
+                  onKeyDown={onKeyDown}
+                  onPaste={(event) => event.preventDefault()}
+                  onDrop={(event) => event.preventDefault()}
+                  onBeforeInput={(event) => {
+                    const inputType = (event.nativeEvent as InputEvent).inputType;
+                    if (inputType === "insertFromPaste" || inputType === "insertFromDrop") {
+                      event.preventDefault();
+                    }
+                  }}
+                  disabled={pausedAt !== null}
+                  placeholder={
+                    pausedAt !== null
+                      ? "练习已暂停"
+                      : "点击这里，切换到五笔输入法后开始输入…"
+                  }
+                  aria-label="跟打输入区"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+                <div className="typing-footer">
+                  <span className="typing-position">
+                    第 {Math.min(typedCharacters.length + 1, targetCharacters.length)} /{" "}
+                    {targetCharacters.length} 字
+                  </span>
+                  <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
+                </div>
+              </>
+            )}
           </div>
-          <textarea
-            ref={inputRef}
-            className="typing-input"
-            value={inputValue}
-            onChange={(event) => {
-              const next = event.target.value;
-              const nativeEvent = event.nativeEvent as InputEvent;
-              if (next) startTimer();
-              if (
-                shouldDeferInputCommit(
-                  composingRef.current,
-                  nativeEvent.isComposing,
-                )
-              ) {
-                // Keep the IME's full pre-edit buffer (for example "qingxi").
-                // Truncating it to the few remaining article characters cancels
-                // candidate selection near the end of an article in Safari.
-                setInputValue(next);
-                return;
-              }
-              commitTypedValue(next);
-            }}
-            onCompositionStart={() => {
-              composingRef.current = true;
-              startTimer();
-            }}
-            onCompositionEnd={(event) => {
-              composingRef.current = false;
-              const endedValue = event.currentTarget.value;
-              if (compositionCommitTimerRef.current !== null) {
-                window.clearTimeout(compositionCommitTimerRef.current);
-              }
-              // Safari may expose the pre-edit Latin buffer on compositionend
-              // and deliver the committed Chinese text in the following input
-              // event. Wait one task, then read the textarea's final value.
-              compositionCommitTimerRef.current = window.setTimeout(() => {
-                compositionCommitTimerRef.current = null;
-                commitTypedValue(inputRef.current?.value ?? endedValue);
-              }, 0);
-            }}
-            onKeyDown={onKeyDown}
-            onPaste={(event) => event.preventDefault()}
-            onDrop={(event) => event.preventDefault()}
-            onBeforeInput={(event) => {
-              const inputType = (event.nativeEvent as InputEvent).inputType;
-              if (inputType === "insertFromPaste" || inputType === "insertFromDrop") {
-                event.preventDefault();
-              }
-            }}
-            disabled={completed || pausedAt !== null}
-            placeholder={
-              completed
-                ? "本次练习已完成"
-                : pausedAt !== null
-                  ? "练习已暂停"
-                  : "点击这里，切换到五笔输入法后开始输入…"
-            }
-            aria-label="跟打输入区"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-          />
-          <div className="typing-footer">
-            <span className="typing-position">
-              第 {Math.min(typedCharacters.length + 1, targetCharacters.length)} /{" "}
-              {targetCharacters.length} 字
-            </span>
-            <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
-          </div>
-          {completed && (
-            <CompletionPanel
-              sessionSaveFailed={sessionSaveFailed}
-              speed={speed}
-              kps={kps}
-              codeLength={codeLength}
-              accuracy={accuracy}
-              errorCount={errorCount}
-              keyCount={keyCount}
-              keyAccuracy={keyAccuracy}
-              theoreticalCodeLength={theoreticalCodeLength}
-              correctionCount={correctionCount}
-              backspaceCount={backspaceCount}
-              selectionCount={selectionCount}
-              phraseRate={phraseRate}
-              leftHandKeys={leftHandKeys}
-              rightHandKeys={rightHandKeys}
-              pauseCount={pauseCount}
-              pauseSeconds={pauseSeconds}
-              retryCount={retryCount}
-              minimumCodeError={minimumCodeError}
-              theoreticalGap={theoreticalGap}
-              codeLengthAnalysis={codeLengthAnalysis}
-              recommendedPhrases={recommendedPhrases}
-              onRetryCodeLengthLoad={retryCodeLengthLoad}
-              onStartRecommendedPhrasePractice={startRecommendedPhrasePractice}
-              ghostSegmentComparison={ghostSegmentComparison}
-              ghostGapLabel={ghostGapLabel}
-              lastSession={lastSession}
-              onRetryPracticeSave={retryPracticeSave}
-              onDownloadShareCard={() => {
-                if (lastSession) downloadShareCard(lastSession);
-              }}
-              autoNext={settings.autoNext}
-              activeGhostMode={activeGhostMode}
-              onChallengeAgain={() =>
-                chooseArticle(article, true, retryCount + 1, activeGhostMode)
-              }
-              onNextPractice={
-                settings.autoNext
-                  ? randomArticle
-                  : () => chooseArticle(article, true, retryCount + 1, activeGhostMode)
-              }
-            />
-          )}
         </article>
 
         <aside className="side-panel">
