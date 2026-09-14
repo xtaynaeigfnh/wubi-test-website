@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "postbuild": "node scripts/generate-offline-assets.mjs dist/client",
     "build:pages": "next build",
+    "postbuild:pages": "node scripts/generate-offline-assets.mjs out",
     "start": "vinext start",
     "test": "node --experimental-strip-types --test tests/core-logic.test.mjs tests/v02-features.test.mjs tests/backup.test.mjs tests/practice-store.test.mjs tests/settings.test.mjs tests/pwa.test.mjs tests/build.test.mjs tests/hesitation-practice.test.mjs tests/phrase-training.test.mjs tests/spaced-review.test.mjs tests/weekly-report.test.mjs tests/advanced-training.test.mjs tests/data-maintenance.test.mjs tests/content-loader.test.mjs tests/storage.test.mjs tests/practice-schema.test.mjs tests/input-review.test.mjs && node --test tests/content-data.test.mjs tests/ui-interaction-contract.test.mjs && npm run build && node --test tests/rendered-html.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",

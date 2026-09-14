@@ -87,7 +87,7 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v20/);
+  assert.match(worker, /wubi-test-v21/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);
@@ -264,7 +264,7 @@ test("service worker creates valid cached audio range responses", async () => {
 test("service worker upgrade removes old app caches and preserves unrelated caches", async () => {
   const worker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   const listeners = new Map();
-  const cacheNames = new Set(["wubi-test-v19", "wubi-test-v20", "other-app-v1"]);
+  const cacheNames = new Set(["wubi-test-v19", "wubi-test-v20", "wubi-test-v21", "other-app-v1"]);
   let claimed = false;
   runInNewContext(worker, {
     URL,
@@ -281,6 +281,6 @@ test("service worker upgrade removes old app caches and preserves unrelated cach
   let activation;
   listeners.get("activate")({ waitUntil: (promise) => { activation = promise; } });
   await activation;
-  assert.deepEqual([...cacheNames], ["wubi-test-v20", "other-app-v1"]);
+  assert.deepEqual([...cacheNames], ["wubi-test-v21", "other-app-v1"]);
   assert.equal(claimed, true);
 });

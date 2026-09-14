@@ -1,4 +1,6 @@
-const CACHE_NAME = "wubi-test-v20";
+const CACHE_NAME = "wubi-test-v21";
+// Production builds replace this with every emitted client asset and Pages payload.
+const BUILD_ASSETS = [];
 const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${scopePath}${path}`;
 const ROUTE_PATHS = [
@@ -33,6 +35,7 @@ const AUDIO_PATH_PREFIX = withBase("/audio/tracks/");
 async function installOfflineBundle() {
   const cache = await caches.open(CACHE_NAME);
   await cache.addAll(PRECACHE);
+  if (BUILD_ASSETS.length) await cache.addAll(BUILD_ASSETS.map(withBase));
   const shellAssets = new Set();
   for (const path of ROUTE_VARIANTS.map(withBase)) {
     const response = await cache.match(path);
@@ -256,7 +259,10 @@ self.addEventListener("fetch", (event) => {
       .catch(() => undefined)
   );
   event.respondWith(
-    caches.match(request).then((cached) => {
+    caches.match(request, {
+      // Static export payloads are identical across Next's cache-busting queries.
+      ignoreSearch: BUILD_ASSETS.includes(url.pathname.slice(scopePath.length)) && url.pathname.endsWith(".txt"),
+    }).then((cached) => {
       if (cached) return cached;
       return networkResponse;
     })
