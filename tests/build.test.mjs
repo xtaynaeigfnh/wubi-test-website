@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+test("Pages metadata uses the configured deployment origin and base path", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+  assert.match(workflow, /id: pages\s+uses: actions\/configure-pages@v5/);
+  assert.match(workflow, /NEXT_PUBLIC_SITE_URL: \$\{\{ steps\.pages\.outputs\.origin \}\}/);
+  assert.match(workflow, /NEXT_PUBLIC_BASE_PATH: \$\{\{ steps\.pages\.outputs\.base_path \}\}/);
+});
+
 test("build lifecycle stays cross-platform and project-rooted", async () => {
   const [packageText, viteConfig, nextConfig] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),

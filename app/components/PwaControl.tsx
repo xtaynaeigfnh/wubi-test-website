@@ -36,13 +36,27 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
 
     const hadController = Boolean(navigator.serviceWorker.controller);
-    let isReloading = false;
+    let updateAvailable = false;
+    let watchedWorker: ServiceWorker | null = null;
+    let currentRegistration: ServiceWorkerRegistration | null = null;
     let active = true;
     let readyTimer: number | null = null;
+    const showUpdate = () => {
+      if (!active) return;
+      updateAvailable = true;
+      setStatus("新版本已准备好。请完成练习并保存成绩后，关闭本站所有窗口，再重新打开即可更新。");
+    };
+    const onWorkerStateChange = () => {
+      if (watchedWorker?.state === "installed" && navigator.serviceWorker.controller) showUpdate();
+    };
+    const onUpdateFound = () => {
+      watchedWorker?.removeEventListener("statechange", onWorkerStateChange);
+      watchedWorker = currentRegistration?.installing ?? null;
+      watchedWorker?.addEventListener("statechange", onWorkerStateChange);
+      onWorkerStateChange();
+    };
     const onControllerChange = () => {
-      if (!hadController || isReloading) return;
-      isReloading = true;
-      window.location.reload();
+      if (hadController) showUpdate();
     };
     navigator.serviceWorker.addEventListener(
       "controllerchange",
@@ -55,6 +69,11 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         updateViaCache: "none",
       })
       .then(async (registration) => {
+        if (!active) return;
+        currentRegistration = registration;
+        registration.addEventListener("updatefound", onUpdateFound);
+        onUpdateFound();
+        if (registration.waiting) showUpdate();
         try {
           await registration.update();
         } catch {
@@ -73,10 +92,10 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         });
       })
       .then(() => {
-        if (active) setStatus("离线缓存已启用，断网后仍可打开。");
+        if (active && !updateAvailable) setStatus("离线缓存已启用，断网后仍可打开。");
       })
       .catch(() => {
-        if (active) setStatus("离线缓存准备失败，请联网后刷新页面重试。");
+        if (active && !updateAvailable) setStatus("离线缓存准备失败，请联网后刷新页面重试。");
       });
 
     const onPrompt = (event: Event) => {
@@ -86,6 +105,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => {
       active = false;
+      currentRegistration?.removeEventListener("updatefound", onUpdateFound);
+      watchedWorker?.removeEventListener("statechange", onWorkerStateChange);
       if (readyTimer !== null) window.clearTimeout(readyTimer);
       navigator.serviceWorker.removeEventListener(
         "controllerchange",

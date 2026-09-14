@@ -2,6 +2,65 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
+import { transpileModule, ModuleKind, JsxEmit } from "typescript";
+
+test("waiting updates and controller changes preserve the current page", async () => {
+  const source = await readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8");
+  const compiled = transpileModule(source, {
+    compilerOptions: { module: ModuleKind.CommonJS, jsx: JsxEmit.ReactJSX },
+  }).outputText;
+  const effects = [];
+  const statuses = [];
+  const listeners = new Map();
+  const workerListeners = new Map();
+  const registrationListeners = new Map();
+  const installing = {
+    state: "installing",
+    addEventListener: (type, handler) => workerListeners.set(type, handler),
+    removeEventListener: (type) => workerListeners.delete(type),
+  };
+  const registration = {
+    waiting: {}, installing,
+    update: async () => {},
+    addEventListener: (type, handler) => registrationListeners.set(type, handler),
+    removeEventListener: (type) => registrationListeners.delete(type),
+  };
+  let reloads = 0;
+  const exports = {};
+  runInNewContext(compiled, {
+    exports, process: { env: {} },
+    require: (name) => name === "react/jsx-runtime" ? { jsx: () => null } : {
+      createContext: () => ({ Provider: {} }),
+      useState: (initial) => [initial, (value) => statuses.push(value)],
+      useEffect: (effect) => effects.push(effect),
+      useMemo: (factory) => factory(),
+    },
+    navigator: { serviceWorker: {
+      controller: {}, register: async () => registration,
+      ready: Promise.resolve(registration),
+      addEventListener: (type, handler) => listeners.set(type, handler),
+      removeEventListener: (type) => listeners.delete(type),
+    } },
+    window: {
+      setTimeout, clearTimeout,
+      addEventListener() {}, removeEventListener() {},
+      location: { reload: () => { reloads += 1; } },
+    },
+  });
+  exports.PwaProvider({ children: null });
+  const cleanup = effects[0]();
+  await new Promise(setImmediate);
+  assert.match(statuses.at(-1), /新版本已准备好/);
+  installing.state = "installed";
+  workerListeners.get("statechange")();
+  listeners.get("controllerchange")();
+  assert.equal(reloads, 0);
+  assert.match(statuses.at(-1), /保存成绩后/);
+  cleanup();
+  assert.equal(listeners.size, 0);
+  assert.equal(workerListeners.size, 0);
+  assert.equal(registrationListeners.size, 0);
+});
 
 test("PWA files declare offline routes and data caches", async () => {
   const [manifestText, worker, pwa] = await Promise.all([
@@ -28,12 +87,13 @@ test("PWA files declare offline routes and data caches", async () => {
   assert.match(worker, /request\.mode === "navigate"/);
   assert.match(worker, /url\.pathname\.startsWith\(withBase\("\/data\/"\)\)/);
   assert.match(worker, /event\.waitUntil/);
-  assert.match(worker, /wubi-test-v19/);
+  assert.match(worker, /wubi-test-v20/);
   assert.match(worker, /\/data\/wubi86\.json/);
   assert.match(worker, /\/data\/wubi86-challenge\.json/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
-  assert.match(pwa, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(pwa, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(worker, /self\.skipWaiting\(\)/);
   assert.match(worker.match(/const PRECACHE = \[[\s\S]*?\]\.map/)?.[0] ?? "", /wubi86/);
 });
 
@@ -82,7 +142,7 @@ test("service worker creates valid cached audio range responses", async () => {
       clients: { claim: () => undefined },
       location: { origin: "https://example.com" },
       registration: { scope: "https://example.com/wubi/" },
-      skipWaiting: () => undefined,
+      skipWaiting: () => { throw new Error("Installing an update must not evict active practice tabs"); },
     },
   };
   runInNewContext(worker, context);
@@ -204,7 +264,7 @@ test("service worker creates valid cached audio range responses", async () => {
 test("service worker upgrade removes old app caches and preserves unrelated caches", async () => {
   const worker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   const listeners = new Map();
-  const cacheNames = new Set(["wubi-test-v18", "wubi-test-v19", "other-app-v1"]);
+  const cacheNames = new Set(["wubi-test-v19", "wubi-test-v20", "other-app-v1"]);
   let claimed = false;
   runInNewContext(worker, {
     URL,
@@ -221,6 +281,6 @@ test("service worker upgrade removes old app caches and preserves unrelated cach
   let activation;
   listeners.get("activate")({ waitUntil: (promise) => { activation = promise; } });
   await activation;
-  assert.deepEqual([...cacheNames], ["wubi-test-v19", "other-app-v1"]);
+  assert.deepEqual([...cacheNames], ["wubi-test-v20", "other-app-v1"]);
   assert.equal(claimed, true);
 });
