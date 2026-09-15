@@ -1435,6 +1435,12 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
 });
 
 
+test("offline update notice asks users to finish and save before closing all windows", async () => {
+  const pwa = await readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8");
+  assert.match(pwa, /完成练习并保存成绩后，关闭本站所有窗口/);
+  assert.doesNotMatch(pwa, /window\.location\.reload/);
+});
+
 test("completed input stays in place with save recovery and the original article", async () => {
   const typing = await readFile(typingViewPath, "utf8");
   assert.match(typing, /className=\{`article-text/);
