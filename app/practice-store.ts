@@ -849,6 +849,7 @@ export function clearPracticeHistory(): boolean {
       [STORAGE.trainingPlan, null],
       [STORAGE.hesitationQueue, null],
       [STORAGE.advancedSeason, null],
+      [STORAGE.onboarding, null],
       [STORAGE.reviewState, null],
       [STORAGE.maintenance, null],
     ]),

@@ -53,6 +53,9 @@ export function useArticleLibrary(
     practiceControls: RefObject<PracticeControls | null>;
   },
 ) {
+  const onboardingPractice =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("onboarding") === "1";
   const [articles, setArticles] = useState<PracticeArticle[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
   const [articlesError, setArticlesError] = useState("");
@@ -61,7 +64,7 @@ export function useArticleLibrary(
   const [customTexts, setCustomTexts] = useState<PracticeArticle[]>([]);
   const [article, setArticle] = useState<PracticeArticle | null>(null);
   const [filter, setFilter] = useState<ArticleFilter>({
-    length: settings.preferredLength,
+    length: onboardingPractice ? "short" : settings.preferredLength,
     topic: "all",
     status: "all",
   });
@@ -107,9 +110,9 @@ export function useArticleLibrary(
   useEffect(() => {
     setFilter((value) => ({
       ...value,
-      length: settings.preferredLength,
+      length: onboardingPractice ? "short" : settings.preferredLength,
     }));
-  }, [settings.preferredLength]);
+  }, [onboardingPractice, settings.preferredLength]);
 
   const refreshProgress = useCallback(() => setProgress(getProgress()), []);
   const retryLoad = useCallback(() => {
@@ -265,6 +268,12 @@ export function useArticleLibrary(
       return;
     }
     const storedCurrentId = readLocal<string | null>(STORAGE.current, null);
+    if (onboardingPractice) {
+      const step = Number(new URLSearchParams(window.location.search).get("step") ?? 0);
+      const shortArticles = articles.filter((item) => item.length === "short").sort((a, b) => a.wordCount - b.wordCount || a.id.localeCompare(b.id));
+      const selected = shortArticles[Math.max(0, Math.min(2, Number.isInteger(step) ? step : 0))];
+      if (selected) { chooseArticle(selected, false); return; }
+    }
     const trainingPlan = readTrainingPlan();
     const trainingArticleId =
       trainingPlan?.date === localDateKey(new Date())
@@ -278,7 +287,7 @@ export function useArticleLibrary(
       availableArticles,
       articles,
       currentId,
-      settings.preferredLength,
+      onboardingPractice ? "short" : settings.preferredLength,
       Boolean(trainingArticleId),
     );
     if (initialArticle) chooseArticle(initialArticle, false);
@@ -288,6 +297,7 @@ export function useArticleLibrary(
     articlesLoading,
     availableArticles,
     chooseArticle,
+    onboardingPractice,
     settings.preferredLength,
     settingsReady,
   ]);

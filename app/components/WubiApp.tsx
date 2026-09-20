@@ -37,6 +37,7 @@ import {
 } from "../hesitation-practice";
 import { buildCustomThemeVariables, themeLabels } from "../theme";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
+import { FirstUseGuide } from "./FirstUseGuide";
 import type { KeySoundPlayer } from "./views/TypingView";
 
 const TrainingCenter = dynamic(
@@ -372,6 +373,7 @@ export function WubiApp({ view }: { view: AppView }) {
       </header>
 
       <main className="page-wrap" id="main-content">
+        <FirstUseGuide enabled={settingsReady} view={view} />
         {settingsSaveError && (
           <p className="plan-message" role="alert">{settingsSaveError}</p>
         )}

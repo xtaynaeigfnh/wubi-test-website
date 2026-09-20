@@ -20,6 +20,38 @@ import {
   MAX_SPACED_REVIEW_STATE_BYTES,
 } from "../app/practice-schema.ts";
 import { STORAGE } from "../app/storage.ts";
+import { isOnboardingProgress } from "../app/onboarding.ts";
+import { buildBaseline } from "../app/onboarding-baseline.ts";
+
+test("短测缺失或重复成绩不会伪造完整基线，缺少按键不推荐码长", () => {
+  const rows = ["a", "b", "c"].map((id) => ({ ...session, id, type: "article", durationSeconds: 30, attemptedChars: 20, speed: 40, accuracy: 99, codeLength: 5, keyCount: 0 }));
+  const progress = { version: 1, status: "active", sessionIds: ["a", "b", "c"] };
+  assert.equal(buildBaseline(rows.slice(0, 2), progress), null);
+  assert.equal(buildBaseline(rows, { ...progress, sessionIds: ["a", "a", "c"] }), null);
+  assert.equal(buildBaseline(rows, progress).metric, "speed");
+  assert.equal(buildBaseline(rows.map((r) => ({ ...r, accuracy: 80 })), progress).metric, "characterAccuracy");
+  assert.equal(buildBaseline(rows.map((r) => ({ ...r, keyCount: 100 })), progress).metric, "codeLength");
+});
+
+test("引导进度可备份恢复并拒绝重复成绩和异常日期", () => {
+  const progress = { version: 1, status: "active", sessionIds: ["a", "b", "c"], startedAt: "2026-09-20T00:00:00.000Z" };
+  const payload = createBackupPayload({ [STORAGE.onboarding]: progress });
+  assert.deepEqual(parseBackupPayload(payload).data[STORAGE.onboarding], progress);
+  for (const invalid of [ { ...progress, sessionIds: ["a", "a", "c"] }, { ...progress, startedAt: "bad" }, { ...progress, sessionIds: ["a", "b", "c", "d"] }, { ...progress, goalMetric: "unknown" } ]) {
+    assert.equal(isOnboardingProgress(invalid), false);
+    assert.throws(() => parseBackupPayload(createBackupPayload({ [STORAGE.onboarding]: invalid })));
+  }
+  assert.doesNotThrow(() => parseBackupPayload(createBackupPayload({})));
+  const previousWindow = globalThis.window;
+  const stored = new Map();
+  globalThis.window = { localStorage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: (key) => stored.delete(key) } };
+  try {
+    restoreBackupPayload(payload);
+    assert.deepEqual(JSON.parse(stored.get(STORAGE.onboarding)), progress);
+    restoreBackupPayload(createBackupPayload({}));
+    assert.equal(stored.has(STORAGE.onboarding), false);
+  } finally { globalThis.window = previousWindow; }
+});
 import { generateDailyTrainingPlan } from "../app/training-plan.ts";
 import {
   articleProgress,

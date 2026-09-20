@@ -32,6 +32,7 @@ const lookupViewPath = new URL("../app/components/views/LookupView.tsx", import.
 const settingsViewPath = new URL("../app/components/views/SettingsView.tsx", import.meta.url);
 const challengeViewPath = new URL("../app/components/views/ChallengeView.tsx", import.meta.url);
 const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.meta.url);
+const firstUseGuidePath = new URL("../app/components/FirstUseGuide.tsx", import.meta.url);
 const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
 
 async function readTypingSource() {
@@ -89,6 +90,29 @@ test("settings storage history waits until hydration before reading local data",
     management,
     /useEffect\(\(\) => \{[\s\S]*setEvents\(readMaintenanceLog\(\)\.events\);[\s\S]*\}, \[revision\]\)/,
   );
+});
+
+test("first-use guide is local, skippable, and turns three saved articles into a seven-day focus", async () => {
+  const [guide, storage, app, styles] = await Promise.all([
+    readFile(firstUseGuidePath, "utf8"),
+    readFile(new URL("../app/storage.ts", import.meta.url), "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(new URL("../app/styles/onboarding.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(storage, /onboarding: "wubi-test:onboarding:v1"/);
+  assert.match(guide, /buildBaseline/);
+  assert.match(guide, /durationDays: 7/);
+  assert.match(guide, /window\.location\.assign/);
+  assert.match(guide, /commitLocalWrites/);
+  assert.match(guide, /status: "skipped"/);
+  assert.match(guide, /只保存在当前浏览器/);
+  assert.match(guide, /router\.push\(baseline\.metric === "codeLength"/);
+  assert.match(app, /<FirstUseGuide enabled=\{settingsReady\} view=\{view\} \/>/);
+  assert.match(styles, /@media \(max-width: 620px\)/);
+  assert.match(styles, /prefers-reduced-motion/);
+  const typingLibrary = await readFile(new URL("../app/components/views/typing/useArticleLibrary.ts", import.meta.url), "utf8");
+  assert.match(typingLibrary, /onboardingPractice/);
+  assert.match(typingLibrary, /onboardingPractice \? "short"/);
 });
 
 test("recorded data renders without replay animations", async () => {

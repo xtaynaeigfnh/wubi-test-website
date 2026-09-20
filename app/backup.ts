@@ -21,6 +21,7 @@ import {
   normalizeDailyGoalValue,
 } from "./practice-schema.ts";
 import { STORAGE, STORAGE_KEYS } from "./storage.ts";
+import { isOnboardingProgress } from "./onboarding.ts";
 import type {
   AdvancedSeasonArchive,
   BackupPayload,
@@ -74,6 +75,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
   switch (key) {
     case STORAGE.settings:
       return isSettings(value);
+    case STORAGE.onboarding:
+      return isOnboardingProgress(value);
     case STORAGE.sessions:
       return isValidSessionCollection(value);
     case STORAGE.errors:
