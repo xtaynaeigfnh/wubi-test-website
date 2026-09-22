@@ -15,7 +15,7 @@ import type { SessionResult } from "../types";
 import { isOnboardingProgress, reconcileOnboarding, type OnboardingProgress } from "../onboarding";
 import { Modal } from "./Ui";
 
-import { buildBaseline, formatMetric, metricLabel } from "../onboarding-baseline";
+import { buildBaseline, formatMetric, isBaselineSession, metricLabel } from "../onboarding-baseline";
 const EMPTY_PROGRESS: OnboardingProgress = { version: 1, status: "active", sessionIds: [] };
 function readProgress(): OnboardingProgress | null {
   const value = readLocal<unknown>(STORAGE.onboarding, null);
@@ -149,8 +149,8 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
               </ol>
               {tested > 0 && <p className="first-use-progress" role="status">已完成 {tested}/3 段。保存成绩后会自动进入下一步。</p>}
               {saveError && <p className="plan-message" role="alert">{saveError}</p>}
-              {sessions.filter((s) => s.type === "article").length >= 3 && !current.startedAt && <button className="button ghost" onClick={() => {
-                const next = { ...current, status: "active" as const, sessionIds: sessions.filter((s) => s.type === "article").slice(0, 3).map((s) => s.id) };
+              {sessions.filter(isBaselineSession).length >= 3 && !current.startedAt && <button className="button ghost" onClick={() => {
+                const next = { ...current, status: "active" as const, sessionIds: sessions.filter(isBaselineSession).slice(0, 3).map((s) => s.id) };
                 if (writeProgress(next)) setProgress(next); else setSaveError("历史建议未能保存，请重试。");
               }}>使用已有成绩生成建议</button>}
               <div className="first-use-actions">

@@ -9,13 +9,17 @@ export interface BaselineSummary {
   metric: AdvancedGoalMetric;
 }
 
+export function isBaselineSession(session: SessionResult | undefined): session is SessionResult {
+  return Boolean(session && session.type === "article" && session.durationSeconds > 0 && session.attemptedChars > 0);
+}
+
 export function buildBaseline(
   sessions: SessionResult[],
   progress: OnboardingProgress,
 ): BaselineSummary | null {
   const selected = Array.from(new Set(progress.sessionIds)).slice(0, 3)
     .map((id) => sessions.find((session) => session.id === id))
-    .filter((session): session is SessionResult => Boolean(session && session.type === "article" && session.durationSeconds > 0 && session.attemptedChars > 0));
+    .filter(isBaselineSession);
   if (selected.length < 3) return null;
   const average = (values: number[]) =>
     values.reduce((sum, value) => sum + value, 0) / values.length;

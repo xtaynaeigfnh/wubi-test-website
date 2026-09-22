@@ -1,3 +1,4 @@
+import { isBaselineSession } from "./onboarding-baseline.ts";
 import type { AdvancedGoalMetric, SessionResult } from "./types.ts";
 
 // Read persisted results on mount as well as after saves so reloads can recover
@@ -8,12 +9,12 @@ export function reconcileOnboarding(progress: OnboardingProgress | null, session
   let next = progress;
   if (progress.startedAt) {
     const sessionIds = sessions
-      .filter((session) => session.type === "article" && Date.parse(session.date) >= Date.parse(progress.startedAt!))
+      .filter((session) => isBaselineSession(session) && Date.parse(session.date) >= Date.parse(progress.startedAt!))
       .sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
       .map((session) => session.id)
       .filter((id, index, ids) => ids.indexOf(id) === index)
       .slice(0, 3);
-    if (sessionIds.some((id) => !progress.sessionIds.includes(id))) {
+    if (sessionIds.length !== progress.sessionIds.length || sessionIds.some((id, index) => id !== progress.sessionIds[index])) {
       next = { ...next, sessionIds };
     }
   }
