@@ -20,6 +20,38 @@ import {
   MAX_SPACED_REVIEW_STATE_BYTES,
 } from "../app/practice-schema.ts";
 import { STORAGE } from "../app/storage.ts";
+import { isOnboardingProgress, reconcileOnboarding } from "../app/onboarding.ts";
+import { buildBaseline } from "../app/onboarding-baseline.ts";
+
+test("短测缺失或重复成绩不会伪造完整基线，缺少按键不推荐码长", () => {
+  const rows = ["a", "b", "c"].map((id) => ({ ...session, id, type: "article", durationSeconds: 30, attemptedChars: 20, speed: 40, accuracy: 99, codeLength: 5, keyCount: 0 }));
+  const progress = { version: 1, status: "active", sessionIds: ["a", "b", "c"] };
+  assert.equal(buildBaseline(rows.slice(0, 2), progress), null);
+  assert.equal(buildBaseline(rows, { ...progress, sessionIds: ["a", "a", "c"] }), null);
+  assert.equal(buildBaseline(rows, progress).metric, "speed");
+  assert.equal(buildBaseline(rows.map((r) => ({ ...r, accuracy: 80 })), progress).metric, "characterAccuracy");
+  assert.equal(buildBaseline(rows.map((r) => ({ ...r, keyCount: 100 })), progress).metric, "codeLength");
+});
+
+test("引导进度可备份恢复并拒绝重复成绩和异常日期", () => {
+  const progress = { version: 1, status: "active", sessionIds: ["a", "b", "c"], startedAt: "2026-09-20T00:00:00.000Z" };
+  const payload = createBackupPayload({ [STORAGE.onboarding]: progress });
+  assert.deepEqual(parseBackupPayload(payload).data[STORAGE.onboarding], progress);
+  for (const invalid of [ { ...progress, sessionIds: ["a", "a", "c"] }, { ...progress, startedAt: "bad" }, { ...progress, sessionIds: ["a", "b", "c", "d"] }, { ...progress, goalMetric: "unknown" } ]) {
+    assert.equal(isOnboardingProgress(invalid), false);
+    assert.throws(() => parseBackupPayload(createBackupPayload({ [STORAGE.onboarding]: invalid })));
+  }
+  assert.doesNotThrow(() => parseBackupPayload(createBackupPayload({})));
+  const previousWindow = globalThis.window;
+  const stored = new Map();
+  globalThis.window = { localStorage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: (key) => stored.delete(key) } };
+  try {
+    restoreBackupPayload(payload);
+    assert.deepEqual(JSON.parse(stored.get(STORAGE.onboarding)), progress);
+    restoreBackupPayload(createBackupPayload({}));
+    assert.equal(stored.has(STORAGE.onboarding), false);
+  } finally { globalThis.window = previousWindow; }
+});
 import { generateDailyTrainingPlan } from "../app/training-plan.ts";
 import {
   articleProgress,
@@ -906,4 +938,77 @@ test("pet preferences round trip through backups and old settings gain defaults"
   } finally {
     delete globalThis.window;
   }
+});
+
+
+test("首次进入展示引导，已有成绩、关闭或跳过后不自动打扰", () => {
+  assert.equal(reconcileOnboarding(null, []).open, true);
+  assert.equal(reconcileOnboarding(null, [session]).open, false);
+  for (const status of ["skipped", "completed"]) {
+    const progress = { version: 1, status, sessionIds: [] };
+    assert.deepEqual(reconcileOnboarding(progress, []), { progress, open: false });
+    assert.equal(reconcileOnboarding(progress, [session]).open, false);
+  }
+});
+
+test("短测保存或刷新恢复后展示下一步，重复刷新和开始下一段不重新弹出", () => {
+  let progress = { version: 1, status: "active", startedAt: "2026-09-20T00:00:00.000Z", sessionIds: [] };
+  const rows = [];
+  assert.equal(reconcileOnboarding(progress, rows).open, false);
+  for (let index = 1; index <= 3; index++) {
+    rows.push({ ...session, id: `short-${index}`, type: "article", date: `2026-09-20T00:0${index}:00.000Z`, durationSeconds: 30, attemptedChars: 20 });
+    const result = reconcileOnboarding(progress, rows);
+    assert.equal(result.open, true);
+    assert.equal(result.progress.sessionIds.length, index);
+    progress = result.progress;
+    assert.equal(reconcileOnboarding(progress, rows).open, false);
+  }
+  assert.ok(buildBaseline(rows, progress));
+  assert.equal(reconcileOnboarding(progress, [...rows, { ...rows[0], id: "fourth", date: "2026-09-20T00:04:00.000Z" }]).open, false);
+});
+
+test("旧成绩和非文章练习不推进短测，复练完成只提醒一次且保留短测更新", () => {
+  const progress = { version: 1, status: "active", startedAt: "2026-09-20T00:00:00.000Z", sessionIds: [] };
+  const old = { ...session, type: "article", date: "2026-09-19T00:00:00.000Z" };
+  const practice = { ...session, id: "practice", type: "review", date: "2026-09-20T00:02:00.000Z" };
+  assert.equal(reconcileOnboarding(progress, [old, practice]).open, false);
+  const article = { ...practice, id: "article", type: "article", durationSeconds: 30, attemptedChars: 20 };
+  const result = reconcileOnboarding({ ...progress, practiceStartedAt: progress.startedAt }, [old, practice, article]);
+  assert.equal(result.open, true);
+  assert.deepEqual(result.progress.sessionIds, ["article"]);
+  assert.equal(result.progress.practiceSessionId, "practice");
+  assert.equal(reconcileOnboarding(result.progress, [old, practice, article]).open, false);
+});
+
+
+test("短测跳过无效成绩，修复旧进度后可用补测生成基线", () => {
+  for (const invalid of [{ durationSeconds: 0 }, { attemptedChars: 0 }]) {
+    const rows = [1, 2, 3, 4].map((index) => ({
+      ...session,
+      id: `short-${index}`,
+      type: "article",
+      date: `2026-09-20T00:0${index}:00.000Z`,
+      durationSeconds: 30,
+      attemptedChars: 20,
+      ...(index === 1 ? invalid : {}),
+    }));
+    const progress = { version: 1, status: "active", startedAt: "2026-09-20T00:00:00.000Z", sessionIds: ["short-1", "short-2", "short-3"] };
+    const repaired = reconcileOnboarding(progress, rows.slice(0, 3));
+    assert.deepEqual(repaired.progress.sessionIds, ["short-2", "short-3"]);
+    assert.equal(repaired.open, true);
+    assert.equal(buildBaseline(rows, repaired.progress), null);
+    assert.equal(reconcileOnboarding(repaired.progress, rows.slice(0, 3)).open, false);
+    const completed = reconcileOnboarding(repaired.progress, rows);
+    assert.deepEqual(completed.progress.sessionIds, ["short-2", "short-3", "short-4"]);
+    assert.ok(buildBaseline(rows, completed.progress));
+    assert.equal(completed.open, true);
+    assert.equal(reconcileOnboarding(completed.progress, rows).open, false);
+    assert.deepEqual(reconcileOnboarding(progress, rows).progress.sessionIds, completed.progress.sessionIds);
+  }
+});
+
+test("首次短测不计入无效成绩且不弹出下一步", () => {
+  const progress = { version: 1, status: "active", startedAt: "2026-09-20T00:00:00.000Z", sessionIds: [] };
+  const rows = [{ ...session, type: "article", date: "2026-09-20T00:01:00.000Z", durationSeconds: 0 }];
+  assert.deepEqual(reconcileOnboarding(progress, rows), { progress, open: false });
 });

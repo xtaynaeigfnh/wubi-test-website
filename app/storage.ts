@@ -16,6 +16,7 @@ export const STORAGE = {
   hesitationQueue: "wubi-test:hesitation-queue:v1",
   phraseOpportunities: "wubi-test:phrase-opportunities:v1",
   advancedSeason: "wubi-test:advanced-season:v1",
+  onboarding: "wubi-test:onboarding:v1",
   reviewState: "wubi-test:review-state:v1",
   maintenance: "wubi-test:maintenance:v1",
 } as const;
