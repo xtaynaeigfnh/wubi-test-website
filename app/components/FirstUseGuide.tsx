@@ -12,7 +12,7 @@ import { createLocalId, getErrors, getSessions } from "../lib";
 import { commitLocalWrites, readLocal, STORAGE, writeLocal } from "../storage";
 import type { SessionResult } from "../types";
 
-import { isOnboardingProgress, type OnboardingProgress } from "../onboarding";
+import { isOnboardingProgress, reconcileOnboarding, type OnboardingProgress } from "../onboarding";
 import { Modal } from "./Ui";
 
 import { buildBaseline, formatMetric, metricLabel } from "../onboarding-baseline";
@@ -38,31 +38,16 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
     const refresh = () => {
       const storedProgress = readProgress();
       const nextSessions = getSessions();
-      if (storedProgress?.status === "active" && storedProgress.startedAt) {
-        const sessionIds = nextSessions
-          .filter((session) => session.type === "article" && Date.parse(session.date) >= Date.parse(storedProgress.startedAt!))
-          .sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
-          .map((session) => session.id)
-          .slice(0, 3);
-        if (sessionIds.some((id) => !storedProgress.sessionIds.includes(id))) {
-          const nextProgress = { ...storedProgress, sessionIds };
-          if (writeProgress(nextProgress)) {
-            setProgress(nextProgress);
-            setDismissedForPractice(false);
-          }
-        } else {
-          setProgress(storedProgress);
-        }
-      } else {
-        setProgress(storedProgress);
+      const result = reconcileOnboarding(storedProgress, nextSessions);
+      const changed = result.progress !== storedProgress;
+      const saved = !changed || (result.progress && writeProgress(result.progress));
+      setProgress(saved ? result.progress : storedProgress);
+      if (result.open) {
+        setDismissedForPractice(false);
+        setOpened(true);
       }
-      if (storedProgress?.practiceStartedAt && !storedProgress.practiceSessionId) {
-        const practice = nextSessions.find((session) => ["review", "roots", "hesitation"].includes(session.type) && Date.parse(session.date) >= Date.parse(storedProgress.practiceStartedAt!));
-        if (practice) {
-          const next = { ...storedProgress, practiceSessionId: practice.id };
-          if (writeProgress(next)) { setProgress(next); setDismissedForPractice(false); setOpened(true); }
-          else setSaveError("复练成绩已保存，但引导进度未保存，请刷新后重试。");
-        }
+      if (!saved) {
+        setSaveError("成绩已保存，但引导进度未能保存，请检查浏览器存储空间后刷新重试。");
       }
       setSessions(nextSessions);
       setHydrated(true);
@@ -149,7 +134,7 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
   };
 
   return (
-    <Modal title="首次使用引导 · 找到今天的起点" onClose={() => setOpened(false)}>
+    <Modal title="首次使用引导 · 找到今天的起点" onClose={() => { if (!progress) skip(); else setOpened(false); }}>
         <div className="first-use-body">
           {!baseline ? (
             <>

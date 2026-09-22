@@ -20,7 +20,7 @@ import {
   MAX_SPACED_REVIEW_STATE_BYTES,
 } from "../app/practice-schema.ts";
 import { STORAGE } from "../app/storage.ts";
-import { isOnboardingProgress } from "../app/onboarding.ts";
+import { isOnboardingProgress, reconcileOnboarding } from "../app/onboarding.ts";
 import { buildBaseline } from "../app/onboarding-baseline.ts";
 
 test("短测缺失或重复成绩不会伪造完整基线，缺少按键不推荐码长", () => {
@@ -938,4 +938,44 @@ test("pet preferences round trip through backups and old settings gain defaults"
   } finally {
     delete globalThis.window;
   }
+});
+
+
+test("首次进入展示引导，已有成绩、关闭或跳过后不自动打扰", () => {
+  assert.equal(reconcileOnboarding(null, []).open, true);
+  assert.equal(reconcileOnboarding(null, [session]).open, false);
+  for (const status of ["skipped", "completed"]) {
+    const progress = { version: 1, status, sessionIds: [] };
+    assert.deepEqual(reconcileOnboarding(progress, []), { progress, open: false });
+    assert.equal(reconcileOnboarding(progress, [session]).open, false);
+  }
+});
+
+test("短测保存或刷新恢复后展示下一步，重复刷新和开始下一段不重新弹出", () => {
+  let progress = { version: 1, status: "active", startedAt: "2026-09-20T00:00:00.000Z", sessionIds: [] };
+  const rows = [];
+  assert.equal(reconcileOnboarding(progress, rows).open, false);
+  for (let index = 1; index <= 3; index++) {
+    rows.push({ ...session, id: `short-${index}`, type: "article", date: `2026-09-20T00:0${index}:00.000Z`, durationSeconds: 30, attemptedChars: 20 });
+    const result = reconcileOnboarding(progress, rows);
+    assert.equal(result.open, true);
+    assert.equal(result.progress.sessionIds.length, index);
+    progress = result.progress;
+    assert.equal(reconcileOnboarding(progress, rows).open, false);
+  }
+  assert.ok(buildBaseline(rows, progress));
+  assert.equal(reconcileOnboarding(progress, [...rows, { ...rows[0], id: "fourth", date: "2026-09-20T00:04:00.000Z" }]).open, false);
+});
+
+test("旧成绩和非文章练习不推进短测，复练完成只提醒一次且保留短测更新", () => {
+  const progress = { version: 1, status: "active", startedAt: "2026-09-20T00:00:00.000Z", sessionIds: [] };
+  const old = { ...session, type: "article", date: "2026-09-19T00:00:00.000Z" };
+  const practice = { ...session, id: "practice", type: "review", date: "2026-09-20T00:02:00.000Z" };
+  assert.equal(reconcileOnboarding(progress, [old, practice]).open, false);
+  const article = { ...practice, id: "article", type: "article" };
+  const result = reconcileOnboarding({ ...progress, practiceStartedAt: progress.startedAt }, [old, practice, article]);
+  assert.equal(result.open, true);
+  assert.deepEqual(result.progress.sessionIds, ["article"]);
+  assert.equal(result.progress.practiceSessionId, "practice");
+  assert.equal(reconcileOnboarding(result.progress, [old, practice, article]).open, false);
 });
