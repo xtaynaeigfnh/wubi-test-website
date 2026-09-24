@@ -292,6 +292,8 @@ function BackupManager() {
           className="visually-hidden"
           type="file"
           accept="application/json,.json"
+          aria-label="选择 JSON 备份文件"
+          tabIndex={-1}
           onChange={(event) => void inspectFile(event.target.files?.[0])}
         />
       </div>
@@ -444,6 +446,8 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
           className="visually-hidden"
           type="file"
           accept="text/plain,.txt"
+          aria-label="选择 TXT 文章文件"
+          tabIndex={-1}
           multiple
           onChange={(event) => void importTextFiles(event.target.files)}
         />

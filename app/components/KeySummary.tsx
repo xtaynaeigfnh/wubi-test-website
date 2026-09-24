@@ -40,18 +40,18 @@ export function KeySummary() {
         <Link className="button primary summary-practice-link" href="/">继续文章测速 <span aria-hidden="true">↗</span></Link>
       </header>
       <dl className="key-summary-metrics" aria-label="按键使用概览">
-        <div><dt>累计按键</dt><dd>{ready ? summary.total.toLocaleString("zh-CN") : "—"}<small>次</small></dd><p>练习期间的物理键触发</p></div>
-        <div><dt>活跃键位</dt><dd>{ready ? summary.activeKeys : "—"}<small>/ {KEYBOARD_KEYS.length}</small></dd><p>有过使用记录的键位</p></div>
-        <div><dt>最高频键</dt><dd>{summary.mostUsed?.label ?? "—"}</dd><p>{summary.mostUsed ? `${summary.mostUsed.count.toLocaleString("zh-CN")} 次敲击` : "等待首次练习"}</p></div>
-        <div><dt>最常用行</dt><dd className="metric-text">{summary.total ? dominantRow?.label : "—"}</dd><p>{summary.total ? `${dominantRow?.count.toLocaleString("zh-CN")} 次敲击` : "记录后显示分布"}</p></div>
+        <div><dt>累计按键</dt><dd>{ready ? summary.total.toLocaleString("zh-CN") : "—"}<small>次</small></dd><dd className="metric-description">练习期间的物理键触发</dd></div>
+        <div><dt>活跃键位</dt><dd>{ready ? summary.activeKeys : "—"}<small>/ {KEYBOARD_KEYS.length}</small></dd><dd className="metric-description">有过使用记录的键位</dd></div>
+        <div><dt>最高频键</dt><dd>{summary.mostUsed?.label ?? "—"}</dd><dd className="metric-description">{summary.mostUsed ? `${summary.mostUsed.count.toLocaleString("zh-CN")} 次敲击` : "等待首次练习"}</dd></div>
+        <div><dt>最常用行</dt><dd className="metric-text">{summary.total ? dominantRow?.label : "—"}</dd><dd className="metric-description">{summary.total ? `${dominantRow?.count.toLocaleString("zh-CN")} 次敲击` : "记录后显示分布"}</dd></div>
       </dl>
       <KeyboardHeatmap usage={usage} total={summary.total} />
       {ready && !summary.total && (
-        <aside className="key-summary-empty" role="status">
+        <div className="key-summary-empty" role="status">
           <div className="empty-key-motif" aria-hidden="true"><kbd>五</kbd><kbd>笔</kbd></div>
           <div><h2>你的第一份画像，从一次练习开始</h2><p>文章测速、字码挑战和专项训练都会累计按键次数。练习后回来，看看哪些键留下了最多痕迹。</p></div>
           <Link className="summary-text-link" href="/training">前往训练中心 <span aria-hidden="true">→</span></Link>
-        </aside>
+        </div>
       )}
       {Boolean(summary.total) && <UsageCharts summary={summary} />}
       <footer className="summary-data-footer">

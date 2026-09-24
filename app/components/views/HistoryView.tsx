@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   clearPracticeHistory,
@@ -79,6 +80,7 @@ export function HistoryView({
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training" | "advanced"
   >("all");
+  const [section, setSection] = useState<"records" | "trends" | "weekly">("records");
   const [expandedHeatmapId, setExpandedHeatmapId] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
@@ -154,38 +156,42 @@ export function HistoryView({
   };
 
   return (
-    <section className="subpage">
-      <div className="subpage-heading with-action">
+    <section className="subpage history-page">
+      <header className="history-heading">
         <div>
-          <span className="eyebrow">只属于当前浏览器</span>
-          <h1>本地成绩</h1>
-          <p>查看训练趋势、文章完成情况和需要继续巩固的错字。</p>
+          <span className="eyebrow">练习档案 / PRACTICE JOURNAL</span>
+          <h1>每一次练习，都算数。</h1>
+          <p>回看走过的字，找到下一次进步的方向。</p>
         </div>
-        <div className="heading-actions">
-          <button className="button danger" onClick={clearResults}>
-            清除练习数据与计划
-          </button>
-        </div>
-      </div>
+        <Link className="button primary" href="/">开始练习 <span aria-hidden="true">↗</span></Link>
+      </header>
+      <div className="history-overview-heading"><h2>本地成绩</h2><span>仅保存在当前浏览器</span></div>
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
         <SummaryCard label="最高速度" value={`${bestSpeed}`} unit="字/分" note="文章测速个人最佳" accent />
         <SummaryCard label="累计字数" value={totalChars.toLocaleString("zh-CN")} note="正确完成字符" />
         <SummaryCard label="平均字准" value={averageAccuracy.toFixed(1)} unit="%" note="仅统计文章测速" />
       </div>
-      {weeklyReport ? (
-        <WeeklyReportPanel report={weeklyReport} />
-      ) : (
-        <section className="trend-panel" aria-label="能力周报加载中">
-          <span className="eyebrow">能力周报 · V0.6</span>
-          <p className="trend-empty">正在读取本机数据并生成本周周报…</p>
-        </section>
-      )}
-      <TrendPanel sessions={sessions} />
+      <nav className="history-sections" aria-label="成绩视图">
+        {([
+          ["records", "练习记录"], ["trends", "成绩趋势"], ["weekly", "能力周报"],
+        ] as const).map(([value, label]) => (
+          <button key={value} aria-pressed={section === value} aria-controls={`history-${value}`} onClick={() => setSection(value)}>
+            {label}{value === "records" && <span>{sessions.length}</span>}
+          </button>
+        ))}
+      </nav>
+      <div id="history-weekly" hidden={section !== "weekly"}>
+        {weeklyReport ? <WeeklyReportPanel report={weeklyReport} /> : (
+          <p role="status">正在读取本机数据并生成本周周报…</p>
+        )}
+      </div>
+      <div id="history-trends" hidden={section !== "trends"}><TrendPanel sessions={sessions} /></div>
+      <div id="history-records" hidden={section !== "records"}>
       <div className="history-grid">
         <div className="history-panel">
           <div className="panel-title">
-            <h2>最近练习</h2>
+            <div><h2>最近练习</h2><p className="history-panel-note">最近 12 次，留住每一份进步</p></div>
             <div className="segmented small history-filter" aria-label="练习类型筛选">
               {(["all", "article", "challenge", "training", "advanced"] as const).map((value) => (
                 <button
@@ -296,6 +302,7 @@ export function HistoryView({
                   </button>
                 </div>
                 {session.type === "article" && session.keyCount !== undefined && (
+                  <details className="session-diagnostic-disclosure"><summary>输入诊断</summary>
                   <div className="session-diagnostics" aria-label={`${session.title}输入诊断`}>
                     <DiagnosticMetric
                       label="总键"
@@ -339,6 +346,7 @@ export function HistoryView({
                     />
                     <DiagnosticMetric label="重打" value={session.retryCount?.toString() ?? "—"} unit="" />
                   </div>
+                  </details>
                 )}
                 {session.type === "article" && (
                   <details className="session-recommendation-evidence">
@@ -376,10 +384,17 @@ export function HistoryView({
                 )}
               </div>
             ))}
-            {!filtered.length && <div className="empty-state">完成一次练习后，成绩会出现在这里。</div>}
+            {!filtered.length && (
+              <div className="history-empty">
+                <div className="history-key-mark" aria-hidden="true"><span>五</span><span>笔</span><span>↵</span></div>
+                <h3>{sessions.length ? "这一类练习，还没有记录" : "你的进步，从第一行字开始"}</h3>
+                <p>{sessions.length ? "换一个分类，看看其他练习的收获。" : "完成并保存一次练习，速度、字准和每次突破都会留在这里。"}</p>
+                {sessions.length ? <button className="button" onClick={() => setType("all")}>查看全部记录</button> : <Link className="button primary" href="/">开始第一次练习 <span aria-hidden="true">↗</span></Link>}
+              </div>
+            )}
           </div>
         </div>
-        <aside className="history-panel">
+        <aside className="history-panel history-sidebar">
           <div className="panel-title"><h2>高频错字</h2><span>{errors.length} 个</span></div>
           <div className="error-cloud">
             {errors.slice(0, 18).map((error) => (
@@ -389,7 +404,7 @@ export function HistoryView({
                 <b>{error.count}</b>
               </div>
             ))}
-            {!errors.length && <div className="empty-state">暂时没有错字记录。</div>}
+            {!errors.length && <div className="empty-state">还没有需要巩固的错字。继续保持，稳稳地打好每一个字。</div>}
           </div>
           <div className="completion-stat">
             <span>文章完成度</span>
@@ -410,6 +425,11 @@ export function HistoryView({
           </div>
         </aside>
       </div>
+      </div>
+      <footer className="history-footer">
+        <p>练习记录只属于你。换设备前，记得<Link href="/settings#settings-backup">备份数据</Link>。</p>
+        <button className="history-clear" onClick={clearResults}>清除练习数据与计划</button>
+      </footer>
     </section>
   );
 }

@@ -1,0 +1,58 @@
+/* A 44px target is a project requirement, including desktop pointer controls. */
+button,
+a.skip-link,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.music-dock button {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.metric.primary-metric > span {
+  color: var(--text-on-accent);
+}
+
+.article-text:focus-visible,
+[tabindex="-1"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.license-card > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.music-ruler {
+  overflow-x: auto;
+  min-height: 48px;
+}
+
+.music-ruler button {
+  width: 44px;
+}
+
+.theme-switch {
+  min-height: 44px;
+}
+
+.music-ruler {
+  grid-auto-columns: 44px;
+}
+
+.practice-mode > span,
+.practice-actions > button:not(:disabled) {
+  color: var(--text-primary);
+}

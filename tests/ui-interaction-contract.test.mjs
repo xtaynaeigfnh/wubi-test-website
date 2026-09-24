@@ -1479,3 +1479,23 @@ test("completed input stays in place with save recovery and the original article
   const history = await readFile(historyViewPath, "utf8");
   assert.match(history, /downloadShareCard/);
 });
+
+test("history journal separates records, trends and weekly reports while keeping local data controls", async () => {
+  const history = await readFile(historyViewPath, "utf8");
+  assert.match(history, /useState<"records" \| "trends" \| "weekly">\("records"\)/);
+  for (const section of ["records", "trends", "weekly"]) {
+    assert.match(history, new RegExp(`id="history-${section}" hidden=\\{section !== "${section}"\\}`));
+  }
+  assert.match(history, /aria-pressed=\{section === value\}/);
+  assert.match(history, /<details className="session-diagnostic-disclosure"><summary>输入诊断<\/summary>/);
+  assert.match(history, /sessions.length \? "这一类练习，还没有记录"/);
+  assert.match(history, /href="\/settings#settings-backup"/);
+  assert.match(history, /<footer className="history-footer">[\s\S]*onClick=\{clearResults\}/);
+});
+
+test("history overview keeps compact metrics on desktop and mobile", async () => {
+  const styles = await readFile(new URL("../app/styles/history-journal.css", import.meta.url), "utf8");
+  assert.match(styles, /\.history-page \.summary-card \{ padding: 16px 24px;/);
+  assert.match(styles, /margin: 10px 0 8px; font-size: 28px;/);
+  assert.match(styles, /\.history-page \.summary-card strong \{ font-size: 24px;/);
+});

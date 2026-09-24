@@ -77,11 +77,13 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   assert.match(html, /左右滑动查看完整键盘/);
 });
 
-test("history route server-renders the weekly report shell", async () => {
+test("history route server-renders the journal and deferred weekly report", async () => {
   const response = await render("/history");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /能力周报 · V0\.6/);
+  assert.match(html, /每一次练习，都算数/);
+  assert.match(html, /id="history-weekly" hidden/);
+  assert.match(html, /你的进步，从第一行字开始/);
   assert.match(html, /正在读取本机数据并生成本周周报/);
 });
 

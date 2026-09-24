@@ -60,3 +60,5 @@ Thumbs.db
 
 # Local certificates
 *.pem
+
+/output/playwright/accessibility/

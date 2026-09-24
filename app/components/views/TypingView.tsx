@@ -734,6 +734,9 @@ export function TypingView({
           <div
             key={article.id}
             ref={articleTextRef}
+            tabIndex={0}
+            role="region"
+            aria-label="练习文章，可使用方向键滚动"
             className={`article-text article-swap ${
               isCommonPracticeArticle(article) ? "common-character-text" : ""
             }`}
