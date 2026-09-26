@@ -7,6 +7,10 @@ select {
   min-width: 44px;
 }
 
+select {
+  height: 44px;
+}
+
 .music-dock button {
   min-width: 44px;
   min-height: 44px;

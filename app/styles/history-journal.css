@@ -25,7 +25,7 @@
 .history-page .panel-title h2 { font: 650 17px var(--font-body); }
 .history-panel-note { margin: 6px 0 0; color: var(--text-secondary); font-size: 12px; }
 .history-page .history-filter { gap: 4px; }
-.history-page .history-filter button { min-height: 36px; padding-inline: 10px; }
+.history-page .history-filter button { min-height: 44px; padding-inline: 10px; }
 .history-page .table-head { display: none; }
 .history-page .table-row { padding: 24px; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: "practice practice practice action action" "speed kps code-length accuracy duration"; gap: 18px 12px; font-size: 15px; }
 .history-page .session-practice { grid-area: practice; }

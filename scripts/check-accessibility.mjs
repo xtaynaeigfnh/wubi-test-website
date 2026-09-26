@@ -31,18 +31,31 @@ async function checkKeyboard(page, route) {
       await active.focus();
       const initial = await active.textContent();
       await page.keyboard.press("ArrowRight");
-      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-selected") === "true");
+      await page.waitForFunction((previous) => {
+        const focused = document.activeElement;
+        return focused?.getAttribute("role") === "tab" &&
+          focused.getAttribute("aria-selected") === "true" &&
+          focused.textContent !== previous;
+      }, initial);
       assert.notEqual(await page.locator(":focus").textContent(), initial, "方向键应切换标签及焦点");
       assert.equal(await lists.nth(index).locator('[role="tab"][tabindex="0"]').count(), 1, "标签组只能有一个 Tab 入口");
       await page.keyboard.press("ArrowLeft");
+      await page.waitForFunction((previous) => {
+        const focused = document.activeElement;
+        return focused?.getAttribute("role") === "tab" &&
+          focused.getAttribute("aria-selected") === "true" &&
+          focused.textContent === previous;
+      }, initial);
       assert.equal(await page.locator(":focus").textContent(), initial, "反向导航应返回原标签");
-      const ring = await page.locator(":focus").evaluate((el) => {
+      const ring = await page.evaluate(() => {
+        const el = document.activeElement;
+        if (!(el instanceof HTMLElement)) return false;
         const style = getComputedStyle(el);
         return el.matches(":focus-visible") && (style.boxShadow !== "none" || style.outlineStyle !== "none");
       });
       assert(ring, "键盘焦点应有可见标记");
       await page.keyboard.press("Tab");
-      assert(!await page.locator(":focus").evaluate((el) => el.matches('[role="tab"][tabindex="-1"]')), "Tab 不应停在未选中的标签");
+      assert(!await page.evaluate(() => document.activeElement?.matches('[role="tab"][tabindex="-1"]')), "Tab 不应停在未选中的标签");
     }
   }
   if (route === "/") {
@@ -51,6 +64,7 @@ async function checkKeyboard(page, route) {
     await page.keyboard.press("Enter");
     const modal = page.getByRole("dialog");
     await modal.waitFor();
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "关闭");
     const controls = modal.locator('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
     await controls.first().focus();
     await page.keyboard.press("Shift+Tab");
@@ -59,6 +73,7 @@ async function checkKeyboard(page, route) {
     assert(await controls.first().evaluate((el) => el === document.activeElement), "弹窗 Tab 应循环到开头");
     await page.keyboard.press("Escape");
     await modal.waitFor({ state: "hidden" });
+    await page.waitForFunction(() => document.activeElement?.matches(".first-use-entry button"));
     assert(await entry.evaluate((el) => el === document.activeElement), "关闭弹窗应恢复入口焦点");
     const article = page.getByRole("region", { name: "练习文章，可使用方向键滚动" });
     await article.focus();
@@ -112,6 +127,8 @@ try {
               await checkKeyboard(page, route);
               row.keyboard = "passed";
               await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+              // Keyboard tab changes animate their colors; audit the settled state.
+              await page.waitForTimeout(200);
             }
             if (geometry.overflow) row.failures.push("页面横向溢出");
             if (geometry.smallTargets.length) row.failures.push("交互目标不足 44px");

@@ -70,9 +70,14 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
   );
   const visible = enabled && hydrated && opened && !dismissedForPractice;
   const current = progress ?? EMPTY_PROGRESS;
+  const returnFocusToEntry = () => {
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(".first-use-entry button")?.focus();
+    });
+  };
   const skip = () => {
     const next = { ...current, status: "skipped" as const };
-    if (writeProgress(next)) { setProgress(next); setOpened(false); }
+    if (writeProgress(next)) { setProgress(next); setOpened(false); returnFocusToEntry(); }
     else setSaveError("跳过状态未能保存，请稍后再试。");
   };
 
@@ -134,7 +139,7 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
   };
 
   return (
-    <Modal title="首次使用引导 · 找到今天的起点" onClose={() => { if (!progress) skip(); else setOpened(false); }}>
+    <Modal title="首次使用引导 · 找到今天的起点" onClose={() => { if (!progress) skip(); else { setOpened(false); returnFocusToEntry(); } }}>
         <div className="first-use-body">
           {!baseline ? (
             <>
