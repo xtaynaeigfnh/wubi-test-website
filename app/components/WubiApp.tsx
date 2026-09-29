@@ -50,10 +50,6 @@ const AdvancedCenter = dynamic(
     import("./AdvancedCenter").then((m) => ({ default: m.AdvancedCenter })),
   { loading: () => null },
 );
-const KeySummary = dynamic(
-  () => import("./KeySummary").then((m) => ({ default: m.KeySummary })),
-  { loading: () => null },
-);
 const LookupView = dynamic(
   () => import("./views/LookupView").then((m) => ({ default: m.LookupView })),
   { loading: () => null },
@@ -94,12 +90,12 @@ const navItems: Array<{
   { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
   { view: "advanced", href: "/advanced", label: "进阶训练", coordinate: "DF" },
   { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
-  { view: "history", href: "/history", label: "本地成绩", coordinate: "OP" },
-  { view: "summary", href: "/summary", label: "统计", coordinate: "JK" },
+  { view: "history", href: "/history", label: "成绩统计", coordinate: "OP" },
   { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
 ];
 
-const isNavItemActive = (view: AppView, itemView: AppView) => (view === "challenge" ? "advanced" : view) === itemView;
+const isNavItemActive = (view: AppView, itemView: AppView) =>
+  (view === "challenge" ? "advanced" : view === "summary" ? "history" : view) === itemView;
 
 type HesitationAttemptTuple = [
   HesitationPracticeAttempt,
@@ -403,8 +399,10 @@ export function WubiApp({ view }: { view: AppView }) {
           <AdvancedCenter playKeySound={playKeySound} initialTab={view === "challenge" ? "challenge" : "rhythm"} />
         )}
         {view === "lookup" && <LookupView />}
-        {view === "history" && (
+        {(view === "history" || view === "summary") && (
           <HistoryView
+            initialSection={view === "summary" ? "keys" : "records"}
+            key={view}
             onPracticeHesitation={(target) =>
               setActiveHesitationPractice({ target })
             }
@@ -414,7 +412,6 @@ export function WubiApp({ view }: { view: AppView }) {
             hesitationSaveRevision={hesitationSaveRevision}
           />
         )}
-        {view === "summary" && <KeySummary />}
         {view === "settings" && (
           <SettingsView
             settings={settings}

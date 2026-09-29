@@ -1043,9 +1043,20 @@ export function TrainingCenter({
                 key={item.id}
                 role="tab"
                 aria-selected={zone.id === item.id}
+                tabIndex={zone.id === item.id ? 0 : -1}
                 className={zone.id === item.id ? "active" : ""}
                 disabled={Boolean(prescribedRoots) || pendingDrillSave}
                 onClick={() => selectRootZone(item)}
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                  event.preventDefault();
+                  const index = ROOT_ZONES.findIndex((entry) => entry.id === item.id);
+                  const offset = event.key === "ArrowRight" ? 1 : -1;
+                  const next = ROOT_ZONES[(index + offset + ROOT_ZONES.length) % ROOT_ZONES.length];
+                  selectRootZone(next);
+                  const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=tab]");
+                  buttons?.[(index + offset + ROOT_ZONES.length) % ROOT_ZONES.length]?.focus();
+                }}
               >
                 <b>{item.keys}</b>
                 <strong>{item.label}</strong>

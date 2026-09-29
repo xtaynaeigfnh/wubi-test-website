@@ -734,6 +734,9 @@ export function TypingView({
           <div
             key={article.id}
             ref={articleTextRef}
+            tabIndex={0}
+            role="region"
+            aria-label="练习文章，可使用方向键滚动"
             className={`article-text article-swap ${
               isCommonPracticeArticle(article) ? "common-character-text" : ""
             }`}
@@ -856,7 +859,7 @@ export function TypingView({
           {completed ? (
             <div className="typing-review-actions">
               <span className="typing-review-save" role="status">
-                {sessionSaveFailed ? "本次成绩尚未保存" : "本次成绩已存入本机 · 可在本地成绩查看"}
+                {sessionSaveFailed ? "本次成绩尚未保存" : "本次成绩已存入本机 · 可在成绩统计查看"}
               </span>
               <div className="typing-review-buttons">
                 {sessionSaveFailed && (

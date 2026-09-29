@@ -36,3 +36,6 @@
 
 @import "./styles/pet.css"; /* 轻量宠物陪伴 */
 @import "./styles/onboarding.css"; /* 首次使用引导 */
+@import "./styles/history-journal.css"; /* 本地成绩：练习档案 */
+
+@import "./styles/accessibility.css"; /* 键盘、触控与对比度保障 */

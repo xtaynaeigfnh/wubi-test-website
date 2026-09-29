@@ -103,7 +103,8 @@ test("first-use guide is local, skippable, and turns three saved articles into a
   assert.match(guide, /buildBaseline/);
   assert.match(guide, /reconcileOnboarding\(storedProgress, nextSessions\)/);
   assert.match(guide, /if \(result.open\) \{\s*setDismissedForPractice\(false\);\s*setOpened\(true\);/);
-  assert.match(guide, /onClose=\{\(\) => \{ if \(!progress\) skip\(\); else setOpened\(false\); \}\}/);
+  assert.match(guide, /onClose=\{\(\) => \{ if \(!progress\) skip\(\); else \{ setOpened\(false\); returnFocusToEntry\(\); \} \}\}/);
+  assert.match(guide, /document\.querySelector<HTMLElement>\("\.first-use-entry button"\)\?\.focus\(\)/);
   assert.match(guide, /durationDays: 7/);
   assert.match(guide, /window\.location\.assign/);
   assert.match(guide, /commitLocalWrites/);
@@ -426,6 +427,8 @@ test("typing saves review data and only history displays heatmap and rhythm", as
   assert.match(typing, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.doesNotMatch(typing, /<HesitationHeatmap\b|<RhythmSummaryView\b|post-practice-review/);
   assert.match(history, /className="session-heatmap-trigger"/);
+  assert.equal(history.match(/className="session-heatmap-trigger"/g)?.length, 1);
+  assert.match(history, /session\.heatmap && session\.rhythmSummary\s*\? "卡顿图与节奏"/);
   assert.match(history, /<RhythmSummaryView\s+summary=\{session\.rhythmSummary\}/);
   assert.equal(history.match(/<HesitationHeatmap\b/g)?.length, 1);
   assert.match(
@@ -436,7 +439,7 @@ test("typing saves review data and only history displays heatmap and rhythm", as
   assert.match(history, /aria-controls=\{`session-heatmap-\$\{session\.id\}`\}/);
   assert.match(
     component,
-    /view === "history" && \([\s\S]*<HistoryView\s+onPracticeHesitation=\{\(target\) =>\s*setActiveHesitationPractice\(\{ target \}\)\s*\}\s+onAddHesitationToQueue=\{addHesitationToQueue\}\s+queuedFingerprints=\{queuedFingerprints\}\s+masteredAtByFingerprint=\{masteredAtByFingerprint\}\s+hesitationSaveRevision=\{hesitationSaveRevision\}/,
+    /\(view === "history" \|\| view === "summary"\) && \([\s\S]*<HistoryView\s+initialSection=\{view === "summary" \? "keys" : "records"\}\s+key=\{view\}\s+onPracticeHesitation=\{\(target\) =>\s*setActiveHesitationPractice\(\{ target \}\)\s*\}\s+onAddHesitationToQueue=\{addHesitationToQueue\}\s+queuedFingerprints=\{queuedFingerprints\}\s+masteredAtByFingerprint=\{masteredAtByFingerprint\}\s+hesitationSaveRevision=\{hesitationSaveRevision\}/,
   );
   assert.match(heatmap, /卡顿位置热力图/);
   assert.match(heatmap, /aria-label="热力等级图例"/);
@@ -843,7 +846,13 @@ test("typing surfaces record physical keys and the summary exposes the reference
 
   assert.match(typing, /recordKeyUsage\(event\.code\)/);
   assert.match(training, /recordKeyUsage\(event\.code\)/);
-  assert.match(component, /view: "summary", href: "\/summary", label: "统计"/);
+  assert.match(component, /view: "history", href: "\/history", label: "成绩统计"/);
+  assert.doesNotMatch(component, /view: "summary", href: "\/summary", label: "统计"/);
+  assert.match(component, /initialSection=\{view === "summary" \? "keys" : "records"\}/);
+  const history = await readFile(new URL("../app/components/views/HistoryView.tsx", import.meta.url), "utf8");
+  assert.match(history, /\["keys", "按键统计"\]/);
+  assert.match(history, /id="history-keys" hidden=\{section !== "keys"\}/);
+  assert.match(history, /<KeySummary embedded \/>/);
   assert.doesNotMatch(typing, /查看按键画像/);
   assert.doesNotMatch(typing, /key-profile-entry/);
   assert.match(styles, /\.button\s*\{[^}]*display:\s*inline-flex/s);
@@ -1405,7 +1414,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.doesNotMatch(typing, /downloadShareCard/);
   assert.match(await readFile(historyViewPath, "utf8"), /downloadShareCard/);
   assert.match(app, /TrainingCenter/);
-  assert.match(app, /KeySummary/);
+  assert.match(await readFile(historyViewPath, "utf8"), /KeySummary/);
 });
 
 test("advanced training contains code challenge and preserves legacy entry and switch guards", async () => {
@@ -1478,4 +1487,24 @@ test("completed input stays in place with save recovery and the original article
   assert.match(typing, /disabled=\{sessionSaveFailed\}/);
   const history = await readFile(historyViewPath, "utf8");
   assert.match(history, /downloadShareCard/);
+});
+
+test("history journal groups records, trends, weekly reports and key usage", async () => {
+  const history = await readFile(historyViewPath, "utf8");
+  assert.match(history, /useState<"records" \| "trends" \| "weekly" \| "keys">\(initialSection\)/);
+  for (const section of ["records", "trends", "weekly", "keys"]) {
+    assert.match(history, new RegExp(`id="history-${section}" hidden=\\{section !== "${section}"\\}`));
+  }
+  assert.match(history, /aria-pressed=\{section === value\}/);
+  assert.match(history, /<details className="session-diagnostic-disclosure"><summary>输入诊断<\/summary>/);
+  assert.match(history, /sessions.length \? "这一类练习，还没有记录"/);
+  assert.match(history, /href="\/settings#settings-backup"/);
+  assert.match(history, /<footer className="history-footer" hidden=\{section === "keys"\}>[\s\S]*onClick=\{clearResults\}/);
+});
+
+test("history overview keeps compact metrics on desktop and mobile", async () => {
+  const styles = await readFile(new URL("../app/styles/history-journal.css", import.meta.url), "utf8");
+  assert.match(styles, /\.history-page \.summary-card \{ padding: 16px 24px;/);
+  assert.match(styles, /margin: 10px 0 8px; font-size: 28px;/);
+  assert.match(styles, /\.history-page \.summary-card strong \{ font-size: 24px;/);
 });

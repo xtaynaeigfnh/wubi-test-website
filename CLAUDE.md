@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm test` — 完整测试：单元测试 → 构建 → 渲染验证
 - `npm run lint` — ESLint 检查
 - `npm run typecheck` — 刷新 Next.js 路由类型后执行 TypeScript 类型检查
+- `npm run test:a11y` — Playwright 跨浏览器键盘、响应式与无障碍检查（需先安装浏览器）
 - `npm run data:generate` — 重新生成文章、常用字、完整码表和挑战码表数据
 - `npm run db:generate` — 可选 D1/Drizzle schema 变更后生成迁移
 
@@ -37,7 +38,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/storage.ts` — 存储键、基础 localStorage/sessionStorage 读写和多键写入失败回滚，无业务模块依赖。
 - `app/content-loader.ts` / `app/typing-metrics.ts` — 内容加载与打字指标纯计算。
 - `app/practice-schema.ts` — 业务读取与备份共用的纯校验、文章进度与目标规范化，以及配套默认值和自定义文章构造；不执行存储 I/O。
-- `app/lib.ts` — 业务数据读写、成绩与错题管理、存储键对应的版本化备份校验编排/恢复；保留基础存储、共享校验中的原公开 API、内容加载与打字指标的兼容导出。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
+- `app/lib.ts` — 旧公开 API 的兼容导出、设置和目标读取及部分汇总辅助逻辑；主要练习数据读写与成绩管理位于 `app/practice-store.ts`，版本化备份校验和恢复位于 `app/backup.ts`。持久化状态通过 `STORAGE` 常量定义的 key 存储在浏览器 localStorage；文章进度按 `articleId` 唯一，旧重复记录在读取时按有界规则合并，恢复失败时必须保留原数据。
+- `app/onboarding.ts` / `app/onboarding-baseline.ts` — 首次引导进度、三段短测的初步建议和状态校验。
 - `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
 - `app/code-length-coach.ts` / `app/phrase-training.ts` — 理论码长机会与词组专项选题
 - `app/ghost-race.ts` — 幽灵时间线、可比较记录与赛后分段复盘
@@ -51,6 +53,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
 - `app/music.ts` — 音乐目录解析与播放逻辑
 - `app/components/WubiApp.tsx` — 应用外壳，根据 `view` prop 分发页面，管理共享设置、主题、音效与卡顿加练状态
+- `app/components/FirstUseGuide.tsx` — 可跳过的首次引导、短测建议、七日目标与推荐复练入口
+- `app/components/lookup/` — 查码搜索、结果、按键顺序提示及工作区样式
 - `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的文章库、练习会话、幽灵赛与码长诊断 Hook 位于 `typing/` 下的 `useArticleLibrary.ts`、`useTypingSession.ts`、`useGhostRace.ts` 和 `useTypingDiagnostics.ts`，`TypingView.tsx` 保留页面组装、实时指标计算与结算展示
 - `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护
 - `app/components/AdvancedCenter.tsx` — 节奏、实战与阶段目标的进阶训练页
@@ -86,7 +90,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 卡顿片段复练逻辑补充 `tests/hesitation-practice.test.mjs`
 - 词组专项、间隔复习、周报、进阶训练和数据维护分别补充 `tests/phrase-training.test.mjs`、`tests/spaced-review.test.mjs`、`tests/weekly-report.test.mjs`、`tests/advanced-training.test.mjs` 和 `tests/data-maintenance.test.mjs`
 - 界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
-- 本地存储、备份恢复、PWA 和离线回退改动补充 `tests/v02-features.test.mjs`
+- 本地存储、备份恢复、练习状态、设置、PWA 和输入复盘改动分别补充 `tests/storage.test.mjs`、`tests/backup.test.mjs`、`tests/practice-store.test.mjs`、`tests/settings.test.mjs`、`tests/pwa.test.mjs` 和 `tests/input-review.test.mjs`
+- 跨浏览器键盘、响应式和无障碍检查可运行 `npm run test:a11y`；脚本默认启动开发服务器，结果写入 `output/playwright/accessibility/`，不包含在 `npm test` 中
 - 文章生成改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，并提交全部重新生成的 JSON
 - 构建产物与渲染结果在 `tests/rendered-html.test.mjs` 校验（`npm test` 的最后一步）
 - `npm test` 不包含 lint 与类型检查；交付前同时运行 `npm run lint`、`npm run typecheck` 和 `npm test`。GitHub Pages 工作流也以这三项为部署门禁

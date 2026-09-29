@@ -45,6 +45,10 @@
   font-size: 11px;
 }
 
+.advanced-tabs button.active span {
+  opacity: 1;
+}
+
 .advanced-preview-card {
   min-height: 330px;
   padding: 32px;
