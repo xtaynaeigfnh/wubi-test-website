@@ -264,7 +264,7 @@ export function HistoryView({
                   {formatDuration(session.durationSeconds)}
                 </span>
                 <div className="session-actions">
-                  {session.heatmap && (
+                  {(session.heatmap || session.rhythmSummary) && (
                     <button
                       className="session-heatmap-trigger"
                       aria-expanded={expandedHeatmapId === session.id}
@@ -275,21 +275,11 @@ export function HistoryView({
                         )
                       }
                     >
-                      卡顿图
-                    </button>
-                  )}
-                  {session.rhythmSummary && (
-                    <button
-                      className="session-heatmap-trigger"
-                      aria-expanded={expandedHeatmapId === session.id}
-                      aria-controls={`session-heatmap-${session.id}`}
-                      onClick={() =>
-                        setExpandedHeatmapId((current) =>
-                          current === session.id ? null : session.id,
-                        )
-                      }
-                    >
-                      节奏
+                      {session.heatmap && session.rhythmSummary
+                        ? "卡顿图与节奏"
+                        : session.heatmap
+                          ? "卡顿图"
+                          : "节奏"}
                     </button>
                   )}
                   <button

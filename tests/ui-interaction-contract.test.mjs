@@ -427,6 +427,8 @@ test("typing saves review data and only history displays heatmap and rhythm", as
   assert.match(typing, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
   assert.doesNotMatch(typing, /<HesitationHeatmap\b|<RhythmSummaryView\b|post-practice-review/);
   assert.match(history, /className="session-heatmap-trigger"/);
+  assert.equal(history.match(/className="session-heatmap-trigger"/g)?.length, 1);
+  assert.match(history, /session\.heatmap && session\.rhythmSummary\s*\? "卡顿图与节奏"/);
   assert.match(history, /<RhythmSummaryView\s+summary=\{session\.rhythmSummary\}/);
   assert.equal(history.match(/<HesitationHeatmap\b/g)?.length, 1);
   assert.match(
