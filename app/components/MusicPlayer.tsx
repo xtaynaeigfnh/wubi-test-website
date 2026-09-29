@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { animateMusicDock, captureMusicDock, type MusicDockMotion, type MusicDockSnapshot } from "./music-dock-motion";
 import { readLocal, STORAGE, writeLocal } from "../storage";
 import {
   DEFAULT_MUSIC_PREFERENCES,
@@ -374,8 +375,8 @@ function MusicDock() {
   }, []);
   const dockRef = useRef<HTMLElement>(null);
   const peekButtonRef = useRef<HTMLButtonElement>(null);
-  const morphRef = useRef<Animation | null>(null);
-  const morphElementRef = useRef<HTMLElement | null>(null);
+  const morphRef = useRef<MusicDockMotion | null>(null);
+  const collapseSnapshotRef = useRef<MusicDockSnapshot | null>(null);
   const morphDirectionRef = useRef<"open" | "close" | null>(null);
   const pointerInsideRef = useRef(false);
   const focusInsideRef = useRef(false);
@@ -422,6 +423,7 @@ function MusicDock() {
       }
       expandedRef.current = false;
       collapsedRef.current = true;
+      collapseSnapshotRef.current = dockRef.current ? captureMusicDock(dockRef.current) : null;
       morphDirectionRef.current = "close";
       setExpanded(false);
       setCollapsed(true);
@@ -445,6 +447,7 @@ function MusicDock() {
 
   const collapseDock = useCallback(() => {
     clearCollapseTimer();
+    collapseSnapshotRef.current = dockRef.current ? captureMusicDock(dockRef.current) : null;
     morphDirectionRef.current = "close";
     if (dockRef.current?.contains(document.activeElement)) {
       focusPeekAfterCollapseRef.current = true;
@@ -503,13 +506,13 @@ function MusicDock() {
     return clearCollapseTimer;
   }, [clearCollapseTimer]);
 
-  useLayoutEffect(() => {
-    if (collapsed && focusPeekAfterCollapseRef.current) {
+  const restoreDockFocus = useCallback(() => {
+    if (collapsedRef.current && focusPeekAfterCollapseRef.current) {
       focusPeekAfterCollapseRef.current = false;
       peekButtonRef.current?.focus({ preventScroll: true });
       return;
     }
-    if (!collapsed && focusControlAfterRevealRef.current) {
+    if (!collapsedRef.current && focusControlAfterRevealRef.current) {
       focusControlAfterRevealRef.current = false;
       dockRef.current
         ?.querySelector<HTMLButtonElement>(
@@ -517,7 +520,7 @@ function MusicDock() {
         )
         ?.focus({ preventScroll: true });
     }
-  }, [collapsed]);
+  }, []);
 
   useLayoutEffect(() => {
     const direction = morphDirectionRef.current;
@@ -526,62 +529,25 @@ function MusicDock() {
     const peek = peekButtonRef.current;
     if (!direction || !dock || !peek) return;
 
+    const interruptedRect = morphRef.current?.surface.getBoundingClientRect();
     morphRef.current?.cancel();
-    morphElementRef.current?.remove();
-    dock.classList.remove("is-morphing");
-    peek.classList.remove("is-morphing");
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const dockRect = dock.getBoundingClientRect();
-    const peekRect = peek.getBoundingClientRect();
-    const from = direction === "open" ? peekRect : dockRect;
-    const to = direction === "open" ? dockRect : peekRect;
-    const surface = document.createElement("div");
-    surface.className = "music-dock-morph";
-    const glyph = document.createElement("span");
-    glyph.textContent = "♫";
-    glyph.setAttribute("aria-hidden", "true");
-    surface.append(glyph);
-    document.body.append(surface);
-    morphElementRef.current = surface;
-    dock.classList.add("is-morphing");
-    peek.classList.add("is-morphing");
-    const frame = (rect: DOMRect, radius: string) => ({
-      left: `${rect.left}px`,
-      top: `${rect.top}px`,
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
-      borderRadius: radius,
+    morphRef.current = animateMusicDock({
+      dock,
+      peek,
+      opening: direction === "open",
+      snapshot: direction === "close" ? collapseSnapshotRef.current : null,
+      interruptedRect,
+      onFinish: () => {
+        morphRef.current = null;
+        if ((direction === "close") === collapsedRef.current) restoreDockFocus();
+      },
     });
-    const animation = surface.animate(
-      [
-        frame(from, direction === "open" ? "999px" : "0px"),
-        frame(to, direction === "open" ? "0px" : "999px"),
-      ],
-      { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" },
-    );
-    morphRef.current = animation;
-    glyph.animate(
-      direction === "open"
-        ? [{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 0 }]
-        : [{ opacity: 0 }, { opacity: 0, offset: 0.65 }, { opacity: 1 }],
-      { duration: 420, fill: "forwards" },
-    );
-    const finish = () => {
-      if (morphRef.current !== animation) return;
-      dock.classList.remove("is-morphing");
-      peek.classList.remove("is-morphing");
-      surface.remove();
-      morphElementRef.current = null;
-      morphRef.current = null;
-    };
-    animation.addEventListener("finish", finish, { once: true });
-    animation.addEventListener("cancel", finish, { once: true });
-  }, [collapsed]);
+    if (!morphRef.current) restoreDockFocus();
+    collapseSnapshotRef.current = null;
+  }, [collapsed, restoreDockFocus]);
 
   useEffect(() => () => {
     morphRef.current?.cancel();
-    morphElementRef.current?.remove();
   }, []);
 
   const peekButton = (
@@ -763,20 +729,25 @@ function MusicDock() {
           </button>
         </div>
 
-        <div className="music-ruler" aria-label="曲目刻度">
-          {tracks.map((track, index) => (
-            <button
+        <button
+          type="button"
+          className="music-ruler"
+          aria-label="打开曲目目录"
+          aria-expanded={expanded}
+          aria-controls="music-library"
+          title="查看全部曲目"
+          onClick={toggleLibrary}
+        >
+          {tracks.map((track) => (
+            <span
               key={track.id}
-              type="button"
               className={
                 track.id === currentTrack?.id ? "active" : undefined
               }
-              aria-label={`播放第 ${index + 1} 首：${track.title}`}
-              aria-pressed={track.id === currentTrack?.id}
-              onClick={() => selectTrack(track.id)}
+              aria-hidden="true"
             />
           ))}
-        </div>
+        </button>
 
         <label className="music-progress">
           <span>

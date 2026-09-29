@@ -39,21 +39,8 @@ label:has(> input[type="radio"]) {
   min-height: 44px;
 }
 
-.music-ruler {
-  overflow-x: auto;
-  min-height: 48px;
-}
-
-.music-ruler button {
-  width: 44px;
-}
-
 .theme-switch {
   min-height: 44px;
-}
-
-.music-ruler {
-  grid-auto-columns: 44px;
 }
 
 .practice-mode > span,

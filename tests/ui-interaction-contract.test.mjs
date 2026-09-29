@@ -1189,10 +1189,12 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-dock\s*\{/);
   assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
   assert.match(styles, /\.music-dock-peek\s*\{/);
-  assert.match(music, /const dockRect = dock\.getBoundingClientRect\(\)/);
-  assert.match(music, /const peekRect = peek\.getBoundingClientRect\(\)/);
-  assert.match(music, /surface\.animate\(/);
-  assert.match(music, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  const motion = await readFile(new URL("../app/components/music-dock-motion.ts", import.meta.url), "utf8");
+  assert.match(motion, /peek\.getBoundingClientRect\(\)/);
+  assert.match(motion, /captureMusicDock\(dock\)/);
+  assert.match(motion, /surface\.animate\(/);
+  assert.match(motion, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(motion, /surface\.inert = true/);
   assert.match(music, /inert=\{collapsed\}/);
   assert.match(music, /inert=\{!expanded \|\| collapsed\}/);
   assert.match(styles, /\.music-dock-morph\s*\{/);
@@ -1207,6 +1209,8 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /@keyframes music-ink-reveal/);
   assert.match(styles, /@keyframes music-seal-breathe/);
   assert.match(styles, /\.music-ruler\s*\{/);
+  assert.match(music, /className="music-ruler"\s+aria-label="打开曲目目录"/);
+  assert.doesNotMatch(styles, /\.music-ruler\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
@@ -1236,7 +1240,7 @@ test("music dock waits for both pointer and focus to leave before collapsing", a
   assert.match(music, /onFocusCapture=\{handleFocus\}/);
   assert.match(music, /onBlurCapture=\{handleBlur\}/);
   assert.match(music, /dockRef\.current\?\.contains\(document\.activeElement\)/);
-  assert.match(music, /useLayoutEffect\(\(\) => \{[\s\S]*peekButtonRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(music, /const restoreDockFocus = useCallback\([\s\S]*peekButtonRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
   assert.match(music, /return clearCollapseTimer/);
   assert.doesNotMatch(music, /activityTick/);
 });
