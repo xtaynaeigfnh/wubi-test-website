@@ -39,24 +39,25 @@ label:has(> input[type="radio"]) {
   min-height: 44px;
 }
 
-.music-ruler {
-  overflow-x: auto;
-  min-height: 48px;
-}
-
-.music-ruler button {
-  width: 44px;
-}
-
 .theme-switch {
   min-height: 44px;
-}
-
-.music-ruler {
-  grid-auto-columns: 44px;
 }
 
 .practice-mode > span,
 .practice-actions > button:not(:disabled) {
   color: var(--text-primary);
+}
+
+/* Compact track shortcuts share a full-height strip; the library offers large targets. */
+.music-dock .music-ruler > button {
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  padding: 0 2px;
+  display: grid;
+  align-items: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
 }

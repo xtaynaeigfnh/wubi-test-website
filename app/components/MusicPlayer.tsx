@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { animateMusicDock, captureMusicDock, type MusicDockMotion, type MusicDockSnapshot } from "./music-dock-motion";
 import { readLocal, STORAGE, writeLocal } from "../storage";
 import {
   DEFAULT_MUSIC_PREFERENCES,
@@ -357,6 +358,7 @@ function MusicDock() {
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const [mobilePeek, setMobilePeek] = useState(false);
   useEffect(() => {
     const syncSlot = () => setHeaderSlot(document.getElementById("music-header-slot"));
     syncSlot();
@@ -364,8 +366,18 @@ function MusicDock() {
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 780px)");
+    const syncViewport = () => setMobilePeek(media.matches);
+    syncViewport();
+    media.addEventListener("change", syncViewport);
+    return () => media.removeEventListener("change", syncViewport);
+  }, []);
   const dockRef = useRef<HTMLElement>(null);
   const peekButtonRef = useRef<HTMLButtonElement>(null);
+  const morphRef = useRef<MusicDockMotion | null>(null);
+  const collapseSnapshotRef = useRef<MusicDockSnapshot | null>(null);
+  const morphDirectionRef = useRef<"open" | "close" | null>(null);
   const pointerInsideRef = useRef(false);
   const focusInsideRef = useRef(false);
   const expandedRef = useRef(false);
@@ -411,6 +423,8 @@ function MusicDock() {
       }
       expandedRef.current = false;
       collapsedRef.current = true;
+      collapseSnapshotRef.current = dockRef.current ? captureMusicDock(dockRef.current) : null;
+      morphDirectionRef.current = "close";
       setExpanded(false);
       setCollapsed(true);
     }, MUSIC_DOCK_COLLAPSE_DELAY);
@@ -422,6 +436,7 @@ function MusicDock() {
 
   const revealDock = useCallback(() => {
     clearCollapseTimer();
+    morphDirectionRef.current = "open";
     if (document.activeElement === peekButtonRef.current) {
       focusControlAfterRevealRef.current = true;
       focusInsideRef.current = false;
@@ -432,6 +447,8 @@ function MusicDock() {
 
   const collapseDock = useCallback(() => {
     clearCollapseTimer();
+    collapseSnapshotRef.current = dockRef.current ? captureMusicDock(dockRef.current) : null;
+    morphDirectionRef.current = "close";
     if (dockRef.current?.contains(document.activeElement)) {
       focusPeekAfterCollapseRef.current = true;
     }
@@ -489,21 +506,71 @@ function MusicDock() {
     return clearCollapseTimer;
   }, [clearCollapseTimer]);
 
-  useLayoutEffect(() => {
-    if (collapsed && focusPeekAfterCollapseRef.current) {
+  const restoreDockFocus = useCallback(() => {
+    if (collapsedRef.current && focusPeekAfterCollapseRef.current) {
       focusPeekAfterCollapseRef.current = false;
-      peekButtonRef.current?.focus();
+      peekButtonRef.current?.focus({ preventScroll: true });
       return;
     }
-    if (!collapsed && focusControlAfterRevealRef.current) {
+    if (!collapsedRef.current && focusControlAfterRevealRef.current) {
       focusControlAfterRevealRef.current = false;
       dockRef.current
         ?.querySelector<HTMLButtonElement>(
-          'button:not(.music-dock-peek):not(:disabled)',
+          '.music-dock-bar button:not(:disabled)',
         )
-        ?.focus();
+        ?.focus({ preventScroll: true });
     }
-  }, [collapsed]);
+  }, []);
+
+  useLayoutEffect(() => {
+    const direction = morphDirectionRef.current;
+    morphDirectionRef.current = null;
+    const dock = dockRef.current;
+    const peek = peekButtonRef.current;
+    if (!direction || !dock || !peek) return;
+
+    const interruptedRect = morphRef.current?.surface.getBoundingClientRect();
+    morphRef.current?.cancel();
+    morphRef.current = animateMusicDock({
+      dock,
+      peek,
+      opening: direction === "open",
+      snapshot: direction === "close" ? collapseSnapshotRef.current : null,
+      interruptedRect,
+      onFinish: () => {
+        morphRef.current = null;
+        if ((direction === "close") === collapsedRef.current) restoreDockFocus();
+      },
+    });
+    if (!morphRef.current) restoreDockFocus();
+    collapseSnapshotRef.current = null;
+  }, [collapsed, restoreDockFocus]);
+
+  useEffect(() => () => {
+    morphRef.current?.cancel();
+  }, []);
+
+  const peekButton = (
+    <button
+      type="button"
+      ref={peekButtonRef}
+      className={collapsed ? "music-dock-peek is-visible" : "music-dock-peek"}
+      aria-label="展开专注电台控制栏"
+      title="展开专注电台"
+      aria-hidden={!collapsed}
+      inert={!collapsed}
+      onClick={revealDock}
+    >
+      <svg className="music-peek-icon" width="28" height="32" viewBox="0 0 28 32" fill="none" aria-hidden="true" focusable="false">
+        <g transform="translate(2.5 0)">
+          <path d="M9 18V7L19 4V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <ellipse cx="6.5" cy="18" rx="3.5" ry="2.75" fill="currentColor" />
+          <ellipse cx="16.5" cy="15" rx="3.5" ry="2.75" fill="currentColor" />
+        </g>
+        <path className="music-peek-arrow" d="M11.5 24.5L14 27L16.5 24.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
 
   const dock = (
     <aside
@@ -517,30 +584,19 @@ function MusicDock() {
         .filter(Boolean)
         .join(" ")}
       aria-label="背景音乐播放器"
+      aria-hidden={collapsed}
+      inert={collapsed}
       onClickCapture={collapsed ? undefined : keepDockOpen}
       onFocusCapture={handleFocus}
       onBlurCapture={handleBlur}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
     >
-      {collapsed && (
-        <button
-          type="button"
-          ref={peekButtonRef}
-          className="music-dock-peek"
-          aria-label="展开专注电台控制栏"
-          title="展开专注电台"
-          onClick={revealDock}
-        >
-          <span className="music-peek-icon" aria-hidden="true">
-            ♫
-          </span>
-          <span className="music-peek-chevron" aria-hidden="true">
-            ⌃
-          </span>
-        </button>
-      )}
-      {expanded && !collapsed && (
+      <div
+        className={expanded && !collapsed ? "music-library-reveal is-expanded" : "music-library-reveal"}
+        aria-hidden={!expanded || collapsed}
+        inert={!expanded || collapsed}
+      >
         <div className="music-library" id="music-library">
           <div className="music-library-heading">
             <div>
@@ -601,9 +657,9 @@ function MusicDock() {
             ))}
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="music-dock-bar" hidden={collapsed}>
+      <div className="music-dock-bar">
         <div className="music-station">
           <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
             <i />
@@ -679,18 +735,19 @@ function MusicDock() {
           </button>
         </div>
 
-        <div className="music-ruler" aria-label="曲目刻度">
+        <div className="music-ruler" role="group" aria-label="曲目刻度">
           {tracks.map((track, index) => (
             <button
               key={track.id}
               type="button"
-              className={
-                track.id === currentTrack?.id ? "active" : undefined
-              }
-              aria-label={`播放第 ${index + 1} 首：${track.title}`}
+              className={track.id === currentTrack?.id ? "active" : undefined}
+              aria-label={`切换到第 ${index + 1} 首：${track.title}`}
               aria-pressed={track.id === currentTrack?.id}
+              title={track.title}
               onClick={() => selectTrack(track.id)}
-            />
+            >
+              <span aria-hidden="true" />
+            </button>
           ))}
         </div>
 
@@ -742,10 +799,17 @@ function MusicDock() {
           title="收起播放器"
           onClick={collapseDock}
         >
-          ⌄
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+            <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
     </aside>
   );
-  return collapsed && headerSlot ? createPortal(dock, headerSlot) : dock;
+  return (
+    <>
+      {headerSlot && !mobilePeek ? createPortal(peekButton, headerSlot) : peekButton}
+      {dock}
+    </>
+  );
 }

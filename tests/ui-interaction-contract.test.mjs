@@ -1189,16 +1189,33 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-dock\s*\{/);
   assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
   assert.match(styles, /\.music-dock-peek\s*\{/);
+  const motion = await readFile(new URL("../app/components/music-dock-motion.ts", import.meta.url), "utf8");
+  assert.match(motion, /peek\.getBoundingClientRect\(\)/);
+  assert.match(motion, /captureMusicDock\(dock\)/);
+  assert.match(motion, /surface\.animate\(/);
+  assert.match(motion, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(motion, /surface\.inert = true/);
+  assert.match(music, /inert=\{collapsed\}/);
+  assert.match(music, /inert=\{!expanded \|\| collapsed\}/);
+  assert.match(styles, /\.music-dock-morph\s*\{/);
+  assert.match(styles, /\.music-library-reveal\.is-expanded\s*\{/);
+  assert.match(styles, /\.music-library-reveal\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*auto 0 100%;[^}]*pointer-events:\s*none;/s);
+  assert.match(styles, /\.music-library-reveal\.is-expanded \.music-library\s*\{[^}]*pointer-events:\s*auto;/s);
   assert.match(music, /className="music-peek-icon"/);
   assert.match(
     styles,
-    /\.music-dock-peek\s*\{[^}]*width:\s*56px[^}]*height:\s*56px[^}]*border-radius:\s*50%/s,
+    /\.music-dock-peek\s*\{[^}]*width:\s*44px[^}]*height:\s*44px[^}]*border-radius:\s*50%/s,
   );
   assert.match(styles, /\.music-library-toggle\s*\{/);
   assert.match(styles, /@keyframes music-brush-line/);
   assert.match(styles, /@keyframes music-ink-reveal/);
   assert.match(styles, /@keyframes music-seal-breathe/);
   assert.match(styles, /\.music-ruler\s*\{/);
+  assert.match(styles, /\.music-ruler > button > span\s*\{[^}]*height:\s*6px;/s);
+  assert.match(styles, /\.music-ruler > button\.active > span\s*\{[^}]*height:\s*22px;/s);
+  assert.doesNotMatch(styles, /\.music-ruler:hover > span|\.music-ruler > span:nth-child/);
+  assert.match(music, /className="music-ruler" role="group" aria-label="曲目刻度"/);
+  assert.doesNotMatch(styles, /\.music-ruler\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
@@ -1228,7 +1245,7 @@ test("music dock waits for both pointer and focus to leave before collapsing", a
   assert.match(music, /onFocusCapture=\{handleFocus\}/);
   assert.match(music, /onBlurCapture=\{handleBlur\}/);
   assert.match(music, /dockRef\.current\?\.contains\(document\.activeElement\)/);
-  assert.match(music, /useLayoutEffect\(\(\) => \{[\s\S]*peekButtonRef\.current\?\.focus\(\)/);
+  assert.match(music, /const restoreDockFocus = useCallback\([\s\S]*peekButtonRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
   assert.match(music, /return clearCollapseTimer/);
   assert.doesNotMatch(music, /activityTick/);
 });
@@ -1466,8 +1483,12 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
   }
   assert.match(styles, /\.phrase-training\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
   assert.match(shell, /id="music-header-slot"/);
-  assert.match(music, /createPortal\(dock, headerSlot\)/);
-  assert.match(styles, /#music-header-slot \.music-dock\.is-collapsed\s*\{[^}]*position:\s*static/s);
+  assert.match(music, /createPortal\(peekButton, headerSlot\)/);
+  assert.doesNotMatch(music, /createPortal\(dock, headerSlot\)/);
+  assert.match(styles, /#music-header-slot \.music-dock-peek\s*\{/);
+  assert.match(music, /matchMedia\("\(max-width: 780px\)"\)/);
+  assert.match(music, /headerSlot && !mobilePeek \? createPortal\(peekButton, headerSlot\)/);
+  assert.match(styles, /@media \(max-width: 780px\)\s*\{[^}]*#music-header-slot\s*\{/s);
 });
 
 
@@ -1507,4 +1528,18 @@ test("history overview keeps compact metrics on desktop and mobile", async () =>
   assert.match(styles, /\.history-page \.summary-card \{ padding: 16px 24px;/);
   assert.match(styles, /margin: 10px 0 8px; font-size: 28px;/);
   assert.match(styles, /\.history-page \.summary-card strong \{ font-size: 24px;/);
+});
+
+test("music collapse uses a centered vector icon and a square touch target", async () => {
+  const music = await readFile(musicPath, "utf8");
+  const styles = await readFile(new URL("../app/styles/music.css", import.meta.url), "utf8");
+  assert.match(music, /className="music-collapse"[\s\S]*?<svg width="16" height="16"[\s\S]*?aria-hidden="true"/);
+  assert.match(styles, /\.music-collapse \{\s*width: 44px;\s*height: 44px;\s*padding: 0;\s*display: grid;\s*place-items: center;/);
+});
+
+test("collapsed radio groups music and a downward arrow in one vector icon", async () => {
+  const music = await readFile(musicPath, "utf8");
+  assert.match(music, /<svg className="music-peek-icon" width="28" height="32"/);
+  assert.match(music, /className="music-peek-arrow" d="M11.5 24.5L14 27L16.5 24.5"/);
+  assert.doesNotMatch(music, /className="music-peek-chevron"/);
 });
