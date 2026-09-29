@@ -125,18 +125,14 @@
 }
 
 .music-peek-icon {
+  display: block;
+  width: 28px;
+  height: 32px;
   color: var(--accent-vermilion);
-  font-family: var(--font-display);
-  font-size: 25px;
-  line-height: 1;
 }
 
-.music-peek-chevron {
-  position: absolute;
-  top: 7px;
-  right: 8px;
+.music-peek-arrow {
   color: #86bca9;
-  font: 700 9px/1 var(--font-data);
 }
 
 @keyframes music-brush-line {
@@ -485,13 +481,17 @@
 }
 
 .music-collapse {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   display: grid;
   place-items: center;
   flex: none;
   border-radius: 50%;
-  font: 700 14px/1 var(--font-data);
+}
+
+.music-collapse > svg {
+  display: block;
 }
 
 .music-library-reveal {

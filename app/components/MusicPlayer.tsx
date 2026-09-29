@@ -561,8 +561,14 @@ function MusicDock() {
       inert={!collapsed}
       onClick={revealDock}
     >
-      <span className="music-peek-icon" aria-hidden="true">♫</span>
-      <span className="music-peek-chevron" aria-hidden="true">⌃</span>
+      <svg className="music-peek-icon" width="28" height="32" viewBox="0 0 28 32" fill="none" aria-hidden="true" focusable="false">
+        <g transform="translate(2.5 0)">
+          <path d="M9 18V7L19 4V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <ellipse cx="6.5" cy="18" rx="3.5" ry="2.75" fill="currentColor" />
+          <ellipse cx="16.5" cy="15" rx="3.5" ry="2.75" fill="currentColor" />
+        </g>
+        <path className="music-peek-arrow" d="M11.5 24.5L14 27L16.5 24.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   );
 
@@ -793,7 +799,9 @@ function MusicDock() {
           title="收起播放器"
           onClick={collapseDock}
         >
-          ⌄
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+            <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
     </aside>

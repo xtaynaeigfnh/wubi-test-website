@@ -1529,3 +1529,17 @@ test("history overview keeps compact metrics on desktop and mobile", async () =>
   assert.match(styles, /margin: 10px 0 8px; font-size: 28px;/);
   assert.match(styles, /\.history-page \.summary-card strong \{ font-size: 24px;/);
 });
+
+test("music collapse uses a centered vector icon and a square touch target", async () => {
+  const music = await readFile(musicPath, "utf8");
+  const styles = await readFile(new URL("../app/styles/music.css", import.meta.url), "utf8");
+  assert.match(music, /className="music-collapse"[\s\S]*?<svg width="16" height="16"[\s\S]*?aria-hidden="true"/);
+  assert.match(styles, /\.music-collapse \{\s*width: 44px;\s*height: 44px;\s*padding: 0;\s*display: grid;\s*place-items: center;/);
+});
+
+test("collapsed radio groups music and a downward arrow in one vector icon", async () => {
+  const music = await readFile(musicPath, "utf8");
+  assert.match(music, /<svg className="music-peek-icon" width="28" height="32"/);
+  assert.match(music, /className="music-peek-arrow" d="M11.5 24.5L14 27L16.5 24.5"/);
+  assert.doesNotMatch(music, /className="music-peek-chevron"/);
+});
