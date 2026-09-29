@@ -1199,6 +1199,8 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(music, /inert=\{!expanded \|\| collapsed\}/);
   assert.match(styles, /\.music-dock-morph\s*\{/);
   assert.match(styles, /\.music-library-reveal\.is-expanded\s*\{/);
+  assert.match(styles, /\.music-library-reveal\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*auto 0 100%;[^}]*pointer-events:\s*none;/s);
+  assert.match(styles, /\.music-library-reveal\.is-expanded \.music-library\s*\{[^}]*pointer-events:\s*auto;/s);
   assert.match(music, /className="music-peek-icon"/);
   assert.match(
     styles,
