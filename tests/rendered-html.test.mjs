@@ -33,7 +33,7 @@ test("server-renders the finished Chinese product shell", async () => {
   assert.match(html, /文章测速/);
   assert.match(html, /进阶训练/);
   assert.match(html, /五笔查码/);
-  assert.match(html, /本地成绩/);
+  assert.match(html, /成绩统计/);
   assert.match(html, /专注电台/);
   assert.match(html, /300 篇练习文章/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
@@ -75,6 +75,8 @@ test("keyboard summary route server-renders its analysis shell", async () => {
   assert.match(html, /按键使用概览/);
   assert.match(html, /点选键位查看详情/);
   assert.match(html, /左右滑动查看完整键盘/);
+  assert.match(html, /按键统计/);
+  assert.match(html, /id="history-keys"/);
 });
 
 test("history route server-renders the journal and deferred weekly report", async () => {
@@ -85,6 +87,7 @@ test("history route server-renders the journal and deferred weekly report", asyn
   assert.match(html, /id="history-weekly" hidden/);
   assert.match(html, /你的进步，从第一行字开始/);
   assert.match(html, /正在读取本机数据并生成本周周报/);
+  assert.match(html, /按键统计/);
 });
 
 test("settings route server-renders every theme preset", async () => {

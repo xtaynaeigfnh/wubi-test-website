@@ -28,6 +28,7 @@ import { TrendPanel } from "../TrendPanel";
 import { WeeklyReportPanel } from "../WeeklyReportPanel";
 import { DiagnosticMetric, SummaryCard } from "../Ui";
 import { HesitationHeatmap } from "../HesitationHeatmap";
+import { KeySummary } from "../KeySummary";
 
 function sessionRecommendationEvidence(session: SessionResult): string[] {
   const evidence: string[] = [];
@@ -58,12 +59,14 @@ function sessionRecommendationEvidence(session: SessionResult): string[] {
 }
 
 export function HistoryView({
+  initialSection = "records",
   onPracticeHesitation,
   onAddHesitationToQueue,
   queuedFingerprints,
   masteredAtByFingerprint,
   hesitationSaveRevision,
 }: {
+  initialSection?: "records" | "keys";
   onPracticeHesitation: (target: HesitationPracticeTarget) => void;
   onAddHesitationToQueue: (target: HesitationPracticeTarget) => void;
   queuedFingerprints: ReadonlySet<string>;
@@ -80,7 +83,7 @@ export function HistoryView({
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training" | "advanced"
   >("all");
-  const [section, setSection] = useState<"records" | "trends" | "weekly">("records");
+  const [section, setSection] = useState<"records" | "trends" | "weekly" | "keys">(initialSection);
   const [expandedHeatmapId, setExpandedHeatmapId] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
@@ -165,7 +168,7 @@ export function HistoryView({
         </div>
         <Link className="button primary" href="/">开始练习 <span aria-hidden="true">↗</span></Link>
       </header>
-      <div className="history-overview-heading"><h2>本地成绩</h2><span>仅保存在当前浏览器</span></div>
+      <div className="history-overview-heading"><h2>成绩统计</h2><span>仅保存在当前浏览器</span></div>
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
         <SummaryCard label="最高速度" value={`${bestSpeed}`} unit="字/分" note="文章测速个人最佳" accent />
@@ -174,7 +177,7 @@ export function HistoryView({
       </div>
       <nav className="history-sections" aria-label="成绩视图">
         {([
-          ["records", "练习记录"], ["trends", "成绩趋势"], ["weekly", "能力周报"],
+          ["records", "练习记录"], ["trends", "成绩趋势"], ["weekly", "能力周报"], ["keys", "按键统计"],
         ] as const).map(([value, label]) => (
           <button key={value} aria-pressed={section === value} aria-controls={`history-${value}`} onClick={() => setSection(value)}>
             {label}{value === "records" && <span>{sessions.length}</span>}
@@ -187,6 +190,7 @@ export function HistoryView({
         )}
       </div>
       <div id="history-trends" hidden={section !== "trends"}><TrendPanel sessions={sessions} /></div>
+      <div id="history-keys" hidden={section !== "keys"}><KeySummary embedded /></div>
       <div id="history-records" hidden={section !== "records"}>
       <div className="history-grid">
         <div className="history-panel">
@@ -416,7 +420,7 @@ export function HistoryView({
         </aside>
       </div>
       </div>
-      <footer className="history-footer">
+      <footer className="history-footer" hidden={section === "keys"}>
         <p>练习记录只属于你。换设备前，记得<Link href="/settings#settings-backup">备份数据</Link>。</p>
         <button className="history-clear" onClick={clearResults}>清除练习数据与计划</button>
       </footer>

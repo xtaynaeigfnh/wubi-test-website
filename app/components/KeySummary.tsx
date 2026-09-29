@@ -8,7 +8,7 @@ import { KEYBOARD_KEYS, summarizeKeyUsage, type KeyUsageMap } from "../key-usage
 import { KeyboardHeatmap } from "./summary/KeyboardHeatmap";
 import { UsageCharts } from "./summary/UsageCharts";
 
-export function KeySummary() {
+export function KeySummary({ embedded = false }: { embedded?: boolean }) {
   const [usage, setUsage] = useState<KeyUsageMap>({});
   const [ready, setReady] = useState(false);
   const [resetError, setResetError] = useState("");
@@ -30,14 +30,14 @@ export function KeySummary() {
   };
 
   return (
-    <section className="subpage key-summary-page" aria-busy={!ready}>
+    <section className={`subpage key-summary-page${embedded ? " key-summary-embedded" : ""}`} aria-busy={!ready}>
       <header className="key-summary-toolbar">
         <div className="key-summary-intro">
           <span className="eyebrow">练习档案 / 按键统计</span>
-          <h1 ref={headingRef} tabIndex={-1}>按键使用画像<span>每一次敲击，都有迹可循。</span></h1>
+          <h2 ref={headingRef} tabIndex={-1}>按键使用画像<span>每一次敲击，都有迹可循。</span></h2>
           <p>从键盘热区到双手分工，看看你的五笔输入习惯。</p>
         </div>
-        <Link className="button primary summary-practice-link" href="/">继续文章测速 <span aria-hidden="true">↗</span></Link>
+        {!embedded && <Link className="button primary summary-practice-link" href="/">继续文章测速 <span aria-hidden="true">↗</span></Link>}
       </header>
       <dl className="key-summary-metrics" aria-label="按键使用概览">
         <div><dt>累计按键</dt><dd>{ready ? summary.total.toLocaleString("zh-CN") : "—"}<small>次</small></dd><dd className="metric-description">练习期间的物理键触发</dd></div>
