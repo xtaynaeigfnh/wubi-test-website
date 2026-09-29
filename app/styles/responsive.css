@@ -125,11 +125,6 @@
     padding-inline: 7px;
   }
 
-  .music-dock.is-collapsed {
-    right: 12px;
-    bottom: 12px;
-  }
-
   .music-library {
     width: calc(100% - 20px);
     max-height: calc(100dvh - 86px);
@@ -561,19 +556,9 @@
     gap: 7px;
   }
 
-  .music-dock.is-collapsed {
+  .music-dock-peek {
     right: 10px;
     bottom: 10px;
-  }
-
-  .music-dock-peek {
-    width: 52px;
-    min-width: 52px;
-    min-height: 52px;
-    padding: 5px;
-    grid-template-columns: 1fr;
-    place-items: center;
-    border-radius: 50%;
   }
 
   .music-dock-peek > span:nth-child(2),

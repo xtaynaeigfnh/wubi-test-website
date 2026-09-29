@@ -1189,10 +1189,18 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-dock\s*\{/);
   assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
   assert.match(styles, /\.music-dock-peek\s*\{/);
+  assert.match(music, /const dockRect = dock\.getBoundingClientRect\(\)/);
+  assert.match(music, /const peekRect = peek\.getBoundingClientRect\(\)/);
+  assert.match(music, /surface\.animate\(/);
+  assert.match(music, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(music, /inert=\{collapsed\}/);
+  assert.match(music, /inert=\{!expanded \|\| collapsed\}/);
+  assert.match(styles, /\.music-dock-morph\s*\{/);
+  assert.match(styles, /\.music-library-reveal\.is-expanded\s*\{/);
   assert.match(music, /className="music-peek-icon"/);
   assert.match(
     styles,
-    /\.music-dock-peek\s*\{[^}]*width:\s*56px[^}]*height:\s*56px[^}]*border-radius:\s*50%/s,
+    /\.music-dock-peek\s*\{[^}]*width:\s*44px[^}]*height:\s*44px[^}]*border-radius:\s*50%/s,
   );
   assert.match(styles, /\.music-library-toggle\s*\{/);
   assert.match(styles, /@keyframes music-brush-line/);
@@ -1228,7 +1236,7 @@ test("music dock waits for both pointer and focus to leave before collapsing", a
   assert.match(music, /onFocusCapture=\{handleFocus\}/);
   assert.match(music, /onBlurCapture=\{handleBlur\}/);
   assert.match(music, /dockRef\.current\?\.contains\(document\.activeElement\)/);
-  assert.match(music, /useLayoutEffect\(\(\) => \{[\s\S]*peekButtonRef\.current\?\.focus\(\)/);
+  assert.match(music, /useLayoutEffect\(\(\) => \{[\s\S]*peekButtonRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
   assert.match(music, /return clearCollapseTimer/);
   assert.doesNotMatch(music, /activityTick/);
 });
@@ -1466,8 +1474,12 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
   }
   assert.match(styles, /\.phrase-training\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
   assert.match(shell, /id="music-header-slot"/);
-  assert.match(music, /createPortal\(dock, headerSlot\)/);
-  assert.match(styles, /#music-header-slot \.music-dock\.is-collapsed\s*\{[^}]*position:\s*static/s);
+  assert.match(music, /createPortal\(peekButton, headerSlot\)/);
+  assert.doesNotMatch(music, /createPortal\(dock, headerSlot\)/);
+  assert.match(styles, /#music-header-slot \.music-dock-peek\s*\{/);
+  assert.match(music, /matchMedia\("\(max-width: 780px\)"\)/);
+  assert.match(music, /headerSlot && !mobilePeek \? createPortal\(peekButton, headerSlot\)/);
+  assert.match(styles, /@media \(max-width: 780px\)\s*\{[^}]*#music-header-slot\s*\{/s);
 });
 
 

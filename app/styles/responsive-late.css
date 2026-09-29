@@ -163,10 +163,8 @@
 #music-header-slot {
   width: 44px;
   min-width: 44px;
+  height: 44px;
   align-self: center;
-}
-#music-header-slot .music-dock.is-collapsed {
-  position: static;
 }
 #music-header-slot .music-dock-peek {
   width: 44px;
@@ -174,6 +172,20 @@
   height: 44px;
   min-height: 44px;
   padding: 0;
+}
+@media (max-width: 780px) {
+  #music-header-slot {
+    width: 0;
+    min-width: 0;
+    height: 0;
+  }
+
+  .music-dock-peek {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 50;
+  }
 }
 @media (min-width: 621px) and (max-width: 900px) {
   .header-inner {

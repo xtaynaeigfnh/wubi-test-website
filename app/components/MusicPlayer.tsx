@@ -357,6 +357,7 @@ function MusicDock() {
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const [mobilePeek, setMobilePeek] = useState(false);
   useEffect(() => {
     const syncSlot = () => setHeaderSlot(document.getElementById("music-header-slot"));
     syncSlot();
@@ -364,8 +365,18 @@ function MusicDock() {
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 780px)");
+    const syncViewport = () => setMobilePeek(media.matches);
+    syncViewport();
+    media.addEventListener("change", syncViewport);
+    return () => media.removeEventListener("change", syncViewport);
+  }, []);
   const dockRef = useRef<HTMLElement>(null);
   const peekButtonRef = useRef<HTMLButtonElement>(null);
+  const morphRef = useRef<Animation | null>(null);
+  const morphElementRef = useRef<HTMLElement | null>(null);
+  const morphDirectionRef = useRef<"open" | "close" | null>(null);
   const pointerInsideRef = useRef(false);
   const focusInsideRef = useRef(false);
   const expandedRef = useRef(false);
@@ -411,6 +422,7 @@ function MusicDock() {
       }
       expandedRef.current = false;
       collapsedRef.current = true;
+      morphDirectionRef.current = "close";
       setExpanded(false);
       setCollapsed(true);
     }, MUSIC_DOCK_COLLAPSE_DELAY);
@@ -422,6 +434,7 @@ function MusicDock() {
 
   const revealDock = useCallback(() => {
     clearCollapseTimer();
+    morphDirectionRef.current = "open";
     if (document.activeElement === peekButtonRef.current) {
       focusControlAfterRevealRef.current = true;
       focusInsideRef.current = false;
@@ -432,6 +445,7 @@ function MusicDock() {
 
   const collapseDock = useCallback(() => {
     clearCollapseTimer();
+    morphDirectionRef.current = "close";
     if (dockRef.current?.contains(document.activeElement)) {
       focusPeekAfterCollapseRef.current = true;
     }
@@ -492,18 +506,99 @@ function MusicDock() {
   useLayoutEffect(() => {
     if (collapsed && focusPeekAfterCollapseRef.current) {
       focusPeekAfterCollapseRef.current = false;
-      peekButtonRef.current?.focus();
+      peekButtonRef.current?.focus({ preventScroll: true });
       return;
     }
     if (!collapsed && focusControlAfterRevealRef.current) {
       focusControlAfterRevealRef.current = false;
       dockRef.current
         ?.querySelector<HTMLButtonElement>(
-          'button:not(.music-dock-peek):not(:disabled)',
+          '.music-dock-bar button:not(:disabled)',
         )
-        ?.focus();
+        ?.focus({ preventScroll: true });
     }
   }, [collapsed]);
+
+  useLayoutEffect(() => {
+    const direction = morphDirectionRef.current;
+    morphDirectionRef.current = null;
+    const dock = dockRef.current;
+    const peek = peekButtonRef.current;
+    if (!direction || !dock || !peek) return;
+
+    morphRef.current?.cancel();
+    morphElementRef.current?.remove();
+    dock.classList.remove("is-morphing");
+    peek.classList.remove("is-morphing");
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const dockRect = dock.getBoundingClientRect();
+    const peekRect = peek.getBoundingClientRect();
+    const from = direction === "open" ? peekRect : dockRect;
+    const to = direction === "open" ? dockRect : peekRect;
+    const surface = document.createElement("div");
+    surface.className = "music-dock-morph";
+    const glyph = document.createElement("span");
+    glyph.textContent = "♫";
+    glyph.setAttribute("aria-hidden", "true");
+    surface.append(glyph);
+    document.body.append(surface);
+    morphElementRef.current = surface;
+    dock.classList.add("is-morphing");
+    peek.classList.add("is-morphing");
+    const frame = (rect: DOMRect, radius: string) => ({
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      borderRadius: radius,
+    });
+    const animation = surface.animate(
+      [
+        frame(from, direction === "open" ? "999px" : "0px"),
+        frame(to, direction === "open" ? "0px" : "999px"),
+      ],
+      { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" },
+    );
+    morphRef.current = animation;
+    glyph.animate(
+      direction === "open"
+        ? [{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 0 }]
+        : [{ opacity: 0 }, { opacity: 0, offset: 0.65 }, { opacity: 1 }],
+      { duration: 420, fill: "forwards" },
+    );
+    const finish = () => {
+      if (morphRef.current !== animation) return;
+      dock.classList.remove("is-morphing");
+      peek.classList.remove("is-morphing");
+      surface.remove();
+      morphElementRef.current = null;
+      morphRef.current = null;
+    };
+    animation.addEventListener("finish", finish, { once: true });
+    animation.addEventListener("cancel", finish, { once: true });
+  }, [collapsed]);
+
+  useEffect(() => () => {
+    morphRef.current?.cancel();
+    morphElementRef.current?.remove();
+  }, []);
+
+  const peekButton = (
+    <button
+      type="button"
+      ref={peekButtonRef}
+      className={collapsed ? "music-dock-peek is-visible" : "music-dock-peek"}
+      aria-label="展开专注电台控制栏"
+      title="展开专注电台"
+      aria-hidden={!collapsed}
+      inert={!collapsed}
+      onClick={revealDock}
+    >
+      <span className="music-peek-icon" aria-hidden="true">♫</span>
+      <span className="music-peek-chevron" aria-hidden="true">⌃</span>
+    </button>
+  );
 
   const dock = (
     <aside
@@ -517,30 +612,19 @@ function MusicDock() {
         .filter(Boolean)
         .join(" ")}
       aria-label="背景音乐播放器"
+      aria-hidden={collapsed}
+      inert={collapsed}
       onClickCapture={collapsed ? undefined : keepDockOpen}
       onFocusCapture={handleFocus}
       onBlurCapture={handleBlur}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
     >
-      {collapsed && (
-        <button
-          type="button"
-          ref={peekButtonRef}
-          className="music-dock-peek"
-          aria-label="展开专注电台控制栏"
-          title="展开专注电台"
-          onClick={revealDock}
-        >
-          <span className="music-peek-icon" aria-hidden="true">
-            ♫
-          </span>
-          <span className="music-peek-chevron" aria-hidden="true">
-            ⌃
-          </span>
-        </button>
-      )}
-      {expanded && !collapsed && (
+      <div
+        className={expanded && !collapsed ? "music-library-reveal is-expanded" : "music-library-reveal"}
+        aria-hidden={!expanded || collapsed}
+        inert={!expanded || collapsed}
+      >
         <div className="music-library" id="music-library">
           <div className="music-library-heading">
             <div>
@@ -601,9 +685,9 @@ function MusicDock() {
             ))}
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="music-dock-bar" hidden={collapsed}>
+      <div className="music-dock-bar">
         <div className="music-station">
           <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
             <i />
@@ -747,5 +831,10 @@ function MusicDock() {
       </div>
     </aside>
   );
-  return collapsed && headerSlot ? createPortal(dock, headerSlot) : dock;
+  return (
+    <>
+      {headerSlot && !mobilePeek ? createPortal(peekButton, headerSlot) : peekButton}
+      {dock}
+    </>
+  );
 }
