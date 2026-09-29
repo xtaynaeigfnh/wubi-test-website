@@ -125,7 +125,7 @@
   box-shadow: 0 2px 0 var(--accent-vermilion-dark);
 }
 
-.music-ruler > span.active,
+.music-ruler > button.active > span,
 .music-progress input,
 .music-volume input {
   accent-color: var(--accent-vermilion);

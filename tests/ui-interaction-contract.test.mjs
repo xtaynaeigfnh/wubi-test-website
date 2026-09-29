@@ -1211,7 +1211,10 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /@keyframes music-ink-reveal/);
   assert.match(styles, /@keyframes music-seal-breathe/);
   assert.match(styles, /\.music-ruler\s*\{/);
-  assert.match(music, /className="music-ruler"\s+aria-label="打开曲目目录"/);
+  assert.match(styles, /\.music-ruler > button > span\s*\{[^}]*height:\s*6px;/s);
+  assert.match(styles, /\.music-ruler > button\.active > span\s*\{[^}]*height:\s*22px;/s);
+  assert.doesNotMatch(styles, /\.music-ruler:hover > span|\.music-ruler > span:nth-child/);
+  assert.match(music, /className="music-ruler" role="group" aria-label="曲目刻度"/);
   assert.doesNotMatch(styles, /\.music-ruler\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(
     styles,

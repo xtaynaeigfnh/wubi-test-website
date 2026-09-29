@@ -729,25 +729,21 @@ function MusicDock() {
           </button>
         </div>
 
-        <button
-          type="button"
-          className="music-ruler"
-          aria-label="打开曲目目录"
-          aria-expanded={expanded}
-          aria-controls="music-library"
-          title="查看全部曲目"
-          onClick={toggleLibrary}
-        >
-          {tracks.map((track) => (
-            <span
+        <div className="music-ruler" role="group" aria-label="曲目刻度">
+          {tracks.map((track, index) => (
+            <button
               key={track.id}
-              className={
-                track.id === currentTrack?.id ? "active" : undefined
-              }
-              aria-hidden="true"
-            />
+              type="button"
+              className={track.id === currentTrack?.id ? "active" : undefined}
+              aria-label={`切换到第 ${index + 1} 首：${track.title}`}
+              aria-pressed={track.id === currentTrack?.id}
+              title={track.title}
+              onClick={() => selectTrack(track.id)}
+            >
+              <span aria-hidden="true" />
+            </button>
           ))}
-        </button>
+        </div>
 
         <label className="music-progress">
           <span>

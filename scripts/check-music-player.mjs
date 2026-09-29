@@ -35,7 +35,7 @@ try {
     const close = page.getByRole("button", { name: "收起专注电台控制栏" });
     await close.waitFor();
     await close.hover();
-    await page.waitForFunction(() => document.querySelector(".music-dock-bar")?.querySelectorAll(".music-ruler > span").length > 0);
+    await page.waitForFunction(() => document.querySelector(".music-dock-bar")?.querySelectorAll(".music-ruler > button").length > 0);
     const metrics = await page.locator(".music-dock-bar").evaluate((bar) => {
       const children = Array.from(bar.children).filter((child) => getComputedStyle(child).display !== "none");
       const boxes = children.map((child) => {
@@ -56,6 +56,25 @@ try {
       if (index) assert(box.left >= metrics.boxes[index - 1].right - 1, `${width}: overlapping controls`);
     }
     if (metrics.rulerVisible) assert(!metrics.rulerOverflow, `${width}: ruler scrollbars`);
+    if (metrics.rulerVisible) {
+      const shortcuts = page.locator(".music-dock > .music-dock-bar .music-ruler > button");
+      await shortcuts.nth(2).click();
+      assert.equal(await shortcuts.nth(2).getAttribute("aria-pressed"), "true", "click selects the track");
+      assert(await page.getByRole("button", { name: "播放背景音乐", exact: true }).isVisible(), "switching while paused stays paused");
+      assert.equal(await page.locator(".music-library-reveal.is-expanded").count(), 0, "track shortcut does not open the library");
+      await shortcuts.nth(1).focus();
+      await page.keyboard.press("Enter");
+      assert.equal(await shortcuts.nth(1).getAttribute("aria-pressed"), "true", "keyboard selects the track");
+      await page.getByRole("button", { name: "播放背景音乐", exact: true }).click();
+      await page.waitForFunction(() => document.querySelector(".music-dock.is-playing"));
+      await shortcuts.nth(3).click();
+      await page.waitForFunction(() => {
+        const audio = document.querySelector("audio");
+        return audio && !audio.paused && document.querySelectorAll(".music-dock > .music-dock-bar .music-ruler > button")[3]?.getAttribute("aria-pressed") === "true";
+      });
+      await page.getByRole("button", { name: "暂停背景音乐", exact: true }).press("Enter");
+      await page.waitForFunction(() => !document.querySelector(".music-dock.is-playing"));
+    }
 
     if (width === 390 || width === 1440) {
       await page.screenshot({ path: `${output}/${width}-expanded.png` });
