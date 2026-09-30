@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createSourceFile, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
+import { createSourceFile, isCallExpression, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
 
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
@@ -84,6 +84,38 @@ test("backup recovery preview remains usable when old local data cannot be read"
     assert.match(html, /练习 -1/);
     if (failure) assert.match(html, /错字 原数据无法读取/);
     else assert.match(html, /错字 不变/);
+  }
+});
+
+test("onboarding bypasses saved common-character practice while ordinary visits restore it", async () => {
+  const source = await readFile(new URL("useArticleLibrary.ts", typingHooksDir), "utf8");
+  const ast = createSourceFile("useArticleLibrary.ts", source, ScriptTarget.ES2022, true, ScriptKind.TS);
+  let restoreCallback;
+  function visit(node) {
+    if (isCallExpression(node) && node.expression.getText(ast) === "useEffect" &&
+        node.arguments[0]?.getText(ast).includes("isCommonPracticeArticle(generated)")) {
+      restoreCallback = node.arguments[0].getText(ast);
+    }
+    node.forEachChild(visit);
+  }
+  visit(ast);
+  assert(restoreCallback);
+  const compiled = transpileModule(`const restore = ${restoreCallback};`, {
+    compilerOptions: { target: ScriptTarget.ES2022 },
+  }).outputText;
+  const generated = { id: "common-first-050", kind: "common" };
+  for (const onboardingPractice of [true, false]) {
+    const selected = [];
+    const deps = {
+      onboardingPractice,
+      STORAGE: { current: "current", currentGenerated: "generated" },
+      readLocal: (key) => key === "current" ? generated.id : generated,
+      isCommonPracticeArticle: (article) => article.kind === "common",
+      chooseArticle: (article, focus) => selected.push({ article, focus }),
+    };
+    const restore = new Function(...Object.keys(deps), `${compiled}\nreturn restore;`)(...Object.values(deps));
+    restore();
+    assert.deepEqual(selected, onboardingPractice ? [] : [{ article: generated, focus: false }]);
   }
 });
 

@@ -243,12 +243,13 @@ export function useArticleLibrary(
   };
 
   useEffect(() => {
+    if (onboardingPractice) return;
     const currentId = readLocal<string | null>(STORAGE.current, null);
     const generated = readLocal<unknown>(STORAGE.currentGenerated, null);
     if (currentId && isCommonPracticeArticle(generated) && generated.id === currentId) {
       chooseArticle(generated, false);
     }
-  }, [chooseArticle]);
+  }, [chooseArticle, onboardingPractice]);
 
   const randomArticle = useCallback(() => {
     if (!filtered.length) return;
