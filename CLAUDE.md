@@ -70,7 +70,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **数据**:
 - `public/data/` — 静态 JSON：文章索引及 short/medium/long/water 四组正文、完整五笔码表、挑战码表、常用字表和音乐目录
-- `scripts/` — 数据生成脚本（generate-articles.mjs, generate-wubi-data.mjs）
+- `scripts/` — 数据生成与语料校验脚本（generate-articles.mjs, generate-wubi-data.mjs）
+- `scripts/article-corpus/` — 300 篇分级文章的正文语料（short/medium/long/water 四个模块），写作规则见该目录 `README.md`；正文是人工写作，不要用模板或脚本重新生成
 - `third_party/` — 原始数据源（rime-wubi 码表、mrccorpus 字频）
 - 用户数据全部存在浏览器 localStorage，不上传服务器
 
@@ -92,7 +93,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
 - 本地存储、备份恢复、练习状态、设置、PWA 和输入复盘改动分别补充 `tests/storage.test.mjs`、`tests/backup.test.mjs`、`tests/practice-store.test.mjs`、`tests/settings.test.mjs`、`tests/pwa.test.mjs` 和 `tests/input-review.test.mjs`
 - 跨浏览器键盘、响应式和无障碍检查可运行 `npm run test:a11y`；脚本默认启动开发服务器，结果写入 `output/playwright/accessibility/`，不包含在 `npm test` 中
-- 文章生成改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，并提交全部重新生成的 JSON
+- 文章正文改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，以及 `tests/article-style.test.mjs` 的具体场景、直接引语、句段节奏和禁用模板句检查，并提交全部重新生成的 JSON；正文写在 `scripts/article-corpus/` 下的人工语料里，`scripts/generate-articles.mjs` 只做规范化与校验
 - 构建产物与渲染结果在 `tests/rendered-html.test.mjs` 校验（`npm test` 的最后一步）
 - `npm test` 不包含 lint 与类型检查；交付前同时运行 `npm run lint`、`npm run typecheck` 和 `npm test`。GitHub Pages 工作流也以这三项为部署门禁
 
