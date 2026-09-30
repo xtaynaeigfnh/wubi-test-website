@@ -1,8 +1,8 @@
 @media (max-width: 1120px) {
   .music-dock-bar {
     grid-template-columns:
-      auto minmax(220px, 280px) minmax(90px, 1fr) minmax(150px, 0.9fr)
-      96px auto;
+      auto minmax(0, 1fr) minmax(72px, 100px) minmax(140px, 0.8fr)
+      110px 44px;
   }
 
   .music-station {
@@ -76,9 +76,20 @@
   }
 }
 
+@media (max-width: 960px) {
+  .music-dock-bar {
+    grid-template-columns: auto minmax(0, 1fr) minmax(120px, 0.8fr) 44px;
+  }
+
+  .music-ruler,
+  .music-volume {
+    display: none;
+  }
+}
+
 @media (max-width: 780px) {
   .music-content {
-    padding-bottom: 20px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
   }
 
   .music-dock-bar {
@@ -123,11 +134,6 @@
 
   .music-library-toggle {
     padding-inline: 7px;
-  }
-
-  .music-dock.is-collapsed {
-    right: 12px;
-    bottom: 12px;
   }
 
   .music-library {
@@ -561,24 +567,9 @@
     gap: 7px;
   }
 
-  .music-dock.is-collapsed {
+  .music-dock-peek {
     right: 10px;
     bottom: 10px;
-  }
-
-  .music-dock-peek {
-    width: 52px;
-    min-width: 52px;
-    min-height: 52px;
-    padding: 5px;
-    grid-template-columns: 1fr;
-    place-items: center;
-    border-radius: 50%;
-  }
-
-  .music-dock-peek > span:nth-child(2),
-  .music-dock-peek > b {
-    display: none;
   }
 
   .music-library-toggle > span {

@@ -346,6 +346,7 @@ export function WubiApp({ view }: { view: AppView }) {
               </Link>
             ))}
           </nav>
+          <span className="nav-scroll-hint" aria-hidden="true">左右滑动查看更多 ↔</span>
           <div className="header-utilities">
             <div id="music-header-slot" />
             <button

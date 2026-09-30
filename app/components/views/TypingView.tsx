@@ -413,6 +413,24 @@ export function TypingView({
         </div>
         <div className="hero-actions">
           <button
+            className="button primary"
+            onClick={() => {
+              const target = completed ? reviewRef.current : inputRef.current;
+              const focusTarget = () => {
+                target?.focus({ preventScroll: true });
+                target?.scrollIntoView({ block: "end", behavior: "auto" });
+              };
+              if (pausedAt !== null) {
+                togglePause();
+                window.setTimeout(focusTarget, 0);
+              } else {
+                focusTarget();
+              }
+            }}
+          >
+            {completed ? "查看本次结果" : practiceInProgress ? "继续练习" : "开始练习"}
+          </button>
+          <button
             className="button secondary common-entry"
             disabled={practiceInProgress}
             onClick={openCommonPractice}
@@ -425,13 +443,6 @@ export function TypingView({
             onClick={openCustomPractice}
           >
             粘贴自己的文字
-          </button>
-          <button
-            className="button primary"
-            disabled={practiceInProgress}
-            onClick={randomArticle}
-          >
-            换一篇练练
           </button>
         </div>
       </section>
@@ -455,26 +466,29 @@ export function TypingView({
         <Metric label="用时" value={formatDuration(seconds)} unit="" />
       </section>
 
-      <section className="typing-diagnostics" aria-label="输入诊断">
-        <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
-        <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
-        <DiagnosticMetric
-          label="码长差"
-          value={theoreticalGap === null ? "—" : `+${theoreticalGap.toFixed(2)}`}
-          unit=""
-        />
-        <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
-        <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
-        <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
-        <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
-        <DiagnosticMetric
-          label="左右手"
-          value={`${leftHandKeys} / ${rightHandKeys}`}
-          unit=""
-        />
-        <DiagnosticMetric label="暂停" value={pauseCount.toString()} unit="次" />
-        <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
-      </section>
+      <details className="typing-diagnostic-disclosure">
+        <summary>更多输入指标</summary>
+        <section className="typing-diagnostics" aria-label="输入诊断">
+          <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
+          <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
+          <DiagnosticMetric
+            label="码长差"
+            value={theoreticalGap === null ? "—" : `+${theoreticalGap.toFixed(2)}`}
+            unit=""
+          />
+          <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
+          <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
+          <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
+          <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
+          <DiagnosticMetric
+            label="左右手"
+            value={`${leftHandKeys} / ${rightHandKeys}`}
+            unit=""
+          />
+          <DiagnosticMetric label="暂停" value={pauseCount.toString()} unit="次" />
+          <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
+        </section>
+      </details>
 
       {activeGhostTimeline && (
         <section className="ghost-live-card" aria-label="幽灵赛实时状态">

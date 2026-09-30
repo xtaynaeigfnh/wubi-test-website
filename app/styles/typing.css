@@ -7,6 +7,48 @@
   background: transparent;
 }
 
+.typing-diagnostic-disclosure {
+  margin-block: 8px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.typing-diagnostic-disclosure > summary {
+  min-height: 44px;
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.typing-diagnostic-disclosure > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.typing-diagnostic-disclosure .typing-diagnostics {
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.typing-diagnostic-disclosure .diagnostic-metric small {
+  font-size: 11px;
+}
+
+.typing-diagnostic-disclosure .diagnostic-metric i {
+  font-size: 10px;
+}
+
+.app-shell[data-view="typing"] .hero-row {
+  min-height: 180px;
+  padding-block: 28px;
+}
+
+.typing-card .article-text {
+  min-height: 220px;
+  height: clamp(220px, 30dvh, 340px);
+  max-height: 340px;
+}
+
 .typing-diagnostics {
   margin-bottom: 20px;
   padding: 10px 14px;

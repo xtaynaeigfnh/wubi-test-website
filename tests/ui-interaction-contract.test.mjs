@@ -58,6 +58,27 @@ test("code drills restore input focus after a mouse advances a wrong answer", as
 const rhythmNavigationPath = new URL("../app/rhythm-navigation.ts", import.meta.url);
 const themePath = new URL("../app/theme.ts", import.meta.url);
 
+test("practice entry, optional metrics and empty training queues stay easy to reach", async () => {
+  const [typing, training, shell, music, styles] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
+    readFile(trainingCenterPath, "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(musicPath, "utf8"),
+    readStyles(),
+  ]);
+  assert.match(typing, /开始练习/);
+  assert.match(typing, /target\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(typing, /scrollIntoView\(\{ block: "end", behavior: "auto" \}\)/);
+  assert.match(typing, /<details className="typing-diagnostic-disclosure">\s*<summary>更多输入指标<\/summary>/);
+  assert.match(shell, /className="nav-scroll-hint" aria-hidden="true">左右滑动查看更多/);
+  assert.match(music, /const mobilePeek = useSyncExternalStore\(/);
+  assert.match(music, /const collapsed = collapseChoice \?\? mobilePeek/);
+  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('className="daily-progress-card"'));
+  assert.match(training, /due-review-card\$\{dueReviewQueue\.items\.length \? "" : " is-empty"\}/);
+  assert.match(styles, /\.due-review-card\.is-empty \.due-review-empty/);
+  assert.match(styles, /\.app-shell\[data-view="typing"\] \.hero-row h1\s*\{[^}]*max-width: 100%/s);
+});
+
 test("interactive controls stay hidden and inert until hydration completes", async () => {
   const [boundary, layout, styles] = await Promise.all([
     readFile(hydrationBoundaryPath, "utf8"),
@@ -451,7 +472,7 @@ test("typing saves review data and only history displays heatmap and rhythm", as
   assert.match(practice, /shouldDeferInputCommit/);
   assert.match(practice, /onPaste=\{\(event\) =>/);
   assert.match(practice, /重试保存/);
-  assert.match(training, /className="hesitation-queue-card"/);
+  assert.match(training, /className=\{`hesitation-queue-card\$\{currentHesitationQueue\?\.items\.length/);
   assert.match(training, /加练独立于上方三项处方/);
   assert.match(styles, /--heat-mild:/);
   assert.match(
@@ -1178,6 +1199,12 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.doesNotMatch(music, /\bautoPlay\b|\bautoplay\b/);
   assert.match(music, /aria-label="上一首"/);
   assert.match(music, /aria-label="下一首"/);
+  const transport = music.slice(music.indexOf('className="music-transport"'), music.indexOf('className="music-now-playing"'));
+  assert.equal((transport.match(/<svg /g) ?? []).length, 3);
+  assert.equal((transport.match(/aria-hidden="true" focusable="false"/g) ?? []).length, 3);
+  assert.doesNotMatch(transport, /Ⅱ|▶|‹|›/);
+  assert.match(music, /aria-label=\{isPlaying \? "暂停背景音乐" : "播放背景音乐"\}/);
+  assert.match(styles, /\.music-transport button svg\s*\{[^}]*display:\s*block/s);
   assert.match(music, /aria-label="播放进度"/);
   assert.match(music, /aria-label="背景音乐音量"/);
   assert.match(music, /aria-label=\{muted \? "取消背景音乐静音" : "静音背景音乐"\}/);
@@ -1189,16 +1216,47 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-dock\s*\{/);
   assert.match(styles, /\.music-dock\.is-collapsed\s*\{/);
   assert.match(styles, /\.music-dock-peek\s*\{/);
+  const motion = await readFile(new URL("../app/components/music-dock-motion.ts", import.meta.url), "utf8");
+  assert.match(motion, /peek\.getBoundingClientRect\(\)/);
+  assert.match(motion, /captureMusicDock\(dock\)/);
+  assert.match(motion, /surface\.animate\(/);
+  assert.doesNotMatch(motion, /borderTopWidth:|borderColor:/);
+  assert.match(motion, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(motion, /surface\.inert = true/);
+  assert.match(music, /inert=\{collapsed\}/);
+  assert.match(music, /inert=\{!expanded \|\| collapsed\}/);
+  assert.match(styles, /\.music-dock-morph\s*\{/);
+  assert.match(styles, /\.music-library-reveal\.is-expanded\s*\{/);
   assert.match(music, /className="music-peek-icon"/);
+  assert.match(music, /<svg viewBox="0 0 24 24" fill="none" focusable="false">/);
+  assert.match(music, /className="music-peek-chevron"/);
+  assert.match(styles, /\.music-peek-chevron\s*\{[^}]*bottom:\s*5px/s);
   assert.match(
     styles,
-    /\.music-dock-peek\s*\{[^}]*width:\s*56px[^}]*height:\s*56px[^}]*border-radius:\s*50%/s,
+    /\.music-dock-peek\s*\{[^}]*width:\s*44px[^}]*height:\s*44px[^}]*border-radius:\s*50%/s,
   );
   assert.match(styles, /\.music-library-toggle\s*\{/);
   assert.match(styles, /@keyframes music-brush-line/);
+  assert.match(styles, /\.music-library-reveal\s*\{[^}]*transition:\s*none/s);
+  assert.match(music, /hidden=\{!expanded \|\| collapsed\}/);
+  assert.match(styles, /\.music-library-reveal\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.doesNotMatch(styles, /music-library-appear/);
+  assert.doesNotMatch(styles, /transition:\s*max-height/);
   assert.match(styles, /@keyframes music-ink-reveal/);
   assert.match(styles, /@keyframes music-seal-breathe/);
   assert.match(styles, /\.music-ruler\s*\{/);
+  assert.match(music, /className="music-ruler"\s+role="group"\s+aria-label="快速切换曲目"/);
+  assert.match(styles, /\.music-ruler > button.active > span\s*\{[^}]*height:\s*25px/s);
+  const ruler = music.slice(music.indexOf('className="music-ruler"'), music.indexOf('<label className="music-progress"'));
+  assert.match(ruler, /onClick=\{\(\) => selectTrack\(track.id, \{ play: true \}\)\}/);
+  assert.doesNotMatch(ruler, /toggleLibrary|aria-expanded/);
+  assert.match(styles, /\.music-dock.is-playing \.music-ruler > button.active > span\s*\{[^}]*animation:\s*music-root-breathe/s);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?\.music-dock.is-playing \.music-ruler > button.active > span\s*\{\s*animation: none/s);
+  assert.match(styles, /\.music-dock\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;[^}]*backdrop-filter:\s*none/s);
+  assert.doesNotMatch(styles, /\.music-dock\.is-expanded\s*\{/);
+  assert.match(music, /className="music-dock-surface">\s*<div className="music-dock-bar">/);
+  assert.match(styles, /\.music-dock-surface\s*\{[^}]*width:\s*100%;[^}]*background:\s*var\(--dock-bg\)/s);
+  assert.doesNotMatch(styles, /\.music-ruler\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
@@ -1228,7 +1286,7 @@ test("music dock waits for both pointer and focus to leave before collapsing", a
   assert.match(music, /onFocusCapture=\{handleFocus\}/);
   assert.match(music, /onBlurCapture=\{handleBlur\}/);
   assert.match(music, /dockRef\.current\?\.contains\(document\.activeElement\)/);
-  assert.match(music, /useLayoutEffect\(\(\) => \{[\s\S]*peekButtonRef\.current\?\.focus\(\)/);
+  assert.match(music, /const restoreDockFocus = useCallback\([\s\S]*peekButtonRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
   assert.match(music, /return clearCollapseTimer/);
   assert.doesNotMatch(music, /activityTick/);
 });
@@ -1466,8 +1524,12 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
   }
   assert.match(styles, /\.phrase-training\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
   assert.match(shell, /id="music-header-slot"/);
-  assert.match(music, /createPortal\(dock, headerSlot\)/);
-  assert.match(styles, /#music-header-slot \.music-dock\.is-collapsed\s*\{[^}]*position:\s*static/s);
+  assert.match(music, /createPortal\(peekButton, headerSlot\)/);
+  assert.doesNotMatch(music, /createPortal\(dock, headerSlot\)/);
+  assert.match(styles, /#music-header-slot \.music-dock-peek\s*\{/);
+  assert.match(music, /matchMedia\("\(max-width: 780px\)"\)/);
+  assert.match(music, /headerSlot && !mobilePeek \? createPortal\(peekButton, headerSlot\)/);
+  assert.match(styles, /@media \(max-width: 780px\)\s*\{[^}]*#music-header-slot\s*\{/s);
 });
 
 
@@ -1500,6 +1562,15 @@ test("history journal groups records, trends, weekly reports and key usage", asy
   assert.match(history, /sessions.length \? "这一类练习，还没有记录"/);
   assert.match(history, /href="\/settings#settings-backup"/);
   assert.match(history, /<footer className="history-footer" hidden=\{section === "keys"\}>[\s\S]*onClick=\{clearResults\}/);
+});
+
+test("music collapse control uses a centered decorative SVG arrow", async () => {
+  const [music, styles] = await Promise.all([
+    readFile(musicPath, "utf8"), readStyles(),
+  ]);
+  assert.match(music, /className="music-collapse"[\s\S]*?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">/);
+  assert.match(styles, /\.music-collapse\s*\{[^}]*padding:\s*0;[^}]*place-items:\s*center/s);
+  assert.match(styles, /\.music-collapse svg\s*\{[^}]*width:\s*16px;[^}]*height:\s*16px;[^}]*display:\s*block/s);
 });
 
 test("history overview keeps compact metrics on desktop and mobile", async () => {

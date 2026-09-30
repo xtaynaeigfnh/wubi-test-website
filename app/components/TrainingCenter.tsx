@@ -598,7 +598,7 @@ export function TrainingCenter({
           role="tabpanel"
           aria-labelledby="training-tab-plan"
         >
-          <section className="due-review-card" aria-labelledby="due-review-title">
+          <section className={`due-review-card${dueReviewQueue.items.length ? "" : " is-empty"}`} aria-labelledby="due-review-title">
             <header className="panel-title training-card-header">
               <div className="training-card-heading">
                 <span className="eyebrow">间隔复习 · 每日上限 {dueReviewQueue.limit} 项</span>
@@ -671,80 +671,6 @@ export function TrainingCenter({
                 : "到期项按逾期天数、错误严重度和预计收益排序；暂缓项明天会重新出现。"}
             </p>
           </section>
-
-          <div className="daily-progress-card">
-            <header className="panel-title training-card-header">
-              <div className="training-card-heading">
-                <span className="eyebrow">今日进度</span>
-                <h2>三件事，练完就收手</h2>
-              </div>
-              <div
-                className="training-card-stat"
-                aria-label={`今日已完成 ${today.rounds} 轮`}
-              >
-                <strong>{today.rounds}</strong>
-                <span>轮</span>
-              </div>
-            </header>
-            <GoalRow
-              label="文章字数"
-              value={today.chars}
-              target={goal.targetChars}
-              unit="字"
-            />
-            <GoalRow
-              label="有效时长"
-              value={Math.round(today.minutes)}
-              target={goal.targetMinutes}
-              unit="分钟"
-            />
-            <GoalRow
-              label="练习轮数"
-              value={today.rounds}
-              target={goal.targetRounds}
-              unit="轮"
-            />
-            <div className="goal-editor">
-              <label>
-                每日字数
-                <input
-                  type="number"
-                  min={100}
-                  max={10000}
-                  step={100}
-                  value={goal.targetChars}
-                  onChange={(event) =>
-                    updateGoal("targetChars", Number(event.target.value))
-                  }
-                />
-              </label>
-              <label>
-                每日分钟
-                <input
-                  type="number"
-                  min={5}
-                  max={180}
-                  step={5}
-                  value={goal.targetMinutes}
-                  onChange={(event) =>
-                    updateGoal("targetMinutes", Number(event.target.value))
-                  }
-                />
-              </label>
-              <label>
-                每日轮数
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={goal.targetRounds}
-                  onChange={(event) =>
-                    updateGoal("targetRounds", Number(event.target.value))
-                  }
-                />
-              </label>
-            </div>
-          </div>
 
           <div className="smart-plan-card adaptive-plan-card">
             <header className="panel-title training-card-header">
@@ -870,7 +796,81 @@ export function TrainingCenter({
             )}
           </div>
 
-          <section className="hesitation-queue-card" aria-labelledby="hesitation-queue-title">
+          <div className="daily-progress-card">
+            <header className="panel-title training-card-header">
+              <div className="training-card-heading">
+                <span className="eyebrow">今日进度</span>
+                <h2>三件事，练完就收手</h2>
+              </div>
+              <div
+                className="training-card-stat"
+                aria-label={`今日已完成 ${today.rounds} 轮`}
+              >
+                <strong>{today.rounds}</strong>
+                <span>轮</span>
+              </div>
+            </header>
+            <GoalRow
+              label="文章字数"
+              value={today.chars}
+              target={goal.targetChars}
+              unit="字"
+            />
+            <GoalRow
+              label="有效时长"
+              value={Math.round(today.minutes)}
+              target={goal.targetMinutes}
+              unit="分钟"
+            />
+            <GoalRow
+              label="练习轮数"
+              value={today.rounds}
+              target={goal.targetRounds}
+              unit="轮"
+            />
+            <div className="goal-editor">
+              <label>
+                每日字数
+                <input
+                  type="number"
+                  min={100}
+                  max={10000}
+                  step={100}
+                  value={goal.targetChars}
+                  onChange={(event) =>
+                    updateGoal("targetChars", Number(event.target.value))
+                  }
+                />
+              </label>
+              <label>
+                每日分钟
+                <input
+                  type="number"
+                  min={5}
+                  max={180}
+                  step={5}
+                  value={goal.targetMinutes}
+                  onChange={(event) =>
+                    updateGoal("targetMinutes", Number(event.target.value))
+                  }
+                />
+              </label>
+              <label>
+                每日轮数
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={goal.targetRounds}
+                  onChange={(event) =>
+                    updateGoal("targetRounds", Number(event.target.value))
+                  }
+                />
+              </label>
+            </div>
+          </div>
+
+          <section className={`hesitation-queue-card${currentHesitationQueue?.items.length ? "" : " is-empty"}`} aria-labelledby="hesitation-queue-title">
             <header className="panel-title training-card-header">
               <div className="training-card-heading">
                 <span className="eyebrow">卡顿片段加练</span>

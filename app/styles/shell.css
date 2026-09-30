@@ -139,6 +139,10 @@
   align-items: stretch;
 }
 
+.nav-scroll-hint {
+  display: none;
+}
+
 .nav-item {
   min-width: 96px;
   padding: 0 12px;

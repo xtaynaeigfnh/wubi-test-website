@@ -7,6 +7,50 @@
   align-items: center;
 }
 
+.training-page .training-heading {
+  min-height: 200px;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.due-review-card.is-empty,
+.hesitation-queue-card.is-empty {
+  padding: 14px 18px;
+}
+
+.due-review-card.is-empty .training-card-header,
+.hesitation-queue-card.is-empty .training-card-header,
+.due-review-card.is-empty .due-review-note,
+.hesitation-queue-card.is-empty .hesitation-queue-note {
+  display: none;
+}
+
+.due-review-card.is-empty .due-review-empty,
+.hesitation-queue-card.is-empty .hesitation-queue-empty {
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: start;
+  align-items: baseline;
+  gap: 6px 14px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+.due-review-card.is-empty .due-review-empty span,
+.hesitation-queue-card.is-empty .hesitation-queue-empty span {
+  font-size: 12px;
+}
+
+@media (min-width: 1121px) {
+  .training-page .training-plan {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  }
+}
+
 .goal-seal {
   width: 144px;
   height: 144px;
@@ -99,14 +143,27 @@
 
 .music-dock {
   color: var(--dock-text);
+  border-top: 0;
+  padding-bottom: 0;
+  /* The playlist keeps its height during closing; its outer surface must stay clear. */
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.music-dock-surface {
+  width: 100%;
+  padding-bottom: env(safe-area-inset-bottom);
   border-top: 3px solid var(--accent-vermilion);
-  background: color-mix(in srgb, var(--dock-bg) 97%, transparent);
-  box-shadow: 0 -12px 36px rgba(8, 28, 32, 0.12);
-  backdrop-filter: blur(14px);
+  background: var(--dock-bg);
 }
 
 .music-dock-bar {
   min-height: 72px;
+}
+
+.music-dock::before {
+  display: none;
 }
 
 .music-station::before {
@@ -125,7 +182,7 @@
   box-shadow: 0 2px 0 var(--accent-vermilion-dark);
 }
 
-.music-ruler button.active,
+.music-ruler > button.active,
 .music-progress input,
 .music-volume input {
   accent-color: var(--accent-vermilion);

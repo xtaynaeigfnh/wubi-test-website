@@ -9,11 +9,13 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type FocusEvent as ReactFocusEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { animateMusicDock, captureMusicDock, type MusicDockMotion, type MusicDockSnapshot } from "./music-dock-motion";
 import { readLocal, STORAGE, writeLocal } from "../storage";
 import {
   DEFAULT_MUSIC_PREFERENCES,
@@ -48,7 +50,7 @@ export interface MusicPlayerContextValue {
   next: () => void;
   previous: () => void;
   seek: (seconds: number) => void;
-  selectTrack: (trackId: string) => void;
+  selectTrack: (trackId: string, options?: { play: boolean }) => void;
   setVolume: (volume: number) => void;
   setMuted: (muted: boolean) => void;
 }
@@ -56,6 +58,20 @@ export interface MusicPlayerContextValue {
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null);
 const MUSIC_DOCK_COLLAPSE_DELAY = 5500;
 const SYSTEM_VOLUME_NOTICE = "当前浏览器请使用系统音量键，静音按钮仍可用。";
+
+function subscribeMobileDock(onChange: () => void) {
+  const media = window.matchMedia("(max-width: 780px)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function getMobileDockSnapshot() {
+  return window.matchMedia("(max-width: 780px)").matches;
+}
+
+function getServerMobileDockSnapshot() {
+  return true;
+}
 
 export function useMusicPlayer(): MusicPlayerContextValue {
   const value = useContext(MusicPlayerContext);
@@ -224,8 +240,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   );
 
   const selectTrack = useCallback(
-    (trackId: string) => selectTrackWithResume(trackId, isPlaying),
-    [isPlaying, selectTrackWithResume],
+    (trackId: string, options?: { play: boolean }) => {
+      if (trackId === currentTrack?.id) {
+        if (options?.play && !isPlaying) void play();
+        return;
+      }
+      selectTrackWithResume(trackId, options?.play ?? isPlaying);
+    },
+    [currentTrack?.id, isPlaying, play, selectTrackWithResume],
   );
 
   const setVolume = useCallback((nextVolume: number) => {
@@ -355,7 +377,13 @@ function MusicDock() {
     setMuted,
   } = useMusicPlayer();
   const [expanded, setExpanded] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const mobilePeek = useSyncExternalStore(
+    subscribeMobileDock,
+    getMobileDockSnapshot,
+    getServerMobileDockSnapshot,
+  );
+  const [collapseChoice, setCollapsed] = useState<boolean | null>(null);
+  const collapsed = collapseChoice ?? mobilePeek;
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     const syncSlot = () => setHeaderSlot(document.getElementById("music-header-slot"));
@@ -366,10 +394,13 @@ function MusicDock() {
   }, []);
   const dockRef = useRef<HTMLElement>(null);
   const peekButtonRef = useRef<HTMLButtonElement>(null);
+  const morphRef = useRef<MusicDockMotion | null>(null);
+  const collapseSnapshotRef = useRef<MusicDockSnapshot | null>(null);
+  const morphDirectionRef = useRef<"open" | "close" | null>(null);
   const pointerInsideRef = useRef(false);
   const focusInsideRef = useRef(false);
   const expandedRef = useRef(false);
-  const collapsedRef = useRef(false);
+  const collapsedRef = useRef(collapsed);
   const collapseTimerRef = useRef<number | null>(null);
   const focusPeekAfterCollapseRef = useRef(false);
   const focusControlAfterRevealRef = useRef(false);
@@ -411,6 +442,8 @@ function MusicDock() {
       }
       expandedRef.current = false;
       collapsedRef.current = true;
+      collapseSnapshotRef.current = dockRef.current ? captureMusicDock(dockRef.current) : null;
+      morphDirectionRef.current = "close";
       setExpanded(false);
       setCollapsed(true);
     }, MUSIC_DOCK_COLLAPSE_DELAY);
@@ -422,6 +455,7 @@ function MusicDock() {
 
   const revealDock = useCallback(() => {
     clearCollapseTimer();
+    morphDirectionRef.current = "open";
     if (document.activeElement === peekButtonRef.current) {
       focusControlAfterRevealRef.current = true;
       focusInsideRef.current = false;
@@ -432,6 +466,8 @@ function MusicDock() {
 
   const collapseDock = useCallback(() => {
     clearCollapseTimer();
+    collapseSnapshotRef.current = dockRef.current ? captureMusicDock(dockRef.current) : null;
+    morphDirectionRef.current = "close";
     if (dockRef.current?.contains(document.activeElement)) {
       focusPeekAfterCollapseRef.current = true;
     }
@@ -489,21 +525,75 @@ function MusicDock() {
     return clearCollapseTimer;
   }, [clearCollapseTimer]);
 
-  useLayoutEffect(() => {
-    if (collapsed && focusPeekAfterCollapseRef.current) {
+  const restoreDockFocus = useCallback(() => {
+    if (collapsedRef.current && focusPeekAfterCollapseRef.current) {
       focusPeekAfterCollapseRef.current = false;
-      peekButtonRef.current?.focus();
+      peekButtonRef.current?.focus({ preventScroll: true });
       return;
     }
-    if (!collapsed && focusControlAfterRevealRef.current) {
+    if (!collapsedRef.current && focusControlAfterRevealRef.current) {
       focusControlAfterRevealRef.current = false;
       dockRef.current
         ?.querySelector<HTMLButtonElement>(
-          'button:not(.music-dock-peek):not(:disabled)',
+          '.music-dock-bar button:not(:disabled)',
         )
-        ?.focus();
+        ?.focus({ preventScroll: true });
     }
-  }, [collapsed]);
+  }, []);
+
+  useLayoutEffect(() => {
+    const direction = morphDirectionRef.current;
+    morphDirectionRef.current = null;
+    const dock = dockRef.current;
+    const peek = peekButtonRef.current;
+    if (!direction || !dock || !peek) return;
+
+    const interruptedRect = morphRef.current?.surface.getBoundingClientRect();
+    morphRef.current?.cancel();
+    morphRef.current = animateMusicDock({
+      dock,
+      peek,
+      opening: direction === "open",
+      snapshot: direction === "close" ? collapseSnapshotRef.current : null,
+      interruptedRect,
+      onFinish: () => {
+        morphRef.current = null;
+        if ((direction === "close") === collapsedRef.current) restoreDockFocus();
+      },
+    });
+    if (!morphRef.current) restoreDockFocus();
+    collapseSnapshotRef.current = null;
+  }, [collapsed, restoreDockFocus]);
+
+  useEffect(() => () => {
+    morphRef.current?.cancel();
+  }, []);
+
+  const peekButton = (
+    <button
+      type="button"
+      ref={peekButtonRef}
+      className={collapsed ? "music-dock-peek is-visible" : "music-dock-peek"}
+      aria-label="展开专注电台控制栏"
+      title="展开专注电台"
+      aria-hidden={!collapsed}
+      inert={!collapsed}
+      onClick={revealDock}
+    >
+      <span className="music-peek-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" focusable="false">
+          <path d="M10 16.5V5.6l9-2.1v10.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <ellipse cx="7.4" cy="17.1" rx="2.6" ry="1.8" transform="rotate(-18 7.4 17.1)" fill="currentColor" />
+          <ellipse cx="16.4" cy="14.9" rx="2.6" ry="1.8" transform="rotate(-18 16.4 14.9)" fill="currentColor" />
+        </svg>
+      </span>
+      <span className="music-peek-chevron" aria-hidden="true">
+        <svg viewBox="0 0 12 6" fill="none" focusable="false">
+          <path d="m2 4 4-3 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    </button>
+  );
 
   const dock = (
     <aside
@@ -517,30 +607,20 @@ function MusicDock() {
         .filter(Boolean)
         .join(" ")}
       aria-label="背景音乐播放器"
+      aria-hidden={collapsed}
+      inert={collapsed}
       onClickCapture={collapsed ? undefined : keepDockOpen}
       onFocusCapture={handleFocus}
       onBlurCapture={handleBlur}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
     >
-      {collapsed && (
-        <button
-          type="button"
-          ref={peekButtonRef}
-          className="music-dock-peek"
-          aria-label="展开专注电台控制栏"
-          title="展开专注电台"
-          onClick={revealDock}
-        >
-          <span className="music-peek-icon" aria-hidden="true">
-            ♫
-          </span>
-          <span className="music-peek-chevron" aria-hidden="true">
-            ⌃
-          </span>
-        </button>
-      )}
-      {expanded && !collapsed && (
+      <div
+        className={expanded && !collapsed ? "music-library-reveal is-expanded" : "music-library-reveal"}
+        hidden={!expanded || collapsed}
+        aria-hidden={!expanded || collapsed}
+        inert={!expanded || collapsed}
+      >
         <div className="music-library" id="music-library">
           <div className="music-library-heading">
             <div>
@@ -601,151 +681,183 @@ function MusicDock() {
             ))}
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="music-dock-bar" hidden={collapsed}>
-        <div className="music-station">
-          <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
-            <i />
-            <i />
-            <i />
-          </span>
-          <span>
-            <strong>专注电台</strong>
-            <small aria-live="polite">{statusText}</small>
-          </span>
-        </div>
-
-        <div className="music-transport">
-          <button
-            type="button"
-            aria-label="上一首"
-            title="上一首"
-            disabled={unavailable}
-            onClick={previous}
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className={
-              isPlaying
-                ? "music-play-button is-playing"
-                : "music-play-button"
-            }
-            aria-label={isPlaying ? "暂停背景音乐" : "播放背景音乐"}
-            title={isPlaying ? "暂停" : "播放"}
-            disabled={unavailable}
-            onClick={toggle}
-          >
-            {isPlaying ? "Ⅱ" : "▶"}
-          </button>
-          <button
-            type="button"
-            aria-label="下一首"
-            title="下一首"
-            disabled={unavailable}
-            onClick={next}
-          >
-            ›
-          </button>
-        </div>
-
-        <div className="music-now-playing">
-          <span>
-            {currentTrack
-              ? `${String(currentTrackIndex + 1).padStart(2, "0")} / ${String(
-                  tracks.length,
-                ).padStart(2, "0")}`
-              : "-- / --"}
-          </span>
-          <div
-            key={currentTrack?.id ?? "unavailable"}
-            className="music-track-copy"
-          >
-            <strong>{currentTrack?.title ?? "音乐目录不可用"}</strong>
-            <small>{currentTrack?.artist ?? "请检查目录文件"}</small>
+      <div className="music-dock-surface">
+        <div className="music-dock-bar">
+          <div className="music-station">
+            <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
+              <i />
+              <i />
+              <i />
+            </span>
+            <span>
+              <strong>专注电台</strong>
+              <small aria-live="polite">{statusText}</small>
+            </span>
           </div>
-          <button
-            type="button"
-            className="music-library-toggle"
-            aria-label={expanded ? "收起曲目列表" : "展开曲目列表"}
-            aria-expanded={expanded}
-            aria-controls="music-library"
-            onClick={toggleLibrary}
-          >
-            {expanded ? "收起" : "曲目"}
-            <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span>
-          </button>
-        </div>
 
-        <div className="music-ruler" aria-label="曲目刻度">
-          {tracks.map((track, index) => (
+          <div className="music-transport">
             <button
-              key={track.id}
+              type="button"
+              aria-label="上一首"
+              title="上一首"
+              disabled={unavailable}
+              onClick={previous}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                <rect x="5" y="5" width="3" height="14" rx="1" />
+                <path d="M18 5.5a.75.75 0 0 1 1.2.6v11.8a.75.75 0 0 1-1.2.6L9.8 12.6a.75.75 0 0 1 0-1.2Z" />
+              </svg>
+            </button>
+            <button
               type="button"
               className={
-                track.id === currentTrack?.id ? "active" : undefined
+                isPlaying
+                  ? "music-play-button is-playing"
+                  : "music-play-button"
               }
-              aria-label={`播放第 ${index + 1} 首：${track.title}`}
-              aria-pressed={track.id === currentTrack?.id}
-              onClick={() => selectTrack(track.id)}
-            />
-          ))}
-        </div>
+              aria-label={isPlaying ? "暂停背景音乐" : "播放背景音乐"}
+              title={isPlaying ? "暂停" : "播放"}
+              disabled={unavailable}
+              onClick={toggle}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                {isPlaying ? (
+                  <>
+                    <rect x="5" y="4" width="5" height="16" rx="1.25" />
+                    <rect x="14" y="4" width="5" height="16" rx="1.25" />
+                  </>
+                ) : (
+                  <path d="M7 4.8a1 1 0 0 1 1.5-.86l11 7.2a1 1 0 0 1 0 1.72l-11 7.2A1 1 0 0 1 7 19.2Z" />
+                )}
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="下一首"
+              title="下一首"
+              disabled={unavailable}
+              onClick={next}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                <path d="M6 5.5a.75.75 0 0 0-1.2.6v11.8a.75.75 0 0 0 1.2.6l8.2-5.9a.75.75 0 0 0 0-1.2Z" />
+                <rect x="16" y="5" width="3" height="14" rx="1" />
+              </svg>
+            </button>
+          </div>
 
-        <label className="music-progress">
-          <span>
-            {formatAudioTime(currentTime)} / {formatAudioTime(duration)}
-          </span>
-          <input
-            type="range"
-            aria-label="播放进度"
-            min={0}
-            max={Math.max(duration, 1)}
-            step={1}
-            value={Math.min(currentTime, Math.max(duration, 1))}
-            disabled={unavailable}
-            onChange={(event) => seek(Number(event.target.value))}
-          />
-        </label>
+          <div className="music-now-playing">
+            <span>
+              {currentTrack
+                ? `${String(currentTrackIndex + 1).padStart(2, "0")} / ${String(
+                    tracks.length,
+                  ).padStart(2, "0")}`
+                : "-- / --"}
+            </span>
+            <div
+              key={currentTrack?.id ?? "unavailable"}
+              className="music-track-copy"
+            >
+              <strong>{currentTrack?.title ?? "音乐目录不可用"}</strong>
+              <small>{currentTrack?.artist ?? "请检查目录文件"}</small>
+            </div>
+            <button
+              type="button"
+              className="music-library-toggle"
+              aria-label={expanded ? "收起曲目列表" : "展开曲目列表"}
+              aria-expanded={expanded}
+              aria-controls="music-library"
+              onClick={toggleLibrary}
+            >
+              {expanded ? "收起" : "曲目"}
+              <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span>
+            </button>
+          </div>
 
-        <div className="music-volume">
-          <button
-            type="button"
-            aria-label={muted ? "取消背景音乐静音" : "静音背景音乐"}
-            aria-pressed={muted}
-            disabled={unavailable}
-            onClick={() => setMuted(!muted)}
+          <div
+            className="music-ruler"
+            role="group"
+            aria-label="快速切换曲目"
           >
-            {muted ? "静" : "声"}
-          </button>
-          <label>
-            <span className="sr-only">背景音乐音量</span>
+            {tracks.map((track) => (
+              <button
+                key={track.id}
+                type="button"
+                className={
+                  track.id === currentTrack?.id ? "active" : undefined
+                }
+                aria-label={`播放 ${track.title}`}
+                aria-pressed={track.id === currentTrack?.id}
+                title={track.title}
+                disabled={unavailable}
+                onClick={() => selectTrack(track.id, { play: true })}
+              >
+                <span aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+
+          <label className="music-progress">
+            <span>
+              {formatAudioTime(currentTime)} / {formatAudioTime(duration)}
+            </span>
             <input
               type="range"
-              aria-label="背景音乐音量"
+              aria-label="播放进度"
               min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              disabled={unavailable || volumeControlUnavailable}
-              onChange={(event) => setVolume(Number(event.target.value))}
+              max={Math.max(duration, 1)}
+              step={1}
+              value={Math.min(currentTime, Math.max(duration, 1))}
+              disabled={unavailable}
+              onChange={(event) => seek(Number(event.target.value))}
             />
           </label>
-        </div>
 
-        <button
-          type="button"
-          className="music-collapse"
-          aria-label="收起专注电台控制栏"
-          title="收起播放器"
-          onClick={collapseDock}
-        >
-          ⌄
-        </button>
+          <div className="music-volume">
+            <button
+              type="button"
+              aria-label={muted ? "取消背景音乐静音" : "静音背景音乐"}
+              aria-pressed={muted}
+              disabled={unavailable}
+              onClick={() => setMuted(!muted)}
+            >
+              {muted ? "静" : "声"}
+            </button>
+            <label>
+              <span className="sr-only">背景音乐音量</span>
+              <input
+                type="range"
+                aria-label="背景音乐音量"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                disabled={unavailable || volumeControlUnavailable}
+                onChange={(event) => setVolume(Number(event.target.value))}
+              />
+            </label>
+          </div>
+
+          <button
+            type="button"
+            className="music-collapse"
+            aria-label="收起专注电台控制栏"
+            title="收起播放器"
+            onClick={collapseDock}
+          >
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+              <path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </div>
     </aside>
   );
-  return collapsed && headerSlot ? createPortal(dock, headerSlot) : dock;
+  return (
+    <>
+      {headerSlot && !mobilePeek ? createPortal(peekButton, headerSlot) : peekButton}
+      {dock}
+    </>
+  );
 }
