@@ -97,6 +97,32 @@ test("backup reads distinguish missing, damaged, and inaccessible local data", (
   }
 });
 
+test("a valid backup can replace damaged local sessions and errors", () => {
+  const stored = new Map([
+    [STORAGE.sessions, "{damaged"],
+    [STORAGE.errors, "{damaged"],
+  ]);
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => stored.get(key) ?? null,
+      setItem: (key, value) => stored.set(key, value),
+      removeItem: (key) => stored.delete(key),
+    },
+  };
+  try {
+    const restoredSession = session();
+    const payload = createBackupPayload({
+      [STORAGE.sessions]: [restoredSession],
+      [STORAGE.errors]: [],
+    });
+    restoreBackupPayload(payload);
+    assert.deepEqual(JSON.parse(stored.get(STORAGE.sessions)), [restoredSession]);
+    assert.deepEqual(JSON.parse(stored.get(STORAGE.errors)), []);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("daily goals normalize legacy decimal values before backup", () => {
   const values = new Map([
     [

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createSourceFile, isCallExpression, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
 
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
@@ -45,6 +48,76 @@ async function readTypingSource() {
   return [await readFile(typingViewPath, "utf8"), ...typingSources].join("\n");
 }
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
+
+test("backup recovery preview remains usable when old local data cannot be read", async () => {
+  const source = await readFile(dataManagementPath, "utf8");
+  const ast = createSourceFile("DataManagement.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);
+  const component = ast.statements.find((node) => isFunctionDeclaration(node) && node.name?.text === "BackupManager");
+  assert(component);
+  const compiled = transpileModule(component.getText(ast), {
+    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
+  }).outputText;
+  const STORAGE = { sessions: "sessions", errors: "errors", customTexts: "customTexts" };
+  const pending = {
+    version: 2,
+    exportedAt: "2026-09-30T00:00:00.000Z",
+    data: { sessions: [{}], errors: [], customTexts: [] },
+  };
+  for (const failure of [null, "damaged", "blocked"]) {
+    let stateIndex = 0;
+    const deps = {
+      React,
+      STORAGE,
+      useRef: () => ({ current: null }),
+      useState: () => [[pending, false, ""][stateIndex++], () => {}],
+      readLocalForBackup(key) {
+        if (failure && key === STORAGE.errors) {
+          throw new Error(failure === "damaged" ? "本机数据已损坏" : "浏览器拒绝读取");
+        }
+        return key === STORAGE.sessions ? [{}, {}] : [];
+      },
+    };
+    const Component = new Function(...Object.keys(deps), `${compiled}\nreturn BackupManager;`)(...Object.values(deps));
+    const html = renderToStaticMarkup(React.createElement(Component));
+    assert.match(html, /恢复前预览/);
+    assert.match(html, /确认覆盖本机数据/);
+    assert.match(html, /练习 -1/);
+    if (failure) assert.match(html, /错字 原数据无法读取/);
+    else assert.match(html, /错字 不变/);
+  }
+});
+
+test("onboarding bypasses saved common-character practice while ordinary visits restore it", async () => {
+  const source = await readFile(new URL("useArticleLibrary.ts", typingHooksDir), "utf8");
+  const ast = createSourceFile("useArticleLibrary.ts", source, ScriptTarget.ES2022, true, ScriptKind.TS);
+  let restoreCallback;
+  function visit(node) {
+    if (isCallExpression(node) && node.expression.getText(ast) === "useEffect" &&
+        node.arguments[0]?.getText(ast).includes("isCommonPracticeArticle(generated)")) {
+      restoreCallback = node.arguments[0].getText(ast);
+    }
+    node.forEachChild(visit);
+  }
+  visit(ast);
+  assert(restoreCallback);
+  const compiled = transpileModule(`const restore = ${restoreCallback};`, {
+    compilerOptions: { target: ScriptTarget.ES2022 },
+  }).outputText;
+  const generated = { id: "common-first-050", kind: "common" };
+  for (const onboardingPractice of [true, false]) {
+    const selected = [];
+    const deps = {
+      onboardingPractice,
+      STORAGE: { current: "current", currentGenerated: "generated" },
+      readLocal: (key) => key === "current" ? generated.id : generated,
+      isCommonPracticeArticle: (article) => article.kind === "common",
+      chooseArticle: (article, focus) => selected.push({ article, focus }),
+    };
+    const restore = new Function(...Object.keys(deps), `${compiled}\nreturn restore;`)(...Object.values(deps));
+    restore();
+    assert.deepEqual(selected, onboardingPractice ? [] : [{ article: generated, focus: false }]);
+  }
+});
 
 test("code drills restore input focus after a mouse advances a wrong answer", async () => {
   for (const path of [challengeViewPath, trainingCenterPath]) {
