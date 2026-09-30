@@ -256,13 +256,19 @@ function BackupManager() {
   const sessions = arrayLength(pending?.data[STORAGE.sessions]);
   const errors = arrayLength(pending?.data[STORAGE.errors]);
   const customTexts = arrayLength(pending?.data[STORAGE.customTexts]);
-  const currentSessions = pending
-    ? arrayLength(readLocalForBackup(STORAGE.sessions))
-    : 0;
-  const currentErrors = pending
-    ? arrayLength(readLocalForBackup(STORAGE.errors))
-    : 0;
-  const signedChange = (next: number, current: number) => {
+  const currentCount = (key: string): number | null => {
+    if (!pending) return 0;
+    try {
+      return arrayLength(readLocalForBackup(key));
+    } catch {
+      // 旧数据损坏时仍需允许使用已校验的备份覆盖恢复。
+      return null;
+    }
+  };
+  const currentSessions = currentCount(STORAGE.sessions);
+  const currentErrors = currentCount(STORAGE.errors);
+  const signedChange = (next: number, current: number | null) => {
+    if (current === null) return "原数据无法读取";
     const delta = next - current;
     return delta === 0 ? "不变" : `${delta > 0 ? "+" : ""}${delta}`;
   };
