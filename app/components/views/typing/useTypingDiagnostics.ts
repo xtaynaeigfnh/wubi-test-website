@@ -89,7 +89,7 @@ export function useTypingDiagnostics(
     return () => {
       active = false;
     };
-  }, [showCodeHints]);
+  }, [codeLengthLoadAttempt, showCodeHints]);
 
   const theoreticalCodeLength = useMemo(
     () =>
