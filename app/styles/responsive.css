@@ -1,7 +1,26 @@
+@media (min-width: 961px) and (max-width: 1360px) {
+  .music-content {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom));
+  }
+
+  .music-dock-bar {
+    padding-block: 8px;
+    grid-template-columns: 160px auto minmax(0, 1fr) minmax(150px, 0.8fr) 110px 44px;
+    gap: 8px 14px;
+  }
+
+  .music-ruler {
+    width: max-content;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+  }
+}
+
 @media (max-width: 1120px) {
   .music-dock-bar {
     grid-template-columns:
-      auto minmax(0, 1fr) minmax(72px, 100px) minmax(140px, 0.8fr)
+      auto minmax(0, 1fr) minmax(140px, 0.8fr)
       110px 44px;
   }
 
@@ -762,4 +781,3 @@
     animation-iteration-count: 1 !important;
   }
 }
-

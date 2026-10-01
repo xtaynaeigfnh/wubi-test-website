@@ -147,7 +147,7 @@
   margin: auto;
   display: grid;
   grid-template-columns:
-    160px auto minmax(0, 1fr) minmax(72px, 120px)
+    160px auto minmax(0, 1fr) max-content
     minmax(150px, 0.8fr) 110px 44px;
   align-items: center;
   gap: 14px;
@@ -373,7 +373,7 @@
   min-width: 0;
   padding: 0 6px;
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: 44px;
   grid-auto-flow: column;
   align-items: center;
   gap: 0;
@@ -384,7 +384,8 @@
 }
 
 .music-ruler > button > span {
-  width: 100%;
+  width: 6px;
+  justify-self: center;
   display: block;
   min-width: 0;
   height: 6px;

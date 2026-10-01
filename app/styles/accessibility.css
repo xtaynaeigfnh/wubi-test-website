@@ -48,9 +48,9 @@ label:has(> input[type="radio"]) {
   color: var(--text-primary);
 }
 
-/* Compact track shortcuts share a full-height strip; the library offers large targets. */
+/* Keep each track shortcut easy to select independently of its thin visual mark. */
 .music-dock .music-ruler > button {
-  min-width: 0;
+  min-width: 44px;
   width: 100%;
   height: 44px;
   padding: 0 2px;
