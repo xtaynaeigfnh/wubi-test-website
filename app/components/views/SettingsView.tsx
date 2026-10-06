@@ -27,32 +27,32 @@ const themeOptions: Array<{
   {
     id: "system",
     description: "随设备外观",
-    canvas: "#E7EDF0",
-    accent: "#086B66",
+    canvas: "#F6F7F3",
+    accent: "#C6ED78",
   },
   {
     id: "light",
-    description: "清爽蓝白",
-    canvas: "#E7EDF0",
-    accent: "#086B66",
+    description: "墨白青柠",
+    canvas: "#F6F7F3",
+    accent: "#C6ED78",
   },
   {
     id: "dark",
     description: "低亮深色",
-    canvas: "#09171A",
-    accent: "#71D0C7",
+    canvas: "#141A16",
+    accent: "#C6ED78",
   },
   {
     id: "bamboo",
     description: "米纸竹青",
-    canvas: "#F2EBDD",
-    accent: "#B3432B",
+    canvas: "#F2EFE4",
+    accent: "#D6E6A7",
   },
   {
     id: "qingdai",
     description: "静谧蓝灰",
-    canvas: "#DCE5E8",
-    accent: "#315C72",
+    canvas: "#EEF3F4",
+    accent: "#B5DCE7",
   },
   {
     id: "custom",
@@ -131,8 +131,8 @@ export function SettingsView({
       <div className="settings-workbench">
         <aside className="settings-index" aria-label="设置分区">
           <div className="settings-index-heading">
-            <span className="eyebrow">左手主键区</span>
-            <strong>设置索引</strong>
+            <span className="eyebrow">按类别查找</span>
+            <strong>设置分区</strong>
           </div>
           <nav>
             {settingsSections.map((section) => (
@@ -300,7 +300,7 @@ export function SettingsView({
                     </button>
                   ))}
                 </div>
-                <Toggle label="显示编码提示" note="跟打区底部显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
+                <Toggle label="显示编码提示" note="文章旁显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
                 <Toggle
                   label="按键声音"
                   note="文章测速和字码挑战输入时播放轻提示音"

@@ -61,3 +61,18 @@ label:has(> input[type="radio"]) {
   background: transparent;
   cursor: pointer;
 }
+
+/* Skip navigation stays outside the canvas until reached by keyboard. */
+.skip-link {
+  padding: 10px 16px;
+  position: fixed;
+  z-index: 120;
+  top: 8px;
+  left: 8px;
+  border-radius: var(--radius-small);
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+  font-weight: 600;
+  transform: translateY(-160%);
+}
+.skip-link:focus { transform: translateY(0); }

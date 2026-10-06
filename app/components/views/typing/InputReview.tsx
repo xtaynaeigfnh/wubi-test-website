@@ -77,12 +77,12 @@ export const InputReview = forwardRef<HTMLDivElement, InputReviewProps>(
               相比单字输入理论可少 {selected.savedKeys} 键
             </span>
           ) : opportunities.length > 0 ? (
-            <span>点按红色下划线词组，查看编码与理论省键提示。</span>
+            <span>点按下划线词组，查看编码与理论省键提示。</span>
           ) : (
             <span>本篇暂无词组建议。</span>
           )}
           <span id={explanationId} className="input-review-explanation">
-            红色下划线为词组推荐，不代表输入错误；建议基于码表，不判定本次实际分段。
+            下划线表示词组推荐；建议基于码表，不判定本次实际分段。
           </span>
         </div>
       </div>

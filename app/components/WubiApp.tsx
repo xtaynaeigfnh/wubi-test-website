@@ -329,8 +329,8 @@ export function WubiApp({ view }: { view: AppView }) {
               <b>86</b>
             </span>
             <span>
-              <strong>五笔测试网站</strong>
-              <small>WUBI 86 / LOCAL PRACTICE</small>
+              <strong>五笔练习</strong>
+              <small>WUBI · 86</small>
             </span>
           </Link>
           <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
@@ -369,7 +369,6 @@ export function WubiApp({ view }: { view: AppView }) {
       </header>
 
       <main className="page-wrap" id="main-content">
-        <FirstUseGuide enabled={settingsReady} view={view} />
         {settingsSaveError && (
           <p className="plan-message" role="alert">{settingsSaveError}</p>
         )}
@@ -419,6 +418,7 @@ export function WubiApp({ view }: { view: AppView }) {
             playKeySound={playKeySound}
           />
         )}
+        <FirstUseGuide enabled={settingsReady} view={view} />
       </main>
 
       {activeHesitationPractice && (
@@ -433,7 +433,7 @@ export function WubiApp({ view }: { view: AppView }) {
         <PetCompanion species={settings.petSpecies} />
       )}
       <footer className="site-footer">
-        <span><b>86 / OFFLINE</b> 慢慢练，手会记住。</span>
+        <span><b>86 / OFFLINE</b></span>
         <span>
           86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
         </span>

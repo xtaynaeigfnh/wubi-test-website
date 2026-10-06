@@ -973,7 +973,7 @@ test("advanced page exposes accessible tabs and quiet copy", async () => {
   assert.match(component, /role="status" aria-live="polite"/);
   assert.match(component, /退出会丢失本次输入，确定退出吗/);
   assert.match(component, /aria-pressed=\{paused\}/);
-  assert.match(component, /不催促，只看见节奏/);
+  assert.match(component, /进阶训练/);
   assert.match(component, /日常、办公与文学/);
   assert.match(component, /阶段目标与评测/);
   assert.match(component, /onPaste=\{\(event\) => event\.preventDefault\(\)\}/);

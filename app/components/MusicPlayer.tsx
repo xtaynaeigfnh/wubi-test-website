@@ -356,7 +356,7 @@ function MusicDock() {
     setMuted,
   } = useMusicPlayer();
   const [expanded, setExpanded] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   const [mobilePeek, setMobilePeek] = useState(false);
   useEffect(() => {
@@ -381,7 +381,7 @@ function MusicDock() {
   const pointerInsideRef = useRef(false);
   const focusInsideRef = useRef(false);
   const expandedRef = useRef(false);
-  const collapsedRef = useRef(false);
+  const collapsedRef = useRef(true);
   const collapseTimerRef = useRef<number | null>(null);
   const focusPeekAfterCollapseRef = useRef(false);
   const focusControlAfterRevealRef = useRef(false);

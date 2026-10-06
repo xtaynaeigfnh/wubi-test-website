@@ -1,15 +1,18 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { lengthLabels } from "../../../lib";
 import type { ArticleProgress, PracticeArticle } from "../../../types";
 import { Modal } from "../../Ui";
 
 export function ArticlePicker({
+  filters,
   filtered,
   progressMap,
   onClose,
   onChoose,
 }: {
+  filters: ReactNode;
   filtered: PracticeArticle[];
   progressMap: ReadonlyMap<string, ArticleProgress>;
   onClose: () => void;
@@ -17,6 +20,7 @@ export function ArticlePicker({
 }) {
   return (
     <Modal title="选择练习文章" onClose={onClose}>
+      {filters}
       <div className="article-list">
         <div className="article-list-summary" role="status">
           共 {filtered.length} 篇符合当前筛选条件
