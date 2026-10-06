@@ -94,8 +94,7 @@ export function LookupView() {
           <div>
             <span className={styles.kicker}>WUBI 86 / 字码检索</span>
             <h1>五笔查码<span>86 版</span></h1>
-            <p>一个字，一组编码。
-              <br />从字形找到指尖的位置。</p>
+            <p>输入字词查编码，也可用编码反查字词。</p>
           </div>
         </header>
         <LookupSearch query={query} onChange={changeQuery} loading={loading} />
@@ -113,9 +112,6 @@ export function LookupView() {
             <div className={styles.loadingState}><div aria-hidden="true" /><p>{loading ? "正在准备本地码表，载入后即可查询。" : "正在匹配字词与编码…"}</p></div>
           )}
           {ready && selected && <LookupDetail key={`${selected[0]}:${selected[1]}`} entry={selected} example={!normalizedQuery} />}
-          {!normalizedQuery && ready && (
-            <div className={styles.idleNote}><span>字 → 码</span><p>想知道怎么打，输入中文。<br />想知道打出什么，输入编码。</p><span>码 → 字</span></div>
-          )}
           {normalizedQuery && !isSearchPending && !loading && !loadError && (
             results.length ? <>
               <LookupResults groups={groupedResults} selected={selected} onSelect={setSelection} />

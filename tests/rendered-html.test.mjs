@@ -52,8 +52,8 @@ test("advanced route server-renders the quiet training shell", async () => {
   const response = await render("/advanced");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /静流 · 高手进阶/);
-  assert.match(html, /不催促，只看见节奏/);
+  assert.match(html, /熟练度 · 节奏 · 阶段目标/);
+  assert.match(html, /进阶训练/);
   assert.match(html, /进阶训练模块/);
 });
 
@@ -83,7 +83,7 @@ test("history route server-renders the journal and deferred weekly report", asyn
   const response = await render("/history");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /每一次练习，都算数/);
+  assert.match(html, /成绩统计/);
   assert.match(html, /id="history-weekly" hidden/);
   assert.match(html, /你的进步，从第一行字开始/);
   assert.match(html, /正在读取本机数据并生成本周周报/);

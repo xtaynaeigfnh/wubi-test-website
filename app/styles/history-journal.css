@@ -65,7 +65,7 @@
 .history-page .weekly-report { margin: 0; border-radius: 12px; box-shadow: none; }
 .history-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border-default); color: var(--text-secondary); font-size: 12px; }
 .history-footer[hidden] { display: none; }
-.history-footer a { color: var(--accent-bamboo); text-underline-offset: 4px; }
+.history-footer a { text-decoration: underline; color: var(--accent-bamboo); text-underline-offset: 4px; }
 .history-clear { min-height: 44px; padding: 8px 0; border: 0; color: var(--text-secondary); background: transparent; cursor: pointer; font-size: 12px; }
 .history-clear:hover { color: var(--state-error); }
 .history-page button:focus-visible, .history-page a:focus-visible, .history-page summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }

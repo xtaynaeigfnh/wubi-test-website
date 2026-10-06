@@ -992,9 +992,9 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
   return (
     <section className="subpage advanced-page">
       <div className="subpage-heading advanced-heading">
-        <span className="eyebrow">静流 · 高手进阶</span>
-        <h1>不催促，只看见节奏</h1>
-        <p>从字码熟练度到输入节奏、中文实战与阶段目标，把熟练变成可以理解、可以复练的手感。</p>
+        <span className="eyebrow">熟练度 · 节奏 · 阶段目标</span>
+        <h1>进阶训练</h1>
+        <p>按今天的目标，选择字码挑战、节奏实验或中文实战。</p>
       </div>
       <div className="advanced-tabs" role="tablist" aria-label="进阶训练模块">
         {tabs.map((item, index) => (
@@ -1041,7 +1041,7 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
         {tab === "rhythm" && (
           <>
             <div className="advanced-module-heading">
-              <div><span className="eyebrow">N1 · 节奏实验室</span><h2>先听见自己的输入节奏</h2></div>
+              <div><span className="eyebrow">节奏实验室</span><h2>先听见自己的输入节奏</h2></div>
               <button className="button primary" onClick={() => startPractice({ id: "rhythm-baseline", title: "节奏基线", text: RHYTHM_PRACTICE_TEXT, type: "rhythm" })}>开始节奏练习</button>
             </div>
             {latestSummary ? (

@@ -192,7 +192,7 @@ test("first-use guide is local, skippable, and turns three saved articles into a
   assert.match(typingLibrary, /onboardingPractice \? "short"/);
 });
 
-test("recorded data renders without replay animations", async () => {
+test("live metrics animate while recorded history remains static", async () => {
   const [typing, history, trendPanel, styles] = await Promise.all([
     readTypingSource(),
     readFile(historyViewPath, "utf8"),
@@ -200,7 +200,7 @@ test("recorded data renders without replay animations", async () => {
     readStyles(),
   ]);
 
-  assert.doesNotMatch(typing, /className="metric-value"/);
+  assert.match(typing, /<strong key=\{value\} className="metric-value">/);
   assert.doesNotMatch(history, /className="metric-value"/);
   assert.doesNotMatch(trendPanel, /pathLength=|<svg\s+key=\{range\}/);
   assert.doesNotMatch(
@@ -223,7 +223,7 @@ test("challenge keeps wrong answers visible until the user advances", async () =
   assert.match(challenge, /feedback === "wrong"\) advanceQuestion\(\)/);
   assert.doesNotMatch(challenge, /className="giant-code"/);
   assert.doesNotMatch(styles, /\.giant-code\s*\{/);
-  assert.match(styles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
+  assert.doesNotMatch(styles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
   assert.match(challenge, /你的输入/);
   assert.match(challenge, /正确编码/);
   assert.match(challenge, /下一题（回车）/);
@@ -571,7 +571,7 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 
   assert.match(lookup, /const normalizedQuery = query\.trim\(\);/);
   assert.match(lookup, /const isSearchPending = normalizedQuery !== deferredQuery;/);
-  assert.match(lookup, /\{!normalizedQuery && ready && \(/);
+  assert.match(lookup, /\{ready && selected && <LookupDetail[\s\S]*?example=\{!normalizedQuery\}/);
   assert.match(
     lookup,
     /\{normalizedQuery && !isSearchPending && !loading && !loadError && \(/,
@@ -1578,7 +1578,11 @@ test("completed input stays in place with save recovery and the original article
   assert.match(typing, /new ResizeObserver/);
   assert.match(typing, /reviewRef\.current\?\.focus/);
   assert.match(typing, /className="typing-review-save" role="status"/);
+  assert.match(typing, /<strong>练习完成<\/strong>/);
   assert.match(typing, /disabled=\{sessionSaveFailed\}/);
+  const review = await readFile(new URL("InputReview.tsx", typingHooksDir), "utf8");
+  assert.match(review, /点按下划线词组/);
+  assert.doesNotMatch(review, /红色下划线/);
   const history = await readFile(historyViewPath, "utf8");
   assert.match(history, /downloadShareCard/);
 });
@@ -1615,4 +1619,28 @@ test("collapsed radio groups music and a downward arrow in one vector icon", asy
   assert.match(music, /<svg className="music-peek-icon" width="28" height="32"/);
   assert.match(music, /className="music-peek-arrow" d="M11.5 24.5L14 27L16.5 24.5"/);
   assert.doesNotMatch(music, /className="music-peek-chevron"/);
+});
+
+
+test("focus practice keeps three core metrics above input and moves article filters into the picker", async () => {
+  const [typing, picker, styles, music] = await Promise.all([
+    readFile(typingViewPath, "utf8"),
+    readFile(new URL("ArticlePicker.tsx", typingHooksDir), "utf8"),
+    readFile(new URL("../app/styles/focus.css", import.meta.url), "utf8"),
+    readFile(musicPath, "utf8"),
+  ]);
+  const coreMetrics = typing.split('aria-label="实时成绩"')[1].split("</section>")[0];
+  assert.equal((coreMetrics.match(/<Metric /g) ?? []).length, 3);
+  for (const label of ["速度", "准确率", "用时"]) assert.match(coreMetrics, new RegExp(`label="${label}"`));
+  assert.doesNotMatch(typing, /<aside className="side-panel"/);
+  assert.match(typing, /<details className="practice-diagnostics">/);
+  assert.match(typing, /className="article-picker-filters"/);
+  assert.match(picker, /\{filters\}/);
+  assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('className="practice-commandbar"'));
+  assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('className="practice-diagnostics"'));
+  assert.match(styles, /\.article-text span\s*\{[^}]*transition: none/s);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(music, /const \[collapsed, setCollapsed\] = useState\(true\)/);
+  const training = await readFile(trainingCenterPath, "utf8");
+  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('className="daily-progress-card"'));
 });

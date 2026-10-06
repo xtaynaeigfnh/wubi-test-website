@@ -12,14 +12,6 @@
     box-shadow 180ms ease;
 }
 
-@media (hover: hover) {
-  .summary-card:hover,
-  .settings-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 24px 58px rgba(43, 48, 43, 0.14);
-  }
-}
-
 .summary-card > span,
 .summary-card p {
   color: var(--text-secondary);
@@ -289,4 +281,3 @@
   display: block;
   background: var(--accent-bamboo);
 }
-
