@@ -22,7 +22,7 @@ import {
   readTrainingPlan,
   selectInitialArticle,
 } from "../../../lib";
-import { readLocal, readLocalArray, STORAGE, writeLocal } from "../../../storage";
+import { commitLocalWrites, readLocal, readLocalArray, STORAGE, writeLocal } from "../../../storage";
 import { loadArticles, loadCommonCharacters } from "../../../content-loader";
 import type {
   ArticleFilter,
@@ -155,29 +155,20 @@ export function useArticleLibrary(
         window.alert("本次成绩尚未保存，请先重试保存。");
         return false;
       }
-      const previousCurrent = readLocal<string | null>(STORAGE.current, null);
-      const previousGenerated = readLocal<PracticeArticle | null>(
-        STORAGE.currentGenerated,
-        null,
-      );
       const previousRecent = readLocalArray<string>(STORAGE.recent);
       const nextRecent = [
         next.id,
         ...previousRecent.filter((id) => id !== next.id),
       ].slice(0, 10);
-      const selectionSaved =
-        writeLocal(STORAGE.current, next.id) &&
-        writeLocal(
-          STORAGE.currentGenerated,
-          next.kind === "common" ? next : null,
-        ) &&
-        (next.kind === "common" || writeLocal(STORAGE.recent, nextRecent));
+      const selectionWrites = new Map<string, unknown>([
+        [STORAGE.current, next.id],
+        [STORAGE.currentGenerated, next.kind === "common" ? next : null],
+      ]);
+      if (next.kind !== "common") {
+        selectionWrites.set(STORAGE.recent, nextRecent);
+      }
+      const selectionSaved = commitLocalWrites(selectionWrites);
       if (!selectionSaved) {
-        writeLocal(STORAGE.current, previousCurrent);
-        writeLocal(STORAGE.currentGenerated, previousGenerated);
-        if (next.kind !== "common") {
-          writeLocal(STORAGE.recent, previousRecent);
-        }
         const message =
           "文章选择未能保存，原练习保持不变。请检查浏览器存储空间后重试。";
         setArticleSaveError(message);

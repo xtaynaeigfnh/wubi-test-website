@@ -638,23 +638,15 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   assert.match(component, /设置未能保存，原设置保持不变/);
   assert.match(
     typing,
-    /const previousCurrent = readLocal<string \| null>\(STORAGE\.current, null\)/,
-  );
-  assert.match(
-    typing,
-    /const previousGenerated = readLocal<PracticeArticle \| null>\([\s\S]*STORAGE\.currentGenerated/,
-  );
-  assert.match(
-    typing,
     /const previousRecent = readLocalArray<string>\(STORAGE\.recent\)/,
   );
   assert.match(
     typing,
-    /const selectionSaved =[\s\S]*writeLocal\(STORAGE\.current, next\.id\)[\s\S]*writeLocal\([\s\S]*STORAGE\.currentGenerated[\s\S]*writeLocal\(STORAGE\.recent, nextRecent\)/,
+    /const selectionWrites = new Map<string, unknown>\([\s\S]*\[STORAGE\.current, next\.id\][\s\S]*\[STORAGE\.currentGenerated, next\.kind === "common" \? next : null\]/,
   );
   assert.match(
     typing,
-    /if \(!selectionSaved\) \{[\s\S]*writeLocal\(STORAGE\.current, previousCurrent\);[\s\S]*writeLocal\(STORAGE\.currentGenerated, previousGenerated\);[\s\S]*writeLocal\(STORAGE\.recent, previousRecent\);[\s\S]*return false;/,
+    /if \(next\.kind !== "common"\) \{\s*selectionWrites\.set\(STORAGE\.recent, nextRecent\);\s*\}\s*const selectionSaved = commitLocalWrites\(selectionWrites\);/,
   );
   assert.match(
     typing,

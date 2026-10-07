@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createArticleLibraryHarness } from "./helpers/article-library-harness.mjs";
 
 import {
   addError,
@@ -34,6 +35,74 @@ import {
   trainingArticles,
   trainingEntries,
 } from "./v02-fixtures.mjs";
+
+for (const failure of ["generated", "recent", "quota", "read"]) {
+  test(`文章选择在 ${failure} 失败后保留原练习及原始存储`, async (context) => {
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+    context.after(() => {
+      if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+      else delete globalThis.window;
+    });
+    const values = new Map();
+    let blocked = false;
+    let quota = Infinity;
+    globalThis.window = {
+      location: { search: "" },
+      alert() {},
+      setTimeout() {},
+      localStorage: {
+        getItem(key) {
+          if (blocked && failure === "read" && key === STORAGE.currentGenerated) throw new Error("read denied");
+          return values.get(key) ?? null;
+        },
+        setItem(key, value) {
+          if (blocked && failure === "generated" && key === STORAGE.currentGenerated) throw new Error("write denied");
+          if (blocked && failure === "recent" && key === STORAGE.recent && value !== values.get(key)) throw new Error("write denied");
+          const size = [...values].reduce((total, [storedKey, storedValue]) => total + (storedKey === key ? 0 : storedValue.length), value.length);
+          if (size > quota) throw new DOMException("quota exceeded", "QuotaExceededError");
+          values.set(key, value);
+        },
+        removeItem(key) { values.delete(key); },
+      },
+    };
+    const library = await createArticleLibraryHarness();
+    const original = { ...trainingArticles[0], id: "original-article-with-long-id" };
+    assert.equal(library.choose(original), true);
+    // Generated content may be absent in older installations; preserve that absence.
+    values.delete(STORAGE.currentGenerated);
+    const before = new Map(values);
+    if (failure === "quota") quota = [...values.values()].reduce((size, value) => size + value.length, 0);
+    blocked = true;
+    assert.equal(library.choose({ ...trainingArticles[0], id: "new-article-identity" }), false);
+    assert.deepEqual(values, before);
+    assert.equal(library.article, original);
+    assert.equal(library.resets, 1);
+  });
+}
+
+test("常用字选择同时保存正文且保留最近文章列表", async (context) => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  context.after(() => {
+    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+    else delete globalThis.window;
+  });
+  const values = new Map([[STORAGE.recent, '[ "previous" ]']]);
+  globalThis.window = {
+    location: { search: "" }, alert() {}, setTimeout() {},
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  const library = await createArticleLibraryHarness();
+  const common = { ...trainingArticles[0], id: "common-practice", kind: "common", text: "甲乙", preset: "first-500", shuffled: false };
+  assert.equal(library.choose(common), true);
+  assert.equal(JSON.parse(values.get(STORAGE.current)), common.id);
+  assert.deepEqual(JSON.parse(values.get(STORAGE.currentGenerated)), common);
+  assert.equal(values.get(STORAGE.recent), '[ "previous" ]');
+  assert.equal(library.article, common);
+});
 
 test("custom article reader removes malformed, duplicate, and overflowing local data", () => {
   const valid = Array.from({ length: 22 }, (_, index) =>
