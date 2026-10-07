@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -73,6 +74,29 @@ test("Pages metadata uses the configured deployment origin and base path", async
   assert.match(workflow, /id: pages\s+uses: actions\/configure-pages@v5/);
   assert.match(workflow, /NEXT_PUBLIC_SITE_URL: \$\{\{ steps\.pages\.outputs\.origin \}\}/);
   assert.match(workflow, /NEXT_PUBLIC_BASE_PATH: \$\{\{ steps\.pages\.outputs\.base_path \}\}/);
+});
+
+test("Pages command enables static export locally and preserves the deployment subpath", async () => {
+  const { scripts } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const command = scripts["build:pages"].split(" ");
+  assert.equal(command[0], "node");
+  assert.equal(command.at(-1), "build");
+  const root = new URL("../", import.meta.url);
+  for (const setting of [undefined, "false", "true"]) {
+    const environment = { ...process.env, NEXT_PUBLIC_BASE_PATH: "/wubi" };
+    if (setting === undefined) delete environment.GITHUB_PAGES;
+    else environment.GITHUB_PAGES = setting;
+    // Run the command's actual preloader with the real Next configuration.
+    const output = execFileSync(process.execPath, [
+      ...command.slice(1, -2),
+      "--experimental-strip-types", "--input-type=module", "-e",
+      'import config from "./next.config.ts"; console.log(JSON.stringify(config));',
+    ], { cwd: root, env: environment, encoding: "utf8" });
+    const config = JSON.parse(output);
+    assert.equal(config.output, "export");
+    assert.equal(config.trailingSlash, true);
+    assert.equal(config.basePath, "/wubi");
+  }
 });
 
 test("build lifecycle stays cross-platform and project-rooted", async () => {
