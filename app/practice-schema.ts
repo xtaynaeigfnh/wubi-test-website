@@ -1,3 +1,4 @@
+import { normalizeSkin } from "./skin.ts";
 // Pure shared rules: local reads normalize recoverable values; backups validate strictly.
 import type {
   ArticleProgress,
@@ -67,6 +68,7 @@ export const defaultSettings: UserSettings = {
   showCodeHints: false,
   showGhostGap: true,
   sound: false,
+  skin: "letterpress",
   theme: "system",
   customTheme: defaultCustomTheme,
   autoNext: false,
@@ -776,6 +778,7 @@ export function isSettings(value: unknown): value is UserSettings {
     typeof value.showCodeHints === "boolean" &&
     typeof value.showGhostGap === "boolean" &&
     typeof value.sound === "boolean" &&
+    (!Object.hasOwn(value, "skin") || ["letterpress", "focus"].includes(String(value.skin))) &&
     ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
       String(value.theme),
     ) &&
@@ -822,6 +825,7 @@ export function normalizeBackupSettings(value: unknown): UserSettings | null {
     ...defaultSettings,
     ...value,
     theme,
+    skin: normalizeSkin(value.skin),
     customTheme: normalizeCustomTheme(value.customTheme),
   } as UserSettings;
 }

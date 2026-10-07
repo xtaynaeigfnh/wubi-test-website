@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /*
- * 全局样式唯一入口。功能样式保持既有级联顺序，墨白视觉层在功能规则后统一
- * 壳层与响应式；无障碍规则最后导入。新增规则写入对应功能文件。
+ * 全局样式唯一入口。功能样式保持既有级联顺序，两套皮肤分别限定作用范围；
+ * 墨白视觉层在功能规则后统一壳层与响应式，无障碍规则最后导入。新增规则写入对应功能文件。
  */
 @import "./styles/tokens.css"; /* 主题变量（浅色、深色与系统深色） */
 @import "./styles/base.css"; /* 重置与元素默认 */
@@ -24,6 +24,7 @@
 @import "./styles/responsive.css"; /* 第一响应式层（1120/780/420 与减弱动效） */
 @import "./styles/advanced.css"; /* 进阶训练、节奏实验、阶段目标与词组专项 */
 @import "./styles/key-summary.css"; /* 按键画像 v0.5 */
+@import "./styles/letterpress.css"; /* 铅字蓝图皮肤 */
 @import "./styles/settings-workbench.css"; /* 设置工作台与数据工具 */
 @import "./styles/late-overrides.css"; /* 训练、状态卡、弹窗、页脚与音乐的后续覆盖 */
 @import "./styles/responsive-mid.css"; /* 第二响应式层（1180/900/620） */
@@ -36,5 +37,7 @@
 @import "./styles/onboarding.css"; /* 首次使用引导 */
 @import "./styles/history-journal.css"; /* 本地成绩：练习档案 */
 
+@import "./styles/focus-tokens.css"; /* 墨白专注配色变量 */
 @import "./styles/focus.css"; /* 01 墨白：共享视觉与全站响应式 */
+@import "./styles/skins.css"; /* 皮肤选择与展示补充 */
 @import "./styles/accessibility.css"; /* 键盘、触控与对比度保障 */

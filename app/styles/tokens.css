@@ -1,153 +1,107 @@
-/* 01 墨白 · 专注练习。所有页面与预设主题共用语义变量。 */
-:root {
+:root:where(:not([data-skin="focus"])) {
   color-scheme: light;
-  --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-display: var(--font-body);
-  --font-reading: var(--font-body);
-  --font-data: "SFMono-Regular", "Menlo", "Cascadia Mono", monospace;
-  --radius-small: 9px;
-  --radius-medium: 12px;
-  --radius-large: 14px;
+  --text-on-accent: #fff;
+  --bg-canvas: #eeece6;
+  --bg-paper: #faf9f5;
+  --bg-raised: #f4f2ec;
+  --bg-key: #e7e3da;
+  --text-primary: #202622;
+  --text-secondary: #60675f;
+  --border-default: #d2cec4;
+  --border-subtle: #e3dfd6;
+  --border-strong: #aaa59a;
+  --accent-vermilion: #aa382c;
+  --accent-vermilion-fill: #9e3328;
+  --accent-vermilion-dark: #7e281f;
+  --accent-bamboo: #315f50;
+  --accent-bamboo-fill: #31594d;
+  --progress-fill: #c8d8d1;
+  --state-success: #2e6753;
+  --state-success-fill: #2e6753;
+  --state-error: #9f332b;
+  --state-error-fill: #8f2e27;
+  --heat-smooth: #ece8de;
+  --heat-mild: #e7c87a;
+  --heat-clear: #d77b45;
+  --heat-severe: #a9362c;
+  --heat-severe-text: #fff8ee;
+  --focus-ring: #1f5f94;
+  --shadow-key: 0 1px 0 #b2ada2;
+  --shadow-panel: 0 10px 28px rgba(32, 38, 34, 0.045);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-press: cubic-bezier(0.2, 0, 0, 1);
-  --shadow-panel: none;
-  --shadow-key: 0 1px 0 var(--border-default);
-  --dock-bg: #18231c;
-  --dock-text: #f6f7f3;
-  --heat-smooth: light-dark(#edf2e7, #29342b);
-  --heat-mild: light-dark(#e7c87a, #786a3f);
-  --heat-clear: light-dark(#d77b45, #9b5335);
-  --heat-severe: light-dark(#a9362c, #b64237);
-  --heat-severe-text: #fff8ee;
-  --state-success: light-dark(#4c671f, #b5da83);
-  --state-success-fill: light-dark(#4c671f, #406024);
-  --state-error: light-dark(#b23742, #ff9ca6);
-  --state-error-fill: light-dark(#b23742, #8d2839);
-  --bg-canvas: #f6f7f3;
-  --bg-paper: #ffffff;
-  --bg-raised: #f8faf6;
-  --bg-key: #edf2e7;
-  --text-primary: #18231c;
-  --text-secondary: #677066;
-  --border-default: #dce1d7;
-  --border-subtle: #e9ede5;
-  --border-strong: #a7b39c;
-  --accent-bamboo: #375a12;
-  --accent-bamboo-fill: #c6ed78;
-  --text-on-accent: #18231c;
-  --progress-fill: #c6ed78;
-  --focus-ring: #71962d;
-  --accent-vermilion: var(--accent-bamboo);
-  --accent-vermilion-fill: var(--accent-bamboo-fill);
-  --accent-vermilion-dark: var(--accent-bamboo);
+  --font-display: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  --font-reading: "Songti SC", "STSong", "SimSun", serif;
+  --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-data: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+  --radius-small: 6px;
+  --radius-medium: 10px;
+  --radius-large: 14px;
 }
 
-:root[data-theme="dark"] {
+:root:where(:not([data-skin="focus"]))[data-theme="dark"] {
   color-scheme: dark;
-  --bg-canvas: #141a16;
-  --bg-paper: #1d251f;
-  --bg-raised: #222c24;
-  --bg-key: #2b372d;
-  --text-primary: #edf3e9;
-  --text-secondary: #aab7a7;
-  --border-default: #3d4a3e;
-  --border-subtle: #313d33;
-  --border-strong: #6f806a;
-  --accent-bamboo: #c6ed78;
-  --accent-bamboo-fill: #c6ed78;
-  --text-on-accent: #18231c;
-  --progress-fill: #71964e;
-  --focus-ring: #b5da83;
-  --accent-vermilion: var(--accent-bamboo);
-  --accent-vermilion-fill: var(--accent-bamboo-fill);
-  --accent-vermilion-dark: var(--accent-bamboo);
-}
-
-:root[data-theme="bamboo"] {
-  color-scheme: light;
-  --bg-canvas: #f2efe4;
-  --bg-paper: #fffcf4;
-  --bg-raised: #f7f4e9;
-  --bg-key: #e9ecda;
-  --text-primary: #26301f;
-  --text-secondary: #65705a;
-  --border-default: #d6dbc5;
-  --border-subtle: #e6e8d8;
-  --border-strong: #a8b292;
-  --accent-bamboo: #3d5d28;
-  --accent-bamboo-fill: #d6e6a7;
-  --text-on-accent: #26301f;
-  --progress-fill: #c6d990;
-  --focus-ring: #728c4d;
-  --accent-vermilion: var(--accent-bamboo);
-  --accent-vermilion-fill: var(--accent-bamboo-fill);
-  --accent-vermilion-dark: var(--accent-bamboo);
-}
-
-:root[data-theme="qingdai"] {
-  color-scheme: light;
-  --bg-canvas: #eef3f4;
-  --bg-paper: #ffffff;
-  --bg-raised: #f4f8f9;
-  --bg-key: #e3eef0;
-  --text-primary: #1e3239;
-  --text-secondary: #5c727a;
-  --border-default: #d1dfe3;
-  --border-subtle: #e1ebee;
-  --border-strong: #91abb3;
-  --accent-bamboo: #245b70;
-  --accent-bamboo-fill: #b5dce7;
-  --text-on-accent: #1e3239;
-  --progress-fill: #a4cfdc;
-  --focus-ring: #427e92;
-  --accent-vermilion: var(--accent-bamboo);
-  --accent-vermilion-fill: var(--accent-bamboo-fill);
-  --accent-vermilion-dark: var(--accent-bamboo);
+  --text-on-accent: #fff;
+  --bg-canvas: #111714;
+  --bg-paper: #1a211d;
+  --bg-raised: #222a25;
+  --bg-key: #303a34;
+  --text-primary: #f0ede2;
+  --text-secondary: #b5b8ae;
+  --border-default: #414b44;
+  --border-subtle: #303a34;
+  --border-strong: #626c64;
+  --accent-vermilion: #ed695c;
+  --accent-vermilion-fill: #a9342a;
+  --accent-vermilion-dark: #ff8a7f;
+  --accent-bamboo: #6eb29a;
+  --accent-bamboo-fill: #2d6654;
+  --progress-fill: #2d6654;
+  --state-success: #70c19d;
+  --state-success-fill: #24664d;
+  --state-error: #ff8279;
+  --state-error-fill: #8f2722;
+  --heat-smooth: #303832;
+  --heat-mild: #786a3f;
+  --heat-clear: #9b5335;
+  --heat-severe: #b64237;
+  --heat-severe-text: #fff8ee;
+  --focus-ring: #8bc8ff;
+  --shadow-key: 0 2px 0 #111714;
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.28);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] {
+  :root:where(:not([data-skin="focus"]))[data-theme="system"] {
     color-scheme: dark;
-  --bg-canvas: #141a16;
-  --bg-paper: #1d251f;
-  --bg-raised: #222c24;
-  --bg-key: #2b372d;
-  --text-primary: #edf3e9;
-  --text-secondary: #aab7a7;
-  --border-default: #3d4a3e;
-  --border-subtle: #313d33;
-  --border-strong: #6f806a;
-  --accent-bamboo: #c6ed78;
-  --accent-bamboo-fill: #c6ed78;
-  --text-on-accent: #18231c;
-  --progress-fill: #71964e;
-  --focus-ring: #b5da83;
-  --accent-vermilion: var(--accent-bamboo);
-  --accent-vermilion-fill: var(--accent-bamboo-fill);
-  --accent-vermilion-dark: var(--accent-bamboo);
+    --text-on-accent: #fff;
+    --bg-canvas: #111714;
+    --bg-paper: #1a211d;
+    --bg-raised: #222a25;
+    --bg-key: #303a34;
+    --text-primary: #f0ede2;
+    --text-secondary: #b5b8ae;
+    --border-default: #414b44;
+    --border-subtle: #303a34;
+    --border-strong: #626c64;
+    --accent-vermilion: #ed695c;
+    --accent-vermilion-fill: #a9342a;
+    --accent-vermilion-dark: #ff8a7f;
+    --accent-bamboo: #6eb29a;
+    --accent-bamboo-fill: #2d6654;
+    --progress-fill: #2d6654;
+    --state-success: #70c19d;
+    --state-success-fill: #24664d;
+    --state-error: #ff8279;
+    --state-error-fill: #8f2722;
+    --heat-smooth: #303832;
+    --heat-mild: #786a3f;
+    --heat-clear: #9b5335;
+    --heat-severe: #b64237;
+    --heat-severe-text: #fff8ee;
+    --focus-ring: #8bc8ff;
+    --shadow-key: 0 2px 0 #111714;
+    --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.28);
   }
-}
-
-:root[data-theme="custom"] {
-  color-scheme: var(--custom-color-scheme, light);
-  --text-on-accent: var(--custom-accent-text, #fff);
-  --bg-canvas: var(--custom-canvas, #f2ebdd);
-  --bg-paper: var(--custom-paper, #fbf7ec);
-  --bg-raised: var(--custom-raised, #f3eedf);
-  --bg-key: var(--custom-key, #e5dcc8);
-  --text-primary: var(--custom-text, #242c27);
-  --text-secondary: var(--custom-text-secondary, #5e685e);
-  --border-default: var(--custom-border, #cbbfa8);
-  --border-subtle: color-mix(in srgb, var(--custom-border, #cbbfa8) 62%, var(--custom-paper, #fbf7ec));
-  --border-strong: var(--custom-border-strong, #968b75);
-  --accent-vermilion: var(--custom-accent, #b3432b);
-  --accent-vermilion-fill: var(--custom-accent, #b3432b);
-  --accent-vermilion-dark: color-mix(in srgb, var(--custom-accent, #b3432b) 78%, var(--custom-text, #242c27));
-  --accent-bamboo: var(--custom-accent, #b3432b);
-  --accent-bamboo-fill: var(--custom-accent, #b3432b);
-  --progress-fill: color-mix(in srgb, var(--custom-accent, #b3432b) 28%, var(--custom-paper, #fbf7ec));
-  --shadow-key: 0 2px 0 var(--custom-border-strong, #968b75);
-  --shadow-panel: 0 14px 36px color-mix(in srgb, var(--custom-text, #242c27) 10%, transparent);
-  --unused-grid-line: color-mix(in srgb, var(--custom-accent, #b3432b) 8%, transparent);
 }
 

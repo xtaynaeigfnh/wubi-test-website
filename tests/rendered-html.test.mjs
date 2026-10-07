@@ -28,7 +28,7 @@ test("server-renders the finished Chinese product shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<html lang="zh-CN"/);
+  assert.match(html, /<html lang="zh-CN" data-skin="letterpress"/);
   assert.match(html, /<title>五笔测试网站<\/title>/);
   assert.match(html, /文章测速/);
   assert.match(html, /进阶训练/);
@@ -52,7 +52,7 @@ test("advanced route server-renders the quiet training shell", async () => {
   const response = await render("/advanced");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /熟练度 · 节奏 · 阶段目标/);
+  assert.match(html, /静流 · 高手进阶/);
   assert.match(html, /进阶训练/);
   assert.match(html, /进阶训练模块/);
 });

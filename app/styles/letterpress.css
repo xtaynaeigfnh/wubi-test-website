@@ -1,0 +1,864 @@
+/* v0.3 — 铅字蓝图
+   The five-key coordinate grid is the sole expressive device. Everything else
+   stays quiet so long typing sessions remain comfortable. */
+
+:root:where(:not([data-skin="focus"])) {
+  --text-on-accent: #fff;
+  --bg-canvas: #e7edf0;
+  --bg-paper: #f8faf9;
+  --bg-raised: #edf2f3;
+  --bg-key: #dce5e7;
+  --text-primary: #14292e;
+  --text-secondary: #53696f;
+  --border-default: #b9c9cd;
+  --border-subtle: #d3dee0;
+  --border-strong: #7e969c;
+  --accent-vermilion: #b73b24;
+  --accent-vermilion-fill: #a93622;
+  --accent-vermilion-dark: #812817;
+  --accent-bamboo: #086b66;
+  --accent-bamboo-fill: #075f5b;
+  --progress-fill: #b8d6d2;
+  --state-success: light-dark(#07665a, #79d8c4);
+  --state-success-fill: light-dark(#075f55, #167062);
+  --state-error: light-dark(#a22f24, #ff8877);
+  --state-error-fill: light-dark(#95291f, #a83329);
+  --heat-smooth: light-dark(#ece8de, #303832);
+  --heat-mild: light-dark(#e7c87a, #786a3f);
+  --heat-clear: light-dark(#d77b45, #9b5335);
+  --heat-severe: light-dark(#a9362c, #b64237);
+  --heat-severe-text: #fff8ee;
+  --focus-ring: light-dark(#005fcc, #73bfff);
+  --shadow-key: 0 2px 0 #8fa4a9;
+  --shadow-panel: 0 14px 36px rgba(20, 41, 46, 0.07);
+  --font-display: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  --font-reading: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-data: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+  --radius-small: 4px;
+  --radius-medium: 8px;
+  --radius-large: 12px;
+  --grid-line: color-mix(in srgb, var(--accent-bamboo) 9%, transparent);
+  --dock-bg: #0d1c20;
+  --dock-text: #eef5f3;
+}
+
+:root:where(:not([data-skin="focus"]))[data-theme="dark"] {
+  --text-on-accent: #fff;
+  --bg-canvas: #09171a;
+  --bg-paper: #102125;
+  --bg-raised: #172b30;
+  --bg-key: #20363b;
+  --text-primary: #eef5f3;
+  --text-secondary: #a9bbbc;
+  --border-default: #385157;
+  --border-subtle: #263d42;
+  --border-strong: #688086;
+  --accent-vermilion: #ff765c;
+  --accent-vermilion-fill: #b93d28;
+  --accent-vermilion-dark: #ff9b86;
+  --accent-bamboo: #71d0c7;
+  --accent-bamboo-fill: #15776f;
+  --progress-fill: #245a57;
+  --state-success: #79d8c4;
+  --state-success-fill: #167062;
+  --state-error: #ff8877;
+  --state-error-fill: #a83329;
+  --focus-ring: #73bfff;
+  --shadow-key: 0 2px 0 #061012;
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.24);
+  --grid-line: color-mix(in srgb, var(--accent-bamboo) 7%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-skin="focus"]))[data-theme="system"] {
+    --text-on-accent: #fff;
+    --bg-canvas: #09171a;
+    --bg-paper: #102125;
+    --bg-raised: #172b30;
+    --bg-key: #20363b;
+    --text-primary: #eef5f3;
+    --text-secondary: #a9bbbc;
+    --border-default: #385157;
+    --border-subtle: #263d42;
+    --border-strong: #688086;
+    --accent-vermilion: #ff765c;
+    --accent-vermilion-fill: #b93d28;
+    --accent-vermilion-dark: #ff9b86;
+    --accent-bamboo: #71d0c7;
+    --accent-bamboo-fill: #15776f;
+    --progress-fill: #245a57;
+    --state-success: #79d8c4;
+    --state-success-fill: #167062;
+    --state-error: #ff8877;
+    --state-error-fill: #a83329;
+    --focus-ring: #73bfff;
+    --shadow-key: 0 2px 0 #061012;
+    --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.24);
+    --grid-line: color-mix(in srgb, var(--accent-bamboo) 7%, transparent);
+  }
+}
+
+/* Preset themes keep status, error, success and heatmap tokens inherited from
+   the light semantic palette. Only surfaces and brand accents change here. */
+:root:where(:not([data-skin="focus"]))[data-theme="bamboo"] {
+  color-scheme: light;
+  --text-on-accent: #fff;
+  --bg-canvas: #f2ebdd;
+  --bg-paper: #fbf7ec;
+  --bg-raised: #f3eedf;
+  --bg-key: #e5dcc8;
+  --text-primary: #242c27;
+  --text-secondary: #5e685e;
+  --border-default: #cbbfa8;
+  --border-subtle: #ded4c0;
+  --border-strong: #968b75;
+  --accent-vermilion: #b3432b;
+  --accent-vermilion-fill: #963521;
+  --accent-vermilion-dark: #6f241c;
+  --accent-bamboo: #326455;
+  --accent-bamboo-fill: #285849;
+  --progress-fill: #bfd1c6;
+  --focus-ring: #1d5e8c;
+  --shadow-key: 0 2px 0 #aa9e87;
+  --shadow-panel: 0 14px 36px rgba(65, 55, 38, 0.08);
+  --grid-line: color-mix(in srgb, var(--accent-bamboo) 8%, transparent);
+}
+
+:root:where(:not([data-skin="focus"]))[data-theme="qingdai"] {
+  color-scheme: light;
+  --text-on-accent: #fff;
+  --bg-canvas: #dce5e8;
+  --bg-paper: #f0f4f4;
+  --bg-raised: #e6edef;
+  --bg-key: #d1dde0;
+  --text-primary: #1e2b31;
+  --text-secondary: #53656d;
+  --border-default: #aebfc5;
+  --border-subtle: #cad6da;
+  --border-strong: #788f98;
+  --accent-vermilion: #31566f;
+  --accent-vermilion-fill: #294b61;
+  --accent-vermilion-dark: #1c394c;
+  --accent-bamboo: #3f6f70;
+  --accent-bamboo-fill: #315d5f;
+  --progress-fill: #b6cdd0;
+  --focus-ring: #165f92;
+  --shadow-key: 0 2px 0 #91a6ad;
+  --shadow-panel: 0 14px 36px rgba(30, 54, 66, 0.08);
+  --grid-line: color-mix(in srgb, var(--accent-vermilion) 7%, transparent);
+}
+
+:root:where(:not([data-skin="focus"]))[data-theme="custom"] {
+  color-scheme: var(--custom-color-scheme, light);
+  --text-on-accent: var(--custom-accent-text, #fff);
+  --bg-canvas: var(--custom-canvas, #f2ebdd);
+  --bg-paper: var(--custom-paper, #fbf7ec);
+  --bg-raised: var(--custom-raised, #f3eedf);
+  --bg-key: var(--custom-key, #e5dcc8);
+  --text-primary: var(--custom-text, #242c27);
+  --text-secondary: var(--custom-text-secondary, #5e685e);
+  --border-default: var(--custom-border, #cbbfa8);
+  --border-subtle: color-mix(in srgb, var(--custom-border, #cbbfa8) 62%, var(--custom-paper, #fbf7ec));
+  --border-strong: var(--custom-border-strong, #968b75);
+  --accent-vermilion: var(--custom-accent, #b3432b);
+  --accent-vermilion-fill: var(--custom-accent, #b3432b);
+  --accent-vermilion-dark: color-mix(in srgb, var(--custom-accent, #b3432b) 78%, var(--custom-text, #242c27));
+  --accent-bamboo: var(--custom-accent, #b3432b);
+  --accent-bamboo-fill: var(--custom-accent, #b3432b);
+  --progress-fill: color-mix(in srgb, var(--custom-accent, #b3432b) 28%, var(--custom-paper, #fbf7ec));
+  --shadow-key: 0 2px 0 var(--custom-border-strong, #968b75);
+  --shadow-panel: 0 14px 36px color-mix(in srgb, var(--custom-text, #242c27) 10%, transparent);
+  --grid-line: color-mix(in srgb, var(--custom-accent, #b3432b) 8%, transparent);
+}
+
+html:where(:not([data-skin="focus"])) {
+  scroll-padding-top: 96px;
+}
+
+:where(html:not([data-skin="focus"])) body {
+  min-height: 100dvh;
+  background-color: var(--bg-canvas);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  font-size: 15px;
+}
+
+:where(html:not([data-skin="focus"])) body::before {
+  content: "";
+  width: min(1480px, calc(100% - 48px));
+  position: fixed;
+  z-index: -1;
+  inset: 0 auto 0 50%;
+  border-inline: 1px solid var(--grid-line);
+  background: color-mix(in srgb, var(--bg-canvas) 82%, transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+:where(html:not([data-skin="focus"])) ::selection {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+:where(html:not([data-skin="focus"])) .skip-link {
+  padding: 10px 16px;
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+  font-weight: 700;
+  transform: translateY(-160%);
+}
+
+:where(html:not([data-skin="focus"])) .skip-link:focus {
+  transform: translateY(0);
+}
+
+:where(html:not([data-skin="focus"])) .site-header {
+  border-bottom-color: var(--border-strong);
+  background: color-mix(in srgb, var(--bg-paper) 94%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--bg-paper) 70%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+:where(html:not([data-skin="focus"])) .header-inner {
+  width: min(1480px, calc(100% - 48px));
+  min-height: 84px;
+  grid-template-columns: 270px minmax(600px, 1fr) 260px;
+  gap: 20px;
+}
+
+:where(html:not([data-skin="focus"])) .brand {
+  gap: 14px;
+}
+
+:where(html:not([data-skin="focus"])) .brand-mark {
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 18px;
+  color: var(--text-on-accent);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--accent-vermilion-fill);
+  box-shadow: 0 3px 0 var(--accent-vermilion-dark);
+  font-family: var(--font-reading);
+  transform: none;
+}
+
+:where(html:not([data-skin="focus"])) .brand-mark::before,
+:where(html:not([data-skin="focus"])) .brand-mark::after {
+  display: none;
+}
+
+:where(html:not([data-skin="focus"])) .brand-mark i {
+  display: grid;
+  place-items: center;
+  font-size: 25px;
+  font-style: normal;
+}
+
+:where(html:not([data-skin="focus"])) .brand-mark b {
+  padding-block: 7px;
+  display: grid;
+  place-items: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  font: 700 8px/1 var(--font-data);
+  letter-spacing: 0.08em;
+  text-orientation: mixed;
+  writing-mode: vertical-rl;
+}
+
+:where(html:not([data-skin="focus"])) .brand:hover .brand-mark {
+  box-shadow: 0 1px 0 var(--accent-vermilion-dark);
+  transform: translateY(2px);
+}
+
+:where(html:not([data-skin="focus"])) .brand strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+:where(html:not([data-skin="focus"])) .brand small {
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font: 650 8px/1.3 var(--font-data);
+  letter-spacing: 0.08em;
+}
+
+:where(html:not([data-skin="focus"])) .main-nav {
+  align-items: stretch;
+  border-inline: 1px solid var(--border-subtle);
+}
+
+:where(html:not([data-skin="focus"])) .nav-item {
+  min-width: 0;
+  padding: 11px 14px 9px;
+  flex: 1;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+:where(html:not([data-skin="focus"])) .nav-item > span {
+  color: var(--text-secondary);
+  font: 700 9px/1 var(--font-data);
+  letter-spacing: 0.16em;
+}
+
+:where(html:not([data-skin="focus"])) .nav-item > strong {
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+:where(html:not([data-skin="focus"])) .nav-item:hover {
+  background: color-mix(in srgb, var(--accent-bamboo) 7%, var(--bg-paper));
+}
+
+:where(html:not([data-skin="focus"])) .nav-item.active {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+:where(html:not([data-skin="focus"])) .nav-item.active > span {
+  color: color-mix(in srgb, var(--text-on-accent) 78%, transparent);
+}
+
+:where(html:not([data-skin="focus"])) .nav-item.active::after {
+  width: 100%;
+  height: 3px;
+  inset: auto 0 0;
+  border-radius: 0;
+  background: var(--accent-vermilion);
+  transform: none;
+}
+
+:where(html:not([data-skin="focus"])) .local-badge {
+  justify-self: end;
+  gap: 10px;
+  font-size: 10px;
+}
+
+:where(html:not([data-skin="focus"])) .local-badge i {
+  width: 10px;
+  height: 10px;
+  border: 3px solid var(--bg-paper);
+  outline-color: var(--accent-bamboo);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-bamboo) 12%, transparent);
+}
+
+:where(html:not([data-skin="focus"])) .local-badge span,
+:where(html:not([data-skin="focus"])) .local-badge b {
+  display: block;
+}
+
+:where(html:not([data-skin="focus"])) .local-badge b {
+  margin-bottom: 3px;
+  color: var(--accent-bamboo);
+  font: 800 9px/1 var(--font-data);
+  letter-spacing: 0.12em;
+}
+
+:where(html:not([data-skin="focus"])) .page-wrap,
+:where(html:not([data-skin="focus"])) .site-footer {
+  width: min(1480px, calc(100% - 48px));
+}
+
+:where(html:not([data-skin="focus"])) .hero-row {
+  min-height: 240px;
+  padding: 48px 20px 40px;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-inline: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-bamboo) 5%, transparent), transparent 48%),
+    var(--bg-paper);
+}
+
+:where(html:not([data-skin="focus"])) .hero-row::before,
+:where(html:not([data-skin="focus"])) .subpage-heading::before {
+  content: "86";
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  color: color-mix(in srgb, var(--accent-bamboo) 11%, transparent);
+  font: 800 clamp(72px, 9vw, 132px)/1 var(--font-data);
+  letter-spacing: -0.12em;
+  pointer-events: none;
+}
+
+:where(html:not([data-skin="focus"])) .eyebrow {
+  margin-bottom: 12px;
+  color: var(--accent-vermilion);
+  font: 800 10px/1.2 var(--font-data);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+:where(html:not([data-skin="focus"])) .eyebrow::before {
+  content: "[";
+  margin-right: 5px;
+}
+
+:where(html:not([data-skin="focus"])) .eyebrow::after {
+  content: "]";
+  margin-left: 5px;
+}
+
+:where(html:not([data-skin="focus"])) .hero-row h1,
+:where(html:not([data-skin="focus"])) .subpage-heading h1 {
+  max-width: 900px;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 4vw, 62px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: 0.02em;
+}
+
+:where(html:not([data-skin="focus"])) .hero-row h1 em {
+  color: var(--accent-vermilion);
+  font-family: inherit;
+  font-style: normal;
+}
+
+:where(html:not([data-skin="focus"])) .hero-row p,
+:where(html:not([data-skin="focus"])) .subpage-heading p {
+  max-width: 700px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+:where(html:not([data-skin="focus"])) .button,
+:where(html:not([data-skin="focus"])) .side-action,
+:where(html:not([data-skin="focus"])) .article-restart button,
+:where(html:not([data-skin="focus"])) .toolbar-actions button,
+:where(html:not([data-skin="focus"])) .history-filter button,
+:where(html:not([data-skin="focus"])) .trend-range button,
+:where(html:not([data-skin="focus"])) .training-tabs button,
+:where(html:not([data-skin="focus"])) .segmented button {
+  min-height: 44px;
+  border-radius: var(--radius-small);
+  font-weight: 700;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms var(--ease-out);
+}
+
+:where(html:not([data-skin="focus"])) .button:hover:not(:disabled),
+:where(html:not([data-skin="focus"])) .side-action:hover:not(:disabled),
+:where(html:not([data-skin="focus"])) .article-restart button:hover:not(:disabled),
+:where(html:not([data-skin="focus"])) .toolbar-actions button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+:where(html:not([data-skin="focus"])) .button.primary,
+:where(html:not([data-skin="focus"])) .side-action {
+  color: var(--text-on-accent);
+  border-color: var(--accent-vermilion-dark);
+  background: var(--accent-vermilion-fill);
+  box-shadow: 0 3px 0 var(--accent-vermilion-dark);
+}
+
+:where(html:not([data-skin="focus"])) .button.primary:active,
+:where(html:not([data-skin="focus"])) .side-action:active {
+  box-shadow: 0 1px 0 var(--accent-vermilion-dark);
+  transform: translateY(2px);
+}
+
+:where(html:not([data-skin="focus"])) .button.secondary,
+:where(html:not([data-skin="focus"])) .side-action.subtle {
+  border-color: var(--border-strong);
+  background: var(--bg-paper);
+  box-shadow: 0 2px 0 var(--border-default);
+}
+
+:where(html:not([data-skin="focus"])) .metric-strip {
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-inline-width: 1px;
+  background: var(--bg-paper);
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--accent-bamboo) 18%, var(--border-default));
+}
+
+:where(html:not([data-skin="focus"])) .metric {
+  min-height: 90px;
+  padding: 16px 20px;
+  position: relative;
+  border-right-color: var(--border-default);
+}
+
+:where(html:not([data-skin="focus"])) .metric::after {
+  content: attr(data-unit);
+}
+
+:where(html:not([data-skin="focus"])) .metric > span {
+  font: 700 10px/1 var(--font-data);
+  letter-spacing: 0.08em;
+}
+
+:where(html:not([data-skin="focus"])) .metric strong {
+  margin-top: 8px;
+  font-size: 30px;
+  letter-spacing: -0.05em;
+}
+
+:where(html:not([data-skin="focus"])) .metric.primary-metric {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+:where(html:not([data-skin="focus"])) .workspace-grid,
+:where(html:not([data-skin="focus"])) .challenge-layout,
+:where(html:not([data-skin="focus"])) .history-grid,
+:where(html:not([data-skin="focus"])) .training-plan,
+:where(html:not([data-skin="focus"])) .settings-grid {
+  gap: 20px;
+}
+
+:where(html:not([data-skin="focus"])) .workspace-grid {
+  margin-top: 28px;
+  grid-template-columns: minmax(0, 1fr) 290px;
+}
+
+:where(html:not([data-skin="focus"])) .typing-card,
+:where(html:not([data-skin="focus"])) .side-panel,
+:where(html:not([data-skin="focus"])) .challenge-card,
+:where(html:not([data-skin="focus"])) .history-panel,
+:where(html:not([data-skin="focus"])) .settings-card,
+:where(html:not([data-skin="focus"])) .summary-card,
+:where(html:not([data-skin="focus"])) .lookup-search,
+:where(html:not([data-skin="focus"])) .lookup-results,
+:where(html:not([data-skin="focus"])) .trend-panel,
+:where(html:not([data-skin="focus"])) .daily-progress-card,
+:where(html:not([data-skin="focus"])) .smart-plan-card,
+:where(html:not([data-skin="focus"])) .due-review-card,
+:where(html:not([data-skin="focus"])) .hesitation-queue-card,
+:where(html:not([data-skin="focus"])) .management-card,
+:where(html:not([data-skin="focus"])) .pwa-card {
+  border-color: var(--border-default);
+  border-radius: var(--radius-medium);
+  background-color: var(--bg-paper);
+  box-shadow: var(--shadow-panel);
+}
+
+:where(html:not([data-skin="focus"])) .typing-card,
+:where(html:not([data-skin="focus"])) .challenge-card,
+:where(html:not([data-skin="focus"])) .trend-panel {
+  border-top: 3px solid var(--accent-bamboo);
+}
+
+:where(html:not([data-skin="focus"])) .side-panel,
+:where(html:not([data-skin="focus"])) .settings-card,
+:where(html:not([data-skin="focus"])) .summary-card {
+  position: relative;
+  overflow: hidden;
+}
+
+:where(html:not([data-skin="focus"])) .side-panel::before,
+:where(html:not([data-skin="focus"])) .settings-card::before,
+:where(html:not([data-skin="focus"])) .summary-card::before {
+  content: "";
+  width: 4px;
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--border-default);
+}
+
+:where(html:not([data-skin="focus"])) .typing-toolbar,
+:where(html:not([data-skin="focus"])) .panel-title,
+:where(html:not([data-skin="focus"])) .settings-card-title {
+  border-bottom-color: var(--border-default);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-bamboo) 6%, transparent), transparent),
+    var(--bg-raised);
+}
+
+:where(html:not([data-skin="focus"])) .practice-commandbar,
+:where(html:not([data-skin="focus"])) .training-tabs {
+  border-color: var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-key);
+}
+
+:where(html:not([data-skin="focus"])) .practice-mode-mark,
+:where(html:not([data-skin="focus"])) .goal-seal,
+:where(html:not([data-skin="focus"])) .training-tabs button.active,
+:where(html:not([data-skin="focus"])) .segmented button.active,
+:where(html:not([data-skin="focus"])) .history-filter button.active,
+:where(html:not([data-skin="focus"])) .trend-range button.active {
+  color: var(--text-on-accent);
+  background: var(--accent-bamboo-fill);
+}
+
+:where(html:not([data-skin="focus"])) .root-rail,
+:where(html:not([data-skin="focus"])) .root-zone-rail {
+  border-block-color: var(--border-default);
+  background: var(--bg-raised);
+}
+
+:where(html:not([data-skin="focus"])) .root-rail > span,
+:where(html:not([data-skin="focus"])) .root-zone-rail button {
+  border-right-color: var(--border-default);
+}
+
+:where(html:not([data-skin="focus"])) .root-rail b,
+:where(html:not([data-skin="focus"])) .root-zone-rail strong {
+  color: var(--accent-bamboo);
+  font-family: var(--font-data);
+}
+
+:where(html:not([data-skin="focus"])) .article-text {
+  background-color: var(--bg-paper);
+  background-image:
+    linear-gradient(transparent calc(2.05em - 1px), var(--border-subtle) 1px);
+  background-size: 100% 2.05em;
+  font-family: var(--font-reading);
+  font-size: var(--practice-font-size);
+  line-height: 2.05;
+}
+
+:where(html:not([data-skin="focus"])) .article-text span.current {
+  color: var(--text-on-accent);
+  outline: 4px solid color-mix(in srgb, var(--accent-vermilion) 16%, transparent);
+  background: var(--accent-vermilion-fill);
+}
+
+:where(html:not([data-skin="focus"])) .article-text span.correct {
+  color: var(--state-success);
+}
+
+:where(html:not([data-skin="focus"])) .typing-input,
+:where(html:not([data-skin="focus"])) .code-input,
+:where(html:not([data-skin="focus"])) .lookup-search input,
+:where(html:not([data-skin="focus"])) input,
+:where(html:not([data-skin="focus"])) select,
+:where(html:not([data-skin="focus"])) textarea {
+  border-color: var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+}
+
+:where(html:not([data-skin="focus"])) .typing-input {
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-raised);
+}
+
+:where(html:not([data-skin="focus"])) .subpage {
+  padding: 0 0 56px;
+}
+
+:where(html:not([data-skin="focus"])) .subpage-heading {
+  width: 100%;
+  max-width: none;
+  min-height: 230px;
+  margin-bottom: 28px;
+  padding: 48px 20px 38px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  border-inline: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-bamboo) 5%, transparent), transparent 55%),
+    var(--bg-paper);
+}
+
+:where(html:not([data-skin="focus"])) .subpage-heading.centered {
+  text-align: left;
+}
+
+:where(html:not([data-skin="focus"])) .subpage-heading.with-action {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+:where(html:not([data-skin="focus"])) .subpage-heading > * {
+  position: relative;
+  z-index: 1;
+}
+
+:where(html:not([data-skin="focus"])) .challenge-layout {
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+
+:where(html:not([data-skin="focus"])) .challenge-card {
+  min-height: 540px;
+  overflow: hidden;
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    var(--bg-paper);
+  background-size: 40px 40px;
+}
+
+:where(html:not([data-skin="focus"])) .challenge-start::before {
+  content: "86";
+  color: var(--accent-vermilion);
+  font: 800 86px/1 var(--font-data);
+  letter-spacing: -0.12em;
+}
+
+:where(html:not([data-skin="focus"])) .challenge-start h2,
+:where(html:not([data-skin="focus"])) .lookup-empty h2,
+:where(html:not([data-skin="focus"])) .panel-title h2,
+:where(html:not([data-skin="focus"])) .settings-card-title h2,
+:where(html:not([data-skin="focus"])) .daily-progress-card h2,
+:where(html:not([data-skin="focus"])) .smart-plan-card h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+:where(html:not([data-skin="focus"])) .question-character,
+:where(html:not([data-skin="focus"])) .drill-question {
+  color: var(--text-primary);
+  font-family: var(--font-reading);
+}
+
+:where(html:not([data-skin="focus"])) .code-slots span {
+  border-color: var(--border-strong);
+  border-radius: var(--radius-small);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-key);
+}
+
+:where(html:not([data-skin="focus"])) .lookup-page {
+  max-width: none;
+}
+
+:where(html:not([data-skin="focus"])) .lookup-page .lookup-heading,
+:where(html:not([data-skin="focus"])) .lookup-page .keyboard-visual,
+:where(html:not([data-skin="focus"])) .lookup-page .lookup-empty,
+:where(html:not([data-skin="focus"])) .lookup-page .lookup-results {
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+}
+
+:where(html:not([data-skin="focus"])) .lookup-page .lookup-search {
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+}
+
+:where(html:not([data-skin="focus"])) .lookup-search {
+  min-height: 84px;
+  border-width: 2px;
+}
+
+:where(html:not([data-skin="focus"])) .keyboard-visual {
+  padding: 26px 0;
+}
+
+:where(html:not([data-skin="focus"])) .keyboard-visual span {
+  border-color: var(--border-default);
+  border-radius: var(--radius-small);
+  background: var(--bg-key);
+  box-shadow: var(--shadow-key);
+  font: 700 12px/1 var(--font-data);
+}
+
+:where(html:not([data-skin="focus"])) .lookup-empty > h2,
+:where(html:not([data-skin="focus"])) .lookup-empty > p,
+:where(html:not([data-skin="focus"])) .lookup-empty > .quick-searches {
+  animation: lookup-copy-rise-in 420ms var(--ease-out) both;
+}
+
+:where(html:not([data-skin="focus"])) .lookup-empty > p {
+  animation-delay: 60ms;
+}
+
+:where(html:not([data-skin="focus"])) .lookup-empty > .quick-searches {
+  animation-delay: 110ms;
+}
+
+@supports (animation-timeline: view()) {
+  :where(html:not([data-skin="focus"])) .lookup-results .lookup-row {
+    animation: lookup-result-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 32%;
+  }
+}
+
+@keyframes lookup-keyboard-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes lookup-copy-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes lookup-result-reveal {
+  from {
+    opacity: 0.45;
+    transform: translateY(8px);
+  }
+}
+
+:where(html:not([data-skin="focus"])) .lookup-row {
+  border-bottom-color: var(--border-default);
+}
+
+:where(html:not([data-skin="focus"])) .lookup-row > strong {
+  font-family: var(--font-reading);
+  font-size: 30px;
+}
+
+:where(html:not([data-skin="focus"])) .lookup-row code {
+  color: var(--accent-bamboo);
+  background: var(--bg-key);
+}
+
+:where(html:not([data-skin="focus"])) .summary-grid {
+  gap: 12px;
+}
+
+:where(html:not([data-skin="focus"])) .summary-card {
+  min-height: 138px;
+  padding: 22px 22px 18px 26px;
+}
+
+:where(html:not([data-skin="focus"])) .summary-card strong {
+  font-family: var(--font-data);
+  font-size: 34px;
+  letter-spacing: -0.06em;
+}
+
+:where(html:not([data-skin="focus"])) .summary-card.accent {
+  color: var(--text-on-accent);
+  border-color: var(--accent-vermilion-dark);
+  background: var(--accent-vermilion-fill);
+}
+
+:where(html:not([data-skin="focus"])) .trend-chart {
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    var(--bg-paper);
+  background-size: 100% 25%;
+}
+
+:where(html:not([data-skin="focus"])) .speed-line,
+:where(html:not([data-skin="focus"])) .accuracy-line {
+  stroke-width: 3;
+}

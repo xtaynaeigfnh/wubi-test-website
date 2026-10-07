@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeSkin } from "./skin.ts";
+
 import {
   normalizeCustomTheme,
   defaultSettings,
@@ -144,6 +146,7 @@ export function readSettings(): UserSettings {
       typeof partial.sound === "boolean"
         ? partial.sound
         : defaultSettings.sound,
+    skin: normalizeSkin(partial.skin),
     theme:
       partial.theme &&
       ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
