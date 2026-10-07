@@ -169,6 +169,7 @@ test("backup format only accepts known versioned storage keys", () => {
         showCodeHints: false,
         showGhostGap: true,
         sound: false,
+        skin: "letterpress",
         theme: "dark",
         customTheme: defaultCustomTheme,
         autoNext: false,
@@ -292,6 +293,7 @@ test("backup format only accepts known versioned storage keys", () => {
       showCodeHints: false,
       showGhostGap: true,
       sound: false,
+      skin: "letterpress",
       theme: "dark",
       customTheme: defaultCustomTheme,
       autoNext: false,
@@ -549,6 +551,36 @@ test("backup settings preserve valid custom themes and repair invalid theme fiel
     accent: "#445566",
     canvas: defaultCustomTheme.canvas,
   });
+});
+
+test("皮肤与配色可随备份往返，旧备份与无效皮肤回退到铅字蓝图", () => {
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  try {
+    for (const skin of [undefined, "letterpress", "focus", "unsupported", null]) {
+      const payload = createBackupPayload({
+        [STORAGE.settings]: { skin, theme: "qingdai", fontSize: 36, sound: true },
+      });
+      const parsed = parseBackupPayload(payload);
+      assert.equal(parsed.version, 2);
+      assert.equal(parsed.data[STORAGE.settings].skin, skin === "focus" ? "focus" : "letterpress");
+      restoreBackupPayload(payload);
+      const restored = JSON.parse(values.get(STORAGE.settings));
+      assert.equal(restored.skin, parsed.data[STORAGE.settings].skin);
+      assert.equal(restored.theme, "qingdai");
+      assert.equal(restored.fontSize, 36);
+      assert.equal(restored.sound, true);
+      assert.deepEqual(parseBackupPayload(createBackupPayload({ [STORAGE.settings]: restored })).data[STORAGE.settings], restored);
+    }
+  } finally {
+    delete globalThis.window;
+  }
 });
 
 test("backup restore saves normalized custom theme settings", () => {
@@ -819,6 +851,7 @@ test("backup restore rolls back every key after a storage failure", () => {
         preferredLength: "all",
         showCodeHints: false,
         sound: false,
+        skin: "letterpress",
         theme: "dark",
         autoNext: false,
       },

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import { useSkin } from "../SkinContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -73,6 +74,7 @@ export function HistoryView({
   masteredAtByFingerprint: ReadonlyMap<string, string>;
   hesitationSaveRevision: number;
 }) {
+  const skin = useSkin();
   const router = useRouter();
   const [sessions, setSessions] = useState<SessionResult[]>([]);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
@@ -163,11 +165,12 @@ export function HistoryView({
       <header className="history-heading">
         <div>
           <span className="eyebrow">练习档案 / PRACTICE JOURNAL</span>
-          <h1>成绩统计</h1>
+          <h1>{skin === "focus" ? "成绩统计" : "每一次练习，都算数。"}</h1>
           <p>回看走过的字，找到下一次进步的方向。</p>
         </div>
         <Link className="button primary" href="/">开始练习 <span aria-hidden="true">↗</span></Link>
       </header>
+      {skin === "letterpress" && <div className="history-overview-heading"><h2>成绩统计</h2><span>仅保存在当前浏览器</span></div>}
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />
         <SummaryCard label="最高速度" value={`${bestSpeed}`} unit="字/分" note="文章测速个人最佳" accent />

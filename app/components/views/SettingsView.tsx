@@ -9,7 +9,8 @@ import {
   mixHex,
   themeLabels,
 } from "../../theme";
-import type { ThemeId, UserSettings } from "../../types";
+import { skinLabels, skinThemeSwatches } from "../../skin";
+import type { SkinId, ThemeId, UserSettings } from "../../types";
 import { DataManagement } from "../DataManagement";
 import { PwaControl } from "../PwaControl";
 import { Toggle } from "../Ui";
@@ -18,48 +19,18 @@ import type { PetSpecies } from "../../types";
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
-const themeOptions: Array<{
-  id: ThemeId;
-  description: string;
-  canvas: string;
-  accent: string;
-}> = [
-  {
-    id: "system",
-    description: "随设备外观",
-    canvas: "#F6F7F3",
-    accent: "#C6ED78",
-  },
-  {
-    id: "light",
-    description: "墨白青柠",
-    canvas: "#F6F7F3",
-    accent: "#C6ED78",
-  },
-  {
-    id: "dark",
-    description: "低亮深色",
-    canvas: "#141A16",
-    accent: "#C6ED78",
-  },
-  {
-    id: "bamboo",
-    description: "米纸竹青",
-    canvas: "#F2EFE4",
-    accent: "#D6E6A7",
-  },
-  {
-    id: "qingdai",
-    description: "静谧蓝灰",
-    canvas: "#EEF3F4",
-    accent: "#B5DCE7",
-  },
-  {
-    id: "custom",
-    description: "自行配色",
-    canvas: "#F2EBDD",
-    accent: "#B3432B",
-  },
+const themeOptions: Array<{ id: ThemeId; description: string }> = [
+  { id: "system", description: "随设备外观" },
+  { id: "light", description: "明亮浅色" },
+  { id: "dark", description: "低亮深色" },
+  { id: "bamboo", description: "米纸竹青" },
+  { id: "qingdai", description: "静谧蓝灰" },
+  { id: "custom", description: "自行配色" },
+];
+
+const skinOptions: Array<{ id: SkinId; description: string }> = [
+  { id: "letterpress", description: "顶部导航 · 网格纸面 · 完整指标" },
+  { id: "focus", description: "侧栏导航 · 清爽留白 · 专注跟打" },
 ];
 
 const settingsSections = [
@@ -123,6 +94,7 @@ export function SettingsView({
           <p>把界面和训练节奏调到顺手。每项改动都会立即生效，并保存在当前浏览器中。</p>
         </div>
         <dl className="settings-heading-summary" aria-label="当前设置摘要">
+          <div><dt>皮肤</dt><dd>{skinLabels[settings.skin]}</dd></div>
           <div><dt>主题</dt><dd>{themeLabels[settings.theme]}</dd></div>
           <div><dt>字号</dt><dd>{settings.fontSize}px</dd></div>
           <div><dt>默认篇幅</dt><dd>{lengthLabels[settings.preferredLength]}</dd></div>
@@ -172,6 +144,21 @@ export function SettingsView({
           <div className="settings-grid">
             <section className="settings-card theme-settings-card" id="settings-appearance">
               <div className="settings-card-title"><span>A</span><div><h2>文字与界面</h2><p>调整跟打区的可读性</p></div></div>
+              <fieldset className="skin-fieldset">
+                <legend>界面皮肤</legend>
+                <div className="skin-options">
+                  {skinOptions.map((option) => (
+                    <label key={option.id} className="skin-option" data-skin-option={option.id}>
+                      <input type="radio" name="skin" value={option.id} checked={settings.skin === option.id} onChange={() => update("skin", option.id)} />
+                      <span className="skin-thumbnail" aria-hidden="true">
+                        <span className="skin-thumbnail-nav"><i /><i /><i /></span>
+                        <span className="skin-thumbnail-page"><b>五笔 · 86</b><i /><span><i /><i /><i /></span><em>稳中求快</em></span>
+                      </span>
+                      <span className="skin-option-copy"><strong>{skinLabels[option.id]}</strong><small>{option.description}</small></span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <div className="theme-settings">
                 <div className="theme-settings-controls">
                   <label className="range-row">
@@ -185,10 +172,10 @@ export function SettingsView({
                         const selected = settings.theme === option.id;
                         const swatchCanvas = option.id === "custom"
                           ? customTheme.canvas
-                          : option.canvas;
+                          : skinThemeSwatches[settings.skin][option.id].canvas;
                         const swatchAccent = option.id === "custom"
                           ? customTheme.accent
-                          : option.accent;
+                          : skinThemeSwatches[settings.skin][option.id].accent;
                         const swatchText = chooseContrastText(swatchCanvas);
                         return (
                           <label
@@ -267,9 +254,10 @@ export function SettingsView({
                 <div
                   className="theme-preview"
                   data-preview-theme={settings.theme}
+                  data-preview-skin={settings.skin}
                   aria-label={`主题即时预览：${themeLabels[settings.theme]}`}
                 >
-                  <div className="theme-preview-toolbar"><span>即时预览</span><b>{themeLabels[settings.theme]}</b></div>
+                  <div className="theme-preview-toolbar"><span>即时预览</span><b>{skinLabels[settings.skin]} · {themeLabels[settings.theme]}</b></div>
                   <div className="theme-preview-card">
                     <div><strong>普通文字与卡片</strong><p>保持安静、清晰，适合长时间练习。</p></div>
                     <span className="theme-preview-button">开始练习</span>

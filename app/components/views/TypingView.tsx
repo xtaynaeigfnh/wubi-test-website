@@ -396,6 +396,185 @@ export function TypingView({
     );
   }
 
+  const isFocusSkin = settings.skin === "focus";
+  const commandBar = (
+    <div className="practice-commandbar" aria-label="练习控制">
+      <div className="practice-mode">
+        <span className="practice-mode-mark">五</span>
+        <span>86 版</span>
+        <span>全文跟打</span>
+        <span>{lengthLabels[article.length]}</span>
+        {settings.showCodeHints && <span>编码提示开启</span>}
+      </div>
+      <fieldset
+        className="ghost-mode-picker"
+        disabled={startedAt !== null}
+        aria-describedby="ghost-mode-note"
+      >
+        <legend>幽灵赛</legend>
+        <label>
+          <input
+            type="radio"
+            name="ghost-mode"
+            checked={ghostMode === "off"}
+            onChange={() => setGhostMode("off")}
+          />
+          普通
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="ghost-mode"
+            checked={ghostMode === "best"}
+            disabled={!ghostSessions.best}
+            onChange={() => setGhostMode("best")}
+          />
+          个人最佳
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="ghost-mode"
+            checked={ghostMode === "recent"}
+            disabled={!ghostSessions.recent}
+            onChange={() => setGhostMode("recent")}
+          />
+          最近一次
+        </label>
+      </fieldset>
+      <span id="ghost-mode-note" className="sr-only">
+        {ghostSessions.best
+          ? "输入第一个字符后将锁定本轮挑战对象"
+          : "完成一次可比较的文章练习后即可挑战"}
+      </span>
+      <div className="practice-actions">
+        <button
+          disabled={startedAt === null || completed}
+          className={pausedAt !== null ? "active" : ""}
+          onClick={togglePause}
+          aria-pressed={pausedAt !== null}
+        >
+          {pausedAt !== null ? "继续" : "暂停"}
+        </button>
+        <button
+          disabled={startedAt === null && !inputValue}
+          onClick={() =>
+            chooseArticle(
+              article,
+              true,
+              retryCount + 1,
+              startedAt !== null ? activeGhostMode : ghostMode,
+            )
+          }
+        >
+          重来
+        </button>
+        <button
+          className={showGhostGap ? "active" : ""}
+          disabled={!activeGhostTimeline}
+          onClick={toggleGhostGap}
+          aria-pressed={showGhostGap}
+        >
+          {showGhostGap ? "隐藏差距" : "显示差距"}
+        </button>
+        <button
+          className={focusMode ? "active" : ""}
+          onClick={() => setFocusMode((value) => !value)}
+          aria-pressed={focusMode}
+        >
+          {focusMode ? "退出专注" : "专注模式"}
+        </button>
+      </div>
+    </div>
+  );
+  const diagnostics = (
+    <section className="typing-diagnostics" aria-label="输入诊断">
+      <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
+      <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
+      <DiagnosticMetric
+        label="码长差"
+        value={theoreticalGap === null ? "—" : `+${theoreticalGap.toFixed(2)}`}
+        unit=""
+      />
+      <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
+      <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
+      <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
+      <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
+      <DiagnosticMetric
+        label="左右手"
+        value={`${leftHandKeys} / ${rightHandKeys}`}
+        unit=""
+      />
+      <DiagnosticMetric label="暂停" value={pauseCount.toString()} unit="次" />
+      <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
+    </section>
+  );
+  const articleFilters = (
+    <div className={isFocusSkin ? "article-picker-filters" : "article-side-filters"}>
+      <label>
+        长度
+        <select
+          aria-label="长度"
+          value={filter.length}
+          onChange={(event) =>
+            setFilter((value) => ({
+              ...value,
+              length: event.target.value as ArticleFilter["length"],
+            }))
+          }
+        >
+          {Object.entries(lengthLabels).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        题材
+        <select
+          aria-label="题材"
+          value={filter.topic}
+          onChange={(event) =>
+            setFilter((value) => ({ ...value, topic: event.target.value }))
+          }
+        >
+          <option value="all">全部题材</option>
+          {topics.map((topic) => <option key={topic}>{topic}</option>)}
+        </select>
+      </label>
+      <label>
+        练习状态
+        <select
+          aria-label="练习状态"
+          value={filter.status}
+          onChange={(event) =>
+            setFilter((value) => ({
+              ...value,
+              status: event.target.value as ArticleFilter["status"],
+            }))
+          }
+        >
+          <option value="all">全部文章</option>
+          <option value="new">未练习</option>
+          <option value="practiced">已练习</option>
+        </select>
+      </label>
+      <button
+        className="side-action"
+        disabled={practiceInProgress || !filtered.length}
+        onClick={randomArticle}
+      >
+        随机抽取一篇 <b>↗</b>
+      </button>
+      <button
+        className="side-action subtle"
+        disabled={practiceInProgress}
+        onClick={pickMostDifficult}
+      >
+        重练错字较多文章
+      </button>
+    </div>
+  );
+
   return (
     <>
       {articleSaveError && (
@@ -403,17 +582,72 @@ export function TypingView({
           {articleSaveError}
         </p>
       )}
-      <section className="practice-heading">
-        <div className="practice-heading-copy">
-          <span className="eyebrow">WUBI · 86</span>
-          <h1>文章测速</h1>
-        </div>
-        <section className="metric-strip" aria-label="实时成绩">
-          <Metric label="速度" value={String(speed)} unit="字/分" active={startedAt !== null && !completed} />
-          <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
-          <Metric label="用时" value={formatDuration(elapsed)} unit="" />
+      {isFocusSkin ? (
+        <section className="practice-heading">
+          <div className="practice-heading-copy">
+            <span className="eyebrow">WUBI · 86</span>
+            <h1>文章测速</h1>
+          </div>
+          <section className="metric-strip" aria-label="实时成绩">
+            <Metric label="速度" value={String(speed)} unit="字/分" active={startedAt !== null && !completed} />
+            <Metric label="准确率" value={accuracy.toFixed(1)} unit="%" />
+            <Metric label="用时" value={formatDuration(elapsed)} unit="" />
+          </section>
         </section>
-      </section>
+      ) : (
+        <>
+          <section className="hero-row">
+            <div>
+              <span className="eyebrow">今天也写几行</span>
+              <h1>让手指先于思考，<em>落下正确的字。</em></h1>
+              <p>切到五笔输入法就可以开始。速度、击键和错字都安静地记在这台电脑里。</p>
+            </div>
+            <div className="hero-actions">
+              <button
+                className="button secondary common-entry"
+                disabled={practiceInProgress}
+                onClick={openCommonPractice}
+              >
+                常用字练习
+              </button>
+              <button
+                className="button secondary"
+                disabled={practiceInProgress}
+                onClick={openCustomPractice}
+              >
+                粘贴自己的文字
+              </button>
+              <button
+                className="button primary"
+                disabled={practiceInProgress}
+                onClick={randomArticle}
+              >
+                换一篇练练
+              </button>
+            </div>
+          </section>
+
+          <section className="metric-strip" aria-label="实时成绩">
+            <Metric
+              label="速度"
+              value={speed.toString()}
+              unit="字/分"
+              primary
+              active={startedAt !== null && !completed}
+            />
+            <Metric label="击键" value={kps.toFixed(2)} unit="次/秒" />
+            <CodeLengthMetric
+              value={codeLength.toFixed(2)}
+              theoreticalValue={theoreticalCodeLength}
+              error={minimumCodeError}
+            />
+            <Metric label="字准" value={accuracy.toFixed(1)} unit="%" />
+            <Metric label="错字" value={errorCount.toString()} unit="处" />
+            <Metric label="用时" value={formatDuration(elapsed)} unit="" />
+          </section>
+        </>
+      )}
+      {!isFocusSkin && diagnostics}
 
       {activeGhostTimeline && (
         <section className="ghost-live-card" aria-label="幽灵赛实时状态">
@@ -435,6 +669,7 @@ export function TypingView({
 
       <section className="workspace-grid">
         <article className="typing-card">
+          {!isFocusSkin && commandBar}
           <div className="typing-toolbar">
             <div className="article-heading">
               <div className="article-kicker">
@@ -723,132 +958,32 @@ export function TypingView({
               <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
             </div>
           )}
-          <div className="practice-commandbar" aria-label="练习控制">
-            <div className="practice-mode">
-              <span className="practice-mode-mark">五</span>
-              <span>86 版</span>
-              <span>全文跟打</span>
-              <span>{lengthLabels[article.length]}</span>
-              {settings.showCodeHints && <span>编码提示开启</span>}
-            </div>
-            <fieldset
-              className="ghost-mode-picker"
-              disabled={startedAt !== null}
-              aria-describedby="ghost-mode-note"
-            >
-              <legend>幽灵赛</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="ghost-mode"
-                  checked={ghostMode === "off"}
-                  onChange={() => setGhostMode("off")}
-                />
-                普通
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="ghost-mode"
-                  checked={ghostMode === "best"}
-                  disabled={!ghostSessions.best}
-                  onChange={() => setGhostMode("best")}
-                />
-                个人最佳
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="ghost-mode"
-                  checked={ghostMode === "recent"}
-                  disabled={!ghostSessions.recent}
-                  onChange={() => setGhostMode("recent")}
-                />
-                最近一次
-              </label>
-            </fieldset>
-            <span id="ghost-mode-note" className="sr-only">
-              {ghostSessions.best
-                ? "输入第一个字符后将锁定本轮挑战对象"
-                : "完成一次可比较的文章练习后即可挑战"}
-            </span>
-            <div className="practice-actions">
-              <button
-                disabled={startedAt === null || completed}
-                className={pausedAt !== null ? "active" : ""}
-                onClick={togglePause}
-                aria-pressed={pausedAt !== null}
-              >
-                {pausedAt !== null ? "继续" : "暂停"}
-              </button>
-              <button
-                disabled={startedAt === null && !inputValue}
-                onClick={() =>
-                  chooseArticle(
-                    article,
-                    true,
-                    retryCount + 1,
-                    startedAt !== null ? activeGhostMode : ghostMode,
-                  )
-                }
-              >
-                重来
-              </button>
-              <button
-                className={showGhostGap ? "active" : ""}
-                disabled={!activeGhostTimeline}
-                onClick={toggleGhostGap}
-                aria-pressed={showGhostGap}
-              >
-                {showGhostGap ? "隐藏差距" : "显示差距"}
-              </button>
-              <button
-                className={focusMode ? "active" : ""}
-                onClick={() => setFocusMode((value) => !value)}
-                aria-pressed={focusMode}
-              >
-                {focusMode ? "退出专注" : "专注模式"}
-              </button>
-            </div>
-          </div>
+          {isFocusSkin && commandBar}
         </article>
-
+        {!isFocusSkin && (
+          <aside className="side-panel">
+            <div className="side-heading"><div><span className="eyebrow">文章库</span><h3>{availableArticles.length} 篇离线练习</h3></div><span className="count-badge">{availableArticles.length}</span></div>
+            {articleFilters}
+            <div className="tip-box"><span>小提示</span><p>系统五笔候选上屏后才会判定正误，组合输入过程不会被计为错字。</p></div>
+          </aside>
+        )}
       </section>
 
-      <details className="practice-diagnostics">
+      {isFocusSkin && <details className="practice-diagnostics">
         <summary>输入诊断 <span>击键、码长与输入习惯</span></summary>
         <div className="secondary-metrics">
           <Metric label="击键" value={kps.toFixed(2)} unit="键/秒" />
           <CodeLengthMetric value={codeLength.toFixed(2)} theoreticalValue={theoreticalCodeLength} error={minimumCodeError} />
           <Metric label="错字" value={errorCount.toString()} unit="字" />
         </div>
-        <section className="typing-diagnostics" aria-label="输入诊断">
-          <DiagnosticMetric label="总键数" value={keyCount.toString()} unit="键" />
-          <DiagnosticMetric label="键准" value={keyAccuracy.toFixed(1)} unit="%" />
-          <DiagnosticMetric
-            label="码长差"
-            value={theoreticalGap === null ? "—" : `+${theoreticalGap.toFixed(2)}`}
-            unit=""
-          />
-          <DiagnosticMetric label="回改" value={correctionCount.toString()} unit="字" />
-          <DiagnosticMetric label="退格" value={backspaceCount.toString()} unit="次" />
-          <DiagnosticMetric label="选重" value={selectionCount.toString()} unit="次" />
-          <DiagnosticMetric label="打词" value={phraseRate.toFixed(1)} unit="%" />
-          <DiagnosticMetric
-            label="左右手"
-            value={`${leftHandKeys} / ${rightHandKeys}`}
-            unit=""
-          />
-          <DiagnosticMetric label="暂停" value={pauseCount.toString()} unit="次" />
-          <DiagnosticMetric label="重打" value={retryCount.toString()} unit="次" />
-        </section>
-      </details>
+        {diagnostics}
+      </details>}
 
-      <div className="practice-sources" aria-label="更多练习内容">
+      {isFocusSkin && <div className="practice-sources" aria-label="更多练习内容">
         <span>换一种练习</span>
         <button disabled={practiceInProgress} onClick={openCommonPractice}>常用字练习</button>
         <button disabled={practiceInProgress} onClick={openCustomPractice}>自定义文章</button>
-      </div>
+      </div>}
 
       {pickerOpen && (
         <ArticlePicker
@@ -857,69 +992,7 @@ export function TypingView({
           onClose={() => setPickerOpen(false)}
           onChoose={chooseArticle}
           filters={
-            <div className="article-picker-filters">
-              <label>
-                长度
-                <select
-                  aria-label="长度"
-                  value={filter.length}
-                  onChange={(event) =>
-                    setFilter((value) => ({
-                      ...value,
-                      length: event.target.value as ArticleFilter["length"],
-                    }))
-                  }
-                >
-                  {Object.entries(lengthLabels).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                题材
-                <select
-                  aria-label="题材"
-                  value={filter.topic}
-                  onChange={(event) =>
-                    setFilter((value) => ({ ...value, topic: event.target.value }))
-                  }
-                >
-                  <option value="all">全部题材</option>
-                  {topics.map((topic) => <option key={topic}>{topic}</option>)}
-                </select>
-              </label>
-              <label>
-                练习状态
-                <select
-                  aria-label="练习状态"
-                  value={filter.status}
-                  onChange={(event) =>
-                    setFilter((value) => ({
-                      ...value,
-                      status: event.target.value as ArticleFilter["status"],
-                    }))
-                  }
-                >
-                  <option value="all">全部文章</option>
-                  <option value="new">未练习</option>
-                  <option value="practiced">已练习</option>
-                </select>
-              </label>
-              <button
-                className="side-action"
-                disabled={practiceInProgress || !filtered.length}
-                onClick={randomArticle}
-              >
-                随机抽取一篇 <b>↗</b>
-              </button>
-              <button
-                className="side-action subtle"
-                disabled={practiceInProgress}
-                onClick={pickMostDifficult}
-              >
-                重练错字较多文章
-              </button>
-            </div>
+            isFocusSkin ? articleFilters : null
           }
         />
       )}

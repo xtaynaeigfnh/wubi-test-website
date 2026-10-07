@@ -1,0 +1,32 @@
+[
+  {
+    "engine": "chromium",
+    "skin": "letterpress",
+    "behavior": "passed"
+  },
+  {
+    "engine": "chromium",
+    "skin": "focus",
+    "behavior": "passed"
+  },
+  {
+    "engine": "firefox",
+    "skin": "letterpress",
+    "behavior": "passed"
+  },
+  {
+    "engine": "firefox",
+    "skin": "focus",
+    "behavior": "passed"
+  },
+  {
+    "engine": "webkit",
+    "skin": "letterpress",
+    "behavior": "passed"
+  },
+  {
+    "engine": "webkit",
+    "skin": "focus",
+    "behavior": "passed"
+  }
+]

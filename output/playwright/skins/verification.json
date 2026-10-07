@@ -1,0 +1,60 @@
+{
+  "status": "passed",
+  "engines": [
+    "chromium",
+    "firefox",
+    "webkit"
+  ],
+  "skins": [
+    "letterpress",
+    "focus"
+  ],
+  "widths": [
+    320,
+    768,
+    1024,
+    1440
+  ],
+  "accessibility": {
+    "scenarios": 468,
+    "failures": 0,
+    "initialIssuesFixedAndRechecked": 2,
+    "reports": [
+      "output/playwright/accessibility/report.json",
+      "output/playwright/accessibility/recheck/report.json",
+      "output/playwright/accessibility/home-recheck/report.json"
+    ]
+  },
+  "behavior": [
+    {
+      "engine": "chromium",
+      "skin": "letterpress",
+      "behavior": "passed"
+    },
+    {
+      "engine": "chromium",
+      "skin": "focus",
+      "behavior": "passed"
+    },
+    {
+      "engine": "firefox",
+      "skin": "letterpress",
+      "behavior": "passed"
+    },
+    {
+      "engine": "firefox",
+      "skin": "focus",
+      "behavior": "passed"
+    },
+    {
+      "engine": "webkit",
+      "skin": "letterpress",
+      "behavior": "passed"
+    },
+    {
+      "engine": "webkit",
+      "skin": "focus",
+      "behavior": "passed"
+    }
+  ]
+}

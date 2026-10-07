@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 
 const require = createRequire(import.meta.url);
-const output = "output/playwright/accessibility";
+const output = process.env.A11Y_OUTPUT ?? "output/playwright/accessibility";
 const base = (process.env.A11Y_BASE_URL ?? "http://127.0.0.1:4175").replace(/\/$/, "");
 const engines = { chromium, firefox, webkit };
 const routes = ["/", "/training", "/training?tab=review", "/training?tab=phrase", "/training?tab=roots", "/advanced", "/advanced?tab=scenario", "/advanced?tab=season", "/advanced?tab=challenge", "/lookup", "/history", "/summary", "/settings"];
@@ -97,62 +97,65 @@ try {
   for (const engine of (process.env.A11Y_BROWSERS ?? "chromium,firefox,webkit").split(",")) {
     const browser = await engines[engine].launch();
     try {
-      for (const profile of profiles.filter((item) => !process.env.A11Y_PROFILES || process.env.A11Y_PROFILES.split(",").includes(item.name))) {
-        const context = await browser.newContext({ viewport: { width: profile.width, height: profile.height }, colorScheme: profile.theme, reducedMotion: profile.reduced ? "reduce" : "no-preference", serviceWorkers: "block" });
-        await context.addInitScript(({ theme }) => {
-          localStorage.setItem("wubi-test:settings:v1", JSON.stringify({ theme }));
-          localStorage.setItem("wubi-test:onboarding:v1", JSON.stringify({ version: 1, status: "skipped", sessionIds: [] }));
-        }, profile);
-        const page = await context.newPage();
-        for (const route of routes.filter((item) => !process.env.A11Y_ROUTES || process.env.A11Y_ROUTES.split(",").includes(item))) {
-          const row = { engine, profile: profile.name, route, failures: [] };
-          const id = `${engine}-${profile.name}-${route.replace(/[^a-z0-9]/gi, "_")}`;
-          await context.tracing.start({ screenshots: true, snapshots: true });
-          try {
-            await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
-            await page.waitForFunction((theme) => document.documentElement.dataset.theme === theme, profile.theme);
-            await page.locator("main").waitFor();
-            await page.evaluate(() => document.fonts.ready);
-            const geometry = await page.evaluate(() => {
-              const shown = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== "hidden";
-              const controls = [...document.querySelectorAll("button, a[href], input:not([type=hidden]):not([type=file]), select, textarea, [role=tab]")].filter(shown);
-              return {
-                overflow: document.documentElement.scrollWidth > innerWidth + 1,
-                smallTargets: controls.filter((el) => !el.disabled && !el.closest("p") && (() => { const target = el.matches("input[type=checkbox], input[type=radio]") ? el.labels?.[0] ?? el : el; const r = target.getBoundingClientRect(); return r.width < 43.5 || r.height < 43.5; })()).map((el) => ({ text: (el.getAttribute("aria-label") || el.textContent || el.id).trim().slice(0, 65), tag: el.tagName, class: el.className, width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })),
-                motion: matchMedia("(prefers-reduced-motion: reduce)").matches ? [...document.getAnimations()].filter((a) => a.playState === "running" && (a.effect?.getComputedTiming().duration > 1 || a.effect?.getComputedTiming().iterations === Infinity)).map((a) => a.animationName) : [],
-              };
-            });
-            row.geometry = geometry;
-            if (profile.scan) {
-              await checkKeyboard(page, route);
-              row.keyboard = "passed";
-              await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
-              // Keyboard tab changes animate their colors; audit the settled state.
-              await page.waitForTimeout(200);
-            }
-            if (geometry.overflow) row.failures.push("页面横向溢出");
-            if (geometry.smallTargets.length) row.failures.push("交互目标不足 44px");
-            if (geometry.motion.length) row.failures.push("减少动画模式仍有持续动画");
-            if (profile.scan) {
-              await page.addScriptTag({ path: require.resolve("axe-core/axe.min.js") });
-              const audit = await page.evaluate(async () => {
-                const data = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] } });
-                return { violations: data.violations, incomplete: data.incomplete };
+      for (const skin of (process.env.A11Y_SKINS ?? "letterpress,focus").split(",")) {
+        for (const profile of profiles.filter((item) => !process.env.A11Y_PROFILES || process.env.A11Y_PROFILES.split(",").includes(item.name))) {
+          const context = await browser.newContext({ viewport: { width: profile.width, height: profile.height }, colorScheme: profile.theme, reducedMotion: profile.reduced ? "reduce" : "no-preference", serviceWorkers: "block" });
+          await context.addInitScript(({ theme, skin }) => {
+            localStorage.setItem("wubi-test:settings:v1", JSON.stringify({ theme, skin }));
+            localStorage.setItem("wubi-test:onboarding:v1", JSON.stringify({ version: 1, status: "skipped", sessionIds: [] }));
+          }, { ...profile, skin });
+          const page = await context.newPage();
+          for (const route of routes.filter((item) => !process.env.A11Y_ROUTES || process.env.A11Y_ROUTES.split(",").includes(item))) {
+            const row = { engine, skin, profile: profile.name, route, failures: [] };
+            const id = `${engine}-${skin}-${profile.name}-${route.replace(/[^a-z0-9]/gi, "_")}`;
+            await context.tracing.start({ screenshots: true, snapshots: true });
+            try {
+              await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+              await page.waitForFunction((theme) => document.documentElement.dataset.theme === theme, profile.theme);
+              await page.waitForFunction((skin) => document.documentElement.dataset.skin === skin, skin);
+              await page.locator("main").waitFor();
+              await page.evaluate(() => document.fonts.ready);
+              const geometry = await page.evaluate(() => {
+                const shown = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== "hidden";
+                const controls = [...document.querySelectorAll("button, a[href], input:not([type=hidden]):not([type=file]), select, textarea, [role=tab]")].filter(shown);
+                return {
+                  overflow: document.documentElement.scrollWidth > innerWidth + 1,
+                  smallTargets: controls.filter((el) => !el.disabled && !el.closest("p") && (() => { const target = el.matches("input[type=checkbox], input[type=radio]") ? el.labels?.[0] ?? el : el; const r = target.getBoundingClientRect(); return r.width < 43.5 || r.height < 43.5; })()).map((el) => ({ text: (el.getAttribute("aria-label") || el.textContent || el.id).trim().slice(0, 65), tag: el.tagName, class: el.className, width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height })),
+                  motion: matchMedia("(prefers-reduced-motion: reduce)").matches ? [...document.getAnimations()].filter((a) => a.playState === "running" && (a.effect?.getComputedTiming().duration > 1 || a.effect?.getComputedTiming().iterations === Infinity)).map((a) => a.animationName) : [],
+                };
               });
-              row.axe = audit;
-              if (audit.violations.length) row.failures.push(...audit.violations.map((v) => `axe: ${v.id}`));
-            }
-          } catch (error) { row.failures.push(error.message); }
-          if (row.failures.length) {
-            await page.screenshot({ path: `${output}/${id}.png`, fullPage: true }).catch(() => {});
-            await writeFile(`${output}/${id}.html`, await page.content());
-            await context.tracing.stop({ path: `${output}/${id}.zip` });
-          } else { await context.tracing.stop(); }
-          results.push(row);
-          console.log(`${row.failures.length ? "FAIL" : "PASS"} ${id} ${row.failures.join(", ")}`);
-          await writeFile(`${output}/report.json`, JSON.stringify({ base, generatedAt: new Date().toISOString(), results }, null, 2));
+              row.geometry = geometry;
+              if (profile.scan) {
+                await checkKeyboard(page, route);
+                row.keyboard = "passed";
+                await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+                // Keyboard tab changes animate their colors; audit the settled state.
+                await page.waitForTimeout(200);
+              }
+              if (geometry.overflow) row.failures.push("页面横向溢出");
+              if (geometry.smallTargets.length) row.failures.push("交互目标不足 44px");
+              if (geometry.motion.length) row.failures.push("减少动画模式仍有持续动画");
+              if (profile.scan) {
+                await page.addScriptTag({ path: require.resolve("axe-core/axe.min.js") });
+                const audit = await page.evaluate(async () => {
+                  const data = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] } });
+                  return { violations: data.violations, incomplete: data.incomplete };
+                });
+                row.axe = audit;
+                if (audit.violations.length) row.failures.push(...audit.violations.map((v) => `axe: ${v.id}`));
+              }
+            } catch (error) { row.failures.push(error.message); }
+            if (row.failures.length) {
+              await page.screenshot({ path: `${output}/${id}.png`, fullPage: true }).catch(() => {});
+              await writeFile(`${output}/${id}.html`, await page.content());
+              await context.tracing.stop({ path: `${output}/${id}.zip` });
+            } else { await context.tracing.stop(); }
+            results.push(row);
+            console.log(`${row.failures.length ? "FAIL" : "PASS"} ${id} ${row.failures.join(", ")}`);
+            await writeFile(`${output}/report.json`, JSON.stringify({ base, generatedAt: new Date().toISOString(), results }, null, 2));
+          }
+          await context.close();
         }
-        await context.close();
       }
     } finally { await browser.close(); }
   }

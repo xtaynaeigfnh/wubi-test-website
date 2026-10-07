@@ -417,6 +417,8 @@ export interface ArticleProgress {
   errors: number;
 }
 
+export type SkinId = "letterpress" | "focus";
+
 export type ThemeId =
   | "system"
   | "light"
@@ -440,6 +442,7 @@ export interface UserSettings {
   showCodeHints: boolean;
   showGhostGap: boolean;
   sound: boolean;
+  skin: SkinId;
   theme: ThemeId;
   customTheme?: CustomTheme;
   autoNext: boolean;

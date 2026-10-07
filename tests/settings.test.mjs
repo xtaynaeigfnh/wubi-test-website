@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { readSettings } from "../app/lib.ts";
-import { defaultCustomTheme } from "../app/practice-schema.ts";
+import { defaultCustomTheme, defaultSettings, isSettings, normalizeBackupSettings } from "../app/practice-schema.ts";
 import { STORAGE } from "../app/storage.ts";
 
 test("settings read old and new themes while normalizing custom colors", () => {
@@ -41,6 +41,7 @@ test("settings read old and new themes while normalizing custom colors", () => {
       showCodeHints: false,
       showGhostGap: true,
       sound: false,
+      skin: "letterpress",
       theme: "custom",
       customTheme: {
         accent: "#12aBcF",
@@ -55,6 +56,31 @@ test("settings read old and new themes while normalizing custom colors", () => {
     );
     assert.equal(readSettings().theme, "system");
     assert.deepEqual(readSettings().customTheme, defaultCustomTheme);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("皮肤选择兼容旧设置和无效值，保留独立配色与练习偏好", () => {
+  let stored = {};
+  globalThis.window = { localStorage: { getItem: () => JSON.stringify(stored) } };
+  try {
+    for (const skin of [undefined, null, "unknown", {}, "letterpress", "focus"]) {
+      stored = { skin, theme: "dark", fontSize: 34, sound: true };
+      const settings = readSettings();
+      assert.equal(settings.skin, skin === "focus" ? "focus" : "letterpress");
+      assert.equal(settings.theme, "dark");
+      assert.equal(settings.fontSize, 34);
+      assert.equal(settings.sound, true);
+      assert.equal(isSettings(settings), true);
+      assert.equal(normalizeBackupSettings(stored).skin, settings.skin);
+    }
+    assert.equal(isSettings({ ...defaultSettings, skin: "unknown" }), false);
+    const legacy = { ...defaultSettings };
+    delete legacy.skin;
+    assert.equal(isSettings(legacy), true);
+    stored = { skin: "focus", theme: "custom", customTheme: { accent: "#123456", canvas: "#EEEEEE" } };
+    assert.deepEqual(readSettings().customTheme, stored.customTheme);
   } finally {
     delete globalThis.window;
   }

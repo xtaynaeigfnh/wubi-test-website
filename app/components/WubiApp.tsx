@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -37,6 +38,7 @@ import {
 } from "../hesitation-practice";
 import { buildCustomThemeVariables, themeLabels } from "../theme";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
+import { SkinContext } from "./SkinContext";
 import { FirstUseGuide } from "./FirstUseGuide";
 import type { KeySoundPlayer } from "./views/TypingView";
 
@@ -261,14 +263,15 @@ export function WubiApp({ view }: { view: AppView }) {
     [hesitationQueue],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSettings(readSettings());
     setSettingsReady(true);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!settingsReady) return;
     const root = document.documentElement;
+    root.dataset.skin = settings.skin;
     root.dataset.theme = settings.theme;
     const customTheme = settings.customTheme ?? defaultCustomTheme;
     const customVariables = buildCustomThemeVariables(
@@ -317,127 +320,130 @@ export function WubiApp({ view }: { view: AppView }) {
     });
 
   return (
-    <div className="app-shell" data-view={view}>
-      <a className="skip-link" href="#main-content">
-        跳到主要内容
-      </a>
-      <header className="site-header">
-        <div className="header-inner">
-          <Link href="/" className="brand" aria-label="五笔测试网站首页">
-            <span className="brand-mark" aria-hidden="true">
-              <i>五</i>
-              <b>86</b>
-            </span>
-            <span>
-              <strong>五笔练习</strong>
-              <small>WUBI · 86</small>
-            </span>
-          </Link>
-          <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
-            {navItems.map((item) => (
-              <Link
-                key={item.view}
-                href={item.href}
-                className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
-                aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
+    <SkinContext value={settings.skin}>
+      <div className="app-shell" data-view={view}>
+        <a className="skip-link" href="#main-content">
+          跳到主要内容
+        </a>
+        <header className="site-header">
+          <div className="header-inner">
+            <Link href="/" className="brand" aria-label="五笔测试网站首页">
+              <span className="brand-mark" aria-hidden="true">
+                <i>五</i>
+                <b>86</b>
+              </span>
+              <span>
+                <strong>{settings.skin === "focus" ? "五笔练习" : "五笔测试网站"}</strong>
+                <small>{settings.skin === "focus" ? "WUBI · 86" : "WUBI 86 / LOCAL PRACTICE"}</small>
+              </span>
+            </Link>
+            <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
+              {navItems.map((item) => (
+                <Link
+                  key={item.view}
+                  href={item.href}
+                  className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
+                  aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
+                >
+                  <span aria-hidden="true">{item.coordinate}</span>
+                  <strong>{item.label}</strong>
+                </Link>
+              ))}
+            </nav>
+            <div className="header-utilities">
+              <div id="music-header-slot" />
+              <button
+                className="theme-switch"
+                type="button"
+                onClick={cycleTheme}
+                aria-label={`当前${currentThemeName}主题，点击切换为${themeLabels[quickTheme]}主题`}
+                title={`主题：${currentThemeName}`}
               >
-                <span aria-hidden="true">{item.coordinate}</span>
-                <strong>{item.label}</strong>
-              </Link>
-            ))}
-          </nav>
-          <div className="header-utilities">
-            <div id="music-header-slot" />
-            <button
-              className="theme-switch"
-              type="button"
-              onClick={cycleTheme}
-              aria-label={`当前${currentThemeName}主题，点击切换为${themeLabels[quickTheme]}主题`}
-              title={`主题：${currentThemeName}`}
-            >
-              <span aria-hidden="true">{
-                settings.theme === "dark" ? "◐" : settings.theme === "light" ? "◑" : "◒"
-              }</span>
-              <b>{currentThemeName}</b>
-            </button>
-            <div className="local-badge">
-              <i />
-              <span><b>LOCAL</b> 数据只存本机</span>
+                <span aria-hidden="true">{
+                  settings.theme === "dark" ? "◐" : settings.theme === "light" ? "◑" : "◒"
+                }</span>
+                <b>{currentThemeName}</b>
+              </button>
+              <div className="local-badge">
+                <i />
+                <span><b>LOCAL</b> 数据只存本机</span>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="page-wrap" id="main-content">
-        {settingsSaveError && (
-          <p className="plan-message" role="alert">{settingsSaveError}</p>
-        )}
-        {view === "typing" && (
-          <TypingView
-            settings={settings}
-            settingsReady={settingsReady}
-            onShowGhostGapChange={(value) =>
-              updateSettings({
-                ...settings,
-                showGhostGap: value,
-              })
-            }
-            playKeySound={playKeySound}
-            hesitationPracticeOpen={Boolean(activeHesitationPractice)}
-          />
-        )}
-        {view === "training" && (
-          <TrainingCenter
-            playKeySound={playKeySound}
-            hesitationQueue={hesitationQueue}
-            hesitationSaveRevision={hesitationSaveRevision}
-            onPracticeHesitation={startQueuedHesitationPractice}
-          />
-        )}
-        {(view === "advanced" || view === "challenge") && (
-          <AdvancedCenter playKeySound={playKeySound} initialTab={view === "challenge" ? "challenge" : "rhythm"} />
-        )}
-        {view === "lookup" && <LookupView />}
-        {(view === "history" || view === "summary") && (
-          <HistoryView
-            initialSection={view === "summary" ? "keys" : "records"}
-            key={view}
-            onPracticeHesitation={(target) =>
-              setActiveHesitationPractice({ target })
-            }
-            onAddHesitationToQueue={addHesitationToQueue}
-            queuedFingerprints={queuedFingerprints}
-            masteredAtByFingerprint={masteredAtByFingerprint}
-            hesitationSaveRevision={hesitationSaveRevision}
-          />
-        )}
-        {view === "settings" && (
-          <SettingsView
-            settings={settings}
-            onChange={updateSettings}
-            playKeySound={playKeySound}
-          />
-        )}
-        <FirstUseGuide enabled={settingsReady} view={view} />
-      </main>
+        <main className="page-wrap" id="main-content">
+          {settings.skin === "letterpress" && <FirstUseGuide enabled={settingsReady} view={view} />}
+          {settingsSaveError && (
+            <p className="plan-message" role="alert">{settingsSaveError}</p>
+          )}
+          {view === "typing" && (
+            <TypingView
+              settings={settings}
+              settingsReady={settingsReady}
+              onShowGhostGapChange={(value) =>
+                updateSettings({
+                  ...settings,
+                  showGhostGap: value,
+                })
+              }
+              playKeySound={playKeySound}
+              hesitationPracticeOpen={Boolean(activeHesitationPractice)}
+            />
+          )}
+          {view === "training" && (
+            <TrainingCenter
+              playKeySound={playKeySound}
+              hesitationQueue={hesitationQueue}
+              hesitationSaveRevision={hesitationSaveRevision}
+              onPracticeHesitation={startQueuedHesitationPractice}
+            />
+          )}
+          {(view === "advanced" || view === "challenge") && (
+            <AdvancedCenter playKeySound={playKeySound} initialTab={view === "challenge" ? "challenge" : "rhythm"} />
+          )}
+          {view === "lookup" && <LookupView />}
+          {(view === "history" || view === "summary") && (
+            <HistoryView
+              initialSection={view === "summary" ? "keys" : "records"}
+              key={view}
+              onPracticeHesitation={(target) =>
+                setActiveHesitationPractice({ target })
+              }
+              onAddHesitationToQueue={addHesitationToQueue}
+              queuedFingerprints={queuedFingerprints}
+              masteredAtByFingerprint={masteredAtByFingerprint}
+              hesitationSaveRevision={hesitationSaveRevision}
+            />
+          )}
+          {view === "settings" && (
+            <SettingsView
+              settings={settings}
+              onChange={updateSettings}
+              playKeySound={playKeySound}
+            />
+          )}
+          {settings.skin === "focus" && <FirstUseGuide enabled={settingsReady} view={view} />}
+        </main>
 
-      {activeHesitationPractice && (
-        <HesitationPracticeModal
-          target={activeHesitationPractice.target}
-          onClose={() => setActiveHesitationPractice(null)}
-          onSave={saveHesitationAttempts}
-        />
-      )}
+        {activeHesitationPractice && (
+          <HesitationPracticeModal
+            target={activeHesitationPractice.target}
+            onClose={() => setActiveHesitationPractice(null)}
+            onSave={saveHesitationAttempts}
+          />
+        )}
 
-      {settingsReady && settings.petEnabled && (
-        <PetCompanion species={settings.petSpecies} />
-      )}
-      <footer className="site-footer">
-        <span><b>86 / OFFLINE</b></span>
-        <span>
-          86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
-        </span>
-      </footer>
-    </div>
+        {settingsReady && settings.petEnabled && (
+          <PetCompanion species={settings.petSpecies} />
+        )}
+        <footer className="site-footer">
+          <span><b>86 / OFFLINE</b>{settings.skin === "letterpress" && " 慢慢练，手会记住。"}</span>
+          <span>
+            86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
+          </span>
+        </footer>
+      </div>
+    </SkinContext>
   );
 }

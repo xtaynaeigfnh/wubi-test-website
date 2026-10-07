@@ -223,7 +223,8 @@ test("challenge keeps wrong answers visible until the user advances", async () =
   assert.match(challenge, /feedback === "wrong"\) advanceQuestion\(\)/);
   assert.doesNotMatch(challenge, /className="giant-code"/);
   assert.doesNotMatch(styles, /\.giant-code\s*\{/);
-  assert.doesNotMatch(styles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
+  const focusStyles = await readFile(new URL("../app/styles/focus.css", import.meta.url), "utf8");
+  assert.doesNotMatch(focusStyles, /\.challenge-start::before\s*\{[^}]*content:\s*"86"/s);
   assert.match(challenge, /你的输入/);
   assert.match(challenge, /正确编码/);
   assert.match(challenge, /下一题（回车）/);
@@ -1176,10 +1177,10 @@ test("custom theme preview reports contrast and keeps semantic colors stable", a
   assert.match(component, /颜色对比度不足[\s\S]*按钮已自动使用高对比度文字/);
   assert.match(component, /达到 WCAG AA/);
 
-  assert.match(styles, /:root\[data-theme="bamboo"\]\s*\{/);
-  assert.match(styles, /:root\[data-theme="qingdai"\]\s*\{/);
+  assert.match(styles, /:root(?::where\([^\n{}]+\))?\[data-theme="bamboo"\]\s*\{/);
+  assert.match(styles, /:root(?::where\([^\n{}]+\))?\[data-theme="qingdai"\]\s*\{/);
   const customThemeRule = styles.match(
-    /:root\[data-theme="custom"\]\s*\{([^}]*)\}/,
+    /:root(?::where\([^\n{}]+\))?\[data-theme="custom"\]\s*\{([^}]*)\}/,
   )?.[1];
   assert.ok(customThemeRule);
   assert.match(customThemeRule, /--bg-canvas:\s*var\(--custom-canvas,/);
@@ -1624,15 +1625,37 @@ test("focus practice keeps three core metrics above input and moves article filt
   const coreMetrics = typing.split('aria-label="实时成绩"')[1].split("</section>")[0];
   assert.equal((coreMetrics.match(/<Metric /g) ?? []).length, 3);
   for (const label of ["速度", "准确率", "用时"]) assert.match(coreMetrics, new RegExp(`label="${label}"`));
-  assert.doesNotMatch(typing, /<aside className="side-panel"/);
+  assert.match(typing, /!isFocusSkin && \(\s*<aside className="side-panel"/);
   assert.match(typing, /<details className="practice-diagnostics">/);
-  assert.match(typing, /className="article-picker-filters"/);
+  assert.match(typing, /isFocusSkin \? "article-picker-filters" : "article-side-filters"/);
   assert.match(picker, /\{filters\}/);
-  assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('className="practice-commandbar"'));
+  assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('{isFocusSkin && commandBar}'));
+  assert.match(typing, /!isFocusSkin && commandBar/);
   assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('className="practice-diagnostics"'));
   assert.match(styles, /\.article-text span\s*\{[^}]*transition: none/s);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(music, /const \[collapsed, setCollapsed\] = useState\(true\)/);
   const training = await readFile(trainingCenterPath, "utf8");
-  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('className="daily-progress-card"'));
+  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('{skin === "focus" && dailyProgressCard}'));
+  assert(training.indexOf('{skin === "letterpress" && dailyProgressCard}') < training.indexOf('className="smart-plan-card adaptive-plan-card"'));
+});
+
+
+test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输入区", async () => {
+  const [settings, shell, typing, globals] = await Promise.all([
+    readFile(settingsViewPath, "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(typingViewPath, "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(settings, /id: "letterpress"/);
+  assert.match(settings, /id: "focus"/);
+  assert.match(settings, /name="skin"[\s\S]*checked=\{settings.skin === option.id\}[\s\S]*update\("skin", option.id\)/);
+  assert.match(settings, /className="skin-thumbnail" aria-hidden="true"/);
+  assert.match(settings, /skinThemeSwatches\[settings.skin\]/);
+  assert.match(shell, /root.dataset.skin = settings.skin/);
+  assert.match(shell, /<SkinContext value=\{settings.skin\}>/);
+  assert.equal((typing.match(/<textarea\b/g) ?? []).length, 1);
+  assert.match(typing, /!isFocusSkin && diagnostics/);
+  assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
 });
