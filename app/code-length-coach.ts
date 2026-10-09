@@ -56,7 +56,9 @@ interface SegmentationState {
   unknownHanCharacters: number;
   keys: number;
   encodedHanCharacters: number;
-  segments: CodeLengthSegment[];
+  segmentCount: number;
+  previous: SegmentationState | null;
+  segment: CodeLengthSegment | null;
 }
 
 const hanCharacterPattern = /^\p{Script=Han}$/u;
@@ -70,7 +72,7 @@ function isBetterState(
     return candidate.unknownHanCharacters < current.unknownHanCharacters;
   }
   if (candidate.keys !== current.keys) return candidate.keys < current.keys;
-  return candidate.segments.length < current.segments.length;
+  return candidate.segmentCount < current.segmentCount;
 }
 
 function setState(
@@ -143,7 +145,7 @@ export function buildCodeLengthCoachIndex(
 function buildOptimalSegmentation(
   characters: string[],
   index: CodeLengthCoachIndex,
-): SegmentationState {
+) {
   const states: Array<SegmentationState | undefined> = Array(
     characters.length + 1,
   ).fill(undefined);
@@ -151,7 +153,9 @@ function buildOptimalSegmentation(
     unknownHanCharacters: 0,
     keys: 0,
     encodedHanCharacters: 0,
-    segments: [],
+    segmentCount: 0,
+    previous: null,
+    segment: null,
   };
 
   for (let position = 0; position < characters.length; position += 1) {
@@ -161,18 +165,19 @@ function buildOptimalSegmentation(
 
     if (!hanCharacterPattern.test(character)) {
       setState(states, position + 1, {
-        ...state,
-        segments: [
-          ...state.segments,
-          {
-            text: character,
-            start: position,
-            length: 1,
-            code: null,
-            codeLength: 0,
-            kind: "ignored",
-          },
-        ],
+        unknownHanCharacters: state.unknownHanCharacters,
+        keys: state.keys,
+        encodedHanCharacters: state.encodedHanCharacters,
+        segmentCount: state.segmentCount + 1,
+        previous: state,
+        segment: {
+          text: character,
+          start: position,
+          length: 1,
+          code: null,
+          codeLength: 0,
+          kind: "ignored",
+        },
       });
       continue;
     }
@@ -191,17 +196,16 @@ function buildOptimalSegmentation(
         unknownHanCharacters: state.unknownHanCharacters,
         keys: state.keys + candidate.codeLength,
         encodedHanCharacters: state.encodedHanCharacters + length,
-        segments: [
-          ...state.segments,
-          {
-            text: candidate.text,
-            start: position,
-            length,
-            code: candidate.code,
-            codeLength: candidate.codeLength,
-            kind: length === 1 ? "character" : "phrase",
-          },
-        ],
+        segmentCount: state.segmentCount + 1,
+        previous: state,
+        segment: {
+          text: candidate.text,
+          start: position,
+          length,
+          code: candidate.code,
+          codeLength: candidate.codeLength,
+          kind: length === 1 ? "character" : "phrase",
+        },
       });
     }
 
@@ -209,25 +213,31 @@ function buildOptimalSegmentation(
       unknownHanCharacters: state.unknownHanCharacters + 1,
       keys: state.keys,
       encodedHanCharacters: state.encodedHanCharacters,
-      segments: [
-        ...state.segments,
-        {
-          text: character,
-          start: position,
-          length: 1,
-          code: null,
-          codeLength: 0,
-          kind: "unknown",
-        },
-      ],
+      segmentCount: state.segmentCount + 1,
+      previous: state,
+      segment: {
+        text: character,
+        start: position,
+        length: 1,
+        code: null,
+        codeLength: 0,
+        kind: "unknown",
+      },
     });
   }
 
-  return states[characters.length] ?? {
-    unknownHanCharacters: 0,
-    keys: 0,
-    encodedHanCharacters: 0,
-    segments: [],
+  const optimal = states[characters.length];
+  const segments: CodeLengthSegment[] = [];
+  // Keep only a predecessor per state; copying every prefix makes long text quadratic.
+  for (let state = optimal; state?.segment; state = state.previous ?? undefined) {
+    segments.push(state.segment);
+  }
+  segments.reverse();
+  return {
+    unknownHanCharacters: optimal?.unknownHanCharacters ?? 0,
+    keys: optimal?.keys ?? 0,
+    encodedHanCharacters: optimal?.encodedHanCharacters ?? 0,
+    segments,
   };
 }
 

@@ -243,6 +243,49 @@ export function TypingView({
     });
   }, [visibleText]);
 
+  const renderedCharacters = useMemo(
+    () => {
+      const commonArticle = isCommonPracticeArticle(article);
+      return displayCharacters.map(({ character, visibleIndex, targetIndex }) => {
+        if (targetIndex === null) {
+          return (
+            <span className="paragraph-break" key={`${visibleIndex}-break`}>
+              {character}
+            </span>
+          );
+        }
+        const state =
+          targetIndex >= typedCharacters.length
+            ? targetIndex === typedCharacters.length
+              ? "current"
+              : "pending"
+            : typedCharacters[targetIndex] === character
+              ? "correct"
+              : "wrong";
+        return (
+          <span
+            ref={state === "current" ? currentCharacterRef : undefined}
+            className={`${state}${
+              commonArticle &&
+              (targetIndex + 1) % 10 === 0
+                ? " common-decade-end"
+                : ""
+            }${
+              commonArticle &&
+              (targetIndex + 1) % 50 === 0
+                ? " common-section-end"
+                : ""
+            }`}
+            key={`${visibleIndex}-${character}`}
+          >
+            {character}
+          </span>
+        );
+      });
+    },
+    [article, displayCharacters, typedCharacters],
+  );
+
   const seconds = completed ? elapsed : elapsed || 0;
   const ghost = useGhostRace({
     article,
@@ -806,42 +849,7 @@ export function TypingView({
             onClick={() => inputRef.current?.focus()}
             aria-live="off"
           >
-            {displayCharacters.map(({ character, visibleIndex, targetIndex }) => {
-              if (targetIndex === null) {
-                return (
-                  <span className="paragraph-break" key={`${visibleIndex}-break`}>
-                    {character}
-                  </span>
-                );
-              }
-              const state =
-                targetIndex >= typedCharacters.length
-                  ? targetIndex === typedCharacters.length
-                    ? "current"
-                    : "pending"
-                  : typedCharacters[targetIndex] === character
-                    ? "correct"
-                    : "wrong";
-              return (
-                <span
-                  ref={state === "current" ? currentCharacterRef : undefined}
-                  className={`${state}${
-                    isCommonPracticeArticle(article) &&
-                    (targetIndex + 1) % 10 === 0
-                      ? " common-decade-end"
-                      : ""
-                  }${
-                    isCommonPracticeArticle(article) &&
-                    (targetIndex + 1) % 50 === 0
-                      ? " common-section-end"
-                      : ""
-                  }`}
-                  key={`${visibleIndex}-${character}`}
-                >
-                  {character}
-                </span>
-              );
-            })}
+            {renderedCharacters}
           </div>
           {completed ? (
             <InputReview

@@ -3,6 +3,7 @@ const CACHE_NAME = "wubi-test-v21";
 const BUILD_ASSETS = [];
 const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const withBase = (path) => `${scopePath}${path}`;
+const BUILD_ASSET_PATHS = new Set(BUILD_ASSETS.map(withBase));
 const ROUTE_PATHS = [
   "/",
   "/training",
@@ -247,6 +248,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Build assets belong to this worker's version. A cache hit needs no re-download.
+  if (BUILD_ASSET_PATHS.has(url.pathname)) {
+    const assetResponse = caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request, {
+        // Static export payloads are identical across Next's cache-busting queries.
+        ignoreSearch: url.pathname.endsWith(".txt"),
+      });
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok) {
+        await cache.put(request, response.clone()).catch(() => undefined);
+      }
+      return response;
+    });
+    event.respondWith(assetResponse);
+    event.waitUntil(assetResponse.then(() => undefined).catch(() => undefined));
+    return;
+  }
+
   const networkResponse = fetch(request);
   event.waitUntil(
     networkResponse
@@ -259,10 +279,7 @@ self.addEventListener("fetch", (event) => {
       .catch(() => undefined)
   );
   event.respondWith(
-    caches.match(request, {
-      // Static export payloads are identical across Next's cache-busting queries.
-      ignoreSearch: BUILD_ASSETS.includes(url.pathname.slice(scopePath.length)) && url.pathname.endsWith(".txt"),
-    }).then((cached) => {
+    caches.match(request).then((cached) => {
       if (cached) return cached;
       return networkResponse;
     })
