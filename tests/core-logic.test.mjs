@@ -1185,3 +1185,40 @@ test("challenge starts once when the start control fires twice before a render",
   assert.equal(context.recordedRef.current, false);
   assert.equal(context.deadlineRef.current, 61_000);
 });
+
+test("code length coach reconstructs long mixed Unicode text with accurate positions", () => {
+  const index = buildCodeLengthCoachIndex([
+    ["中", "kkkk", 1],
+    ["国", "llll", 1],
+    ["中国", "kl", 1],
+    ["𠮷", "fk", 1],
+  ]);
+  const repeats = 3000;
+  const text = "中国𠮷，A缺".repeat(repeats);
+  const result = analyzeCodeLengthCoach(text, index);
+  assert.equal(result.complete, false);
+  assert.equal(result.hanCharacterCount, repeats * 4);
+  assert.equal(result.coveredHanCharacterCount, repeats * 3);
+  assert.equal(result.optimalSegments.length, repeats * 5);
+  assert.equal(result.optimalSegments.map((segment) => segment.text).join(""), text);
+  let position = 0;
+  for (const segment of result.optimalSegments) {
+    assert.equal(segment.start, position);
+    assert.equal(segment.length, Array.from(segment.text).length);
+    position += segment.length;
+  }
+  assert.equal(position, Array.from(text).length);
+  assert.deepEqual(result.optimalSegments.slice(0, 5).map(({ kind }) => kind),
+    ["phrase", "character", "ignored", "ignored", "unknown"]);
+  assert.equal(analyzeCodeLengthCoach("", index).optimalSegments.length, 0);
+});
+
+test("code length coach prefers fewer segments when coverage and key cost tie", () => {
+  const index = buildCodeLengthCoachIndex([
+    ["中", "k", 1], ["国", "l", 1], ["中国", "kl", 1],
+  ]);
+  const result = analyzeCodeLengthCoach("中国中国", index);
+  assert.equal(result.theoreticalMinimumKeys, 4);
+  assert.deepEqual(result.optimalSegments.map(({ text, start }) => ({ text, start })),
+    [{ text: "中国", start: 0 }, { text: "中国", start: 2 }]);
+});

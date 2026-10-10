@@ -1659,3 +1659,36 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   assert.match(typing, /!isFocusSkin && diagnostics/);
   assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
 });
+
+test("practice character markup preserves Unicode, paragraph breaks and corrected input", async () => {
+  const source = await readFile(typingViewPath, "utf8");
+  const start = source.indexOf("  const renderedCharacters = useMemo(");
+  assert.ok(start >= 0);
+  const end = source.indexOf("  const seconds =", start);
+  const compiled = transpileModule(source.slice(start, end), {
+    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
+  }).outputText;
+  const renderCharacters = new Function(
+    "React", "useMemo", "isCommonPracticeArticle", "article",
+    "displayCharacters", "typedCharacters", "currentCharacterRef",
+    `${compiled}\nreturn renderedCharacters;`,
+  );
+  const displayCharacters = [
+    { character: "𠮷", visibleIndex: 0, targetIndex: 0 },
+    { character: "\n", visibleIndex: 1, targetIndex: null },
+    { character: "中", visibleIndex: 2, targetIndex: 1 },
+    { character: "国", visibleIndex: 3, targetIndex: 2 },
+  ];
+  const markup = (typed) => renderToStaticMarkup(React.createElement(React.Fragment, null,
+    renderCharacters(React, (factory) => factory(), () => false, {},
+      displayCharacters, Array.from(typed), { current: null }),
+  ));
+  assert.match(markup(""), /class="current">𠮷/);
+  assert.match(markup("𠮷错"), /class="correct">𠮷/);
+  assert.match(markup("𠮷错"), /class="wrong">中/);
+  assert.match(markup("𠮷错"), /class="current">国/);
+  assert.match(markup("𠮷中"), /class="correct">中/);
+  assert.match(markup("𠮷"), /class="current">中/);
+  assert.match(markup("𠮷中"), /class="paragraph-break">\n/);
+  assert.doesNotMatch(markup("𠮷中国"), /class="current"/);
+});

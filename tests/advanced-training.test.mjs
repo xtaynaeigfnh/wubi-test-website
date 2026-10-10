@@ -111,6 +111,7 @@ import {
   suggestAdvancedGoalRange,
 } from "../app/advanced-training.ts";
 import {
+  clearPracticeHistory,
   parseBackupPayload,
   saveAdvancedPracticeOutcome,
   STORAGE,
@@ -1033,6 +1034,49 @@ test("advanced page exposes the complete v0.8 goal and assessment contract", asy
   assert.match(component, /seasonId: target\.season\?\.id,\s*seasonDay: target\.seasonDay/);
 });
 
+
+test("a new season can be created after clearing practice history", () => {
+  const empty = { version: 1, active: null, history: [] };
+  const values = new Map();
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  } };
+  try {
+    assert.deepEqual(readAdvancedSeasonArchive(), empty);
+    const original = { ...empty, active: createAdvancedSeason("before-clear", new Date("2026-08-01T00:00:00.000Z")) };
+    assert.equal(writeAdvancedSeasonArchive(empty, original), true);
+    assert.equal(clearPracticeHistory(), true);
+    assert.equal(values.get(STORAGE.advancedSeason), "null");
+    assert.deepEqual(readAdvancedSeasonArchive(), empty);
+    const next = { ...empty, active: createAdvancedSeason("after-clear", new Date("2026-08-02T00:00:00.000Z"), { durationDays: 7, goalMetric: "speed" }) };
+    assert.equal(writeAdvancedSeasonArchive(empty, next), true);
+    assert.deepEqual(readAdvancedSeasonArchive(), next);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("invalid season data is preserved and cannot be replaced by a new plan", () => {
+  const empty = { version: 1, active: null, history: [] };
+  const next = { ...empty, active: createAdvancedSeason("new-plan", new Date("2026-08-01T00:00:00.000Z")) };
+  for (const raw of ["broken JSON", "{}", "[]", "false", "\"null\""]) {
+    const values = new Map([[STORAGE.advancedSeason, raw]]);
+    globalThis.window = { localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    } };
+    try {
+      assert.equal(readAdvancedSeasonArchive(), null);
+      assert.equal(writeAdvancedSeasonArchive(empty, next), false);
+      assert.equal(values.get(STORAGE.advancedSeason), raw);
+    } finally {
+      delete globalThis.window;
+    }
+  }
+});
 
 test("a stale tab cannot revive a cancelled season or replace a newer plan", () => {
   const season = createAdvancedSeason("shared-season", new Date("2026-08-01T00:00:00.000Z"));

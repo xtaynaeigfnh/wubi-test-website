@@ -284,3 +284,74 @@ test("service worker upgrade removes old app caches and preserves unrelated cach
   assert.deepEqual([...cacheNames], ["wubi-test-v21", "other-app-v1"]);
   assert.equal(claimed, true);
 });
+
+test("versioned build assets avoid network traffic on cache hits and fill misses", async () => {
+  const source = (await readFile(new URL("../public/sw.js", import.meta.url), "utf8"))
+    .replace("const BUILD_ASSETS = [];", 'const BUILD_ASSETS = ["/_next/static/app-hash.js", "/lookup/index.txt"];');
+  const listeners = new Map();
+  const entries = new Map();
+  const networkRequests = [];
+  let failWrites = false;
+  let offline = false;
+  const key = (request, options = {}) => {
+    const url = new URL(typeof request === "string" ? request : request.url, "https://example.com");
+    if (options.ignoreSearch) url.search = "";
+    return url.toString();
+  };
+  const cache = {
+    match: async (request, options) => entries.get(key(request, options))?.clone(),
+    put: async (request, response) => {
+      if (failWrites) throw new Error("quota exceeded");
+      entries.set(key(request), response.clone());
+    },
+  };
+  runInNewContext(source, {
+    URL, Request, Response, Headers,
+    caches: { open: async () => cache, match: cache.match },
+    fetch: async (request) => {
+      networkRequests.push(request.url);
+      if (offline) throw new Error("offline");
+      return new Response("fresh");
+    },
+    self: {
+      registration: { scope: "https://example.com/wubi/" },
+      location: { origin: "https://example.com" },
+      addEventListener: (type, listener) => listeners.set(type, listener),
+    },
+  });
+  async function request(path) {
+    let response;
+    const background = [];
+    listeners.get("fetch")({
+      request: new Request(`https://example.com${path}`),
+      respondWith: (promise) => { response = promise; },
+      waitUntil: (promise) => background.push(promise),
+    });
+    const result = await response;
+    await Promise.all(background);
+    return result;
+  }
+  entries.set("https://example.com/wubi/_next/static/app-hash.js", new Response("cached script"));
+  entries.set("https://example.com/wubi/lookup/index.txt", new Response("cached route payload"));
+  assert.equal(await (await request("/wubi/_next/static/app-hash.js")).text(), "cached script");
+  assert.equal(await (await request("/wubi/lookup/index.txt?_rsc=first")).text(), "cached route payload");
+  assert.equal(await (await request("/wubi/lookup/index.txt?_rsc=second")).text(), "cached route payload");
+  assert.equal(networkRequests.length, 0);
+
+  entries.clear();
+  assert.equal(await (await request("/wubi/_next/static/app-hash.js")).text(), "fresh");
+  assert.equal(networkRequests.length, 1);
+  offline = true;
+  assert.equal(await (await request("/wubi/_next/static/app-hash.js")).text(), "fresh");
+  assert.equal(networkRequests.length, 1);
+
+  offline = false;
+  entries.clear();
+  failWrites = true;
+  assert.equal(await (await request("/wubi/_next/static/app-hash.js")).text(), "fresh");
+  failWrites = false;
+  entries.set("https://example.com/wubi/data/articles-index.json", new Response("old data"));
+  assert.equal(await (await request("/wubi/data/articles-index.json")).text(), "fresh");
+  offline = true;
+  assert.equal(await (await request("/wubi/data/articles-index.json")).text(), "fresh");
+});
