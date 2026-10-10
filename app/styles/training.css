@@ -87,6 +87,55 @@
   gap: 20px;
 }
 
+.training-brief,
+.training-goal-bridge {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.training-brief { padding-top: 0; }
+.training-brief > div, .training-goal-bridge > div { min-width: 0; }
+.training-brief h2, .training-goal-bridge h2 {
+  margin: 6px 0 8px;
+  font-family: var(--font-display);
+  font-size: var(--ui-title-panel);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.training-brief p, .training-goal-bridge p {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--ui-text-body);
+  line-height: 1.75;
+}
+.training-brief > a, .training-goal-bridge > a { flex: none; }
+.daily-progress-note {
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--ui-text-meta);
+  line-height: 1.75;
+}
+.plan-task-guidance { margin: 12px 0 0; display: grid; gap: 10px; }
+.plan-task-guidance div { display: grid; grid-template-columns: 4em minmax(0, 1fr); gap: 10px; }
+.plan-task-guidance dt { color: var(--text-secondary); font-size: var(--ui-text-meta); line-height: 1.75; }
+.plan-task-guidance dd { margin: 0; font-size: var(--ui-text-body); line-height: 1.75; }
+.plan-task-guidance div:last-child dd { color: var(--text-secondary); font-size: var(--ui-text-meta); }
+.adaptive-plan-steps > li.is-next > a,
+.adaptive-plan-steps > li.is-next > button { color: var(--text-on-accent); border-color: var(--accent-bamboo-fill); background: var(--accent-bamboo-fill); }
+
+@media (max-width: 780px) {
+  .training-brief, .training-goal-bridge { align-items: stretch; flex-direction: column; gap: 16px; }
+  .training-brief > a, .training-goal-bridge > a { align-self: start; }
+  .plan-task-guidance div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+}
+
 .daily-progress-card,
 .smart-plan-card,
 .due-review-card,

@@ -128,7 +128,7 @@ try {
               if (profile.scan) {
                 await checkKeyboard(page, route);
                 row.keyboard = "passed";
-                await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+                await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo({ top: 0, behavior: "instant" }); });
                 // Keyboard tab changes animate their colors; audit the settled state.
                 await page.waitForTimeout(200);
               }

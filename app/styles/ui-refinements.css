@@ -39,6 +39,11 @@ body { font-size: var(--ui-text-body); }
   text-align: center;
 }
 .training-plan { gap: var(--ui-section-gap); align-items: start; }
+.training-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+:where(html:not([data-skin="focus"])) .training-heading { min-height: 0; padding: 28px 24px; }
+.due-review-card.is-empty { padding: 16px var(--ui-panel-padding); }
+.due-review-card.is-empty .training-card-header { display: none; }
+.due-review-card.is-empty .due-review-empty { min-height: 0; padding: 0; text-align: left; place-content: start; border: 0; background: transparent; }
 .daily-progress-card, .smart-plan-card, .due-review-card,
 .hesitation-queue-card, .trend-panel {
   min-width: 0;
@@ -117,6 +122,9 @@ body { font-size: var(--ui-text-body); }
 }
 
 @media (max-width: 780px) {
+  :where(html:not([data-skin="focus"])) .training-brief,
+  :where(html:not([data-skin="focus"])) .training-goal-bridge { padding-inline: var(--ui-panel-padding); }
+  :where(html:not([data-skin="focus"])) .training-heading { padding: 24px 16px; }
   .main-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 4px; overflow: visible; }
   .nav-item { min-width: 0; justify-content: center; padding: 10px 6px; }
   .nav-item > span { display: none; }

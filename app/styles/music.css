@@ -101,7 +101,10 @@
   padding: 0;
   display: grid;
   place-items: center;
-  position: relative;
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 50;
   color: #f4f1e8;
   border: 1px solid rgba(244, 241, 232, 0.2);
   border-radius: 50%;

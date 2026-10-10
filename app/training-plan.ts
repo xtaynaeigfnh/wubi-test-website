@@ -13,6 +13,19 @@ import type {
 
 export const WEAKNESS_RESOLVED_SCORE = 120;
 
+/** Continue an unfinished drill before recommending another pending task. */
+export function getNextTrainingTask(tasks: TrainingTask[]): TrainingTask | null {
+  return tasks.find((task) => task.status === "in-progress")
+    ?? tasks.find((task) => task.status === "pending")
+    ?? null;
+}
+
+export const TRAINING_REVIEW_NOTES: Record<TrainingTask["type"], string> = {
+  article: "先看字准和回改，再看速度；把明显卡顿的片段加入三连练。",
+  review: "看本轮答对题数和仍答错的字词；保存后，在今日总结看哪些弱项还需复练。",
+  roots: "看本轮答对题数，记下仍混淆的编码；先答准，再缩短作答时间。",
+};
+
 export const ROOT_ZONES = [
   { id: "pie", keys: "QWERT", label: "撇区", note: "从撇起笔的字根" },
   { id: "dian", keys: "YUIOP", label: "捺区", note: "点与捺起笔字根" },
