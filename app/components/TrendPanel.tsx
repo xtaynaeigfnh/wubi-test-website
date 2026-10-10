@@ -103,9 +103,11 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
         </span>
         <span>活跃 {activeDays.length} 天</span>
       </div>
+      <p className="trend-scale">速度范围 0–{maxSpeed} 字/分 · 字准范围 0–100%，两条曲线分别按各自范围绘制。</p>
       <div className="trend-chart">
         <svg
           viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
           role="img"
           aria-label={`${range === "all" ? "全部" : `${range} 天`}练习速度与字准折线图`}
         >
@@ -123,11 +125,13 @@ export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
             points={coordinates("speed")}
             className="speed-line"
             fill="none"
+            vectorEffect="non-scaling-stroke"
           />
           <polyline
             points={coordinates("accuracy")}
             className="accuracy-line"
             fill="none"
+            vectorEffect="non-scaling-stroke"
           />
         </svg>
         <div className="trend-labels" aria-hidden="true">
