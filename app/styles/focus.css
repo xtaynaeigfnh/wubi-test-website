@@ -144,7 +144,7 @@ html:where([data-skin="focus"]) { scroll-padding-top: 24px; }
 :where(html[data-skin="focus"]) .due-review-card.is-empty .training-card-header, :where(html[data-skin="focus"]) .due-review-card.is-empty .due-review-note { display: none; }
 :where(html[data-skin="focus"]) .due-review-card.is-empty .due-review-empty { min-height: 0; padding: 0; place-content: start; text-align: left; border: 0; background: transparent; }
 :where(html[data-skin="focus"]) .due-review-empty span, :where(html[data-skin="focus"]) .due-review-note { font-size: 12px; }
-:where(html[data-skin="focus"]) .adaptive-plan-steps > li:first-child > a, :where(html[data-skin="focus"]) .adaptive-plan-steps > li:first-child > button { color: var(--text-on-accent); border-color: var(--accent-bamboo-fill); background: var(--accent-bamboo-fill); }
+:where(html[data-skin="focus"]) .adaptive-plan-steps > li.is-next > a, :where(html[data-skin="focus"]) .adaptive-plan-steps > li.is-next > button { color: var(--text-on-accent); border-color: var(--accent-bamboo-fill); background: var(--accent-bamboo-fill); }
 :where(html[data-skin="focus"]) .settings-page .settings-grid { align-items: start; }
 :where(html[data-skin="focus"]) .first-use-entry { margin-bottom: 20px; font-size: 12px; }
 :where(html[data-skin="focus"]) .first-use-entry .button { background: transparent; font-size: 12px; }
@@ -177,9 +177,8 @@ html:where([data-skin="focus"]) { scroll-padding-top: 24px; }
   :where(html[data-skin="focus"]) .brand { grid-area: auto; }
   :where(html[data-skin="focus"]) .brand strong { font-size: 15px; }
   :where(html[data-skin="focus"]) .brand small { font-size: 10px; }
-  :where(html[data-skin="focus"]) .header-utilities { grid-column: 2; grid-row: 1; margin: 0; justify-content: end; }
+  :where(html[data-skin="focus"]) .header-utilities { grid-column: 2; grid-row: 1; position: static; flex-wrap: nowrap; margin: 0; justify-content: end; }
   :where(html[data-skin="focus"]) .local-badge { display: none; }
-  :where(html[data-skin="focus"]) #music-header-slot { display: none; }
   :where(html[data-skin="focus"]) .main-nav { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; width: 100%; margin: 0; padding: 0 0 12px; overflow: visible; }
   :where(html[data-skin="focus"]) .nav-item { padding: 0 10px; min-height: 44px; justify-content: center; }
   :where(html[data-skin="focus"]) .nav-item > span { display: none; }

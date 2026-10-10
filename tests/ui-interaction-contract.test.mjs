@@ -66,6 +66,36 @@ test("both skins share readable controls and reflow training and charts on narro
   assert.equal((trend.match(/vectorEffect="non-scaling-stroke"/g) ?? []).length, 2);
 });
 
+test("daily guidance points to due reviews, the next task, or the saved summary", async () => {
+  const source = await readFile(new URL("../app/components/TrainingBrief.tsx", import.meta.url), "utf8");
+  const ast = createSourceFile("TrainingBrief.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);
+  const component = ast.statements.find((node) => isFunctionDeclaration(node) && node.name?.text === "TrainingBrief");
+  const compiled = transpileModule(component.getText(ast).replace("export function", "function"), {
+    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
+  }).outputText;
+  const task = { type: "roots", title: "横区收尾", status: "in-progress" };
+  const Component = new Function("React", "getNextTrainingTask", `${compiled}\nreturn TrainingBrief;`)(React, (tasks) => tasks.find((item) => item.status !== "completed") ?? null);
+  const render = (plan, dueCount = 0) => renderToStaticMarkup(React.createElement(Component, { plan, dueCount }));
+  const plan = { tasks: [task], estimatedMinutes: 6 };
+  assert.equal(render(null), "");
+  assert.match(render(plan, 3), /先复习 3 项到期内容/);
+  assert.match(render(plan, 3), /href="#due-review-title"/);
+  assert.match(render(plan), /继续横区收尾/);
+  assert.match(render(plan), /href="#training-task-roots"/);
+  const completed = render({ ...plan, tasks: [{ ...task, status: "completed" }] });
+  assert.match(completed, /今天的三步已完成/);
+  assert.match(completed, /href="#today-training-plan"/);
+  assert.match(completed, /单日完成量不代表能力已经提升/);
+
+  const training = await readFile(trainingCenterPath, "utf8");
+  assert.match(training, /<dt>为什么练<\/dt>/);
+  assert.match(training, /<dt>练完看<\/dt>/);
+  assert.match(training, /href="\/advanced\?tab=season"/);
+  assert.match(training, /继续复练剩余弱项/);
+  assert.equal((training.match(/\{dailyProgressCard\}/g) ?? []).length, 1);
+  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf("{dailyProgressCard}"));
+});
+
 test("backup recovery preview remains usable when old local data cannot be read", async () => {
   const source = await readFile(dataManagementPath, "utf8");
   const ast = createSourceFile("DataManagement.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);
@@ -354,7 +384,7 @@ test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explan
   assert.match(management, /导出轻量统计摘要/);
   assert.match(management, /不兼容项：0/);
   assert.match(management, /window\.confirm/);
-  assert.match(training, /为什么这些弱项排在前面/);
+  assert.match(training, /查看弱项排序依据/);
   assert.match(training, /编码错误 50%、卡顿 30%、回改 20%/);
   assert.match(weekly, /六项能力的精确计算公式/);
   assert.match(history, /这次成绩如何影响后续推荐/);
@@ -1499,7 +1529,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(management, /multiple/);
   assert.match(management, /取消收藏/);
   assert.match(training, /高频错题复练/);
-  assert.match(training, /自适应训练处方/);
+  assert.match(training, /按近期记录推荐/);
   assert.match(training, /换一组/);
   assert.match(training, /待开始/);
   assert.match(training, /进行中/);
@@ -1569,9 +1599,12 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
   assert.match(music, /createPortal\(peekButton, headerSlot\)/);
   assert.doesNotMatch(music, /createPortal\(dock, headerSlot\)/);
   assert.match(styles, /#music-header-slot \.music-dock-peek\s*\{/);
-  assert.match(music, /matchMedia\("\(max-width: 780px\)"\)/);
-  assert.match(music, /headerSlot && !mobilePeek \? createPortal\(peekButton, headerSlot\)/);
+  assert.doesNotMatch(music, /mobilePeek/);
+  assert.match(music, /headerSlot \? createPortal\(peekButton, headerSlot\)/);
+  assert.match(music, /dataset.focusMode === "true"\s*\? null/);
+  assert.match(music, /attributeFilter: \["data-focus-mode"\]/);
   assert.match(styles, /@media \(max-width: 780px\)\s*\{[^}]*#music-header-slot\s*\{/s);
+  assert.match(styles, /\.header-utilities\s*\{[^}]*grid-column: 2;[^}]*position: static;[^}]*flex-wrap: nowrap/s);
 });
 
 
@@ -1653,8 +1686,7 @@ test("focus practice keeps three core metrics above input and moves article filt
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(music, /const \[collapsed, setCollapsed\] = useState\(true\)/);
   const training = await readFile(trainingCenterPath, "utf8");
-  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('{skin === "focus" && dailyProgressCard}'));
-  assert(training.indexOf('{skin === "letterpress" && dailyProgressCard}') < training.indexOf('className="smart-plan-card adaptive-plan-card"'));
+  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('{dailyProgressCard}'));
 });
 
 

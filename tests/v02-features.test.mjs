@@ -15,6 +15,7 @@ import {
   applyWeakObservations,
   buildTrainingSummary,
   generateDailyTrainingPlan,
+  getNextTrainingTask,
   regenerateIncompleteTasks,
   scoreWeakItem,
 } from "../app/training-plan.ts";
@@ -23,6 +24,16 @@ import {
   trainingArticles,
   trainingEntries,
 } from "./v02-fixtures.mjs";
+
+test("today's next step resumes an active task and skips completed tasks", () => {
+  const pending = { id: "article", status: "pending" };
+  const active = { id: "roots", status: "in-progress" };
+  const completed = { id: "review", status: "completed" };
+  assert.equal(getNextTrainingTask([pending, completed, active]), active);
+  assert.equal(getNextTrainingTask([completed, pending]), pending);
+  assert.equal(getNextTrainingTask([completed]), null);
+  assert.equal(getNextTrainingTask([]), null);
+});
 
 
 

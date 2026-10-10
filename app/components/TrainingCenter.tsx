@@ -1,7 +1,6 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useSkin } from "./SkinContext";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -54,12 +53,15 @@ import {
 import {
   buildTrainingSummary,
   generateDailyTrainingPlan,
+  getNextTrainingTask,
   regenerateIncompleteTasks,
   ROOT_ZONES,
   scoreWeakItem,
+  TRAINING_REVIEW_NOTES,
   WEAKNESS_RESOLVED_SCORE,
 } from "../training-plan";
 import { buildPhraseTrainingPool } from "../phrase-training";
+import { TrainingBrief } from "./TrainingBrief";
 import {
   ErrorState,
   useInProgressLeaveGuard,
@@ -524,8 +526,6 @@ export function TrainingCenter({
     }
   };
 
-  const skin = useSkin();
-
   const prescribedReview = plan?.tasks.find(
     (task) => task.type === "review" && task.status === "in-progress",
   );
@@ -538,13 +538,14 @@ export function TrainingCenter({
   const trainingSummary = planCompleted && plan
     ? buildTrainingSummary(plan, errors, sessions)
     : null;
+  const nextTrainingTask = plan ? getNextTrainingTask(plan.tasks) : null;
 
   const dailyProgressCard = (
     <div className="daily-progress-card">
       <header className="panel-title training-card-header">
         <div className="training-card-heading">
           <span className="eyebrow">今日进度</span>
-          <h2>三件事，练完就收手</h2>
+          <h2>今天练了多少</h2>
         </div>
         <div
           className="training-card-stat"
@@ -554,6 +555,7 @@ export function TrainingCenter({
           <span>轮</span>
         </div>
       </header>
+      <p className="daily-progress-note">统计今天所有已保存的练习；三步任务的完成度看上方安排。</p>
       <GoalRow
         label="文章字数"
         value={today.chars}
@@ -621,7 +623,7 @@ export function TrainingCenter({
         <div>
           <span className="eyebrow">从记录里找到下一步</span>
           <h1>今日训练中心</h1>
-          <p>{skin === "focus" ? "按近期记录，练文章、错字和五码根区。" : "把文章、错字和五码根区排成一条能完成的训练路线。"}</p>
+          <p>按近期记录安排练习，先知道为什么练，再看练完后的变化。</p>
         </div>
         <div
           className="goal-seal"
@@ -677,11 +679,12 @@ export function TrainingCenter({
           role="tabpanel"
           aria-labelledby="training-tab-plan"
         >
+          <TrainingBrief plan={plan} dueCount={dueReviewQueue.items.length} />
           <section className={`due-review-card${dueReviewQueue.items.length ? "" : " is-empty"}`} aria-labelledby="due-review-title">
             <header className="panel-title training-card-header">
               <div className="training-card-heading">
                 <span className="eyebrow">间隔复习 · 每日上限 {dueReviewQueue.limit} 项</span>
-                <h2 id="due-review-title" tabIndex={-1}>{skin === "letterpress" || dueReviewQueue.items.length ? "先清到期，再走今日处方" : "间隔复习"}</h2>
+                <h2 id="due-review-title" tabIndex={-1}>到期内容，先巩固一次</h2>
               </div>
               <div
                 className="training-card-stat"
@@ -744,20 +747,18 @@ export function TrainingCenter({
                 </span>
               </div>
             )}
-            <p className="due-review-note">
+            {dueReviewQueue.items.length > 0 && <p className="due-review-note">
               {dueReviewQueue.totalDue > dueReviewQueue.limit
                 ? `另有 ${dueReviewQueue.totalDue - dueReviewQueue.items.length} 项积压，会按逾期天数、错误严重度和预计收益依次进入后续队列。`
                 : "到期项按逾期天数、错误严重度和预计收益排序；暂缓项明天会重新出现。"}
-            </p>
+            </p>}
           </section>
 
-          {skin === "letterpress" && dailyProgressCard}
-
-          <div className="smart-plan-card adaptive-plan-card">
+          <div className="smart-plan-card adaptive-plan-card" id="today-training-plan" tabIndex={-1}>
             <header className="panel-title training-card-header">
               <div className="training-card-heading">
-                <span className="eyebrow">自适应训练处方</span>
-                <h2>{planCompleted ? "今日处方已完成" : skin === "focus" ? "今日三步练习" : "三步练完，验证弱项是否下降"}</h2>
+                <span className="eyebrow">按近期记录推荐</span>
+                <h2>{planCompleted ? "今日三步已完成" : "今日三步练习"}</h2>
               </div>
               <div
                 className="training-card-stat"
@@ -777,7 +778,7 @@ export function TrainingCenter({
                 <div className="summary-ledger">
                   <span><b>{trainingSummary.rounds}</b>轮完成</span>
                   <span><b>{Math.max(1, Math.round(trainingSummary.durationSeconds / 60))}</b>分钟实练</span>
-                  <span><b>{trainingSummary.resolved.length}</b>个弱项已下降</span>
+                  <span><b>{trainingSummary.resolved.length}</b>个弱项退出复练队列</span>
                 </div>
                 {trainingSummary.remaining.length ? (
                   <div className="remaining-weaknesses">
@@ -795,7 +796,10 @@ export function TrainingCenter({
                 ) : (
                   <p>计划中的弱项已降到复练线以下。</p>
                 )}
-                <p>明日会根据今天的正确连击和新问题重新排序。</p>
+                {trainingSummary.remaining.length > 0 && (
+                  <button className="button secondary" onClick={() => selectTrainingTab("review", true)}>继续复练剩余弱项</button>
+                )}
+                <p>这是弱项队列的变化。速度和准确率是否进步，请用阶段目标的同文复测确认。</p>
               </div>
             ) : (
               <>
@@ -814,14 +818,13 @@ export function TrainingCenter({
                           ? "开始复练"
                           : "练这一组";
                     return (
-                      <li key={task.id} data-status={task.status}>
+                      <li key={task.id} id={`training-task-${task.type}`} tabIndex={-1} data-status={task.status} className={task.id === nextTrainingTask?.id ? "is-next" : undefined}>
                         <span aria-hidden="true">{["壹", "贰", "叁"][index]}</span>
                         <div className="plan-task-copy">
                           <div className="plan-task-title">
                             <strong>{task.title}</strong>
                             <small>{statusLabel} · 约 {task.estimatedMinutes} 分钟</small>
                           </div>
-                          <p>{task.reason}</p>
                           <em>
                             {task.type === "article"
                               ? `${task.articleTitle ?? "推荐文章"} · ${task.articleWordCount ?? 0} 字`
@@ -829,6 +832,10 @@ export function TrainingCenter({
                                 ? `${task.items.length} 题 · ${task.items.slice(0, 6).map(([text]) => text).join("、")}`
                                 : `${task.zoneKeys} · ${task.items.length} 题`}
                           </em>
+                          <dl className="plan-task-guidance">
+                            <div><dt>为什么练</dt><dd>{task.reason}</dd></div>
+                            <div><dt>练完看</dt><dd>{TRAINING_REVIEW_NOTES[task.type]}</dd></div>
+                          </dl>
                         </div>
                         {task.status === "completed" ? (
                           <span className="plan-task-done" aria-label={`${task.title}已完成`}>✓ 已完成</span>
@@ -855,7 +862,8 @@ export function TrainingCenter({
                   <span>只替换未完成任务，已完成记录会保留。</span>
                 </div>
                 <details className="priority-explanation">
-                  <summary>为什么这些弱项排在前面？</summary>
+                  <summary>查看弱项排序依据</summary>
+                  <p>近期经常出错、卡顿或反复回改的内容会优先出现；连续答对后会逐步减少复练。</p>
                   <p>
                     原始问题权重为编码错误 50%、卡顿 30%、回改 20%；再乘以最近出现时间与掌握度系数，四舍五入得到优先级。连续答对、掌握阶段提高或长期未复发都会降低分数，低于 {WEAKNESS_RESOLVED_SCORE} 分后退出当前弱项队列。
                   </p>
@@ -877,7 +885,16 @@ export function TrainingCenter({
             )}
           </div>
 
-          {skin === "focus" && dailyProgressCard}
+          {dailyProgressCard}
+
+          <aside className="training-goal-bridge" aria-labelledby="training-goal-bridge-title">
+            <div>
+              <span className="eyebrow">从每日练习到阶段复测</span>
+              <h2 id="training-goal-bridge-title">想确认进步，用同一篇文章复测</h2>
+              <p>选择速度、准确率或码长等一项主目标，练 7 天或 14 天后，在同文、同条件下复测。今日三步用于日常巩固，阶段目标另有每天的核心任务。</p>
+            </div>
+            <Link className="button secondary" href="/advanced?tab=season">查看阶段目标</Link>
+          </aside>
 
           <section className="hesitation-queue-card" aria-labelledby="hesitation-queue-title">
             <header className="panel-title training-card-header">

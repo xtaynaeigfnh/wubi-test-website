@@ -358,20 +358,15 @@ function MusicDock() {
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
-  const [mobilePeek, setMobilePeek] = useState(false);
   useEffect(() => {
-    const syncSlot = () => setHeaderSlot(document.getElementById("music-header-slot"));
+    const syncSlot = () => setHeaderSlot(document.documentElement.dataset.focusMode === "true"
+      ? null
+      : document.getElementById("music-header-slot"));
     syncSlot();
     const observer = new MutationObserver(syncSlot);
     observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-focus-mode"] });
     return () => observer.disconnect();
-  }, []);
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 780px)");
-    const syncViewport = () => setMobilePeek(media.matches);
-    syncViewport();
-    media.addEventListener("change", syncViewport);
-    return () => media.removeEventListener("change", syncViewport);
   }, []);
   const dockRef = useRef<HTMLElement>(null);
   const peekButtonRef = useRef<HTMLButtonElement>(null);
@@ -808,7 +803,7 @@ function MusicDock() {
   );
   return (
     <>
-      {headerSlot && !mobilePeek ? createPortal(peekButton, headerSlot) : peekButton}
+      {headerSlot ? createPortal(peekButton, headerSlot) : peekButton}
       {dock}
     </>
   );
