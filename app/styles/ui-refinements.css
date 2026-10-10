@@ -1,0 +1,155 @@
+/* Shared reading roles; navigation, palette and typeface remain skin-specific. */
+:root {
+  --ui-text-body: 14px;
+  --ui-text-meta: 12px;
+  --ui-title-panel: 22px;
+  --ui-panel-padding: clamp(16px, 2.5vw, 24px);
+  --ui-section-gap: 24px;
+}
+
+body { font-size: var(--ui-text-body); }
+
+.eyebrow { font-size: var(--ui-text-meta); line-height: 1.6; }
+.subpage-heading h1, .history-heading h1 {
+  font-size: clamp(28px, 3.5vw, 44px);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.subpage-heading p, .history-heading p {
+  font-size: var(--ui-text-body);
+  line-height: 1.75;
+}
+.nav-item strong { font-size: var(--ui-text-body); }
+.panel-title h2, .training-card-heading h2, .settings-card-title h2,
+.advanced-module-heading h2, .weekly-section-heading h3 {
+  font-size: var(--ui-title-panel);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.button, .toolbar-actions button, .practice-actions button,
+.training-tabs button, .advanced-tabs button, .segmented button,
+.trend-range button, .history-mode-tabs button,
+.plan-steps a, .plan-steps button, .session-share {
+  min-height: 44px;
+  font-size: var(--ui-text-body);
+  line-height: 1.5;
+}
+.button, .plan-steps a, .plan-steps button {
+  padding: 10px 16px;
+  text-align: center;
+}
+.training-plan { gap: var(--ui-section-gap); align-items: start; }
+.daily-progress-card, .smart-plan-card, .due-review-card,
+.hesitation-queue-card, .trend-panel {
+  min-width: 0;
+  padding: var(--ui-panel-padding);
+}
+.daily-progress-card .training-card-header,
+.smart-plan-card .training-card-header,
+.due-review-card .training-card-header,
+.hesitation-queue-card .training-card-header {
+  min-height: 0;
+  padding: 0 0 20px;
+  align-items: center;
+  gap: 16px;
+}
+.training-card-heading { gap: 8px; }
+.training-card-stat { min-width: 64px; padding-left: 16px; gap: 6px; }
+.training-card-stat strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+.training-card-stat span, .training-card-stat strong small,
+.goal-row > span, .goal-row > strong, .goal-editor label,
+.goal-seal span { font-size: var(--ui-text-meta); line-height: 1.6; }
+.goal-editor { gap: 12px; }
+.goal-editor input { width: 100%; min-width: 0; font-size: var(--ui-text-body); }
+.plan-steps { margin-block: 8px 0; }
+.adaptive-plan-steps li { min-height: 0; padding-block: 20px; gap: 16px; }
+.plan-task-title { flex-wrap: wrap; gap: 6px 12px; }
+.plan-task-title strong { font-size: 16px; line-height: 1.5; }
+.plan-task-title small, .plan-task-copy em, .plan-task-done,
+.plan-actions span, .priority-explanation, .priority-explanation summary,
+.priority-explanation p, .priority-explanation li span,
+.due-review-copy > div span, .due-review-copy time, .due-review-copy small,
+.due-review-copy p, .due-review-empty span, .due-review-note,
+.hesitation-queue-note, .hesitation-queue-empty span,
+.summary-ledger span, .remaining-weaknesses li span,
+.training-completion-summary > p {
+  font-size: var(--ui-text-meta);
+  line-height: 1.75;
+}
+.plan-steps p { margin-top: 8px; font-size: var(--ui-text-body); line-height: 1.75; }
+.plan-task-copy em { white-space: normal; overflow-wrap: anywhere; }
+.plan-actions { gap: 12px; padding-top: 20px; }
+.due-review-copy > div { flex-wrap: wrap; }
+.due-review-list li { gap: 16px; }
+.settings-card-title p, .switch-row > span small, .range-row small,
+.theme-contrast-note,
+.practice-diagnostics > summary, .typing-footer,
+.diagnostic-metric small, .diagnostic-metric i,
+.first-use-note, .first-use-steps small {
+  font-size: var(--ui-text-meta);
+  line-height: 1.75;
+}
+.summary-card > span, .summary-card p, .summary-card strong small,
+.advanced-tabs span, .season-day-list small, .season-status-note {
+  font-size: var(--ui-text-meta);
+  line-height: 1.75;
+}
+.season-goal-card p, .season-setup p, .season-progress-card p {
+  font-size: var(--ui-text-body);
+  line-height: 1.75;
+}
+.settings-card-title h2 { margin-bottom: 6px; }
+.trend-panel .panel-title { flex-wrap: wrap; gap: 16px; }
+.trend-range { flex: none; }
+.trend-range button { padding-inline: 14px; }
+.trend-summary { flex-wrap: wrap; gap: 12px 24px; padding-block: 16px; font-size: var(--ui-text-body); }
+.trend-summary span { flex-wrap: wrap; }
+.trend-summary strong { font-variant-numeric: tabular-nums; }
+.trend-scale { margin: 0 0 12px; color: var(--text-secondary); font-size: var(--ui-text-meta); line-height: 1.75; }
+.trend-chart svg { height: clamp(200px, 22vw, 280px); overflow: hidden; }
+.speed-line, .accuracy-line { stroke-width: 2.5; }
+.trend-labels { gap: 12px; margin-top: 12px; font-size: var(--ui-text-meta); line-height: 1.5; }
+.trend-empty { font-size: var(--ui-text-body); line-height: 1.75; }
+.weekly-volume dt, .weekly-volume-change, .weekly-normalization,
+.weekly-radar-note, .weekly-missing, .weekly-goal-note {
+  font-size: var(--ui-text-meta);
+  line-height: 1.75;
+}
+
+@media (max-width: 780px) {
+  .main-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 4px; overflow: visible; }
+  .nav-item { min-width: 0; justify-content: center; padding: 10px 6px; }
+  .nav-item > span { display: none; }
+  .subpage-heading h1, .history-heading h1 { font-size: 28px; }
+  .training-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+  .training-heading .goal-seal { width: 80px; height: 80px; margin: 0; border-width: 5px; }
+  .training-heading .goal-seal strong { font-size: 22px; }
+  .training-heading .goal-seal span { font-size: 11px; }
+  .training-plan { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .training-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .training-tabs button { min-width: 0; padding: 10px 8px; }
+  .due-review-list { grid-template-columns: minmax(0, 1fr); }
+  .goal-editor { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .goal-editor label { min-width: 0; }
+  .goal-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding-block: 14px; }
+  .goal-row > i { grid-column: 1 / -1; grid-row: 2; }
+  .goal-row > span { grid-column: 1; grid-row: 1; }
+  .goal-row > strong { grid-column: 2; grid-row: 1; text-align: right; }
+  .daily-progress-card .training-card-header,
+  .smart-plan-card .training-card-header,
+  .due-review-card .training-card-header,
+  .hesitation-queue-card .training-card-header { grid-template-columns: minmax(0, 1fr) auto; }
+  .training-card-stat { min-width: 56px; padding-left: 12px; }
+  .adaptive-plan-steps li { grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
+  .adaptive-plan-steps li > :last-child { grid-column: 2; justify-self: start; }
+  .plan-task-title small { white-space: normal; }
+  .trend-labels span:last-child { text-align: right; }
+}
+
+@media (max-width: 380px) {
+  .due-review-list li { grid-template-columns: minmax(0, 1fr); }
+  .due-review-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .due-review-actions .button { padding-inline: 8px; white-space: normal; }
+  .training-card-stat { grid-template-columns: 1fr; justify-items: end; gap: 2px; }
+  .goal-editor { grid-template-columns: minmax(0, 1fr); }
+}

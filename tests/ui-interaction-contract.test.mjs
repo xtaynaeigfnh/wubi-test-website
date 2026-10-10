@@ -49,6 +49,23 @@ async function readTypingSource() {
 }
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
 
+test("both skins share readable controls and reflow training and charts on narrow screens", async () => {
+  const [styles, globals, trend] = await Promise.all([
+    readFile(new URL("../app/styles/ui-refinements.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(trendPanelPath, "utf8"),
+  ]);
+  assert(globals.indexOf('"./styles/ui-refinements.css"') > globals.indexOf('"./styles/skins.css"'));
+  assert(globals.indexOf('"./styles/ui-refinements.css"') < globals.indexOf('"./styles/accessibility.css"'));
+  assert.match(styles, /--ui-text-body: 14px/);
+  assert.match(styles, /--ui-text-meta: 12px/);
+  assert.match(styles, /\.plan-task-copy em\s*\{[^}]*white-space: normal/);
+  assert.match(styles, /@media \(max-width: 780px\)[\s\S]*\.training-plan\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(trend, /速度范围 0–\{maxSpeed\} 字\/分/);
+  assert.match(trend, /preserveAspectRatio="none"/);
+  assert.equal((trend.match(/vectorEffect="non-scaling-stroke"/g) ?? []).length, 2);
+});
+
 test("backup recovery preview remains usable when old local data cannot be read", async () => {
   const source = await readFile(dataManagementPath, "utf8");
   const ast = createSourceFile("DataManagement.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);

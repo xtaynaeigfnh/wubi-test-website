@@ -40,4 +40,5 @@
 @import "./styles/focus-tokens.css"; /* 墨白专注配色变量 */
 @import "./styles/focus.css"; /* 01 墨白：共享视觉与全站响应式 */
 @import "./styles/skins.css"; /* 皮肤选择与展示补充 */
+@import "./styles/ui-refinements.css"; /* 两套皮肤共用的阅读层级、控件与窄屏排版 */
 @import "./styles/accessibility.css"; /* 键盘、触控与对比度保障 */
