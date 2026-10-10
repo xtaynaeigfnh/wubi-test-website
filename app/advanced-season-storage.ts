@@ -8,7 +8,9 @@ import type { AdvancedSeasonArchive, SessionResult } from "./types.ts";
 export function readAdvancedSeasonArchive(): AdvancedSeasonArchive | null {
   try {
     const raw = window.localStorage.getItem(STORAGE.advancedSeason);
-    const value: unknown = raw === null ? { version: 1, active: null, history: [] } : JSON.parse(raw);
+    const value: unknown = raw === null ? null : JSON.parse(raw);
+    // History cleanup and backups use JSON null for an empty archive.
+    if (value === null) return { version: 1, active: null, history: [] };
     return isAdvancedSeasonArchive(value) ? value : null;
   } catch {
     return null;
