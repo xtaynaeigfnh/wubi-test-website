@@ -6,6 +6,9 @@ import {
   normalizeCustomTheme,
   defaultSettings,
   normalizeDailyGoalValue,
+  validateArray,
+  isPhraseOpportunityStat,
+  isBoundedSpacedReviewState,
 } from "./practice-schema.ts";
 
 export {
@@ -46,6 +49,7 @@ import type {
   DailyProgress,
   ErrorStat,
   PracticeArticle,
+  PhraseOpportunityStat,
   SessionResult,
   TrendPoint,
   UserSettings,
@@ -63,11 +67,12 @@ import {
   type CleanupTarget,
   type StorageDataSnapshot,
 } from "./data-maintenance.ts";
-import { createEmptySpacedReviewState } from "./spaced-review.ts";
+import { createEmptySpacedReviewState, type SpacedReviewState } from "./spaced-review.ts";
 import {
   getErrors,
   getPhraseOpportunities,
   getSessions,
+  isValidSessionCollection,
   localDateKey,
   nextMaintenanceLog,
   readSpacedReviewState,
@@ -395,26 +400,35 @@ export function buildChallengePool(
 }
 
 
-function maintenanceSnapshot(): StorageDataSnapshot {
-  const sessions = getSessions();
+export function readStorageDataSnapshot(): StorageDataSnapshot {
+  const allValues = STORAGE_KEYS.map((key) => readLocalForBackup(key));
+  const values = new Map(STORAGE_KEYS.map((key, index) => [key, allValues[index]]));
+  const sessions = values.get(STORAGE.sessions) ?? [];
+  const phraseOpportunities = values.get(STORAGE.phraseOpportunities) ?? [];
+  const reviewState = values.get(STORAGE.reviewState) ?? createEmptySpacedReviewState();
+  if (!isValidSessionCollection(sessions) ||
+      !validateArray(phraseOpportunities, 120, isPhraseOpportunityStat) ||
+      !isBoundedSpacedReviewState(reviewState)) {
+    throw new Error("本机练习数据格式异常，无法安全预览或清理。请先从有效备份恢复。");
+  }
   return {
     sessions,
-    phraseOpportunities: getPhraseOpportunities(),
-    reviewState: readSpacedReviewState(),
-    allValues: STORAGE_KEYS.map((key) => readLocalForBackup(key)),
+    phraseOpportunities: phraseOpportunities as PhraseOpportunityStat[],
+    reviewState: reviewState as SpacedReviewState,
+    allValues,
   };
 }
 
 export function inspectCleanup(target: CleanupTarget): CleanupPreview {
-  return previewCleanup(target, maintenanceSnapshot());
+  return previewCleanup(target, readStorageDataSnapshot());
 }
 
 export function inspectAllCleanup(): AllCleanupPreview {
-  return previewAllCleanup(maintenanceSnapshot());
+  return previewAllCleanup(readStorageDataSnapshot());
 }
 
 export function clearAllMaintenanceData(now = new Date()): boolean {
-  const snapshot = maintenanceSnapshot();
+  const snapshot = readStorageDataSnapshot();
   const preview = previewAllCleanup(snapshot);
   let sessions = stripSessionLargeObjects(snapshot.sessions, "heatmaps");
   sessions = stripSessionLargeObjects(sessions, "ghosts");
@@ -441,7 +455,7 @@ export function clearMaintenanceTarget(
   target: CleanupTarget,
   now = new Date(),
 ): boolean {
-  const snapshot = maintenanceSnapshot();
+  const snapshot = readStorageDataSnapshot();
   const preview = previewCleanup(target, snapshot);
   const writes = new Map<string, unknown>();
   if (target === "phrases") {

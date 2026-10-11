@@ -122,6 +122,54 @@
   flex: none;
 }
 
+.cleanup-category-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.cleanup-category {
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  background: var(--bg-raised);
+}
+
+.cleanup-category > div {
+  min-width: 0;
+}
+
+.cleanup-category strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cleanup-category span {
+  margin-top: 5px;
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.cleanup-category .button {
+  min-height: 44px;
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .cleanup-category {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .maintenance-log,
 .priority-explanation {
   margin-top: 16px;
