@@ -22,7 +22,8 @@ import {
   saveHesitationPracticeOutcome,
   startHesitationQueueItem,
 } from "../lib";
-import { STORAGE, writeLocal } from "../storage";
+import { STORAGE } from "../storage";
+import { saveSettingsChanges } from "../settings-sync";
 import type {
   AppView,
   HesitationPracticeAttempt,
@@ -268,6 +269,30 @@ export function WubiApp({ view }: { view: AppView }) {
     setSettingsReady(true);
   }, []);
 
+  useEffect(() => {
+    const refreshSettings = () => setSettings(readSettings());
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key === STORAGE.settings || event.key === null) refreshSettings();
+      if (event.key === STORAGE.sessions || event.key === STORAGE.hesitationQueue || event.key === null) refreshHesitationState();
+    };
+    const onFocus = () => {
+      refreshSettings();
+      refreshHesitationState();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onFocus();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refreshHesitationState]);
+
   useLayoutEffect(() => {
     if (!settingsReady) return;
     const root = document.documentElement;
@@ -305,19 +330,26 @@ export function WubiApp({ view }: { view: AppView }) {
   const currentThemeName = themeLabels[settings.theme];
   const quickTheme = getNextQuickTheme(settings.theme);
   const updateSettings = (next: UserSettings) => {
-    if (!writeLocal(STORAGE.settings, next)) {
+    const saved = saveSettingsChanges(settings, next);
+    if (!saved) {
       setSettingsSaveError("设置未能保存，原设置保持不变。请检查浏览器存储空间后重试。");
       return false;
     }
-    setSettings(next);
+    setSettings(saved);
     setSettingsSaveError("");
     return true;
   };
-  const cycleTheme = () =>
-    updateSettings({
-      ...settings,
-      theme: getNextQuickTheme(settings.theme),
-    });
+  const cycleTheme = () => {
+    const latest = readSettings();
+    const next = { ...latest, theme: getNextQuickTheme(latest.theme) };
+    const saved = saveSettingsChanges(latest, next);
+    if (!saved) {
+      setSettingsSaveError("设置未能保存，原设置保持不变。请检查浏览器存储空间后重试。");
+      return;
+    }
+    setSettings(saved);
+    setSettingsSaveError("");
+  };
 
   return (
     <SkinContext value={settings.skin}>
