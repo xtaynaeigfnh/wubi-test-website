@@ -62,3 +62,7 @@ Thumbs.db
 *.pem
 
 /output/playwright/accessibility/
+/output/playwright/regression/
+/output/playwright/regression-pages/
+/output/playwright/acceptance/
+/output/playwright/acceptance-a11y/
