@@ -391,6 +391,33 @@ test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explan
   assert.doesNotMatch(styles, /\.storage-usage-list|\.storage-meter/);
 });
 
+test("article picker exposes title search, sorting, and separate accessible favorite controls", async () => {
+  const source = await readFile(new URL("ArticlePicker.tsx", typingHooksDir), "utf8");
+  const ast = createSourceFile("ArticlePicker.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);
+  const component = ast.statements.find((node) => isFunctionDeclaration(node) && node.name?.text === "ArticlePicker");
+  const compiled = transpileModule(component.getText(ast).replace("export function", "function"), {
+    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
+  }).outputText;
+  const Component = new Function("React", "Modal", "lengthLabels", `${compiled}\nreturn ArticlePicker;`)(
+    React, ({ children }) => React.createElement("section", null, children), { short: "短文" },
+  );
+  const props = {
+    filtered: [{ id: "one", title: "白板上的空位", topic: "办公", length: "short", wordCount: 100 }],
+    progressMap: new Map(), favoriteIds: new Set(["one"]),
+    query: "白板", favoritesOnly: true, sort: "recent", favoriteError: "",
+  };
+  const html = renderToStaticMarkup(React.createElement(Component, props));
+  assert.match(html, /aria-label="搜索文章标题"/);
+  assert.match(html, /aria-label="文章排序"/);
+  assert.match(html, /value="recent" selected=""/);
+  assert.match(html, /aria-pressed="true">只看收藏/);
+  assert.match(html, /aria-label="取消收藏文章：白板上的空位" aria-pressed="true"/);
+  assert.match(html, /<\/button><button class="article-favorite-toggle"/);
+  const empty = renderToStaticMarkup(React.createElement(Component, { ...props, filtered: [], favoriteError: "收藏未能保存" }));
+  assert.match(empty, /当前收藏中没有符合条件的文章/);
+  assert.match(empty, /role="alert">收藏未能保存/);
+});
+
 test("history filters are visually separate and expose pressed state", async () => {
   const [history, styles] = await Promise.all([
     readFile(historyViewPath, "utf8"),

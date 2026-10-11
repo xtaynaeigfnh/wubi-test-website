@@ -22,6 +22,7 @@ import {
 } from "./practice-schema.ts";
 import { STORAGE, STORAGE_KEYS } from "./storage.ts";
 import { isOnboardingProgress } from "./onboarding.ts";
+import { isFavoriteArticleIds } from "./article-library.ts";
 import type {
   AdvancedSeasonArchive,
   BackupPayload,
@@ -75,6 +76,8 @@ function isValidBackupValue(key: string, value: unknown): boolean {
   switch (key) {
     case STORAGE.settings:
       return isSettings(value);
+    case STORAGE.favoriteArticles:
+      return isFavoriteArticleIds(value);
     case STORAGE.onboarding:
       return isOnboardingProgress(value);
     case STORAGE.sessions:

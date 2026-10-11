@@ -672,7 +672,7 @@
     white-space: nowrap;
   }
 
-  .article-list > button {
+  .article-list .article-choice {
     min-height: 122px;
     padding: 13px;
     gap: 10px;

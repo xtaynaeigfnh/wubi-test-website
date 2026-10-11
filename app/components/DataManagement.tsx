@@ -24,6 +24,7 @@ import {
   truncateUnicode,
 } from "../lib";
 import { STORAGE, STORAGE_KEYS, writeLocal } from "../storage";
+import { readFavoriteArticleIds, toggleFavoriteArticle } from "../article-preferences";
 import {
   buildStorageUsageReport,
   type MaintenanceEvent,
@@ -339,11 +340,24 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
   useEffect(() => {
-    setItems(getCustomArticles());
+    const refresh = () => {
+      setItems(getCustomArticles());
+      setFavoriteIds(readFavoriteArticleIds());
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === STORAGE.customTexts || event.key === STORAGE.favoriteArticles) refresh();
+    };
+    refresh();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refresh);
+    };
   }, []);
-
   const persist = (next: PracticeArticle[]) => {
     if (!writeLocal(STORAGE.customTexts, next)) {
       setMessage("自定义文章未能保存，请检查浏览器存储空间。");
@@ -459,7 +473,7 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
         />
       </div>
       <div className="custom-manager-list">
-        {items.map((item) =>
+        {[...items].sort((a, b) => Number(favoriteIds.includes(b.id)) - Number(favoriteIds.includes(a.id))).map((item) =>
           item.id === editingId ? (
             <div className="custom-edit" key={item.id}>
               <label>
@@ -508,22 +522,16 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
               <p>{truncateUnicode(item.text.replace(/\s+/g, " "), 72)}…</p>
               <div>
                 <button
-                  aria-pressed={Boolean(item.favorite)}
-                  onClick={() =>
-                    persist(
-                      items
-                        .map((row) =>
-                          row.id === item.id
-                            ? { ...row, favorite: !row.favorite }
-                            : row,
-                        )
-                        .sort(
-                          (a, b) => Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)),
-                        ),
-                    )
-                  }
+                  aria-label={`${favoriteIds.includes(item.id) ? "取消收藏" : "收藏"}文章：${item.title}`}
+                  aria-pressed={favoriteIds.includes(item.id)}
+                  onClick={() => {
+                    const result = toggleFavoriteArticle(item.id);
+                    if (result.ok) setFavoriteIds(result.ids);
+                    setMessage(result.ok ? "文章收藏已更新。" : result.message);
+                    if (result.ok) onChanged();
+                  }}
                 >
-                  {item.favorite ? "取消收藏" : "收藏"}
+                  {favoriteIds.includes(item.id) ? "取消收藏" : "收藏"}
                 </button>
                 <button onClick={() => startEdit(item)}>编辑</button>
                 <button

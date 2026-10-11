@@ -19,6 +19,7 @@ export const STORAGE = {
   onboarding: "wubi-test:onboarding:v1",
   reviewState: "wubi-test:review-state:v1",
   maintenance: "wubi-test:maintenance:v1",
+  favoriteArticles: "wubi-test:favorite-articles:v1",
 } as const;
 
 export const STORAGE_KEYS = Object.values(STORAGE);

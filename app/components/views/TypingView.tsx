@@ -86,6 +86,15 @@ export function TypingView({
     availableArticles,
     topics,
     filtered,
+    query,
+    setQuery,
+    favoritesOnly,
+    setFavoritesOnly,
+    articleSort,
+    setArticleSort,
+    favoriteSet,
+    favoriteError,
+    toggleFavorite,
     chooseArticle,
     randomArticle,
     pickMostDifficult,
@@ -997,6 +1006,15 @@ export function TypingView({
         <ArticlePicker
           filtered={filtered}
           progressMap={progressMap}
+          query={query}
+          onQueryChange={setQuery}
+          favoritesOnly={favoritesOnly}
+          onFavoritesOnlyChange={setFavoritesOnly}
+          sort={articleSort}
+          onSortChange={setArticleSort}
+          favoriteIds={favoriteSet}
+          onToggleFavorite={toggleFavorite}
+          favoriteError={favoriteError}
           onClose={() => setPickerOpen(false)}
           onChoose={chooseArticle}
           filters={
