@@ -219,8 +219,10 @@ test("prose accepts Arabic years and retains other character restrictions", asyn
   assert.throws(() => assertArticleShape({ ...article, title: "记录2025年" }));
 });
 
-test("published calendar years use Arabic digits", async () => {
-  for (const { id, text } of await loadCorpus()) {
+test("revised calendar years use Arabic digits while the version-three baseline is preserved", async () => {
+  for (const { id, text, version } of await loadCorpus()) {
+    // 版本 3 已回退到 efdb39b 的原文，保留当时的汉字年份。
+    if (version === 3) continue;
     assert.doesNotMatch(text, /[一二][〇零一二三四五六七八九]{3}/u, `${id} 年份应使用阿拉伯数字`);
   }
 });
