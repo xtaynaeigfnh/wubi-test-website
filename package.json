@@ -17,7 +17,8 @@
     "data:generate": "node scripts/generate-articles.mjs && node scripts/generate-wubi-data.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test:a11y": "node scripts/check-accessibility.mjs"
+    "test:a11y": "node scripts/check-accessibility.mjs",
+    "test:browser": "node scripts/check-browser-regression.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
