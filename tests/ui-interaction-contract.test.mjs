@@ -1324,7 +1324,7 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /@keyframes music-ink-reveal/);
   assert.match(styles, /@keyframes music-seal-breathe/);
   assert.match(styles, /\.music-ruler\s*\{/);
-  assert.match(styles, /\.music-ruler > button > span\s*\{[^}]*width:\s*6px;[^}]*height:\s*6px;/s);
+  assert.match(styles, /\.music-ruler > button > span\s*\{[^}]*width:\s*100%;[^}]*height:\s*6px;/s);
   assert.match(styles, /\.music-ruler > button\.active > span\s*\{[^}]*height:\s*22px;/s);
   assert.doesNotMatch(styles, /\.music-ruler:hover > span|\.music-ruler > span:nth-child/);
   assert.match(music, /className="music-ruler" role="group" aria-label="曲目刻度"/);
@@ -1599,10 +1599,8 @@ test("short viewports keep dialog bodies scrollable and music outside content", 
   assert.match(music, /createPortal\(peekButton, headerSlot\)/);
   assert.doesNotMatch(music, /createPortal\(dock, headerSlot\)/);
   assert.match(styles, /#music-header-slot \.music-dock-peek\s*\{/);
-  assert.doesNotMatch(music, /mobilePeek/);
-  assert.match(music, /headerSlot \? createPortal\(peekButton, headerSlot\)/);
-  assert.match(music, /dataset.focusMode === "true"\s*\? null/);
-  assert.match(music, /attributeFilter: \["data-focus-mode"\]/);
+  assert.match(music, /matchMedia\("\(max-width: 780px\)"\)/);
+  assert.match(music, /headerSlot && !mobilePeek \? createPortal\(peekButton, headerSlot\)/);
   assert.match(styles, /@media \(max-width: 780px\)\s*\{[^}]*#music-header-slot\s*\{/s);
   assert.match(styles, /\.header-utilities\s*\{[^}]*grid-column: 2;[^}]*position: static;[^}]*flex-wrap: nowrap/s);
 });
@@ -1684,7 +1682,7 @@ test("focus practice keeps three core metrics above input and moves article filt
   assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('className="practice-diagnostics"'));
   assert.match(styles, /\.article-text span\s*\{[^}]*transition: none/s);
   assert.match(styles, /prefers-reduced-motion/);
-  assert.match(music, /const \[collapsed, setCollapsed\] = useState\(true\)/);
+  assert.match(music, /const \[collapsed, setCollapsed\] = useState\(false\)/);
   const training = await readFile(trainingCenterPath, "utf8");
   assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('{dailyProgressCard}'));
 });
