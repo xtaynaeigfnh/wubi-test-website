@@ -30,6 +30,7 @@ import { WeeklyReportPanel } from "../WeeklyReportPanel";
 import { DiagnosticMetric, SummaryCard } from "../Ui";
 import { HesitationHeatmap } from "../HesitationHeatmap";
 import { KeySummary } from "../KeySummary";
+import { STORAGE } from "../../storage";
 
 function sessionRecommendationEvidence(session: SessionResult): string[] {
   const evidence: string[] = [];
@@ -95,6 +96,29 @@ export function HistoryView({
     setPhraseOpportunities(getPhraseOpportunities());
   }, []);
   useEffect(refresh, [hesitationSaveRevision, refresh]);
+  useEffect(() => {
+    const keys = new Set<string>([
+      STORAGE.sessions,
+      STORAGE.progress,
+      STORAGE.errors,
+      STORAGE.phraseOpportunities,
+      STORAGE.keyUsage,
+    ]);
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea === window.localStorage && (event.key === null || keys.has(event.key))) refresh();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
   useEffect(() => {
     let timer = 0;
     const refreshReportClock = () => {

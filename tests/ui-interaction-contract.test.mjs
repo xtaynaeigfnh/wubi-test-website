@@ -682,7 +682,7 @@ test("failed local saves cannot be discarded or shown as successful", async () =
     typing,
     /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*pendingPracticeSave\.current[\s\S]*router\.push/,
   );
-  assert.match(component, /if \(!writeLocal\(STORAGE\.settings, next\)\)/);
+  assert.match(component, /const saved = saveSettingsChanges\(settings, next\);\s*if \(!saved\)/);
   assert.match(component, /设置未能保存，原设置保持不变/);
   assert.match(
     typing,

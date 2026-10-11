@@ -4,6 +4,49 @@ import test from "node:test";
 import { readSettings } from "../app/lib.ts";
 import { defaultCustomTheme, defaultSettings, isSettings, normalizeBackupSettings } from "../app/practice-schema.ts";
 import { STORAGE } from "../app/storage.ts";
+import { mergeSettingsChanges, saveSettingsChanges } from "../app/settings-sync.ts";
+
+test("修改设置只合并本次改变的字段，保留其他窗口的偏好与自定义颜色", () => {
+  const previous = { ...defaultSettings, customTheme: { ...defaultCustomTheme } };
+  const latest = { ...previous, showCodeHints: true, sound: true, customTheme: { ...previous.customTheme, canvas: "#123456" } };
+  const next = { ...previous, theme: "dark", customTheme: { ...previous.customTheme, accent: "#654321" } };
+  assert.deepEqual(mergeSettingsChanges(latest, previous, next), {
+    ...latest,
+    theme: "dark",
+    customTheme: { accent: "#654321", canvas: "#123456" },
+  });
+});
+
+test("设置保存读取最新存储，失败不返回未保存状态或覆盖原数据", () => {
+  const previous = { ...defaultSettings };
+  let stored = JSON.stringify({ ...previous, showCodeHints: true });
+  let blocked = false;
+  globalThis.window = { localStorage: {
+    getItem: () => stored,
+    setItem: (_key, value) => { if (blocked) throw new Error("quota"); stored = value; },
+  } };
+  try {
+    const saved = saveSettingsChanges(previous, { ...previous, theme: "dark" });
+    assert.equal(saved.showCodeHints, true);
+    assert.equal(saved.theme, "dark");
+    const beforeFailure = stored;
+    blocked = true;
+    assert.equal(saveSettingsChanges(saved, { ...saved, sound: true }), null);
+    assert.equal(stored, beforeFailure);
+  } finally { delete globalThis.window; }
+});
+
+test("设置存储不可读取时不使用默认设置覆盖已有偏好", () => {
+  let writes = 0;
+  globalThis.window = { localStorage: {
+    getItem: () => { throw new Error("denied"); },
+    setItem: () => { writes += 1; },
+  } };
+  try {
+    assert.equal(saveSettingsChanges(defaultSettings, { ...defaultSettings, theme: "dark" }), null);
+    assert.equal(writes, 0);
+  } finally { delete globalThis.window; }
+});
 
 test("settings read old and new themes while normalizing custom colors", () => {
   const values = new Map();
