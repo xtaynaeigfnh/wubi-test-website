@@ -9,7 +9,6 @@ import {
   clearAllMaintenanceData,
   clearMaintenanceTarget,
   createLocalId,
-  createBackupPayload,
   getCustomArticles,
   inspectAllCleanup,
   inspectCleanup,
@@ -23,7 +22,7 @@ import {
   restoreBackupPayload,
   truncateUnicode,
 } from "../lib";
-import { STORAGE, STORAGE_KEYS, writeLocal } from "../storage";
+import { STORAGE, writeLocal } from "../storage";
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../article-preferences";
 import {
   buildStorageUsageReport,
@@ -31,6 +30,14 @@ import {
   type MaintenanceEvent,
   type StorageUsageReport,
 } from "../data-maintenance";
+import {
+  BACKUP_REMINDER_KEY,
+  createValidatedLocalBackup,
+  deferBackupReminder,
+  readBackupReminderStatus,
+  recordBackupDownload,
+  type BackupReminderStatus,
+} from "../backup-reminder";
 import type { BackupPayload, PracticeArticle } from "../types";
 
 const MAX_CUSTOM_TEXT_FILE_BYTES = MAX_CUSTOM_TEXT_LENGTH * 4 + 1024;
@@ -42,7 +49,7 @@ export function DataManagement() {
     <div className="data-management" id="settings-data">
       <div className="data-tools-grid">
         <StorageManager revision={revision} onChanged={refreshStorageUsage} />
-        <BackupManager />
+        <BackupManager revision={revision} />
       </div>
       <CustomTextManager onChanged={refreshStorageUsage} />
     </div>
@@ -216,19 +223,50 @@ function StorageManager({
   );
 }
 
-function BackupManager() {
+function BackupManager({ revision }: { revision: number }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const inspectRequestRef = useRef(0);
   const [pending, setPending] = useState<BackupPayload | null>(null);
   const [inspecting, setInspecting] = useState(false);
   const [message, setMessage] = useState("");
+  const [reminder, setReminder] = useState<BackupReminderStatus | null>(null);
+
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        setReminder(readBackupReminderStatus());
+      } catch {
+        setReminder(null);
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE.sessions || event.key === BACKUP_REMINDER_KEY || event.key === null) refresh();
+    };
+    refresh();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [revision]);
+
+  const snoozeReminder = () => {
+    try {
+      if (!deferBackupReminder()) {
+        setMessage("暂缓提醒未能保存，请检查浏览器存储空间。");
+        return;
+      }
+      setReminder(readBackupReminderStatus());
+      setMessage("已暂缓备份提醒 7 天。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "无法暂缓备份提醒");
+    }
+  };
 
   const exportBackup = () => {
     try {
-      const data = Object.fromEntries(
-        STORAGE_KEYS.map((key) => [key, readLocalForBackup(key)]),
-      );
-      const payload = parseBackupPayload(createBackupPayload(data));
+      const payload = createValidatedLocalBackup();
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       });
@@ -243,7 +281,16 @@ function BackupManager() {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-      setMessage("备份文件已导出并通过恢复校验。");
+      const recorded = recordBackupDownload(payload);
+      if (recorded) {
+        try {
+          setReminder(readBackupReminderStatus());
+        } catch {
+          // 下载已经发起；其他窗口同时修改数据时，不能把提醒刷新失败当成导出失败。
+          setReminder(null);
+        }
+      }
+      setMessage(`备份已通过恢复校验，浏览器已发起下载；请确认文件已保存。${recorded ? "" : "本设备的备份提醒记录未能保存。"}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "备份导出失败");
     }
@@ -318,6 +365,21 @@ function BackupManager() {
         </div>
       </div>
       <p>把成绩、错题、设置和自定义文章保存成一个 JSON 文件。</p>
+      {reminder && (reminder.lastDownloadAt || reminder.newSessionCount > 0) && (
+        <div className={`backup-reminder${reminder.shouldRemind ? " is-due" : ""}`} role={reminder.shouldRemind ? "status" : undefined}>
+          <strong>{reminder.shouldRemind ? "新成绩积累较多，建议导出一份备份" : "本设备备份记录"}</strong>
+          <span>
+            {reminder.lastDownloadAt
+              ? `最近发起完整备份下载：${new Date(reminder.lastDownloadAt).toLocaleString("zh-CN")}`
+              : "尚未在本设备发起完整备份下载"}
+          </span>
+          <span>当前保留、{reminder.lastDownloadAt ? "尚未纳入最近导出备份的" : "待备份的"}成绩：{reminder.newSessionCount} 条</span>
+          {reminder.deferredUntil && <span>提醒暂缓至 {new Date(reminder.deferredUntil).toLocaleDateString("zh-CN")}</span>}
+          {reminder.shouldRemind && (
+            <button className="button secondary" onClick={snoozeReminder}>暂缓 7 天</button>
+          )}
+        </div>
+      )}
       <div className="management-actions">
         <button className="button primary" onClick={exportBackup}>
           导出完整备份
