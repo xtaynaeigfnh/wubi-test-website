@@ -234,7 +234,7 @@ export function previewCleanup(
     ghosts: "历史成绩、趋势和个人最佳摘要保留；需要重新完成同篇练习才能再次幽灵挑战。",
     rhythm: "节奏汇总指标保留；旧成绩将不再显示曲线点和弱节奏片段。",
     phrases: "成绩与周报保留；词组专项会从后续练习重新积累推荐机会。",
-    reviews: "成绩与弱项统计保留；到期日期和复习阶段会在下次同步时从现有弱项重新建立。",
+    reviews: "成绩与弱项统计保留；当前训练处方也会清除，下次同步时重新生成。到期日期和复习阶段会从现有弱项重新建立。",
   };
   return {
     target,
@@ -256,7 +256,7 @@ export function previewAllCleanup(
     bytes: previews.reduce((sum, preview) => sum + preview.bytes, 0),
     labels: previews.map((preview) => preview.label),
     consequence:
-      "成绩摘要、趋势、周报和累计指标保留；热力图、幽灵时间线、节奏曲线、词组机会与复习队列会被清除。",
+      "成绩摘要、趋势、周报和累计指标保留；热力图、幽灵时间线、节奏曲线、词组机会与复习队列会被清除，当前训练处方也会清除并在下次同步时重新生成。",
   };
 }
 

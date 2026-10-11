@@ -369,7 +369,7 @@ test("typing display responsibilities stay in focused components", async () => {
   }
 });
 
-test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explanations", async () => {
+test("data management exposes category cleanup and lightweight summaries", async () => {
   const [management, training, weekly, history, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
@@ -379,6 +379,9 @@ test("v0.9 exposes local usage, unified cleanup, lightweight summary, and explan
   ]);
   assert.match(management, /数据清理/);
   assert.match(management, />\s*全部清理\s*</);
+  assert.match(management, /inspectCleanup\(target\)/);
+  assert.match(management, /clearMaintenanceTarget\(target\)/);
+  assert.match(management, /清理\{item.label\}/);
   assert.doesNotMatch(management, /预览清理/);
   assert.doesNotMatch(management, /storage-usage-list|storage-meter/);
   assert.match(management, /导出轻量统计摘要/);

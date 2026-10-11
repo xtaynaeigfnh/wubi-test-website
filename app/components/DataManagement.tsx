@@ -7,19 +7,19 @@ import {
   buildLightweightStatisticsSummary,
   buildCustomArticle,
   clearAllMaintenanceData,
+  clearMaintenanceTarget,
   createLocalId,
   createBackupPayload,
-  getPhraseOpportunities,
-  getSessions,
   getCustomArticles,
   inspectAllCleanup,
+  inspectCleanup,
   MAX_BACKUP_BYTES,
   MAX_CUSTOM_TEXT_LENGTH,
   localDateKey,
   parseBackupPayload,
   readMaintenanceLog,
   readLocalForBackup,
-  readSpacedReviewState,
+  readStorageDataSnapshot,
   restoreBackupPayload,
   truncateUnicode,
 } from "../lib";
@@ -27,6 +27,7 @@ import { STORAGE, STORAGE_KEYS, writeLocal } from "../storage";
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../article-preferences";
 import {
   buildStorageUsageReport,
+  type CleanupTarget,
   type MaintenanceEvent,
   type StorageUsageReport,
 } from "../data-maintenance";
@@ -67,15 +68,7 @@ function StorageManager({
 
   useEffect(() => {
     try {
-      const sessions = getSessions();
-      const phraseOpportunities = getPhraseOpportunities();
-      const reviewState = readSpacedReviewState();
-      setReport(buildStorageUsageReport({
-        sessions,
-        phraseOpportunities,
-        reviewState,
-        allValues: STORAGE_KEYS.map((key) => readLocalForBackup(key)),
-      }));
+      setReport(buildStorageUsageReport(readStorageDataSnapshot()));
       setEvents(readMaintenanceLog().events);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "无法读取本机数据用量");
@@ -101,6 +94,30 @@ function StorageManager({
         return;
       }
       setMessage(`已全部清理 ${preview.count} 项附加数据；成绩摘要、趋势和周报已保留。`);
+      onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "清理失败，本机数据未改变");
+    }
+  };
+
+  const cleanupTarget = (target: CleanupTarget) => {
+    try {
+      const preview = inspectCleanup(target);
+      if (!preview.count) {
+        setMessage(`当前没有可清理的${preview.label}。`);
+        return;
+      }
+      if (!window.confirm(
+        `将清理 ${preview.count} 项${preview.label}，预计释放 ${formatBytes(preview.bytes)}。\n\n${preview.consequence}\n\n其他分类不会清理。此操作无法撤销，确定继续吗？`,
+      )) {
+        setMessage("已取消清理，本机数据未改变。");
+        return;
+      }
+      if (!clearMaintenanceTarget(target)) {
+        setMessage("清理未能保存，本机数据已保持原样。请检查浏览器存储空间。");
+        return;
+      }
+      setMessage(`已清理 ${preview.count} 项${preview.label}；其他分类与成绩摘要已保留。`);
       onChanged();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "清理失败，本机数据未改变");
@@ -142,6 +159,23 @@ function StorageManager({
             <span>本站已管理数据的估算总量</span>
           </div>
           {report.warning && <p className="storage-warning" role="status">{report.warning}</p>}
+          <div className="cleanup-category-list" aria-label="按类别清理附加数据">
+            {report.items.filter((item) => item.cleanupTarget).map((item) => (
+              <div className="cleanup-category" key={item.id}>
+                <div>
+                  <strong>{item.label} · {item.count} 项 · {formatBytes(item.bytes)}</strong>
+                  <span>{item.retention}</span>
+                </div>
+                <button
+                  className="button secondary"
+                  disabled={!item.count}
+                  onClick={() => cleanupTarget(item.cleanupTarget!)}
+                >
+                  清理{item.label}
+                </button>
+              </div>
+            ))}
+          </div>
           <div className="cleanup-all-action">
             <div>
               <strong>全部清理</strong>
