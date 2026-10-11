@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { transpileModule, ScriptTarget } from "typescript";
 import * as lib from "../../app/lib.ts";
 import * as storage from "../../app/storage.ts";
+import * as articleLibrary from "../../app/article-library.ts";
+import * as articlePreferences from "../../app/article-preferences.ts";
 
 // Run the real library hook without its loading effects to isolate selection.
 export async function createArticleLibraryHarness() {
@@ -15,6 +17,8 @@ export async function createArticleLibraryHarness() {
   const deps = {
     ...lib,
     ...storage,
+    ...articleLibrary,
+    ...articlePreferences,
     useState(initial) {
       const index = cursor++;
       if (!(index in slots)) slots[index] = initial;

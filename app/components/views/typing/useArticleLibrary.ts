@@ -24,6 +24,8 @@ import {
 } from "../../../lib";
 import { commitLocalWrites, readLocal, readLocalArray, STORAGE, writeLocal } from "../../../storage";
 import { loadArticles, loadCommonCharacters } from "../../../content-loader";
+import { selectLibraryArticles, type ArticleSort } from "../../../article-library";
+import { readFavoriteArticleIds, toggleFavoriteArticle } from "../../../article-preferences";
 import type {
   ArticleFilter,
   ArticleProgress,
@@ -78,6 +80,11 @@ export function useArticleLibrary(
   const [customText, setCustomText] = useState("");
   const [customError, setCustomError] = useState("");
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
+  const [query, setQuery] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [articleSort, setArticleSort] = useState<ArticleSort>("default");
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favoriteError, setFavoriteError] = useState("");
   const customSaveLock = useRef(false);
 
   useEffect(() => {
@@ -108,6 +115,26 @@ export function useArticleLibrary(
   }, []);
 
   useEffect(() => {
+    const refreshLibrary = () => {
+      setFavoriteIds(readFavoriteArticleIds());
+      setCustomTexts(getCustomArticles());
+      setProgress(getProgress());
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || [STORAGE.favoriteArticles, STORAGE.customTexts, STORAGE.progress].some((key) => key === event.key)) {
+        refreshLibrary();
+      }
+    };
+    refreshLibrary();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refreshLibrary);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refreshLibrary);
+    };
+  }, []);
+
+  useEffect(() => {
     setFilter((value) => ({
       ...value,
       length: onboardingPractice ? "short" : settings.preferredLength,
@@ -131,18 +158,24 @@ export function useArticleLibrary(
       Array.from(new Set(availableArticles.map((item) => item.topic))).sort(),
     [availableArticles],
   );
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const filtered = useMemo(
-    () =>
-      availableArticles.filter((item) => {
-        const record = progressMap.get(item.id);
-        if (filter.length !== "all" && item.length !== filter.length) return false;
-        if (filter.topic !== "all" && item.topic !== filter.topic) return false;
-        if (filter.status === "new" && record) return false;
-        if (filter.status === "practiced" && !record) return false;
-        return true;
-      }),
-    [availableArticles, filter, progressMap],
+    () => selectLibraryArticles({
+      articles: availableArticles,
+      filter,
+      progressMap,
+      query,
+      favoriteIds: favoriteSet,
+      favoritesOnly,
+      sort: articleSort,
+    }),
+    [availableArticles, filter, progressMap, query, favoriteSet, favoritesOnly, articleSort],
   );
+  const toggleFavorite = (id: string) => {
+    const result = toggleFavoriteArticle(id);
+    if (result.ok) setFavoriteIds(result.ids);
+    setFavoriteError(result.message);
+  };
 
   const chooseArticle = useCallback(
     (
@@ -368,6 +401,15 @@ export function useArticleLibrary(
     availableArticles,
     topics,
     filtered,
+    query,
+    setQuery,
+    favoritesOnly,
+    setFavoritesOnly,
+    articleSort,
+    setArticleSort,
+    favoriteSet,
+    favoriteError,
+    toggleFavorite,
     chooseArticle,
     randomArticle,
     pickMostDifficult,
