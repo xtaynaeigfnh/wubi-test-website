@@ -31,6 +31,7 @@ import { DiagnosticMetric, SummaryCard } from "../Ui";
 import { HesitationHeatmap } from "../HesitationHeatmap";
 import { KeySummary } from "../KeySummary";
 import { STORAGE } from "../../storage";
+import { BackupReminderNotice } from "../BackupReminderNotice";
 
 function sessionRecommendationEvidence(session: SessionResult): string[] {
   const evidence: string[] = [];
@@ -194,6 +195,7 @@ export function HistoryView({
         </div>
         <Link className="button primary" href="/">开始练习 <span aria-hidden="true">↗</span></Link>
       </header>
+      <BackupReminderNotice />
       {skin === "letterpress" && <div className="history-overview-heading"><h2>成绩统计</h2><span>仅保存在当前浏览器</span></div>}
       <div className="summary-grid">
         <SummaryCard label="练习次数" value={sessions.length.toString()} note="文章、字码与专项训练" />

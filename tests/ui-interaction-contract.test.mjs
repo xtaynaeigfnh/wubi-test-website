@@ -116,6 +116,7 @@ test("backup recovery preview remains usable when old local data cannot be read"
       React,
       STORAGE,
       useRef: () => ({ current: null }),
+      useEffect() {},
       useState: () => [[pending, false, ""][stateIndex++], () => {}],
       readLocalForBackup(key) {
         if (failure && key === STORAGE.errors) {
@@ -369,7 +370,7 @@ test("typing display responsibilities stay in focused components", async () => {
   }
 });
 
-test("data management exposes category cleanup and lightweight summaries", async () => {
+test("data management exposes category cleanup, backup reminders, and lightweight summaries", async () => {
   const [management, training, weekly, history, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
     readFile(trainingCenterPath, "utf8"),
@@ -382,6 +383,9 @@ test("data management exposes category cleanup and lightweight summaries", async
   assert.match(management, /inspectCleanup\(target\)/);
   assert.match(management, /clearMaintenanceTarget\(target\)/);
   assert.match(management, /清理\{item.label\}/);
+  assert.match(management, /recordBackupDownload\(payload\)/);
+  assert.match(management, /暂缓 7 天/);
+  assert.match(history, /<BackupReminderNotice\s*\/>/);
   assert.doesNotMatch(management, /预览清理/);
   assert.doesNotMatch(management, /storage-usage-list|storage-meter/);
   assert.match(management, /导出轻量统计摘要/);
@@ -687,7 +691,9 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(advanced, /takeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY\)/);
   assert.match(rhythmNavigation, /writeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY/);
   assert.match(management, /readLocalForBackup/);
-  assert.match(management, /parseBackupPayload\(createBackupPayload\(data\)\)/);
+  assert.match(management, /createValidatedLocalBackup\(\)/);
+  const backupReminder = await readFile(new URL("../app/backup-reminder.ts", import.meta.url), "utf8");
+  assert.match(backupReminder, /parseBackupPayload\(createBackupPayload\(data, now\)\)/);
   assert.match(management, /document\.body\.appendChild\(link\)/);
   assert.match(pwa, /offline-cache-timeout/);
   assert.match(music, /volumeControlUnavailable/);
@@ -1212,7 +1218,7 @@ test("settings layout provides a responsive home-row section index", async () =>
   assert.doesNotMatch(component, /\/ 2 开启/);
   assert.match(dataManagement, /className="data-management" id="settings-data"/);
   assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">F<\/span>/);
-  assert.match(dataManagement, /className="data-tools-grid">\s*<StorageManager[^>]*\/>\s*<BackupManager\s*\/>\s*<\/div>/);
+  assert.match(dataManagement, /className="data-tools-grid">\s*<StorageManager[^>]*\/>\s*<BackupManager[^>]*\/>\s*<\/div>/);
   assert.match(dataManagement, /id="settings-backup" aria-labelledby="backup-title"/);
   assert.match(dataManagement, /className="settings-section-key" aria-hidden="true">G<\/span>/);
   assert.match(dataManagement, /id="settings-custom" aria-labelledby="custom-title"/);
