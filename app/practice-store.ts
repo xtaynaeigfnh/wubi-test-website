@@ -611,26 +611,10 @@ export function savePracticeOutcome(
   phraseOpportunities: PhraseOpportunityInput[] = [],
   phrasePractices: PhrasePracticeInput[] = [],
 ): boolean {
-  const extraWrites = new Map<string, unknown>();
-  if (phraseOpportunities.length || phrasePractices.length) {
-    const withOpportunities = mergePhraseOpportunities(
-      getPhraseOpportunities(),
-      phraseOpportunities,
-      session.date,
-    );
-    extraWrites.set(
-      STORAGE.phraseOpportunities,
-      mergePhrasePractices(
-        withOpportunities,
-        phrasePractices,
-        session.date,
-      ),
-    );
-  }
   return persistPracticeOutcome(
     session,
     observations,
-    extraWrites,
+    new Map(),
     phraseOpportunities,
     phrasePractices,
   );
@@ -789,6 +773,17 @@ function persistPracticeOutcome(
     writes.set(STORAGE.trainingPlan, trainingPlan);
   }
   writes.set(STORAGE.reviewState, reviewState);
+  if (phraseOpportunities.length || phrasePractices.length) {
+    const withOpportunities = mergePhraseOpportunities(
+      getPhraseOpportunities(),
+      phraseOpportunities,
+      session.date,
+    );
+    writes.set(
+      STORAGE.phraseOpportunities,
+      mergePhrasePractices(withOpportunities, phrasePractices, session.date),
+    );
+  }
   for (const [key, value] of extraWrites) writes.set(key, value);
   const persisted = commitLocalWrites(writes);
   if (persisted) {

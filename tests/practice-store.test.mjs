@@ -829,6 +829,32 @@ test("practice sessions and phrase opportunities save atomically", () => {
   }
 });
 
+test("重复保存同一成绩不会再次累计词组机会或专项练习次数", (context) => {
+  const previousWindow = globalThis.window;
+  const values = new Map();
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    },
+  };
+  context.after(() => {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  });
+  const opportunities = [{ text: "输入法", code: "lty", characterCount: 3, savedKeys: 2 }];
+  const practices = [{ entry: ["效率", "uj", 0], correct: true }];
+  const result = session({ id: "repeated-save", articleId: "article-a" });
+  assert.equal(savePracticeOutcome(result, [], opportunities, practices), true);
+  const saved = new Map(values);
+  assert.equal(savePracticeOutcome(result, [], opportunities, practices), true);
+  assert.deepEqual(values, saved);
+  assert.equal(getPhraseOpportunities().find((item) => item.text === "输入法").opportunityCount, 1);
+  assert.equal(getPhraseOpportunities().find((item) => item.text === "效率").practiceCount, 1);
+  assert.equal(getProgress()[0].attempts, 1);
+});
+
 test("local session history keeps heatmaps for only the newest 50 rounds", () => {
   const values = new Map();
   globalThis.window = {
