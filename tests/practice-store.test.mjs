@@ -8,14 +8,17 @@ import {
   clearKeyUsage,
   clearPracticeHistory,
   deferSpacedReviewTarget,
+  flushPendingKeyUsage,
   getCustomArticles,
   getErrors,
   getPhraseOpportunities,
   getProgress,
   getSessions,
   readHesitationQueue,
+  readKeyUsage,
   readSpacedReviewState,
   recordPhraseOpportunities,
+  recordKeyUsage,
   saveHesitationPracticeOutcome,
   savePracticeOutcome,
   saveSession,
@@ -321,6 +324,90 @@ test("clearing key usage reports storage failures without pretending success", (
   } finally {
     delete globalThis.window;
   }
+});
+
+function keyUsageHarness(context, initial = { KeyA: 3 }) {
+  const previousWindow = globalThis.window;
+  const values = new Map([[STORAGE.keyUsage, JSON.stringify(initial)]]);
+  const timers = new Map();
+  let nextTimer = 0;
+  const localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  globalThis.window = {
+    localStorage: { ...localStorage },
+    setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  context.after(() => {
+    window.localStorage = localStorage;
+    clearKeyUsage();
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  });
+  return { values, timers };
+}
+
+test("延迟按键写入合并另一窗口的最新计数，不覆盖新增按键", (context) => {
+  const { values } = keyUsageHarness(context);
+  recordKeyUsage("KeyA");
+  values.set(STORAGE.keyUsage, JSON.stringify({ KeyA: 5, KeyB: 2 }));
+  recordKeyUsage("KeyC");
+  assert.deepEqual(readKeyUsage(), { KeyA: 6, KeyB: 2, KeyC: 1 });
+  flushPendingKeyUsage();
+  assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyA: 6, KeyB: 2, KeyC: 1 });
+  flushPendingKeyUsage();
+  assert.deepEqual(readKeyUsage(), { KeyA: 6, KeyB: 2, KeyC: 1 });
+});
+
+test("另一窗口清空统计后，待写入按键不会恢复旧的累计计数", (context) => {
+  const { values } = keyUsageHarness(context);
+  recordKeyUsage("KeyB");
+  values.set(STORAGE.keyUsage, "{}");
+  flushPendingKeyUsage();
+  assert.deepEqual(readKeyUsage(), { KeyB: 1 });
+});
+
+for (const failure of ["read", "write"]) {
+  test(`按键统计 ${failure} 失败保留待保存增量，重试仅累计一次`, (context) => {
+    const { values } = keyUsageHarness(context);
+    recordKeyUsage("KeyA");
+    const method = failure === "read" ? "getItem" : "setItem";
+    const original = window.localStorage[method];
+    window.localStorage[method] = () => { throw new Error("storage unavailable"); };
+    flushPendingKeyUsage();
+    assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyA: 3 });
+    window.localStorage[method] = original;
+    assert.deepEqual(readKeyUsage(), { KeyA: 4 });
+    recordKeyUsage("KeyB");
+    flushPendingKeyUsage();
+    flushPendingKeyUsage();
+    assert.deepEqual(readKeyUsage(), { KeyA: 4, KeyB: 1 });
+  });
+}
+
+test("清空按键统计失败后仍保留已安排的保存任务", (context) => {
+  const { timers } = keyUsageHarness(context);
+  recordKeyUsage("KeyA");
+  const original = window.localStorage.setItem;
+  window.localStorage.setItem = () => { throw new Error("quota"); };
+  assert.equal(clearKeyUsage(), false);
+  assert.equal(timers.size, 1);
+  window.localStorage.setItem = original;
+  timers.values().next().value();
+  assert.deepEqual(readKeyUsage(), { KeyA: 4 });
+});
+
+test("按键增量仍遵守计数上限，并忽略未跟踪键位", (context) => {
+  const { timers } = keyUsageHarness(context, { KeyA: 1_000_000_000 });
+  recordKeyUsage("MediaPlayPause");
+  assert.equal(timers.size, 0);
+  recordKeyUsage("KeyA");
+  recordKeyUsage("KeyA");
+  flushPendingKeyUsage();
+  assert.deepEqual(readKeyUsage(), { KeyA: 1_000_000_000 });
 });
 
 test("hesitation queue validates targets, deduplicates, caps at five and resets daily", () => {

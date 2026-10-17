@@ -11,6 +11,7 @@ import {
 } from "../app/backup-reminder.ts";
 import { createBackupPayload, restoreBackupPayload } from "../app/backup.ts";
 import { STORAGE, STORAGE_KEYS } from "../app/storage.ts";
+import { discardPendingKeyUsage, flushPendingKeyUsage, readKeyUsage, recordKeyUsage } from "../app/practice-store.ts";
 import { session } from "./v02-fixtures.mjs";
 
 const now = new Date("2026-10-11T04:00:00.000Z");
@@ -19,6 +20,8 @@ function storageHarness(context, sessions = []) {
   const previousWindow = globalThis.window;
   const values = new Map([[STORAGE.sessions, JSON.stringify(sessions)]]);
   globalThis.window = {
+    setTimeout: () => 1,
+    clearTimeout() {},
     localStorage: {
       getItem: (key) => values.get(key) ?? null,
       setItem: (key, value) => values.set(key, value),
@@ -26,11 +29,71 @@ function storageHarness(context, sessions = []) {
     },
   };
   context.after(() => {
+    discardPendingKeyUsage();
     if (previousWindow === undefined) delete globalThis.window;
     else globalThis.window = previousWindow;
   });
   return values;
 }
+
+test("完整备份包含尚未落盘的按键，存储写满时也不会遗漏", (context) => {
+  const values = storageHarness(context);
+  values.set(STORAGE.keyUsage, JSON.stringify({ KeyA: 3 }));
+  recordKeyUsage("KeyB");
+  assert.deepEqual(createValidatedLocalBackup(now).data[STORAGE.keyUsage], { KeyA: 3, KeyB: 1 });
+  window.localStorage.setItem = () => { throw new Error("quota"); };
+  assert.equal(flushPendingKeyUsage(), false);
+  const payload = createValidatedLocalBackup(now);
+  assert.deepEqual(payload.data[STORAGE.keyUsage], { KeyA: 3, KeyB: 1 });
+  assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyA: 3 });
+  window.localStorage.getItem = (key) => {
+    if (key === STORAGE.keyUsage) throw new Error("read denied");
+    return values.get(key) ?? null;
+  };
+  assert.throws(() => createValidatedLocalBackup(now), /拒绝读取/);
+});
+
+test("恢复成功后丢弃曾写入失败的按键增量，避免污染导入数据", (context) => {
+  const values = storageHarness(context);
+  recordKeyUsage("KeyA");
+  let failFlush = true;
+  window.localStorage.setItem = (key, value) => {
+    if (key === STORAGE.keyUsage && failFlush) {
+      failFlush = false;
+      throw new Error("quota");
+    }
+    values.set(key, value);
+  };
+  restoreBackupPayload(createBackupPayload({ [STORAGE.keyUsage]: { KeyQ: 9 } }, now));
+  assert.deepEqual(readKeyUsage(), { KeyQ: 9 });
+  flushPendingKeyUsage();
+  assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyQ: 9 });
+});
+
+test("按键落盘与恢复都失败时，回滚保留原统计及待保存增量", (context) => {
+  const values = storageHarness(context);
+  values.set(STORAGE.keyUsage, JSON.stringify({ KeyA: 3 }));
+  const before = new Map(values);
+  recordKeyUsage("KeyB");
+  let failedFlush = false;
+  let failedRestore = false;
+  window.localStorage.setItem = (key, value) => {
+    if (key === STORAGE.keyUsage && !failedFlush) {
+      failedFlush = true;
+      throw new Error("quota");
+    }
+    if (key === STORAGE.sessions && !failedRestore) {
+      failedRestore = true;
+      throw new Error("quota");
+    }
+    values.set(key, value);
+  };
+  assert.throws(() => restoreBackupPayload(createBackupPayload({ [STORAGE.sessions]: [], [STORAGE.keyUsage]: { KeyQ: 9 } }, now)), /恢复未生效/);
+  assert.deepEqual(values, before);
+  assert.deepEqual(readKeyUsage(), { KeyA: 3, KeyB: 1 });
+  assert.equal(flushPendingKeyUsage(), true);
+  assert.deepEqual(JSON.parse(values.get(STORAGE.keyUsage)), { KeyA: 3, KeyB: 1 });
+});
 
 test("无成绩及少量初次练习不触发提醒，积累 20 条后温和提醒", (context) => {
   const values = storageHarness(context);

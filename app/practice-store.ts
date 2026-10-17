@@ -185,27 +185,58 @@ export function deferSpacedReviewTarget(
   return commitLocalWrites(writes) ? next : null;
 }
 
+// Only buffer this window's new keystrokes; a stored snapshot can go stale
+// while another window saves, clears, or restores its key statistics.
 let pendingKeyUsage: KeyUsageMap | null = null;
 let keyUsageTimer: number | null = null;
 
-export function flushPendingKeyUsage(): void {
+export function discardPendingKeyUsage(): void {
   if (typeof window === "undefined") return;
   if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
-  const usage = pendingKeyUsage;
   pendingKeyUsage = null;
   keyUsageTimer = null;
-  if (usage) writeLocal(STORAGE.keyUsage, usage);
+}
+
+function withPendingKeyUsage(stored: KeyUsageMap): KeyUsageMap {
+  const usage = { ...stored };
+  for (const [code, count] of Object.entries(pendingKeyUsage ?? {})) {
+    usage[code] = Math.min(1_000_000_000, (usage[code] ?? 0) + count);
+  }
+  return usage;
+}
+
+export function flushPendingKeyUsage(): boolean {
+  if (typeof window === "undefined") return false;
+  if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
+  keyUsageTimer = null;
+  if (!pendingKeyUsage) return true;
+  let raw: string | null;
+  try {
+    raw = window.localStorage.getItem(STORAGE.keyUsage);
+  } catch {
+    // Do not overwrite inaccessible counters with a fallback empty object.
+    return false;
+  }
+  let stored: KeyUsageMap;
+  try {
+    stored = normalizeKeyUsage(JSON.parse(raw ?? "{}"));
+  } catch {
+    stored = {};
+  }
+  if (!writeLocal(STORAGE.keyUsage, withPendingKeyUsage(stored))) return false;
+  pendingKeyUsage = null;
+  return true;
 }
 
 export function readKeyUsage(): KeyUsageMap {
-  return normalizeKeyUsage(
-    pendingKeyUsage ?? readLocal<unknown>(STORAGE.keyUsage, {}),
+  return withPendingKeyUsage(
+    normalizeKeyUsage(readLocal<unknown>(STORAGE.keyUsage, {})),
   );
 }
 
 export function recordKeyUsage(code: string): void {
   if (typeof window === "undefined") return;
-  const current = readKeyUsage();
+  const current = pendingKeyUsage ?? {};
   const next = incrementKeyUsage(current, code);
   if (next === current) return;
   pendingKeyUsage = next;
@@ -215,10 +246,8 @@ export function recordKeyUsage(code: string): void {
 
 export function clearKeyUsage(): boolean {
   if (typeof window === "undefined") return false;
-  if (keyUsageTimer !== null) window.clearTimeout(keyUsageTimer);
-  keyUsageTimer = null;
   if (!writeLocal(STORAGE.keyUsage, {})) return false;
-  pendingKeyUsage = null;
+  discardPendingKeyUsage();
   return true;
 }
 
