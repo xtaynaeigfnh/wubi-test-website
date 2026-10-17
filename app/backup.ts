@@ -33,7 +33,7 @@ import { MAX_CUSTOM_ARTICLES } from "./practice-constraints.ts";
 import { isAdvancedSeasonArchive } from "./advanced-training.ts";
 import { isMaintenanceLog } from "./data-maintenance.ts";
 import { isValidKeyUsage, normalizeKeyUsage } from "./key-usage.ts";
-import { flushPendingKeyUsage, isValidSessionCollection } from "./practice-store.ts";
+import { discardPendingKeyUsage, flushPendingKeyUsage, isValidSessionCollection } from "./practice-store.ts";
 
 export function readLocalForBackup(key: string): unknown | null {
   if (typeof window === "undefined") {
@@ -208,4 +208,7 @@ export function restoreBackupPayload(payload: BackupPayload): void {
     }
     throw new Error("本机存储空间不足，恢复未生效");
   }
+  // A failed flush retains its delta for retry. Once the import succeeds,
+  // discard that delta so it cannot be applied on top of restored statistics.
+  discardPendingKeyUsage();
 }

@@ -2,6 +2,7 @@
 
 import { createBackupPayload, MAX_BACKUP_BYTES, parseBackupPayload, readLocalForBackup } from "./backup.ts";
 import { STORAGE, STORAGE_KEYS, writeLocal } from "./storage.ts";
+import { readKeyUsage } from "./practice-store.ts";
 import type { BackupPayload, SessionResult } from "./types.ts";
 
 // 设备本地的下载请求记录，不参与练习备份或恢复。
@@ -74,6 +75,8 @@ export function readBackupReminderStatus(now = new Date()): BackupReminderStatus
 
 export function createValidatedLocalBackup(now = new Date()): BackupPayload {
   const data = Object.fromEntries(STORAGE_KEYS.map((key) => [key, readLocalForBackup(key)]));
+  // Include keystrokes waiting for the debounced write, even when storage is full.
+  data[STORAGE.keyUsage] = readKeyUsage();
   const payload = parseBackupPayload(createBackupPayload(data, now));
   if (new TextEncoder().encode(JSON.stringify(payload, null, 2)).byteLength > MAX_BACKUP_BYTES) {
     throw new Error("本机数据已超过单个备份文件的安全大小，请先清理部分历史记录。");
