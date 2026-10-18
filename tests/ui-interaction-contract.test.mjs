@@ -38,6 +38,13 @@ const typingViewPath = new URL("../app/components/views/TypingView.tsx", import.
 const firstUseGuidePath = new URL("../app/components/FirstUseGuide.tsx", import.meta.url);
 const typingHooksDir = new URL("../app/components/views/typing/", import.meta.url);
 
+async function readComponentFamily(path, directory) {
+  const files = (await readdir(directory)).filter((name) => /\.tsx?$/.test(name)).sort();
+  return [await readFile(path, "utf8"), ...await Promise.all(files.map((name) => readFile(new URL(name, directory), "utf8")))].join("\n");
+}
+const readTrainingSource = () => readComponentFamily(trainingCenterPath, new URL("../app/components/training/", import.meta.url));
+const readAdvancedSource = () => readComponentFamily(advancedCenterPath, new URL("../app/components/advanced/", import.meta.url));
+
 async function readTypingSource() {
   const typingSourceNames = (await readdir(typingHooksDir))
     .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
@@ -87,7 +94,7 @@ test("daily guidance points to due reviews, the next task, or the saved summary"
   assert.match(completed, /href="#today-training-plan"/);
   assert.match(completed, /单日完成量不代表能力已经提升/);
 
-  const training = await readFile(trainingCenterPath, "utf8");
+  const training = await readTrainingSource();
   assert.match(training, /<dt>为什么练<\/dt>/);
   assert.match(training, /<dt>练完看<\/dt>/);
   assert.match(training, /href="\/advanced\?tab=season"/);
@@ -168,7 +175,7 @@ test("onboarding bypasses saved common-character practice while ordinary visits 
 });
 
 test("code drills restore input focus after a mouse advances a wrong answer", async () => {
-  for (const path of [challengeViewPath, trainingCenterPath]) {
+  for (const path of [challengeViewPath, new URL("../app/components/training/CodeDrill.tsx", import.meta.url)]) {
     const source = await readFile(path, "utf8");
     assert.match(source, /if \(started && feedback === "idle"\) inputRef\.current\?\.focus\(\)/);
     assert.match(source, /\[started, feedback, question\]/);
@@ -288,7 +295,7 @@ test("challenge keeps wrong answers visible until the user advances", async () =
 });
 
 test("training drills lock repeated submit and advance actions", async () => {
-  const training = await readFile(trainingCenterPath, "utf8");
+  const training = await readTrainingSource();
 
   assert.match(training, /const submitLock = useRef\(false\)/);
   assert.match(training, /const advanceLock = useRef\(false\)/);
@@ -307,7 +314,7 @@ test("training drills lock repeated submit and advance actions", async () => {
 
 test("completed training task status keeps its own readable action column", async () => {
   const [training, styles] = await Promise.all([
-    readFile(trainingCenterPath, "utf8"),
+    readTrainingSource(),
     readStyles(),
   ]);
 
@@ -373,7 +380,7 @@ test("typing display responsibilities stay in focused components", async () => {
 test("data management exposes category cleanup, backup reminders, and lightweight summaries", async () => {
   const [management, training, weekly, history, styles] = await Promise.all([
     readFile(dataManagementPath, "utf8"),
-    readFile(trainingCenterPath, "utf8"),
+    readTrainingSource(),
     readFile(new URL("../app/components/WeeklyReportPanel.tsx", import.meta.url), "utf8"),
     readFile(historyViewPath, "utf8"),
     readStyles(),
@@ -575,7 +582,7 @@ test("typing saves review data and only history displays heatmap and rhythm", as
     readFile(historyViewPath, "utf8"),
     readFile(hesitationHeatmapPath, "utf8"),
     readFile(hesitationPracticePath, "utf8"),
-    readFile(trainingCenterPath, "utf8"),
+    readTrainingSource(),
     readStyles(),
   ]);
 
@@ -624,7 +631,7 @@ test("typing saves review data and only history displays heatmap and rhythm", as
 test("planned articles, custom text counts, and local writes keep UI state consistent", async () => {
   const [typing, training, management] = await Promise.all([
     readTypingSource(),
-    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readTrainingSource(),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
   ]);
 
@@ -665,8 +672,8 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
     await Promise.all([
       readTypingSource(),
       readFile(challengeViewPath, "utf8"),
-      readFile(trainingCenterPath, "utf8"),
-      readFile(advancedCenterPath, "utf8"),
+      readTrainingSource(),
+      readAdvancedSource(),
       readFile(hesitationPracticePath, "utf8"),
       readFile(uiPath, "utf8"),
       readFile(dataManagementPath, "utf8"),
@@ -704,9 +711,9 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   const [component, typing, training, summary, advanced, management] = await Promise.all([
     readFile(componentPath, "utf8"),
     readTypingSource(),
-    readFile(trainingCenterPath, "utf8"),
+    readTrainingSource(),
     readFile(keySummaryPath, "utf8"),
-    readFile(advancedCenterPath, "utf8"),
+    readAdvancedSource(),
     readFile(dataManagementPath, "utf8"),
   ]);
 
@@ -804,7 +811,7 @@ test("training tabs keep their URL state in sync", async () => {
 test("unfinished drills require one discard decision while failed saves stay blocked", async () => {
   const [ui, training, challenge] = await Promise.all([
     readFile(uiPath, "utf8"),
-    readFile(trainingCenterPath, "utf8"),
+    readTrainingSource(),
     readFile(challengeViewPath, "utf8"),
   ]);
 
@@ -851,7 +858,7 @@ test("unfinished drills require one discard decision while failed saves stay blo
 
 test("spaced review queue stays explainable, deferrable, and usable on narrow screens", async () => {
   const [training, component, styles] = await Promise.all([
-    readFile(trainingCenterPath, "utf8"),
+    readTrainingSource(),
     readFile(componentPath, "utf8"),
     readStyles(),
   ]);
@@ -888,8 +895,8 @@ test("spaced review queue stays explainable, deferrable, and usable on narrow sc
 
 test("restrained motion connects progress, tabs, and rhythm without ignoring reduced motion", async () => {
   const [training, advanced, styles] = await Promise.all([
-    readFile(trainingCenterPath, "utf8"),
-    readFile(advancedCenterPath, "utf8"),
+    readTrainingSource(),
+    readAdvancedSource(),
     readStyles(),
   ]);
 
@@ -913,7 +920,7 @@ test("advanced training content stays inside ultra-narrow viewports", async () =
 test("code length coach exposes recommendations and phrase practice on desktop and narrow screens", async () => {
   const [typing, training, styles] = await Promise.all([
     readTypingSource(),
-    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readTrainingSource(),
     readStyles(),
   ]);
 
@@ -988,7 +995,7 @@ test("typing surfaces record physical keys and the summary exposes the reference
   const [component, typing, training, summary, styles] = await Promise.all([
     readFile(componentPath, "utf8"),
     readTypingSource(),
-    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readTrainingSource(),
     readFile(keySummaryPath, "utf8"),
     readStyles(),
   ]);
@@ -1507,7 +1514,7 @@ test("leave guards allow same-page anchors and hash history while protecting oth
 });
 
 test("training refresh preserves an active drill across midnight and resumes when it ends", async () => {
-  const source = await readFile(trainingCenterPath, "utf8");
+  const source = await readTrainingSource();
   const refreshBody = source.match(/const refreshLocal = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[\]\);/)?.[1];
   assert.ok(refreshBody, "training refresh callback is available for behavioral verification");
   const pendingDrillSaveRef = { current: false };
@@ -1553,7 +1560,7 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   const [app, typing, training, management, trends, pwa, share] = await Promise.all([
     readFile(new URL("../app/components/WubiApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/views/TypingView.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/TrainingCenter.tsx", import.meta.url), "utf8"),
+    readTrainingSource(),
     readFile(new URL("../app/components/DataManagement.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/TrendPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/PwaControl.tsx", import.meta.url), "utf8"),
@@ -1651,7 +1658,7 @@ test("offline update notice asks users to finish and save before closing all win
 test("completed input stays in place with save recovery and the original article", async () => {
   const typing = await readFile(typingViewPath, "utf8");
   assert.match(typing, /className=\{`article-text/);
-  assert.match(typing, /completed \? \(\s*<InputReview[\s\S]*?text=\{typed\}[\s\S]*?height=\{inputHeight\}[\s\S]*?\) : \(\s*<textarea/);
+  assert.match(typing, /completed \? \(\s*<InputReview[\s\S]*?text=\{typed\}[\s\S]*?height=\{inputHeight\}[\s\S]*?\) : \(\s*<TypingInput/);
   assert.match(typing, /new ResizeObserver/);
   assert.match(typing, /reviewRef\.current\?\.focus/);
   assert.match(typing, /className="typing-review-save" role="status"/);
@@ -1719,7 +1726,7 @@ test("focus practice keeps three core metrics above input and moves article filt
   assert.match(styles, /\.article-text span\s*\{[^}]*transition: none/s);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(music, /const \[collapsed, setCollapsed\] = useState\(false\)/);
-  const training = await readFile(trainingCenterPath, "utf8");
+  const training = await readTrainingSource();
   assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('{dailyProgressCard}'));
 });
 
@@ -1738,7 +1745,9 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   assert.match(settings, /skinThemeSwatches\[settings.skin\]/);
   assert.match(shell, /root.dataset.skin = settings.skin/);
   assert.match(shell, /<SkinContext value=\{settings.skin\}>/);
-  assert.equal((typing.match(/<textarea\b/g) ?? []).length, 1);
+  assert.equal((typing.match(/<TypingInput\b/g) ?? []).length, 1);
+  const input = await readFile(new URL("TypingInput.tsx", typingHooksDir), "utf8");
+  assert.equal((input.match(/<textarea\b/g) ?? []).length, 1);
   assert.match(typing, /!isFocusSkin && diagnostics/);
   assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
 });

@@ -6,8 +6,8 @@ import * as rhythm from "../../app/rhythm-lab.ts";
 // Execute the real component handlers with a deterministic clock and hook host.
 // This checks event ordering; it does not emulate an OS input method or layout.
 export async function createAdvancedPracticeHarness(text = "甲乙丙") {
-  const source = await readFile(new URL("../../app/components/AdvancedCenter.tsx", import.meta.url), "utf8");
-  const component = source.slice(source.indexOf("function AdvancedPractice("), source.indexOf("\nfunction targetForSeason("));
+  const source = await readFile(new URL("../../app/components/advanced/AdvancedPractice.tsx", import.meta.url), "utf8");
+  const component = source.slice(source.indexOf("function AdvancedPractice("));
   const compiled = transpileModule(component, {
     compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
   }).outputText;

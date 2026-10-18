@@ -964,7 +964,9 @@ test("season archive rejects altered schedules and active history entries", () =
 });
 
 test("advanced page exposes accessible tabs and quiet copy", async () => {
-  const component = await readFile(new URL("../app/components/AdvancedCenter.tsx", import.meta.url), "utf8");
+  const component = (await Promise.all([
+    "AdvancedCenter.tsx", "advanced/AdvancedPractice.tsx", "advanced/RhythmSummaryView.tsx",
+  ].map((path) => readFile(new URL(`../app/components/${path}`, import.meta.url), "utf8")))).join("\n");
   assert.match(component, /role="tablist"/);
   assert.match(component, /aria-selected=\{tab === item\.id\}/);
   assert.match(component, /id=\{`advanced-tab-\$\{item\.id\}`\}/);
@@ -995,7 +997,9 @@ test("advanced page exposes accessible tabs and quiet copy", async () => {
 });
 
 test("advanced page exposes the complete v0.8 goal and assessment contract", async () => {
-  const component = await readFile(new URL("../app/components/AdvancedCenter.tsx", import.meta.url), "utf8");
+  const component = (await Promise.all([
+    "AdvancedCenter.tsx", "advanced/AdvancedPractice.tsx", "advanced/RhythmSummaryView.tsx",
+  ].map((path) => readFile(new URL(`../app/components/${path}`, import.meta.url), "utf8")))).join("\n");
 
   assert.match(component, /\{ id: "season", label: "阶段目标", note: "7 或 14 日同条件评测" \}/);
   assert.match(
