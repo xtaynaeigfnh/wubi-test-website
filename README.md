@@ -250,6 +250,14 @@ npm run dev
 
 ## 项目维护与验证
 
+### 依赖安全维护
+
+当前 Next.js 与配套 ESLint 配置为 16.4.2，Cloudflare Vite 插件为 1.64.0，Wrangler 为 4.151.1。更新后需重新运行两种构建与浏览器回归，不使用会降级框架的 `npm audit fix --force`。
+
+`braces@3.0.3` 的 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) 尚无上游修复版。项目通过 `postinstall` 执行 `scripts/patch-braces.mjs`：核对版本及原始 SHA-256 后，为解析器和 compile、expand、stringify 的递归路径添加 64 层深度保护。干净安装与重复执行均支持；版本或源码不匹配会明确失败，要求重新评估补丁。`npm test` 用超深花括号、括号、直接 AST 和正常 glob 覆盖这项保护。不要使用 `--ignore-scripts` 跳过安装补丁后运行开发或构建工具。
+
+全量 `npm audit` 仍会显示 `braces` 及其开发工具依赖链的 8 项高危标记，因为注册表只识别版本、不识别本地补丁；这不表示上游已修复。`npm audit --omit=dev` 当前为零告警并纳入 CI。上游发布修复版或调用方移除该依赖后，应升级并删除本地补丁及对应测试，重新检查全量审计结果。
+
 ### 项目结构
 
 - `app/`：Next.js 路由、React 组件和客户端核心逻辑。
