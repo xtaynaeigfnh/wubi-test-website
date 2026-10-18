@@ -292,9 +292,9 @@ npx playwright install chromium firefox webkit
 npm run test:a11y
 ```
 
-无障碍脚本默认会启动本地开发服务器，在 Chromium、Firefox 和 WebKit 中检查两套皮肤和多个视口，并把结果写入 `output/playwright/accessibility/`。也可通过 `A11Y_BASE_URL` 指向已启动的网站，或通过 `A11Y_SKINS=letterpress` / `A11Y_SKINS=focus` 指定单套皮肤。它是额外检查，不包含在 `npm test` 中。
+无障碍脚本默认会启动本地开发服务器，在 Chromium、Firefox 和 WebKit 中检查两套皮肤和多个视口，并把结果写入 `output/playwright/accessibility/`。也可通过 `A11Y_BASE_URL` 指向已启动的网站，或通过 `A11Y_SKINS=letterpress` / `A11Y_SKINS=focus` 指定单套皮肤。它不包含在 `npm test` 中；CI 会运行 Chromium、WebKit 的手机浅色与桌面深色组合，并覆盖两套皮肤。完整三浏览器、多视口检查仍可在本地单独运行。
 
-关键操作浏览器回归默认启动开发服务器，使用 Chromium 和 WebKit 检查多窗口设置、输入法组合事件、成绩保存失败后的重试与离开保护、备份恢复，以及文章搜索和收藏：
+关键操作浏览器回归默认启动开发服务器，使用 Chromium 和 WebKit 检查多窗口设置、输入法组合事件、成绩保存失败后的重试与离开保护、备份恢复，以及文章搜索和收藏、字根专项、进阶练习的失败重试和播放器快捷切歌：
 
 ```bash
 npx playwright install chromium webkit
@@ -308,7 +308,7 @@ NEXT_PUBLIC_BASE_PATH=/wubi-regression npm run build:pages
 BROWSER_BASE_PATH=/wubi-regression BROWSER_ENGINES=chromium npm run test:browser -- --pages
 ```
 
-报告、失败截图与 trace 存放在 `output/playwright/regression/` 和 `output/playwright/regression-pages/`。CI 在原有检查之后运行双引擎操作回归和生产子路径回归；无障碍脚本继续作为独立检查运行。实际发布仍按 GitHub Pages 配置单独构建。
+报告、失败截图与 trace 存放在 `output/playwright/regression/` 和 `output/playwright/regression-pages/`。PR 和 `main` 推送都会执行质量检查、生产依赖安全审计、双引擎操作回归、手机与桌面无障碍检查以及生产子路径离线回归。只有 `main` 的推送或手动运行会进入发布步骤，PR 只检查、不部署。
 
 开发服务器运行在 `http://127.0.0.1:4175` 时，可运行 `node scripts/check-skins.mjs` 验证皮肤保存与恢复、失败回滚、配色独立选择、音乐连续播放、组合输入、暂停和结算，并保存四种尺寸的页面截图到 `output/playwright/skins/`。其他地址可通过 `SKIN_BASE_URL` 指定。
 

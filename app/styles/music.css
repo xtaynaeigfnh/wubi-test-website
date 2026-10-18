@@ -369,14 +369,16 @@
 
 .music-ruler {
   width: 100%;
-  height: 48px;
+  height: 64px;
   min-width: 0;
   padding: 0 6px;
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: 44px;
   grid-auto-flow: column;
   align-items: center;
   gap: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
   border: 1px solid rgba(244, 241, 232, 0.12);
   border-radius: 6px;
   background: transparent;

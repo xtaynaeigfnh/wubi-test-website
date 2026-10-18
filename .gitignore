@@ -66,3 +66,5 @@ Thumbs.db
 /output/playwright/regression-pages/
 /output/playwright/acceptance/
 /output/playwright/acceptance-a11y/
+
+/output/playwright/maintenance-visual/
