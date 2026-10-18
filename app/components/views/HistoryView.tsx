@@ -24,7 +24,7 @@ import type {
 import { downloadShareCard } from "../../share-card";
 import { buildWeeklyReport } from "../../weekly-report";
 import { openRhythmSegmentPractice } from "../../rhythm-navigation";
-import { RhythmSummaryView } from "../AdvancedCenter";
+import { RhythmSummaryView } from "../advanced/RhythmSummaryView";
 import { TrendPanel } from "../TrendPanel";
 import { WeeklyReportPanel } from "../WeeklyReportPanel";
 import { DiagnosticMetric, SummaryCard } from "../Ui";
