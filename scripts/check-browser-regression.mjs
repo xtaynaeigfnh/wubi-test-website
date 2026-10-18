@@ -241,6 +241,87 @@ async function articleLibrary({ page }) {
   await dialog.getByText("当前收藏中没有符合条件的文章。可以关闭“只看收藏”或调整筛选。", { exact: true }).waitFor();
 }
 
+async function trainingDrill({ page }) {
+  await open(page, "/training?tab=roots");
+  await page.getByRole("button", { name: "开始专项", exact: true }).click();
+  const input = page.locator(".code-drill input");
+  const response = await page.request.get(`${base}/data/wubi86-challenge.json`);
+  const data = await response.json();
+  const entries = new Map(data.map(([character, code]) => [character, code]));
+  const firstCharacter = (await page.locator(".drill-question").textContent()).trim();
+  await input.fill(entries.get(firstCharacter) === "a" ? "b" : "a");
+  await input.press("Enter");
+  await page.getByRole("button", { name: "记住了，下一题（回车）", exact: true }).click();
+  await page.waitForFunction(() => document.activeElement?.matches(".code-drill input"));
+  assert.equal(await input.inputValue(), "", "换题后清空并聚焦输入框");
+  for (let index = 1; index < 20; index++) {
+    const character = await page.locator(".drill-question").textContent();
+    const code = entries.get(character.trim());
+    assert(code, `应能查到题目编码：${character}`);
+    await input.fill(code);
+    await input.press("Enter");
+    if (index < 19) {
+      await page.locator(".drill-progress").getByText(`第 ${index + 2} / 20 题`, { exact: true }).waitFor();
+    }
+  }
+  await page.getByRole("button", { name: "再练一轮", exact: true }).waitFor();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length === 1);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1"))[0]);
+  assert.equal(saved.type, "roots");
+  assert.equal(saved.correctChars, 19);
+}
+
+async function advancedPractice({ page }) {
+  await open(page, "/advanced");
+  await page.getByRole("button", { name: "开始节奏练习", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "进阶训练输入区" });
+  const target = await page.getByLabel("练习正文").textContent();
+  await input.fill(target.slice(0, 3));
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
+  assert(await input.isDisabled());
+  await page.getByRole("button", { name: "继续", exact: true }).click();
+  assert.equal(await input.inputValue(), target.slice(0, 3));
+  await page.evaluate(() => {
+    window.__regressionWrite = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === "wubi-test:sessions:v1") throw new DOMException("quota", "QuotaExceededError");
+      return window.__regressionWrite.call(this, key, value);
+    };
+  });
+  await input.fill(target);
+  await page.getByRole("button", { name: "重试保存", exact: true }).waitFor();
+  assert(await input.isDisabled());
+  await page.evaluate(() => { Storage.prototype.setItem = window.__regressionWrite; });
+  await page.getByRole("button", { name: "重试保存", exact: true }).click();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length === 1);
+  await page.getByRole("heading", { name: "上屏间隔与恢复", exact: true }).waitFor();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1"))[0]);
+  assert.equal(saved.correctChars, Array.from(target).length);
+  assert.equal(saved.type, "rhythm");
+}
+
+async function musicShortcuts({ page }) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, "/settings");
+  const ruler = page.getByRole("group", { name: "曲目刻度" });
+  const buttons = ruler.getByRole("button");
+  await buttons.first().waitFor();
+  for (let index = 0; index < await buttons.count(); index++) {
+    const button = buttons.nth(index);
+    await button.focus();
+    const box = await button.boundingBox();
+    assert(box && box.width >= 44 && box.height >= 44, "切歌按钮不能被压缩");
+    await button.press("Enter");
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-pressed") === "true");
+    assert(await button.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const strip = element.parentElement.getBoundingClientRect();
+      return box.left >= strip.left - 1 && box.right <= strip.right + 1;
+    }), "键盘聚焦时，横向滚动应露出完整按钮");
+  }
+  await page.screenshot({ path: `${output}/music-shortcuts.png`, fullPage: false });
+}
+
 async function pagesOfflineUpdate({ page, context }) {
   assert(basePath, "生产离线回归必须在非空 Pages 子路径运行");
   assert(!process.env.BROWSER_BASE_URL, "更新回归需要内置静态服务器提供第二版本 worker");
@@ -317,6 +398,9 @@ try {
       await scenario(engine, "typing-recovery", typingRecovery);
       await scenario(engine, "backup-roundtrip", backupRoundtrip);
       await scenario(engine, "article-library", articleLibrary);
+      await scenario(engine, "training-drill", trainingDrill);
+      await scenario(engine, "advanced-practice", advancedPractice);
+      await scenario(engine, "music-shortcuts", musicShortcuts);
     }
   }
 } finally {

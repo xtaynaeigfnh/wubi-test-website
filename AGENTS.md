@@ -33,7 +33,7 @@
 
 测试使用 `node:test` 和 `node:assert/strict`。测试名称应描述可观察行为，而非内部实现。根据改动范围，将用例加入最相关的套件：通用计算与幽灵赛放入 `core-logic`，词组、复习、卡顿、周报、进阶与数据维护分别放入 `phrase-training`、`spaced-review`、`hesitation-practice`、`weekly-report`、`advanced-training` 和 `data-maintenance`，基础存储读写与多键事务放入 `storage`，共享校验与规范化放入 `practice-schema`，备份、练习状态、设置、PWA 和输入复盘分别放入 `backup`、`practice-store`、`settings`、`pwa` 和 `input-review`。码长、Unicode 字符计数和输入法按键识别需覆盖边界情况；修改界面结构、文案或响应式布局时，同步更新 `ui-interaction-contract`；修改本地存储、备份或 PWA 时，覆盖异常输入、失败回滚、部署子路径及离线回退。不要移除 `next.config.ts` 中基于 `process.cwd()` 的 Turbopack 根目录设置，它用于保证中文路径下的静态构建稳定。修改生成逻辑后必须提交全部重新生成的数据文件，并确认文章长度、标点、唯一性、内部重复及跨文章重复度测试通过。
 
-GitHub Pages 工作流会依次运行 lint、类型检查和完整测试，全部通过后才执行静态导出与部署。`npm test` 本身不包含 lint 和类型检查，本地交付前需要分别运行三项检查。
+GitHub Pages 工作流在 PR 和 main 推送时运行生产依赖审计、lint、类型检查、完整测试、双浏览器操作回归、手机与桌面无障碍检查及生产子路径离线回归；只有 main 推送或 main 手动运行可进入部署。`npm test` 本身不包含 lint 和类型检查，本地交付前需要分别运行三项检查。
 
 ## 提交与拉取请求规范
 

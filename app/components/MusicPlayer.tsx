@@ -744,6 +744,11 @@ function MusicDock() {
               aria-label={`切换到第 ${index + 1} 首：${track.title}`}
               aria-pressed={track.id === currentTrack?.id}
               title={track.title}
+              onFocus={(event) => event.currentTarget.scrollIntoView({
+                block: "nearest",
+                inline: "nearest",
+                behavior: "instant",
+              })}
               onClick={() => selectTrack(track.id)}
             >
               <span aria-hidden="true" />
