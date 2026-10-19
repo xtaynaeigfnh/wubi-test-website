@@ -200,6 +200,63 @@ async function typingRecovery({ page, context }) {
   await page.waitForURL(`${base}/history${pagesMode ? "/" : ""}`);
 }
 
+async function typingSessionLifecycle({ page }) {
+  await open(page, "/");
+  const input = page.getByRole("textbox", { name: "跟打输入区" });
+  await input.waitFor();
+  // Drive the real Hook/React events with a deterministic wall clock. Interval
+  // callbacks still run normally; assertions use the persisted result.
+  await page.evaluate(() => {
+    window.__typingTestNow = Date.now();
+    Date.now = () => window.__typingTestNow;
+  });
+  const advance = (ms) => page.evaluate((delta) => { window.__typingTestNow += delta; }, ms);
+  const visibility = (hidden) => page.evaluate((value) => {
+    Object.defineProperty(document, "hidden", { configurable: true, value });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
+  await input.press("w");
+  await advance(1000);
+  await input.fill("错");
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
+  assert(await input.isDisabled());
+  await page.getByRole("button", { name: "重来", exact: true }).click();
+  assert.equal(await input.inputValue(), "", "重来应清除之前的输入");
+  assert(!(await input.isDisabled()), "重来应解除暂停");
+  assert(await page.getByRole("button", { name: "暂停", exact: true }).isDisabled(), "重来后尚未开始计时");
+
+  await input.press("w");
+  await advance(1000);
+  await input.fill("五");
+  await advance(1000);
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
+  await advance(1000);
+  await visibility(true);
+  await advance(30000);
+  await visibility(false);
+  await advance(7000);
+  await page.getByRole("button", { name: "继续", exact: true }).click();
+  await advance(1000);
+  await visibility(true);
+  await advance(20000);
+  await visibility(false);
+  await advance(1000);
+  await input.fill(text);
+  await page.getByText("本次成绩已存入本机 · 可在成绩统计查看").waitFor();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1")));
+  assert.equal(saved.length, 1, "重来的未完成练习不能写入成绩");
+  assert.equal(saved[0].durationSeconds, 4, "暂停与后台时间不能进入有效用时");
+  assert.equal(saved[0].pauseSeconds, 38);
+  assert.equal(saved[0].pauseCount, 1);
+  assert.equal(saved[0].retryCount, 1);
+  assert.equal(saved[0].errors, 1, "只记录重来后的按键临时错字");
+  assert.equal(saved[0].keyCount, 1, "重来前的按键应被清空");
+  await advance(10000);
+  await page.waitForTimeout(300);
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1"))), saved,
+    "结算后的时钟更新不能重复保存或改变成绩");
+}
+
 async function backupRoundtrip({ page }) {
   await open(page, "/settings");
   await page.getByRole("checkbox", { name: "显示编码提示" }).check();
@@ -396,6 +453,7 @@ try {
     } else {
       await scenario(engine, "settings-windows", settingsWindows);
       await scenario(engine, "typing-recovery", typingRecovery);
+      await scenario(engine, "typing-session-lifecycle", typingSessionLifecycle);
       await scenario(engine, "backup-roundtrip", backupRoundtrip);
       await scenario(engine, "article-library", articleLibrary);
       await scenario(engine, "training-drill", trainingDrill);

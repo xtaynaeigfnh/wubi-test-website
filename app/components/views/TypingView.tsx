@@ -71,7 +71,6 @@ export function TypingView({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
-  const [, setClockRevision] = useState(0);
   const ghostApiRef = useRef<GhostRaceApi | null>(null);
   const practiceControlsRef = useRef<PracticeControls | null>(null);
   const {
@@ -147,7 +146,6 @@ export function TypingView({
     visibleText,
     targetText,
     playKeySound,
-    setClockRevision,
     ghostApiRef,
     inputRef,
     wubiCodesRef,
@@ -178,9 +176,10 @@ export function TypingView({
     errorCount,
     completed,
     sessionSaveFailed,
+    sessionSaved,
     togglePause,
     retrySave,
-    pendingPracticeSave,
+    hasPendingSave,
     resetForArticle,
   } = session;
   useEffect(() => {
@@ -199,8 +198,8 @@ export function TypingView({
 
   const practiceInProgress = startedAt !== null && !completed;
   usePendingSaveGuard(
-    sessionSaveFailed || practiceInProgress,
-    sessionSaveFailed
+    (completed && !sessionSaved) || practiceInProgress,
+    completed && !sessionSaved
       ? "本次成绩尚未保存，请先重试保存。"
       : "本次练习尚未完成，请先完成或重来后再离开。",
   );
@@ -319,11 +318,10 @@ export function TypingView({
   });
   useEffect(() => {
     practiceControlsRef.current = {
-      hasPendingSave: () => pendingPracticeSave.current !== null,
+      hasPendingSave,
       resetForArticle: (nextRetryCount: number, nextGhostMode: GhostMode) => {
         resetForArticle(nextRetryCount);
         ghostApiRef.current?.resetForArticle(nextGhostMode);
-        setClockRevision((value) => value + 1);
       },
     };
   });
@@ -362,7 +360,7 @@ export function TypingView({
   );
   const startRecommendedPhrasePractice = () => {
     if (!recommendedPhrases.length) return;
-    if (pendingPracticeSave.current) {
+    if (hasPendingSave()) {
       window.alert("本次成绩尚未保存，请先重试保存。");
       return;
     }
@@ -872,7 +870,11 @@ export function TypingView({
             <div className="typing-review-actions">
               <div className="typing-review-save" role="status">
                 <strong>练习完成</strong>
-                <span>{sessionSaveFailed ? "本次成绩尚未保存" : "本次成绩已存入本机 · 可在成绩统计查看"}</span>
+                <span>{sessionSaveFailed
+                  ? "本次成绩尚未保存"
+                  : sessionSaved
+                    ? "本次成绩已存入本机 · 可在成绩统计查看"
+                    : "正在保存本次成绩…"}</span>
               </div>
               <div className="typing-review-buttons">
                 {sessionSaveFailed && (
@@ -881,18 +883,18 @@ export function TypingView({
                   </button>
                 )}
                 {recommendedPhrases.length > 0 && (
-                  <button className="button secondary" disabled={sessionSaveFailed} onClick={startRecommendedPhrasePractice}>
+                  <button className="button secondary" disabled={!sessionSaved} onClick={startRecommendedPhrasePractice}>
                     练习这些词组
                   </button>
                 )}
                 {settings.autoNext && activeGhostMode !== "off" && (
-                  <button className="button secondary" disabled={sessionSaveFailed} onClick={() => chooseArticle(article, true, retryCount + 1, activeGhostMode)}>
+                  <button className="button secondary" disabled={!sessionSaved} onClick={() => chooseArticle(article, true, retryCount + 1, activeGhostMode)}>
                     {activeGhostMode === "best" ? "再次挑战个人最佳" : "再次挑战最近一次"}
                   </button>
                 )}
                 <button
                   className="button primary"
-                  disabled={sessionSaveFailed}
+                  disabled={!sessionSaved}
                   onClick={settings.autoNext ? randomArticle : () => chooseArticle(article, true, retryCount + 1, activeGhostMode)}
                 >
                   {settings.autoNext ? "下一篇" : activeGhostMode === "best" ? "再次挑战个人最佳" : activeGhostMode === "recent" ? "再次挑战最近一次" : "再练一次"}
