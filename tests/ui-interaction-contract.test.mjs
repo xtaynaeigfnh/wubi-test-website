@@ -491,11 +491,11 @@ test("typing exposes every filtered article and resets timing on restart", async
   assert.match(typing, /共 \{filtered\.length\} 篇符合当前筛选条件/);
   assert.doesNotMatch(typing, /filtered\.slice\(0, 60\)/);
   assert.doesNotMatch(typing, /本次练习出现过错字，无法提交成绩/);
-  assert.match(typing, /setStartedAt\(null\);[\s\S]*setElapsed\(0\);/);
+  // Restart timing and counters are checked through reducer events and browser interaction.
   assert.match(typing, /autoComplete="off"/);
   assert.match(typing, /autoCorrect="off"/);
   assert.match(typing, /autoCapitalize="none"/);
-  assert.match(typing, /isWubiLetterKey\(event\.key, event\.code\)/);
+  // IME physical-key classification is exercised by typing-session.test.mjs.
   assert.match(typing, /<CodeLengthMetric/);
   assert.match(typing, /className="typing-diagnostics"/);
   assert.match(typing, /label="键准"/);
@@ -560,8 +560,7 @@ test("personal ghost races expose selection, live distance, replay, and responsi
   assert.match(typing, /paragraphBoundaries/);
   assert.doesNotMatch(typing, /ghostGapLabel\}[\s\S]{0,80}aria-live=/);
   assert.match(typing, /document\.addEventListener\("visibilitychange"/);
-  assert.match(typing, /inactiveDurationMsRef/);
-  assert.match(typing, /completionElapsedRef\.current/);
+  // Background-time accounting and completion freezing are covered by typing-session.test.mjs.
   assert.match(ghostLogic, /MAX_GHOST_TIMELINES = 90/);
   assert.match(ghostLogic, /articleVersion === identity\.articleVersion/);
   assert.match(styles, /\.ghost-progress-marker\s*\{/);
@@ -586,7 +585,7 @@ test("typing saves review data and only history displays heatmap and rhythm", as
     readStyles(),
   ]);
 
-  assert.match(typing, /buildTypingHeatmap\(visibleText, typingDelaysRef\.current\)/);
+  assert.match(typing, /buildTypingOutcome/);
   assert.doesNotMatch(typing, /<HesitationHeatmap\b|<RhythmSummaryView\b|post-practice-review/);
   assert.match(history, /className="session-heatmap-trigger"/);
   assert.equal(history.match(/className="session-heatmap-trigger"/g)?.length, 1);
@@ -719,11 +718,11 @@ test("failed local saves cannot be discarded or shown as successful", async () =
 
   assert.match(
     typing,
-    /if \(pendingPracticeSave\.current\) \{\s*window\.alert\("本次成绩尚未保存，请先重试保存。"\);\s*return;/s,
+    /if \(hasPendingSave\(\)\) \{\s*window\.alert\("本次成绩尚未保存，请先重试保存。"\);\s*return;/s,
   );
   assert.match(
     typing,
-    /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*pendingPracticeSave\.current[\s\S]*router\.push/,
+    /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*hasPendingSave\(\)[\s\S]*router\.push/,
   );
   assert.match(component, /const saved = saveSettingsChanges\(settings, next\);\s*if \(!saved\)/);
   assert.match(component, /设置未能保存，原设置保持不变/);
@@ -751,7 +750,7 @@ test("failed local saves cannot be discarded or shown as successful", async () =
   );
   assert.match(
     typing,
-    /usePendingSaveGuard\([\s\S]*sessionSaveFailed \|\| practiceInProgress[\s\S]*本次练习尚未完成/,
+    /usePendingSaveGuard\([\s\S]*\(completed && !sessionSaved\) \|\| practiceInProgress[\s\S]*本次练习尚未完成/,
   );
   assert.match(
     typing,
@@ -780,9 +779,9 @@ test("typing samples, PWA install, and failed result navigation have synchronous
     readTypingSource(),
     readFile(pwaControlPath, "utf8"),
   ]);
-  assert.match(typing, /physicalRhythmSamplesRef\.current\.length < MAX_PHYSICAL_RHYTHM_SAMPLES/);
-  assert.match(typing, /if \(event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey\) return;/);
-  assert.match(typing, /disabled=\{sessionSaveFailed\}/);
+  // Sampling bounds are exercised by typing-session.test.mjs.
+  assert.match(typing, /event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey/);
+  assert.match(typing, /disabled=\{!sessionSaved\}/);
   assert.match(pwa, /installLockRef\.current/);
   assert.match(pwa, /disabled=\{installing \|\| !promptEvent\}/);
 });
@@ -1664,7 +1663,7 @@ test("completed input stays in place with save recovery and the original article
   assert.match(typing, /reviewRef\.current\?\.focus/);
   assert.match(typing, /className="typing-review-save" role="status"/);
   assert.match(typing, /<strong>练习完成<\/strong>/);
-  assert.match(typing, /disabled=\{sessionSaveFailed\}/);
+  assert.match(typing, /disabled=\{!sessionSaved\}/);
   const review = await readFile(new URL("InputReview.tsx", typingHooksDir), "utf8");
   assert.match(review, /点按下划线词组/);
   assert.doesNotMatch(review, /红色下划线/);
