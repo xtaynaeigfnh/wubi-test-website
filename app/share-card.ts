@@ -1,6 +1,7 @@
 "use client";
 
-import { formatDuration, truncateUnicode } from "./lib";
+import { formatDuration } from "./format";
+import { truncateUnicode } from "./practice-store";
 import type { SessionResult } from "./types";
 
 export function downloadShareCard(session: SessionResult) {

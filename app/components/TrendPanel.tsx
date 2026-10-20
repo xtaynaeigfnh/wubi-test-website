@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buildTrendSeries, localDateKey } from "../lib";
+import { buildTrendSeries } from "../practice-statistics";
+import { localDateKey } from "../practice-store";
 import type { SessionResult } from "../types";
 
 export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {

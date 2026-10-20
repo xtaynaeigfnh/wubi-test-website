@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { KeySoundPlayer } from "../views/typing/useTypingSession";
-import { createLocalId, recordKeyUsage } from "../../lib";
+import { createLocalId, recordKeyUsage } from "../../practice-store";
 import {
   applyTypingDelaySample,
   calculateKeyAccuracy,

@@ -1,28 +1,29 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   addCustomArticlesWithinLimit,
   buildCommonPracticeArticle,
-  buildCustomArticle,
+  isCommonPracticeArticle,
+  selectInitialArticle,
+} from "../../../article-practice";
+import { buildCustomArticle } from "../../../practice-schema";
+import {
   createLocalId,
   getCustomArticles,
   getProgress,
-  isCommonPracticeArticle,
   localDateKey,
-  MAX_CUSTOM_TEXT_LENGTH,
   readTrainingPlan,
-  selectInitialArticle,
-} from "../../../lib";
-import { commitLocalWrites, readLocal, readLocalArray, STORAGE, writeLocal } from "../../../storage";
+} from "../../../practice-store";
+import { MAX_CUSTOM_TEXT_LENGTH } from "../../../practice-constraints";
+import {
+  commitLocalWrites,
+  readLocal,
+  readLocalArray,
+  STORAGE,
+  writeLocal,
+} from "../../../storage";
 import { loadArticles, loadCommonCharacters } from "../../../content-loader";
 import { selectLibraryArticles, type ArticleSort } from "../../../article-library";
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../../../article-preferences";

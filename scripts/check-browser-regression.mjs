@@ -10,6 +10,8 @@ import { typingRecovery, typingSessionLifecycle, typingIme, typingUnicodeAndCorr
 import { backupRoundtrip, backupUnreadable, backupRollback, backupInvalidAndStaleFile } from "./browser/backup.mjs";
 import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback } from "./browser/articles.mjs";
 
+import { trainingPlanAndReviews } from "./browser/training.mjs";
+
 const pagesMode = process.argv.includes("--pages");
 const engines = { chromium, firefox, webkit };
 const results = [];
@@ -303,6 +305,7 @@ const interactionScenarios = [
   ["common-article-restore", commonArticleRestore],
   ["custom-article-rollback", customArticleRollback],
   ["training-drill", trainingDrill],
+  ["training-plan-reviews", trainingPlanAndReviews],
   ["advanced-practice", advancedPractice],
   ["music-shortcuts", musicShortcuts],
 ];

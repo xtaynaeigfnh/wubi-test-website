@@ -102,7 +102,7 @@ test("daily guidance points to due reviews, the next task, or the saved summary"
   assert.match(training, /href="\/advanced\?tab=season"/);
   assert.match(training, /继续复练剩余弱项/);
   assert.equal((training.match(/\{dailyProgressCard\}/g) ?? []).length, 1);
-  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf("{dailyProgressCard}"));
+  assert(training.indexOf('<DailyTrainingPlanCard') < training.indexOf("{dailyProgressCard}"));
 });
 
 test("code drills restore input focus after a mouse advances a wrong answer", async () => {
@@ -295,7 +295,8 @@ test("typing display responsibilities stay in focused components", async () => {
   assert.match(typing, /<ArticlePicker\s/);
   assert.match(typing, /<CommonCharacterPicker\s/);
   assert.match(typing, /<CustomTextModal\s/);
-  assert.match(typing, /<InputReview\s/);
+  assert.match(typing, /<TypingPracticeArea\s/);
+  assert.match(typing, /<TypingResult\s/);
   assert.doesNotMatch(typing, /<Modal title="选择练习文章"/);
   assert.doesNotMatch(typing, /<Modal title="选择常用字范围"/);
   assert.doesNotMatch(typing, /<Modal title="粘贴自定义文本"/);
@@ -643,10 +644,7 @@ test("typing samples, PWA install, and failed result navigation have synchronous
 });
 
 test("training tabs keep their URL state in sync", async () => {
-  const training = await readFile(
-    new URL("../app/components/TrainingCenter.tsx", import.meta.url),
-    "utf8",
-  );
+  const training = await readTrainingSource();
   assert.match(training, /window\.addEventListener\("popstate"/);
   assert.match(training, /window\.history\.replaceState/);
   assert.match(training, /url\.searchParams\.delete\("tab"\)/);
@@ -1512,9 +1510,10 @@ test("offline update notice asks users to finish and save before closing all win
 });
 
 test("completed input stays in place with save recovery and the original article", async () => {
-  const typing = await readFile(typingViewPath, "utf8");
+  const typing = await readTypingSource();
   assert.match(typing, /className=\{`article-text/);
-  assert.match(typing, /completed \? \(\s*<InputReview[\s\S]*?text=\{typed\}[\s\S]*?height=\{inputHeight\}[\s\S]*?\) : \(\s*<TypingInput/);
+  assert.match(typing, /completed \? result :/);
+  assert.match(typing, /<InputReview[\s\S]*?text=\{typed\}[\s\S]*?height=\{inputHeight\}/);
   assert.match(typing, /new ResizeObserver/);
   assert.match(typing, /reviewRef\.current\?\.focus/);
   assert.match(typing, /className="typing-review-save" role="status"/);
@@ -1576,14 +1575,15 @@ test("focus practice keeps three core metrics above input and moves article filt
   assert.match(typing, /<details className="practice-diagnostics">/);
   assert.match(typing, /isFocusSkin \? "article-picker-filters" : "article-side-filters"/);
   assert.match(picker, /\{filters\}/);
-  assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('{isFocusSkin && commandBar}'));
-  assert.match(typing, /!isFocusSkin && commandBar/);
-  assert(typing.indexOf('aria-label="跟打输入区"') < typing.indexOf('className="practice-diagnostics"'));
+  const area = await readFile(new URL("TypingPracticeArea.tsx", typingHooksDir), "utf8");
+  assert(area.indexOf('<TypingInput ') < area.indexOf('{isFocusSkin && commandBar}'));
+  assert.match(area, /!isFocusSkin && commandBar/);
+  assert(typing.indexOf('<TypingPracticeArea') >= 0 && typing.indexOf('<TypingPracticeArea') < typing.indexOf('className="practice-diagnostics"'));
   assert.match(styles, /\.article-text span\s*\{[^}]*transition: none/s);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(music, /const \[collapsed, setCollapsed\] = useState\(false\)/);
   const training = await readTrainingSource();
-  assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf('{dailyProgressCard}'));
+  assert(training.indexOf('<DailyTrainingPlanCard') < training.indexOf('{dailyProgressCard}'));
 });
 
 
@@ -1601,7 +1601,8 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   assert.match(settings, /skinThemeSwatches\[settings.skin\]/);
   assert.match(shell, /root.dataset.skin = settings.skin/);
   assert.match(shell, /<SkinContext value=\{settings.skin\}>/);
-  assert.equal((typing.match(/<TypingInput\b/g) ?? []).length, 1);
+  const area = await readFile(new URL("TypingPracticeArea.tsx", typingHooksDir), "utf8");
+  assert.equal((area.match(/<TypingInput\b/g) ?? []).length, 1);
   const input = await readFile(new URL("TypingInput.tsx", typingHooksDir), "utf8");
   assert.equal((input.match(/<textarea\b/g) ?? []).length, 1);
   assert.match(typing, /!isFocusSkin && diagnostics/);

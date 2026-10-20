@@ -1222,3 +1222,13 @@ test("code length coach prefers fewer segments when coverage and key cost tie", 
   assert.deepEqual(result.optimalSegments.map(({ text, start }) => ({ text, start })),
     [{ text: "中国", start: 0 }, { text: "中国", start: 2 }]);
 });
+
+test("兼容入口与职责模块提供相同的公共实现", async () => {
+  const legacy = await import("../app/lib.ts");
+  for (const name of ["article-practice", "training-pools", "practice-statistics", "settings-store", "maintenance-store", "format"]) {
+    const implementation = await import(`../app/${name}.ts`);
+    for (const [key, value] of Object.entries(implementation)) {
+      assert.equal(legacy[key], value, `${key} 应从 ${name} 兼容转发，避免保留分叉实现`);
+    }
+  }
+});

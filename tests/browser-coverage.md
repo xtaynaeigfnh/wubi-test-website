@@ -44,3 +44,7 @@ BROWSER_ENGINES=chromium BROWSER_SCENARIOS=typing-recovery,backup-rollback npm r
 3. 中途暂停恢复、切后台再返回，确认已输入内容保留；重来后旧候选不能写入新一轮。
 
 记录浏览器、系统输入法及版本和结果。浏览器自动化全绿只证明事件适配和页面流程，不声称已完成人工系统输入法验收。
+
+### 模块拆分后的连接处
+
+`training-plan-reviews` 从持久化到期数据进入真实训练界面，验证暂缓失败保留队列、重试成功、到期单字和词组完成后返回计划，以及处方字根分区锁定与刷新恢复。`typing-recovery` 同时验证结算保留原文、焦点进入复盘区且不再挂载输入框。以上场景在 Chromium 和 WebKit 执行，避免用父组件的源码位置推断这些行为。

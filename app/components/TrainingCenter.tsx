@@ -1,67 +1,50 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { CodeDrill } from "./training/CodeDrill";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadArticles, loadWubiChallenge } from "../content-loader";
+import { buildPhraseTrainingPool } from "../phrase-training";
+import { defaultDailyGoal } from "../practice-schema";
+import { calculateDailyProgress, calculateStreak } from "../practice-statistics";
 import {
-  buildReviewPool,
-  buildRootPool,
-  calculateDailyProgress,
-  calculateStreak,
-  defaultDailyGoal,
   getErrors,
   getPhraseOpportunities,
-  getProgress,
   getSessions,
   localDateKey,
-  readDailyGoal,
   readHesitationQueue,
   readSpacedReviewState,
-  readSettings,
   readTrainingPlan,
-  startTrainingTask,
   syncSpacedReviewState,
-  deferSpacedReviewTarget,
-  writeTrainingPlan,
-} from "../lib";
-import { readLocal, STORAGE, writeLocal } from "../storage";
-import { loadArticles, loadWubiChallenge } from "../content-loader";
+} from "../practice-store";
+import { readDailyGoal } from "../settings-store";
+import { type SpacedReviewItem, type SpacedReviewState } from "../spaced-review";
+import { STORAGE, writeLocal } from "../storage";
+import { ROOT_ZONES } from "../training-plan";
+import { buildReviewPool, buildRootPool } from "../training-pools";
 import type {
-  DailyTrainingPlan,
   DailyGoal,
+  DailyTrainingPlan,
   ErrorStat,
   HesitationPracticeQueue,
   HesitationPracticeTarget,
-  PracticeArticle,
   PhraseOpportunityStat,
+  PracticeArticle,
   SessionResult,
-  TrainingTask,
   WubiEntry,
 } from "../types";
-import {
-  buildDueReviewQueue,
-  createEmptySpacedReviewState,
-  type SpacedReviewItem,
-  type SpacedReviewState,
-} from "../spaced-review";
-import {
-  buildTrainingSummary,
-  generateDailyTrainingPlan,
-  getNextTrainingTask,
-  regenerateIncompleteTasks,
-  ROOT_ZONES,
-  scoreWeakItem,
-  TRAINING_REVIEW_NOTES,
-  WEAKNESS_RESOLVED_SCORE,
-} from "../training-plan";
-import { buildPhraseTrainingPool } from "../phrase-training";
+import { DailyGoalCard } from "./training/DailyGoalCard";
+import { DailyTrainingPlanCard } from "./training/DailyTrainingPlanCard";
+import { DueReviewQueue } from "./training/DueReviewQueue";
+import { HesitationQueueCard } from "./training/HesitationQueueCard";
+import { PhrasePractice } from "./training/PhrasePractice";
+import { ReviewPractice } from "./training/ReviewPractice";
+import { RootPractice } from "./training/RootPractice";
 import { TrainingBrief } from "./TrainingBrief";
-import {
-  ErrorState,
-  useInProgressLeaveGuard,
-  usePendingSaveGuard,
-} from "./Ui";
+import { ErrorState, useInProgressLeaveGuard, usePendingSaveGuard } from "./Ui";
+
+import { useDueReviews } from "./training/useDueReviews";
+import { useTrainingPlan } from "./training/useTrainingPlan";
 
 const TRAINING_TABS = [
   ["plan", "今日计划"],
@@ -240,41 +223,6 @@ export function TrainingCenter({
     };
   }, [loadAttempt]);
 
-  useEffect(() => {
-    if (
-      loading ||
-      loadError ||
-      plan ||
-      !reviewState ||
-      !entries.length ||
-      !articles.length
-    ) {
-      return;
-    }
-    const next = generateDailyTrainingPlan({
-      date: localDateKey(new Date()),
-      articles,
-      progress: getProgress(),
-      sessions,
-      weakItems: errors,
-      entries,
-      dueReviewItems: buildDueReviewQueue(reviewState).items
-        .filter((item) => item.targetType !== "hesitation" && item.code)
-        .map((item): WubiEntry => [
-          item.text,
-          item.code as string,
-          item.expectedBenefit,
-        ]),
-      preferredLength: readSettings().preferredLength,
-    });
-    if (writeTrainingPlan(next)) {
-      setPlan(next);
-      setPlanMessage("");
-    } else {
-      setPlanMessage("今日计划未能保存，请检查浏览器存储空间。");
-    }
-  }, [articles, entries, errors, loadError, loading, plan, reviewState, sessions]);
-
   const reviewPool = useMemo(
     () => buildReviewPool(errors, entries),
     [entries, errors],
@@ -291,29 +239,6 @@ export function TrainingCenter({
         suggestedEntries: phraseSuggestions,
       }),
     [entries, errors, phraseOpportunities, phraseSuggestions],
-  );
-  const explainedWeaknesses = useMemo(
-    () => errors
-      .map((item) => ({ item, result: scoreWeakItem(item) }))
-      .sort((left, right) =>
-        right.result.score - left.result.score ||
-        left.item.text.localeCompare(right.item.text),
-      )
-      .slice(0, 5),
-    [errors],
-  );
-  const dueReviewQueue = useMemo(
-    () => buildDueReviewQueue(
-      reviewState ?? createEmptySpacedReviewState(),
-    ),
-    [reviewState],
-  );
-  const activeDuePool = useMemo<WubiEntry[]>(
-    () =>
-      activeDueReview?.code
-        ? [[activeDueReview.text, activeDueReview.code, activeDueReview.expectedBenefit]]
-        : [],
-    [activeDueReview],
   );
   const today = calculateDailyProgress(sessions);
   const streak = calculateStreak(sessions);
@@ -400,216 +325,42 @@ export function TrainingCenter({
     });
   };
 
-  const startDueReview = (item: SpacedReviewItem) => {
-    if (item.targetType === "hesitation" && item.hesitationTarget) {
-      if (!confirmDrillDeparture()) return;
-      setReviewMessage("");
-      onPracticeHesitation("", item.hesitationTarget);
-      return;
-    }
-    if (!item.code) {
-      setReviewMessage("这项复习缺少可用编码，暂时无法开始。");
-      return;
-    }
-    const nextTab = item.targetType === "phrase" ? "phrase" : "review";
-    if (!confirmDrillDeparture()) return;
-    if (nextTab !== tab && !selectTrainingTab(nextTab, true)) return;
-    setReviewMessage("");
-    setActiveDueReview(item);
-    window.requestAnimationFrame(() => {
-      document.getElementById(`training-tab-${nextTab}`)?.focus();
-    });
-  };
+  const { dueReviewQueue, activeDuePool, startDueReview, deferDueReview } = useDueReviews({
+    reviewState,
+    setReviewState,
+    activeDueReview,
+    setActiveDueReview,
+    setReviewMessage,
+    setPlan,
+    confirmDrillDeparture,
+    onPracticeHesitation,
+    tab,
+    selectTrainingTab,
+  });
 
-  const deferDueReview = (item: SpacedReviewItem) => {
-    const next = deferSpacedReviewTarget(item.targetType, item.targetId);
-    if (!next) {
-      setReviewMessage("暂缓状态未能保存，这项复习仍保留在今天的队列中。");
-      return;
-    }
-    setReviewState(next);
-    setPlan(readTrainingPlan());
-    setActiveDueReview((current) =>
-      current?.targetType === item.targetType && current.targetId === item.targetId
-        ? null
-        : current,
-    );
-    setReviewMessage(`“${item.text}”已暂缓到明天，届时会重新出现。`);
-    window.requestAnimationFrame(() => {
-      document.getElementById("due-review-title")?.focus();
-    });
-  };
-
-  const startPlanTask = (task: TrainingTask) => {
-    if (!confirmDrillDeparture()) return false;
-    const previousCurrent = readLocal<string | null>(STORAGE.current, null);
-    const previousGenerated = readLocal<PracticeArticle | null>(
-      STORAGE.currentGenerated,
-      null,
-    );
-    if (
-      task.type === "article" &&
-      task.articleId &&
-      (!writeLocal(STORAGE.current, task.articleId) ||
-        !writeLocal(STORAGE.currentGenerated, null))
-    ) {
-      writeLocal(STORAGE.current, previousCurrent);
-      writeLocal(STORAGE.currentGenerated, previousGenerated);
-      setPlanMessage("文章选择未能保存，请检查浏览器存储空间后重试。");
-      return false;
-    }
-    const next = startTrainingTask(task.id);
-    if (!next) {
-      if (task.type === "article" && task.articleId) {
-        writeLocal(STORAGE.current, previousCurrent);
-        writeLocal(STORAGE.currentGenerated, previousGenerated);
-      }
-      setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
-      return false;
-    }
-    setPlan(next);
-    setPlanMessage("");
-    if (task.type === "review") {
-      selectTrainingTab("review", true);
-    } else if (task.type === "roots") {
-      const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
-      if (nextZone) setZone(nextZone);
-      selectTrainingTab("roots", true);
-    }
-    return true;
-  };
-
-  const changePlanGroup = () => {
-    if (!plan) return;
-    const next = regenerateIncompleteTasks(plan, {
-      date: plan.date,
-      articles,
-      progress: getProgress(),
-      sessions,
-      weakItems: errors,
-      entries,
-      dueReviewItems: dueReviewQueue.items
-        .filter((item) => item.targetType !== "hesitation" && item.code)
-        .map((item): WubiEntry => [
-          item.text,
-          item.code as string,
-          item.expectedBenefit,
-        ]),
-      preferredLength: readSettings().preferredLength,
-    });
-    const before = plan.tasks
-      .filter((task) => task.status !== "completed")
-      .map((task) => `${task.articleId ?? ""}:${task.items.map(([text]) => text).join("")}`)
-      .join("|");
-    const after = next.tasks
-      .filter((task) => task.status !== "completed")
-      .map((task) => `${task.articleId ?? ""}:${task.items.map(([text]) => text).join("")}`)
-      .join("|");
-    if (before === after) {
-      setPlanMessage("当前没有足够的替代题目，已保留这组处方。");
-      return;
-    }
-    if (writeTrainingPlan(next)) {
-      setPlan(next);
-      setPlanMessage(
-        plan.tasks.some((task) => task.status === "completed")
-          ? "已更换未完成任务，已完成项保持不变。"
-          : "已换一组，今日计划已保存。",
-      );
-    } else {
-      setPlanMessage("新分组未能保存，原计划保持不变。");
-    }
-  };
-
-  const prescribedReview = plan?.tasks.find(
-    (task) => task.type === "review" && task.status === "in-progress",
-  );
-  const prescribedRoots = plan?.tasks.find(
-    (task) => task.type === "roots" && task.status === "in-progress",
-  );
-  const planCompleted = Boolean(
-    plan?.tasks.every((task) => task.status === "completed"),
-  );
-  const trainingSummary = planCompleted && plan
-    ? buildTrainingSummary(plan, errors, sessions)
-    : null;
-  const nextTrainingTask = plan ? getNextTrainingTask(plan.tasks) : null;
+  const { startPlanTask, changePlanGroup, prescribedReview, prescribedRoots, planCompleted, trainingSummary, nextTrainingTask, explainedWeaknesses } = useTrainingPlan({
+    plan,
+    setPlan,
+    setPlanMessage,
+    articles,
+    entries,
+    errors,
+    sessions,
+    reviewState,
+    loading,
+    loadError,
+    dueReviewQueue,
+    confirmDrillDeparture,
+    selectTrainingTab,
+    setZone,
+  });
 
   const dailyProgressCard = (
-    <div className="daily-progress-card">
-      <header className="panel-title training-card-header">
-        <div className="training-card-heading">
-          <span className="eyebrow">今日进度</span>
-          <h2>今天练了多少</h2>
-        </div>
-        <div
-          className="training-card-stat"
-          aria-label={`今日已完成 ${today.rounds} 轮`}
-        >
-          <strong>{today.rounds}</strong>
-          <span>轮</span>
-        </div>
-      </header>
-      <p className="daily-progress-note">统计今天所有已保存的练习；三步任务的完成度看上方安排。</p>
-      <GoalRow
-        label="文章字数"
-        value={today.chars}
-        target={goal.targetChars}
-        unit="字"
-      />
-      <GoalRow
-        label="有效时长"
-        value={Math.round(today.minutes)}
-        target={goal.targetMinutes}
-        unit="分钟"
-      />
-      <GoalRow
-        label="练习轮数"
-        value={today.rounds}
-        target={goal.targetRounds}
-        unit="轮"
-      />
-      <div className="goal-editor">
-        <label>
-          每日字数
-          <input
-            type="number"
-            min={100}
-            max={10000}
-            step={100}
-            value={goal.targetChars}
-            onChange={(event) =>
-              updateGoal("targetChars", Number(event.target.value))
-            }
-          />
-        </label>
-        <label>
-          每日分钟
-          <input
-            type="number"
-            min={5}
-            max={180}
-            step={5}
-            value={goal.targetMinutes}
-            onChange={(event) =>
-              updateGoal("targetMinutes", Number(event.target.value))
-            }
-          />
-        </label>
-        <label>
-          每日轮数
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={goal.targetRounds}
-            onChange={(event) =>
-              updateGoal("targetRounds", Number(event.target.value))
-            }
-          />
-        </label>
-      </div>
-    </div>
+    <DailyGoalCard
+      today={today}
+      goal={goal}
+      updateGoal={updateGoal}
+    />
   );
 
   return (
@@ -675,210 +426,25 @@ export function TrainingCenter({
           aria-labelledby="training-tab-plan"
         >
           <TrainingBrief plan={plan} dueCount={dueReviewQueue.items.length} />
-          <section className={`due-review-card${dueReviewQueue.items.length ? "" : " is-empty"}`} aria-labelledby="due-review-title">
-            <header className="panel-title training-card-header">
-              <div className="training-card-heading">
-                <span className="eyebrow">间隔复习 · 每日上限 {dueReviewQueue.limit} 项</span>
-                <h2 id="due-review-title" tabIndex={-1}>到期内容，先巩固一次</h2>
-              </div>
-              <div
-                className="training-card-stat"
-                aria-label={`今天显示 ${dueReviewQueue.items.length} 项，共有 ${dueReviewQueue.totalDue} 项到期`}
-              >
-                <strong>
-                  {dueReviewQueue.items.length}
-                  <small> / {dueReviewQueue.totalDue}</small>
-                </strong>
-                <span>到期</span>
-              </div>
-            </header>
-            {reviewMessage && (
-              <p
-                className="review-queue-message"
-                role={reviewMessage.includes("未能") || reviewMessage.includes("无法") ? "alert" : "status"}
-              >
-                {reviewMessage}
-              </p>
-            )}
-            {dueReviewQueue.items.length ? (
-              <ol className="due-review-list">
-                {dueReviewQueue.items.map((item) => (
-                  <li key={`${item.targetType}:${item.targetId}`}>
-                    <div className="due-review-copy">
-                      <div>
-                        <span>{reviewTargetLabel(item.targetType)}</span>
-                        <time dateTime={item.dueAt}>{reviewDueLabel(item.dueAt)}</time>
-                      </div>
-                      <strong>“{item.text}”</strong>
-                      <p>{reviewReason(item)}</p>
-                      <small>
-                        当前间隔 {item.intervalDays} 天 · 掌握阶段 {item.level + 1}/10
-                      </small>
-                    </div>
-                    <div className="due-review-actions">
-                      <button
-                        className="button primary"
-                        onClick={() => startDueReview(item)}
-                      >
-                        {item.targetType === "hesitation" ? "开始三连练" : "开始复习"}
-                      </button>
-                      <button
-                        className="button secondary"
-                        onClick={() => deferDueReview(item)}
-                      >
-                        暂缓到明天
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div className="due-review-empty" role="status">
-                <strong>今天没有待处理的到期项</strong>
-                <span>
-                  {dueReviewQueue.deferredToday
-                    ? `已有 ${dueReviewQueue.deferredToday} 项暂缓到明天，不会永久隐藏。`
-                    : "完成新的练习后，薄弱项会按合适间隔回到这里。"}
-                </span>
-              </div>
-            )}
-            {dueReviewQueue.items.length > 0 && <p className="due-review-note">
-              {dueReviewQueue.totalDue > dueReviewQueue.limit
-                ? `另有 ${dueReviewQueue.totalDue - dueReviewQueue.items.length} 项积压，会按逾期天数、错误严重度和预计收益依次进入后续队列。`
-                : "到期项按逾期天数、错误严重度和预计收益排序；暂缓项明天会重新出现。"}
-            </p>}
-          </section>
+          <DueReviewQueue
+            dueReviewQueue={dueReviewQueue}
+            reviewMessage={reviewMessage}
+            startDueReview={startDueReview}
+            deferDueReview={deferDueReview}
+          />
 
-          <div className="smart-plan-card adaptive-plan-card" id="today-training-plan" tabIndex={-1}>
-            <header className="panel-title training-card-header">
-              <div className="training-card-heading">
-                <span className="eyebrow">按近期记录推荐</span>
-                <h2>{planCompleted ? "今日三步已完成" : "今日三步练习"}</h2>
-              </div>
-              <div
-                className="training-card-stat"
-                aria-label={plan ? `今日处方预计 ${plan.estimatedMinutes} 分钟` : "正在生成今日处方"}
-              >
-                <strong>{plan?.estimatedMinutes ?? "—"}</strong>
-                <span>分钟</span>
-              </div>
-            </header>
-            {planMessage && <p className="plan-message" role="status">{planMessage}</p>}
-            {!plan ? (
-              <div className="training-empty" role="status" aria-busy={loading}>
-                {loading ? "正在按近期记录整理今日处方…" : "今日处方暂时不可用。"}
-              </div>
-            ) : trainingSummary ? (
-              <div className="training-completion-summary" role="status">
-                <div className="summary-ledger">
-                  <span><b>{trainingSummary.rounds}</b>轮完成</span>
-                  <span><b>{Math.max(1, Math.round(trainingSummary.durationSeconds / 60))}</b>分钟实练</span>
-                  <span><b>{trainingSummary.resolved.length}</b>个弱项退出复练队列</span>
-                </div>
-                {trainingSummary.remaining.length ? (
-                  <div className="remaining-weaknesses">
-                    <h3>仍需复练</h3>
-                    <ul>
-                      {trainingSummary.remaining.map((item) => (
-                        <li key={item.text}>
-                          <strong>{item.text}</strong>
-                          <span>{item.reason}</span>
-                          <b>{item.score}</b>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p>计划中的弱项已降到复练线以下。</p>
-                )}
-                {trainingSummary.remaining.length > 0 && (
-                  <button className="button secondary" onClick={() => selectTrainingTab("review", true)}>继续复练剩余弱项</button>
-                )}
-                <p>这是弱项队列的变化。速度和准确率是否进步，请用阶段目标的同文复测确认。</p>
-              </div>
-            ) : (
-              <>
-                <ol className="plan-steps adaptive-plan-steps">
-                  {plan.tasks.map((task, index) => {
-                    const statusLabel = task.status === "completed"
-                      ? "已完成"
-                      : task.status === "in-progress"
-                        ? "进行中"
-                        : "待开始";
-                    const actionLabel = task.status === "in-progress"
-                      ? "继续练习"
-                      : task.type === "article"
-                        ? "开始文章"
-                        : task.type === "review"
-                          ? "开始复练"
-                          : "练这一组";
-                    return (
-                      <li key={task.id} id={`training-task-${task.type}`} tabIndex={-1} data-status={task.status} className={task.id === nextTrainingTask?.id ? "is-next" : undefined}>
-                        <span aria-hidden="true">{["壹", "贰", "叁"][index]}</span>
-                        <div className="plan-task-copy">
-                          <div className="plan-task-title">
-                            <strong>{task.title}</strong>
-                            <small>{statusLabel} · 约 {task.estimatedMinutes} 分钟</small>
-                          </div>
-                          <em>
-                            {task.type === "article"
-                              ? `${task.articleTitle ?? "推荐文章"} · ${task.articleWordCount ?? 0} 字`
-                              : task.type === "review"
-                                ? `${task.items.length} 题 · ${task.items.slice(0, 6).map(([text]) => text).join("、")}`
-                                : `${task.zoneKeys} · ${task.items.length} 题`}
-                          </em>
-                          <dl className="plan-task-guidance">
-                            <div><dt>为什么练</dt><dd>{task.reason}</dd></div>
-                            <div><dt>练完看</dt><dd>{TRAINING_REVIEW_NOTES[task.type]}</dd></div>
-                          </dl>
-                        </div>
-                        {task.status === "completed" ? (
-                          <span className="plan-task-done" aria-label={`${task.title}已完成`}>✓ 已完成</span>
-                        ) : task.type === "article" ? (
-                          <Link
-                            href="/"
-                            onClick={(event) => {
-                              if (!startPlanTask(task)) event.preventDefault();
-                            }}
-                          >
-                            {actionLabel}
-                          </Link>
-                        ) : (
-                          <button onClick={() => startPlanTask(task)}>{actionLabel}</button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-                <div className="plan-actions">
-                  <button className="button secondary" onClick={changePlanGroup}>
-                    换一组
-                  </button>
-                  <span>只替换未完成任务，已完成记录会保留。</span>
-                </div>
-                <details className="priority-explanation">
-                  <summary>查看弱项排序依据</summary>
-                  <p>近期经常出错、卡顿或反复回改的内容会优先出现；连续答对后会逐步减少复练。</p>
-                  <p>
-                    原始问题权重为编码错误 50%、卡顿 30%、回改 20%；再乘以最近出现时间与掌握度系数，四舍五入得到优先级。连续答对、掌握阶段提高或长期未复发都会降低分数，低于 {WEAKNESS_RESOLVED_SCORE} 分后退出当前弱项队列。
-                  </p>
-                  {explainedWeaknesses.length ? (
-                    <ol>
-                      {explainedWeaknesses.map(({ item, result }) => (
-                        <li key={item.text}>
-                          <strong>{item.text}</strong>
-                          <b>{result.score} 分</b>
-                          <span>{result.explanation}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p>暂无弱项数据；今天先用高频字建立基线。</p>
-                  )}
-                </details>
-              </>
-            )}
-          </div>
+          <DailyTrainingPlanCard
+            planCompleted={planCompleted}
+            plan={plan}
+            planMessage={planMessage}
+            loading={loading}
+            trainingSummary={trainingSummary}
+            selectTrainingTab={selectTrainingTab}
+            nextTrainingTask={nextTrainingTask}
+            startPlanTask={startPlanTask}
+            changePlanGroup={changePlanGroup}
+            explainedWeaknesses={explainedWeaknesses}
+          />
 
           {dailyProgressCard}
 
@@ -891,269 +457,64 @@ export function TrainingCenter({
             <Link className="button secondary" href="/advanced?tab=season">查看阶段目标</Link>
           </aside>
 
-          <section className="hesitation-queue-card" aria-labelledby="hesitation-queue-title">
-            <header className="panel-title training-card-header">
-              <div className="training-card-heading">
-                <span className="eyebrow">卡顿片段加练</span>
-                <h2 id="hesitation-queue-title">当天加入，当天练完</h2>
-              </div>
-              <div
-                className="training-card-stat"
-                aria-label={`卡顿加练已完成 ${currentHesitationQueue?.items.filter((item) => item.status === "completed").length ?? 0} 项，共 ${currentHesitationQueue?.items.length ?? 0} 项`}
-              >
-                <strong>
-                  {currentHesitationQueue?.items.filter((item) => item.status === "completed").length ?? 0}
-                  <small> / {currentHesitationQueue?.items.length ?? 0}</small>
-                </strong>
-                <span>片段</span>
-              </div>
-            </header>
-            {currentHesitationQueue?.items.length ? (
-              <ol className="hesitation-queue-list">
-                {currentHesitationQueue.items.map((item) => {
-                  const statusLabel = item.status === "completed"
-                    ? item.outcome === "mastered"
-                      ? "已完成 · 暂时掌握"
-                      : "已完成 · 仍需复练"
-                    : item.status === "in-progress"
-                      ? "进行中"
-                      : "待开始";
-                  return (
-                    <li key={item.id} data-status={item.status}>
-                      <div className="hesitation-queue-copy">
-                        <span>{item.target.sourceTitle}</span>
-                        <strong>“{item.target.text}”</strong>
-                        <small>
-                          {Array.from(item.target.text).length} 字 · 约 {item.estimatedMinutes} 分钟 · {statusLabel}
-                        </small>
-                        {item.completedAt && (
-                          <time dateTime={item.completedAt}>
-                            {new Date(item.completedAt).toLocaleTimeString("zh-CN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })} 完成
-                          </time>
-                        )}
-                      </div>
-                      <button
-                        className="button secondary"
-                        onClick={() => onPracticeHesitation(item.id, item.target)}
-                      >
-                        {item.status === "completed"
-                          ? "再练一组"
-                          : item.status === "in-progress"
-                            ? "继续三连练"
-                            : "开始三连练"}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <div className="hesitation-queue-empty" role="status">
-                <strong>今天还没有加练片段</strong>
-                <span>完成文章后，在卡顿热力图中选择值得复练的位置。</span>
-              </div>
-            )}
-            <p className="hesitation-queue-note">
-              加练独立于上方三项处方，不影响三项完成总结；每天最多 5 个片段。
-            </p>
-          </section>
+          <HesitationQueueCard
+            currentHesitationQueue={currentHesitationQueue}
+            onPracticeHesitation={onPracticeHesitation}
+          />
         </div>
       )}
 
       {tab === "review" && (
-        <div
-          id="training-panel-review"
-          role="tabpanel"
-          aria-labelledby="training-tab-review"
-        >
-          <CodeDrill
-            key={`${drillResetRevision}:${activeDueReview?.targetType === "character"
-              ? `due-${activeDueReview.targetId}`
-              : prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}`}
-            title={activeDueReview?.targetType === "character"
-              ? `到期单字 · ${activeDueReview.text}`
-              : prescribedReview?.title ?? "高频错题复练"}
-            description={activeDueReview?.targetType === "character"
-              ? "完成这一题后，会按本次结果安排下次复习；失败会缩短间隔。"
-              : prescribedReview?.reason ?? "错误越多、掌握度越低的字会排得越靠前。连续答对会逐步提高掌握度。"}
-            emptyText="还没有可复练的错字。先完成一篇文章或一轮字码挑战。"
-            pool={activeDueReview?.targetType === "character"
-              ? activeDuePool
-              : prescribedReview?.items ?? reviewPool}
-            sessionType="review"
-            playKeySound={playKeySound}
-            planTask={activeDueReview?.targetType === "character"
-              ? undefined
-              : prescribedReview}
-            onPendingSaveChange={handlePendingSaveChange}
-            onInProgressChange={handleDrillProgressChange}
-            onSessionSaved={() => {
-              setActiveDueReview(null);
-              onSessionSaved();
-              if (activeDueReview?.targetType === "character" || prescribedReview) {
-                selectTrainingTab("plan", true);
-              }
-            }}
-          />
-        </div>
+        <ReviewPractice
+          drillResetRevision={drillResetRevision}
+          activeDueReview={activeDueReview}
+          prescribedReview={prescribedReview}
+          reviewPool={reviewPool}
+          activeDuePool={activeDuePool}
+          playKeySound={playKeySound}
+          handlePendingSaveChange={handlePendingSaveChange}
+          handleDrillProgressChange={handleDrillProgressChange}
+          setActiveDueReview={setActiveDueReview}
+          onSessionSaved={onSessionSaved}
+          selectTrainingTab={selectTrainingTab}
+        />
       )}
 
       {tab === "phrase" && (
-        <div
-          id="training-panel-phrase"
-          className="phrase-training"
-          role="tabpanel"
-          aria-labelledby="training-tab-phrase"
-        >
-          <aside className="phrase-training-note" aria-label="词组专项选题说明">
-            <span className="eyebrow">码长教练</span>
-            <strong>把单字弱项，放回常用词组里练</strong>
-            <p>
-              {activeDueReview?.targetType === "phrase"
-                ? "这项词组已经到期；完成后会按本次结果安排下次复习，不会覆盖今日处方。"
-                : phraseSuggestions.length
-                ? "本轮优先使用结算页的词组推荐，再补充包含近期弱项字的高频词。"
-                : phraseOpportunities.length
-                  ? "本轮优先复练码长诊断里经常出现、尚未练熟的词组机会。"
-                  : errors.length
-                    ? "旧记录尚无法判断实际分段；本轮展示包含近期弱项字的推荐机会。"
-                    : "还没有错题或码长诊断记录，先从高频常用词组开始。"}
-            </p>
-            <small>每轮最多 20 题，同一词组不重复出现。</small>
-          </aside>
-          <CodeDrill
-            key={`${drillResetRevision}:${activeDueReview?.targetType === "phrase"
-              ? `due-${activeDueReview.targetId}`
-              : "phrase-training"}`}
-            title={activeDueReview?.targetType === "phrase"
-              ? `到期词组 · ${activeDueReview.text}`
-              : "词组码长专项"}
-            description={activeDueReview?.targetType === "phrase"
-              ? "完成这一题后，会按本次结果安排下次复习；失败会缩短间隔。"
-              : "直接输入整个词组的五笔编码，建立二字、三字和四字词的连续输入记忆。"}
-            emptyText={loading ? "正在整理词组题库…" : "暂时没有可用词组，请先完成一轮文章或稍后重试。"}
-            pool={activeDueReview?.targetType === "phrase" ? activeDuePool : phrasePool}
-            sessionType="review"
-            playKeySound={playKeySound}
-            trackPhrasePractice
-            onPendingSaveChange={handlePendingSaveChange}
-            onInProgressChange={handleDrillProgressChange}
-            onSessionSaved={() => {
-              setActiveDueReview(null);
-              onSessionSaved();
-              if (activeDueReview?.targetType === "phrase") {
-                selectTrainingTab("plan", true);
-              }
-            }}
-          />
-        </div>
+        <PhrasePractice
+          activeDueReview={activeDueReview}
+          phraseSuggestions={phraseSuggestions}
+          phraseOpportunities={phraseOpportunities}
+          errors={errors}
+          drillResetRevision={drillResetRevision}
+          loading={loading}
+          activeDuePool={activeDuePool}
+          phrasePool={phrasePool}
+          playKeySound={playKeySound}
+          handlePendingSaveChange={handlePendingSaveChange}
+          handleDrillProgressChange={handleDrillProgressChange}
+          setActiveDueReview={setActiveDueReview}
+          onSessionSaved={onSessionSaved}
+          selectTrainingTab={selectTrainingTab}
+        />
       )}
 
       {tab === "roots" && (
-        <div
-          id="training-panel-roots"
-          className="root-training"
-          role="tabpanel"
-          aria-labelledby="training-tab-roots"
-        >
-          <div className="root-zone-rail" role="tablist" aria-label="五码根区">
-            {ROOT_ZONES.map((item) => (
-              <button
-                key={item.id}
-                role="tab"
-                aria-selected={zone.id === item.id}
-                tabIndex={zone.id === item.id ? 0 : -1}
-                className={zone.id === item.id ? "active" : ""}
-                disabled={Boolean(prescribedRoots) || pendingDrillSave}
-                onClick={() => selectRootZone(item)}
-                onKeyDown={(event) => {
-                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-                  event.preventDefault();
-                  const index = ROOT_ZONES.findIndex((entry) => entry.id === item.id);
-                  const offset = event.key === "ArrowRight" ? 1 : -1;
-                  const next = ROOT_ZONES[(index + offset + ROOT_ZONES.length) % ROOT_ZONES.length];
-                  selectRootZone(next);
-                  const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=tab]");
-                  buttons?.[(index + offset + ROOT_ZONES.length) % ROOT_ZONES.length]?.focus();
-                }}
-              >
-                <b>{item.keys}</b>
-                <strong>{item.label}</strong>
-                <small>{item.note}</small>
-              </button>
-            ))}
-          </div>
-          <CodeDrill
-            key={`${drillResetRevision}:${prescribedRoots?.id ?? zone.id}`}
-            title={prescribedRoots?.title ?? `${zone.label}专项`}
-            description={prescribedRoots?.reason ?? `${zone.keys} 为首码的常用单字，集中训练起笔判断与键位记忆。`}
-            emptyText={loading ? "正在整理题库…" : "这一分区暂时没有可用题目。"}
-            pool={prescribedRoots?.items ?? rootPool}
-            sessionType="roots"
-            playKeySound={playKeySound}
-            planTask={prescribedRoots}
-            onPendingSaveChange={handlePendingSaveChange}
-            onInProgressChange={handleDrillProgressChange}
-            onSessionSaved={() => {
-              onSessionSaved();
-              if (prescribedRoots) selectTrainingTab("plan", true);
-            }}
-          />
-        </div>
+        <RootPractice
+          zone={zone}
+          prescribedRoots={prescribedRoots}
+          pendingDrillSave={pendingDrillSave}
+          selectRootZone={selectRootZone}
+          drillResetRevision={drillResetRevision}
+          loading={loading}
+          rootPool={rootPool}
+          playKeySound={playKeySound}
+          handlePendingSaveChange={handlePendingSaveChange}
+          handleDrillProgressChange={handleDrillProgressChange}
+          onSessionSaved={onSessionSaved}
+          selectTrainingTab={selectTrainingTab}
+        />
       )}
     </section>
-  );
-}
-
-function reviewTargetLabel(targetType: SpacedReviewItem["targetType"]): string {
-  if (targetType === "phrase") return "词组";
-  if (targetType === "hesitation") return "卡顿片段";
-  return "单字";
-}
-
-function reviewDueLabel(dueAt: string, now = new Date()): string {
-  const due = new Date(dueAt);
-  const todaySerial = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const dueSerial = Date.UTC(due.getFullYear(), due.getMonth(), due.getDate());
-  const overdueDays = Math.max(
-    0,
-    Math.round((todaySerial - dueSerial) / 86_400_000),
-  );
-  return overdueDays > 0 ? `已逾期 ${overdueDays} 天` : "今天到期";
-}
-
-function reviewReason(item: SpacedReviewItem): string {
-  const source = item.lastOutcome === "correct"
-    ? "上次答对，按间隔回访"
-    : item.lastOutcome === "incorrect"
-      ? "上次未掌握，已缩短间隔"
-      : "由近期薄弱记录首次排入";
-  return `${source} · 错误严重度 ${item.severity}/5 · 收益权重 ${item.expectedBenefit}`;
-}
-
-function GoalRow({
-  label,
-  value,
-  target,
-  unit,
-}: {
-  label: string;
-  value: number;
-  target: number;
-  unit: string;
-}) {
-  const rate = Math.min(1, value / Math.max(1, target));
-  return (
-    <div className="goal-row" data-complete={rate === 1}>
-      <span>{label}</span>
-      <i aria-hidden="true">
-        <b style={{ width: `${rate * 100}%` }} />
-      </i>
-      <strong>
-        {value} / {target} {unit}
-      </strong>
-    </div>
   );
 }

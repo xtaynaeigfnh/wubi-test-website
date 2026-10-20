@@ -6,14 +6,9 @@ import {
   recordKeyUsage,
   savePracticeOutcome,
   type PhrasePracticeInput,
-} from "../../lib";
+} from "../../practice-store";
 import { calculateAccuracy } from "../../typing-metrics";
-import type {
-  SessionResult,
-  TrainingTask,
-  WeakObservation,
-  WubiEntry,
-} from "../../types";
+import type { SessionResult, TrainingTask, WeakObservation, WubiEntry } from "../../types";
 
 export function CodeDrill({
   title,

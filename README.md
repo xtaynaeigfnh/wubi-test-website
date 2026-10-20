@@ -275,6 +275,14 @@ npm run dev
 
 `tests/typing-session.test.mjs` 覆盖事件序列、Unicode 输入、计时、重置、采样上限和保存重试；浏览器回归额外验证真实界面的暂停、重来、后台切换及输入法提交。
 
+### 模块职责
+
+`TypingView.tsx` 组装页面和会话，`typing/TypingPracticeArea.tsx` 管理原文渲染、跟随滚动、进度与输入区，`typing/TypingResult.tsx` 管理完成后的复盘焦点、保存反馈和后续操作。练习区通过内容插槽展示结算，输入事件与持久化仍由 `useTypingSession` 统一处理。
+
+`TrainingCenter.tsx` 协调共享数据刷新、栏目导航和未保存/未完成离开保护。计划生成、换组和启动任务归 `training/useTrainingPlan.ts`，到期队列、开始复习和暂缓归 `training/useDueReviews.ts`；计划卡、每日目标、到期/卡顿队列及错题/词组/字根专项各自独立展示。共享状态留在协调层，使跨栏目刷新和保存保护使用同一份状态；各专项复用 `CodeDrill` 会话。
+
+`app/lib.ts` 只转发旧 API，不再放业务实现。新代码直接引用所属模块：文章构造与初选用 `article-practice`，训练题池用 `training-pools`，成绩聚合用 `practice-statistics`，设置读取用 `settings-store`，清理操作用 `maintenance-store`，时长展示用 `format`；存储、备份、指标和内容加载继续使用各自已有模块。纯计算模块不执行存储读写，清理预览与写入仍保留原校验和回滚边界。
+
 ### 质量检查
 
 运行完整测试：

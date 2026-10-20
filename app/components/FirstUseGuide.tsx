@@ -2,20 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  createAdvancedSeason,
-} from "../advanced-training";
-import {
-  readAdvancedSeasonArchive,
-} from "../advanced-season-storage";
-import { createLocalId, getErrors, getSessions } from "../lib";
+import { createAdvancedSeason } from "../advanced-training";
+import { readAdvancedSeasonArchive } from "../advanced-season-storage";
+import { createLocalId, getErrors, getSessions } from "../practice-store";
 import { commitLocalWrites, readLocal, STORAGE, writeLocal } from "../storage";
 import type { SessionResult } from "../types";
 
 import { isOnboardingProgress, reconcileOnboarding, type OnboardingProgress } from "../onboarding";
 import { Modal } from "./Ui";
 
-import { buildBaseline, formatMetric, isBaselineSession, metricLabel } from "../onboarding-baseline";
+import {
+  buildBaseline,
+  formatMetric,
+  isBaselineSession,
+  metricLabel,
+} from "../onboarding-baseline";
 const EMPTY_PROGRESS: OnboardingProgress = { version: 1, status: "active", sessionIds: [] };
 function readProgress(): OnboardingProgress | null {
   const value = readLocal<unknown>(STORAGE.onboarding, null);

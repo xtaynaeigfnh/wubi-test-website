@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { clearKeyUsage, readKeyUsage } from "../lib";
+import { clearKeyUsage, readKeyUsage } from "../practice-store";
 import { KEYBOARD_KEYS, summarizeKeyUsage, type KeyUsageMap } from "../key-usage";
 import { KeyboardHeatmap } from "./summary/KeyboardHeatmap";
 import { UsageCharts } from "./summary/UsageCharts";
