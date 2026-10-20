@@ -2,24 +2,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import {
-  buildChallengePool,
-  createLocalId,
-  recordKeyUsage,
-  savePracticeOutcome,
-} from "../../lib";
+import { buildChallengePool } from "../../training-pools";
+import { createLocalId, recordKeyUsage, savePracticeOutcome } from "../../practice-store";
 import { loadWubiChallenge } from "../../content-loader";
-import {
-  calculateAccuracy,
-  calculateRemainingSeconds,
-} from "../../typing-metrics";
+import { calculateAccuracy, calculateRemainingSeconds } from "../../typing-metrics";
 import type { SessionResult, WeakObservation, WubiEntry } from "../../types";
 import { downloadShareCard } from "../../share-card";
-import {
-  ErrorState,
-  useInProgressLeaveGuard,
-  usePendingSaveGuard,
-} from "../Ui";
+import { ErrorState, useInProgressLeaveGuard, usePendingSaveGuard } from "../Ui";
 
 type KeySoundPlayer = (options?: { force?: boolean }) => void;
 

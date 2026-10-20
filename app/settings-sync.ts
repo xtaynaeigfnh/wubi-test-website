@@ -1,7 +1,7 @@
 "use client";
 
 import { defaultCustomTheme } from "./practice-schema.ts";
-import { readSettings } from "./lib.ts";
+import { readSettings } from "./settings-store.ts";
 import { STORAGE, writeLocal } from "./storage.ts";
 import type { UserSettings } from "./types.ts";
 

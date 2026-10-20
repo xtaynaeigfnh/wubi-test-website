@@ -33,6 +33,11 @@ export async function typingRecovery({ page, context }) {
     el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "。", isComposing: false }));
   }, text);
   await page.getByRole("button", { name: "重试保存" }).waitFor();
+  const review = page.getByRole("region", { name: "输入内容复盘", exact: true });
+  await review.waitFor();
+  assert(await review.evaluate((node) => node === document.activeElement), "结算后焦点进入输入复盘");
+  assert.equal(await articleRegion(page).textContent(), text, "结算保留原文");
+  assert.equal(await typingInput(page).count(), 0, "结算后只保留复盘，不重复挂载输入区");
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length), 0);
   const pendingDialog = page.waitForEvent("dialog");
   page.once("dialog", (dialog) => void dialog.accept());

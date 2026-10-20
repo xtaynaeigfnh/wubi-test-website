@@ -1,6 +1,6 @@
 "use client";
 
-import { MAX_CUSTOM_TEXT_LENGTH } from "../../../lib";
+import { MAX_CUSTOM_TEXT_LENGTH } from "../../../practice-constraints";
 import { Modal } from "../../Ui";
 
 export function CustomTextModal({

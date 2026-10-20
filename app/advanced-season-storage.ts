@@ -1,8 +1,12 @@
 "use client";
 
 import { STORAGE, writeLocal } from "./storage.ts";
-import { savePracticeOutcome, saveAdvancedPracticeOutcome } from "./lib.ts";
-import { archiveFinishedSeason, completeAdvancedSeasonDay, isAdvancedSeasonArchive } from "./advanced-training.ts";
+import { savePracticeOutcome, saveAdvancedPracticeOutcome } from "./practice-store.ts";
+import {
+  archiveFinishedSeason,
+  completeAdvancedSeasonDay,
+  isAdvancedSeasonArchive,
+} from "./advanced-training.ts";
 import type { AdvancedSeasonArchive, SessionResult } from "./types.ts";
 
 export function readAdvancedSeasonArchive(): AdvancedSeasonArchive | null {

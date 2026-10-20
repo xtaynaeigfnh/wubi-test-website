@@ -7,12 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   clearPracticeHistory,
-  formatDuration,
   getErrors,
   getPhraseOpportunities,
   getProgress,
   getSessions,
-} from "../../lib";
+} from "../../practice-store";
+import { formatDuration } from "../../format";
 import { FALLBACK_ARTICLE_COUNT, loadArticleMetadata } from "../../content-loader";
 import type {
   ArticleProgress,

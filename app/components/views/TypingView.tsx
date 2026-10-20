@@ -1,53 +1,27 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
 import { useRouter } from "next/navigation";
-import {
-  formatDuration,
-  isCommonPracticeArticle,
-  lengthLabels,
-} from "../../lib";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { lengthLabels } from "../../article-practice";
+import { formatDuration } from "../../format";
+import { selectInputReviewOpportunities } from "../../input-review";
+import type { ArticleFilter, UserSettings } from "../../types";
 import {
   calculateKeyAccuracy,
   calculatePhraseRate,
   calculateTypingMetrics,
 } from "../../typing-metrics";
-import type {
-  ArticleFilter,
-  UserSettings,
-} from "../../types";
-import { selectInputReviewOpportunities } from "../../input-review";
-import {
-  DiagnosticMetric,
-  ErrorState,
-  usePendingSaveGuard,
-} from "../Ui";
-import {
-  useArticleLibrary,
-  type PracticeControls,
-} from "./typing/useArticleLibrary";
-import { useTypingDiagnostics } from "./typing/useTypingDiagnostics";
-import {
-  useTypingSession,
-  type KeySoundPlayer,
-} from "./typing/useTypingSession";
-import {
-  useGhostRace,
-  type GhostMode,
-  type GhostRaceApi,
-} from "./typing/useGhostRace";
-import { Metric, CodeLengthMetric } from "./typing/TypingMetrics";
-import { TypingInput } from "./typing/TypingInput";
+import { DiagnosticMetric, ErrorState, usePendingSaveGuard } from "../Ui";
 import { ArticlePicker } from "./typing/ArticlePicker";
 import { CommonCharacterPicker } from "./typing/CommonCharacterPicker";
-import { InputReview } from "./typing/InputReview";
 import { CustomTextModal } from "./typing/CustomTextModal";
+import { CodeLengthMetric, Metric } from "./typing/TypingMetrics";
+import { TypingPracticeArea } from "./typing/TypingPracticeArea";
+import { TypingResult } from "./typing/TypingResult";
+import { useArticleLibrary, type PracticeControls } from "./typing/useArticleLibrary";
+import { useGhostRace, type GhostMode, type GhostRaceApi } from "./typing/useGhostRace";
+import { useTypingDiagnostics } from "./typing/useTypingDiagnostics";
+import { useTypingSession, type KeySoundPlayer } from "./typing/useTypingSession";
 
 export type { KeySoundPlayer };
 
@@ -66,11 +40,9 @@ export function TypingView({
 }) {
   const router = useRouter();
   const [focusMode, setFocusMode] = useState(false);
-  const reviewRef = useRef<HTMLDivElement>(null);
   const [inputHeight, setInputHeight] = useState(96);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const articleTextRef = useRef<HTMLDivElement>(null);
-  const currentCharacterRef = useRef<HTMLSpanElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const ghostApiRef = useRef<GhostRaceApi | null>(null);
   const practiceControlsRef = useRef<PracticeControls | null>(null);
   const {
@@ -175,7 +147,6 @@ export function TypingView({
     correctAttemptCount,
     errorCount,
     completed,
-    sessionSaveFailed,
     sessionSaved,
     togglePause,
     retrySave,
@@ -184,7 +155,6 @@ export function TypingView({
   } = session;
   useEffect(() => {
     if (completed) {
-      reviewRef.current?.focus({ preventScroll: true });
       return;
     }
     const input = inputRef.current;
@@ -232,63 +202,6 @@ export function TypingView({
     refreshProgress();
   }, [completed, refreshProgress]);
 
-  const displayCharacters = useMemo(() => {
-    let targetIndex = 0;
-    return Array.from(visibleText).map((character, visibleIndex) => {
-      const isParagraphBreak = character === "\r" || character === "\n";
-      const entry = {
-        character,
-        visibleIndex,
-        targetIndex: isParagraphBreak ? null : targetIndex,
-      };
-      if (!isParagraphBreak) targetIndex += 1;
-      return entry;
-    });
-  }, [visibleText]);
-
-  const renderedCharacters = useMemo(
-    () => {
-      const commonArticle = isCommonPracticeArticle(article);
-      return displayCharacters.map(({ character, visibleIndex, targetIndex }) => {
-        if (targetIndex === null) {
-          return (
-            <span className="paragraph-break" key={`${visibleIndex}-break`}>
-              {character}
-            </span>
-          );
-        }
-        const state =
-          targetIndex >= typedCharacters.length
-            ? targetIndex === typedCharacters.length
-              ? "current"
-              : "pending"
-            : typedCharacters[targetIndex] === character
-              ? "correct"
-              : "wrong";
-        return (
-          <span
-            ref={state === "current" ? currentCharacterRef : undefined}
-            className={`${state}${
-              commonArticle &&
-              (targetIndex + 1) % 10 === 0
-                ? " common-decade-end"
-                : ""
-            }${
-              commonArticle &&
-              (targetIndex + 1) % 50 === 0
-                ? " common-section-end"
-                : ""
-            }`}
-            key={`${visibleIndex}-${character}`}
-          >
-            {character}
-          </span>
-        );
-      });
-    },
-    [article, displayCharacters, typedCharacters],
-  );
-
   const seconds = completed ? elapsed : elapsed || 0;
   const ghost = useGhostRace({
     article,
@@ -309,7 +222,6 @@ export function TypingView({
     activeGhostTimeline,
     displayGhostMode,
     activeGhostMode,
-    ghostProgressPercent,
     ghostGapLabel,
     refreshSessions,
   } = ghost;
@@ -371,34 +283,6 @@ export function TypingView({
     refreshProgress();
     refreshSessions();
   };
-  const progressRatio = Math.min(
-    1,
-    typedCharacters.length / Math.max(1, targetCharacters.length),
-  );
-  const progressPercent = Math.round(progressRatio * 100);
-
-  useEffect(() => {
-    const viewport = articleTextRef.current;
-    const currentCharacter = currentCharacterRef.current;
-    if (!viewport || !currentCharacter) return;
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const characterRect = currentCharacter.getBoundingClientRect();
-    const readingLine = viewportRect.top + viewport.clientHeight * 0.68;
-
-    if (characterRect.bottom <= readingLine && characterRect.top >= viewportRect.top) {
-      return;
-    }
-
-    const nextTop = Math.max(
-      0,
-      viewport.scrollTop +
-        characterRect.top -
-        viewportRect.top -
-        viewport.clientHeight * 0.28,
-    );
-    viewport.scrollTo({ top: nextTop, behavior: "smooth" });
-  }, [article?.id, typedCharacters.length]);
 
   if (articleSaveError && !article) {
     return (
@@ -713,205 +597,30 @@ export function TypingView({
       )}
 
       <section className="workspace-grid">
-        <article className="typing-card">
-          {!isFocusSkin && commandBar}
-          <div className="typing-toolbar">
-            <div className="article-heading">
-              <div className="article-kicker">
-                <span>{lengthLabels[article.length]}</span>
-                <span>{article.topic}</span>
-                <span>{article.wordCount} 字</span>
-              </div>
-              <h2>{article.title}</h2>
-            </div>
-            <div className="article-toolbar-actions">
-              {settings.showCodeHints && (
-                <div
-                  className={`code-hint-card${codeHintsError ? " has-error" : ""}`}
-                  aria-live="polite"
-                  aria-label={`当前字 ${targetCharacters[typedCharacters.length] || "无"}，最短编码 ${
-                    codeHintsError ||
-                    codeHints
-                      .get(targetCharacters[typedCharacters.length] || "")
-                      ?.toUpperCase() ||
-                    "暂无"
-                  }`}
-                >
-                  <strong className="code-hint-character" aria-hidden="true">
-                    {targetCharacters[typedCharacters.length] || "完"}
-                  </strong>
-                  <span className="code-hint-copy">
-                    <small>{codeHintsError ? "编码提示" : "当前字 · 编码"}</small>
-                    <b>
-                      {codeHintsError
-                        ? "加载失败"
-                        : codeHints
-                            .get(targetCharacters[typedCharacters.length] || "")
-                            ?.toUpperCase() ||
-                          "暂无"}
-                    </b>
-                  </span>
-                </div>
-              )}
-              <div className="article-restart">
-                <div
-                  className="toolbar-actions"
-                  role="group"
-                  aria-label="当前练习操作"
-                >
-                  {isCommonPracticeArticle(article) ? (
-                    <>
-                      <button
-                        className="common-toolbar-action range-action"
-                        disabled={practiceInProgress}
-                        aria-label="更换常用字练习范围"
-                        title="更换常用字练习范围"
-                        onClick={openCommonPractice}
-                      >
-                        更换范围
-                      </button>
-                      <button
-                        className="common-toolbar-action shuffle-action"
-                        disabled={commonLoading || practiceInProgress}
-                        aria-label="打乱当前范围并从头开始"
-                        title="打乱当前范围并从头开始"
-                        onClick={() => void shuffleCurrentCommonPractice()}
-                      >
-                        {commonLoading ? "载入中…" : "乱序"}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button disabled={practiceInProgress} onClick={() => setPickerOpen(true)}>选文章</button>
-                      <button disabled={practiceInProgress} onClick={randomArticle}>随机一篇</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
-            className="root-rail"
-            role="progressbar"
-            aria-label="文章输入进度"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progressPercent}
-            aria-valuetext={`已完成 ${progressPercent}%${
-              activeGhostTimeline
-                ? `，幽灵 ${Math.round(ghostProgressPercent)}%${
-                    showGhostGap ? `，${ghostGapLabel}` : ""
-                  }`
-                : ""
-            }，五格依次对应撇、捺、横、竖、折区`}
-          >
-            {[
-              ["QWERT", "撇区"],
-              ["YUIOP", "捺区"],
-              ["ASDFG", "横区"],
-              ["HJKLM", "竖区"],
-              ["XCVBN", "折区"],
-            ].map(([keys, label], index) => {
-              const segmentProgress = Math.min(
-                1,
-                Math.max(0, progressRatio * 5 - index),
-              );
-              return (
-                <span
-                  key={keys}
-                  style={{
-                    "--segment-progress": `${segmentProgress * 100}%`,
-                  } as CSSProperties}
-                >
-                  <b>{keys}</b>
-                  <small>{label}</small>
-                </span>
-              );
-            })}
-            {activeGhostTimeline && (
-              <i
-                className="ghost-progress-marker"
-                style={{
-                  "--ghost-progress": `${ghostProgressPercent}%`,
-                } as CSSProperties}
-                aria-hidden="true"
-              />
-            )}
-          </div>
-          <div
-            key={article.id}
-            ref={articleTextRef}
-            tabIndex={0}
-            role="region"
-            aria-label="练习文章，可使用方向键滚动"
-            className={`article-text article-swap ${
-              isCommonPracticeArticle(article) ? "common-character-text" : ""
-            }`}
-            style={{ "--practice-font-size": `${settings.fontSize}px` } as CSSProperties}
-            onClick={() => inputRef.current?.focus()}
-            aria-live="off"
-          >
-            {renderedCharacters}
-          </div>
-          {completed ? (
-            <InputReview
-              ref={reviewRef}
-              text={typed}
-              opportunities={recommendedPhrases}
-              height={inputHeight}
-              loading={!codeLengthAnalysis && !minimumCodeError}
-              error={minimumCodeError}
-              onRetry={retryCodeLengthLoad}
-            />
-          ) : (
-            <TypingInput session={session} inputRef={inputRef} onHeightChange={setInputHeight} />
-          )}
-          {completed ? (
-            <div className="typing-review-actions">
-              <div className="typing-review-save" role="status">
-                <strong>练习完成</strong>
-                <span>{sessionSaveFailed
-                  ? "本次成绩尚未保存"
-                  : sessionSaved
-                    ? "本次成绩已存入本机 · 可在成绩统计查看"
-                    : "正在保存本次成绩…"}</span>
-              </div>
-              <div className="typing-review-buttons">
-                {sessionSaveFailed && (
-                  <button className="button danger" onClick={retryPracticeSave}>
-                    重试保存
-                  </button>
-                )}
-                {recommendedPhrases.length > 0 && (
-                  <button className="button secondary" disabled={!sessionSaved} onClick={startRecommendedPhrasePractice}>
-                    练习这些词组
-                  </button>
-                )}
-                {settings.autoNext && activeGhostMode !== "off" && (
-                  <button className="button secondary" disabled={!sessionSaved} onClick={() => chooseArticle(article, true, retryCount + 1, activeGhostMode)}>
-                    {activeGhostMode === "best" ? "再次挑战个人最佳" : "再次挑战最近一次"}
-                  </button>
-                )}
-                <button
-                  className="button primary"
-                  disabled={!sessionSaved}
-                  onClick={settings.autoNext ? randomArticle : () => chooseArticle(article, true, retryCount + 1, activeGhostMode)}
-                >
-                  {settings.autoNext ? "下一篇" : activeGhostMode === "best" ? "再次挑战个人最佳" : activeGhostMode === "recent" ? "再次挑战最近一次" : "再练一次"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="typing-footer">
-              <span className="typing-position">
-                第 {Math.min(typedCharacters.length + 1, targetCharacters.length)} /{" "}
-                {targetCharacters.length} 字
-              </span>
-              <span>输入第一个字符后开始计时 · 已禁用粘贴</span>
-            </div>
-          )}
-          {isFocusSkin && commandBar}
-        </article>
+        <TypingPracticeArea
+          article={article}
+          settings={settings}
+          session={session}
+          library={{ openCommonPractice, commonLoading, shuffleCurrentCommonPractice, setPickerOpen, randomArticle }}
+          diagnostics={{ codeHints, codeHintsError }}
+          ghost={ghost}
+          inputRef={inputRef}
+          articleTextRef={articleTextRef}
+          setInputHeight={setInputHeight}
+          commandBar={commandBar}
+          result={<TypingResult
+            session={session}
+            diagnostics={{ codeLengthAnalysis, minimumCodeError, retryCodeLengthLoad }}
+            settings={settings}
+            recommendedPhrases={recommendedPhrases}
+            inputHeight={inputHeight}
+            activeGhostMode={activeGhostMode}
+            retryPracticeSave={retryPracticeSave}
+            startRecommendedPhrasePractice={startRecommendedPhrasePractice}
+            repeatArticle={() => chooseArticle(article, true, retryCount + 1, activeGhostMode)}
+            randomArticle={randomArticle}
+          />}
+        />
         {!isFocusSkin && (
           <aside className="side-panel">
             <div className="side-heading"><div><span className="eyebrow">文章库</span><h3>{availableArticles.length} 篇离线练习</h3></div><span className="count-badge">{availableArticles.length}</span></div>

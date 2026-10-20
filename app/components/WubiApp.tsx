@@ -1,27 +1,19 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PetCompanion } from "./PetCompanion";
 import dynamic from "next/dynamic";
 import {
   addHesitationQueueItem,
-  defaultCustomTheme,
-  defaultSettings,
   getSessions,
   readHesitationQueue,
-  readSettings,
   saveHesitationPracticeOutcome,
   startHesitationQueueItem,
-} from "../lib";
+} from "../practice-store";
+import { defaultCustomTheme, defaultSettings } from "../practice-schema";
+import { readSettings } from "../settings-store";
 import { STORAGE } from "../storage";
 import { saveSettingsChanges } from "../settings-sync";
 import type {

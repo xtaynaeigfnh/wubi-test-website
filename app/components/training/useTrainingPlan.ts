@@ -1,0 +1,206 @@
+"use client";
+
+import { useEffect, useMemo } from "react";
+import {
+  getProgress,
+  localDateKey,
+  startTrainingTask,
+  writeTrainingPlan,
+} from "../../practice-store";
+import { readSettings } from "../../settings-store";
+import { buildDueReviewQueue, type SpacedReviewState } from "../../spaced-review";
+import { readLocal, STORAGE, writeLocal } from "../../storage";
+import {
+  buildTrainingSummary,
+  generateDailyTrainingPlan,
+  getNextTrainingTask,
+  regenerateIncompleteTasks,
+  ROOT_ZONES,
+  scoreWeakItem,
+} from "../../training-plan";
+import type {
+  DailyTrainingPlan,
+  ErrorStat,
+  PracticeArticle,
+  SessionResult,
+  TrainingTask,
+  WubiEntry,
+} from "../../types";
+
+import type { Dispatch, SetStateAction } from "react";
+
+type Options = {
+  plan: DailyTrainingPlan | null;
+  setPlan: Dispatch<SetStateAction<DailyTrainingPlan | null>>;
+  setPlanMessage: (message: string) => void;
+  articles: PracticeArticle[];
+  entries: WubiEntry[];
+  errors: ErrorStat[];
+  sessions: SessionResult[];
+  reviewState: SpacedReviewState | null;
+  loading: boolean;
+  loadError: string;
+  dueReviewQueue: ReturnType<typeof buildDueReviewQueue>;
+  confirmDrillDeparture: () => boolean;
+  selectTrainingTab: (tab: "review" | "roots", force?: boolean) => boolean;
+  setZone: (zone: (typeof ROOT_ZONES)[number]) => void;
+};
+
+export function useTrainingPlan({
+  plan,
+  setPlan,
+  setPlanMessage,
+  articles,
+  entries,
+  errors,
+  sessions,
+  reviewState,
+  loading,
+  loadError,
+  dueReviewQueue,
+  confirmDrillDeparture,
+  selectTrainingTab,
+  setZone,
+}: Options) {
+  useEffect(() => {
+    if (
+      loading ||
+      loadError ||
+      plan ||
+      !reviewState ||
+      !entries.length ||
+      !articles.length
+    ) {
+      return;
+    }
+    const next = generateDailyTrainingPlan({
+      date: localDateKey(new Date()),
+      articles,
+      progress: getProgress(),
+      sessions,
+      weakItems: errors,
+      entries,
+      dueReviewItems: buildDueReviewQueue(reviewState).items
+        .filter((item) => item.targetType !== "hesitation" && item.code)
+        .map((item): WubiEntry => [
+          item.text,
+          item.code as string,
+          item.expectedBenefit,
+        ]),
+      preferredLength: readSettings().preferredLength,
+    });
+    if (writeTrainingPlan(next)) {
+      setPlan(next);
+      setPlanMessage("");
+    } else {
+      setPlanMessage("今日计划未能保存，请检查浏览器存储空间。");
+    }
+  }, [articles, entries, errors, loadError, loading, plan, reviewState, sessions, setPlan, setPlanMessage]);
+
+  const explainedWeaknesses = useMemo(
+    () => errors
+      .map((item) => ({ item, result: scoreWeakItem(item) }))
+      .sort((left, right) =>
+        right.result.score - left.result.score ||
+        left.item.text.localeCompare(right.item.text),
+      )
+      .slice(0, 5),
+    [errors],
+  );
+  const startPlanTask = (task: TrainingTask) => {
+    if (!confirmDrillDeparture()) return false;
+    const previousCurrent = readLocal<string | null>(STORAGE.current, null);
+    const previousGenerated = readLocal<PracticeArticle | null>(
+      STORAGE.currentGenerated,
+      null,
+    );
+    if (
+      task.type === "article" &&
+      task.articleId &&
+      (!writeLocal(STORAGE.current, task.articleId) ||
+        !writeLocal(STORAGE.currentGenerated, null))
+    ) {
+      writeLocal(STORAGE.current, previousCurrent);
+      writeLocal(STORAGE.currentGenerated, previousGenerated);
+      setPlanMessage("文章选择未能保存，请检查浏览器存储空间后重试。");
+      return false;
+    }
+    const next = startTrainingTask(task.id);
+    if (!next) {
+      if (task.type === "article" && task.articleId) {
+        writeLocal(STORAGE.current, previousCurrent);
+        writeLocal(STORAGE.currentGenerated, previousGenerated);
+      }
+      setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
+      return false;
+    }
+    setPlan(next);
+    setPlanMessage("");
+    if (task.type === "review") {
+      selectTrainingTab("review", true);
+    } else if (task.type === "roots") {
+      const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
+      if (nextZone) setZone(nextZone);
+      selectTrainingTab("roots", true);
+    }
+    return true;
+  };
+
+  const changePlanGroup = () => {
+    if (!plan) return;
+    const next = regenerateIncompleteTasks(plan, {
+      date: plan.date,
+      articles,
+      progress: getProgress(),
+      sessions,
+      weakItems: errors,
+      entries,
+      dueReviewItems: dueReviewQueue.items
+        .filter((item) => item.targetType !== "hesitation" && item.code)
+        .map((item): WubiEntry => [
+          item.text,
+          item.code as string,
+          item.expectedBenefit,
+        ]),
+      preferredLength: readSettings().preferredLength,
+    });
+    const before = plan.tasks
+      .filter((task) => task.status !== "completed")
+      .map((task) => `${task.articleId ?? ""}:${task.items.map(([text]) => text).join("")}`)
+      .join("|");
+    const after = next.tasks
+      .filter((task) => task.status !== "completed")
+      .map((task) => `${task.articleId ?? ""}:${task.items.map(([text]) => text).join("")}`)
+      .join("|");
+    if (before === after) {
+      setPlanMessage("当前没有足够的替代题目，已保留这组处方。");
+      return;
+    }
+    if (writeTrainingPlan(next)) {
+      setPlan(next);
+      setPlanMessage(
+        plan.tasks.some((task) => task.status === "completed")
+          ? "已更换未完成任务，已完成项保持不变。"
+          : "已换一组，今日计划已保存。",
+      );
+    } else {
+      setPlanMessage("新分组未能保存，原计划保持不变。");
+    }
+  };
+
+  const prescribedReview = plan?.tasks.find(
+    (task) => task.type === "review" && task.status === "in-progress",
+  );
+  const prescribedRoots = plan?.tasks.find(
+    (task) => task.type === "roots" && task.status === "in-progress",
+  );
+  const planCompleted = Boolean(
+    plan?.tasks.every((task) => task.status === "completed"),
+  );
+  const trainingSummary = planCompleted && plan
+    ? buildTrainingSummary(plan, errors, sessions)
+    : null;
+  const nextTrainingTask = plan ? getNextTrainingTask(plan.tasks) : null;
+
+  return { startPlanTask, changePlanGroup, prescribedReview, prescribedRoots, planCompleted, trainingSummary, nextTrainingTask, explainedWeaknesses };
+}

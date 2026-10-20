@@ -1,6 +1,6 @@
 "use client";
 
-import { commonCharacterPresets } from "../../../lib";
+import { commonCharacterPresets } from "../../../article-practice";
 import type { CommonCharacterData, CommonCharacterPreset } from "../../../types";
 import { ErrorState, Modal } from "../../Ui";
 

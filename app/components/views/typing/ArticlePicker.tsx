@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { lengthLabels } from "../../../lib";
+import { lengthLabels } from "../../../article-practice";
 import type { ArticleSort } from "../../../article-library";
 import type { ArticleProgress, PracticeArticle } from "../../../types";
 import { Modal } from "../../Ui";

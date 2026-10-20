@@ -2,26 +2,30 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useRef, useState } from "react";
+import { addCustomArticlesWithinLimit } from "../article-practice";
 import {
-  addCustomArticlesWithinLimit,
   buildLightweightStatisticsSummary,
-  buildCustomArticle,
   clearAllMaintenanceData,
   clearMaintenanceTarget,
-  createLocalId,
-  getCustomArticles,
   inspectAllCleanup,
   inspectCleanup,
-  MAX_BACKUP_BYTES,
-  MAX_CUSTOM_TEXT_LENGTH,
-  localDateKey,
-  parseBackupPayload,
-  readMaintenanceLog,
-  readLocalForBackup,
   readStorageDataSnapshot,
-  restoreBackupPayload,
+} from "../maintenance-store";
+import { buildCustomArticle } from "../practice-schema";
+import {
+  createLocalId,
+  getCustomArticles,
+  localDateKey,
+  readMaintenanceLog,
   truncateUnicode,
-} from "../lib";
+} from "../practice-store";
+import {
+  MAX_BACKUP_BYTES,
+  parseBackupPayload,
+  readLocalForBackup,
+  restoreBackupPayload,
+} from "../backup";
+import { MAX_CUSTOM_TEXT_LENGTH } from "../practice-constraints";
 import { STORAGE, writeLocal } from "../storage";
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../article-preferences";
 import {

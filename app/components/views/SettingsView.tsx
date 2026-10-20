@@ -1,7 +1,8 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { defaultCustomTheme, lengthLabels } from "../../lib";
+import { defaultCustomTheme } from "../../practice-schema";
+import { lengthLabels } from "../../article-practice";
 import {
   buildCustomThemeVariables,
   chooseContrastText,

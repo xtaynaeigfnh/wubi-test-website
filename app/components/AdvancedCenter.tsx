@@ -4,15 +4,11 @@
 import { AdvancedPractice, type PracticeTarget } from "./advanced/AdvancedPractice";
 import { RhythmSummaryView } from "./advanced/RhythmSummaryView";
 import { useSkin } from "./SkinContext";
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { KeySoundPlayer } from "./views/TypingView";
-import { createLocalId, getSessions } from "../lib";
+import { createLocalId, getSessions } from "../practice-store";
 import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
 import {
   readAdvancedSeasonArchive,
