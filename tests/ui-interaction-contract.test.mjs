@@ -3,8 +3,10 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createSourceFile, isCallExpression, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
+import { createSourceFile, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
 
+// Article input, selection and backup interactions run against the real app in
+// scripts/browser/*.mjs. Keep layout/accessibility contracts here.
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
@@ -101,77 +103,6 @@ test("daily guidance points to due reviews, the next task, or the saved summary"
   assert.match(training, /继续复练剩余弱项/);
   assert.equal((training.match(/\{dailyProgressCard\}/g) ?? []).length, 1);
   assert(training.indexOf('className="smart-plan-card adaptive-plan-card"') < training.indexOf("{dailyProgressCard}"));
-});
-
-test("backup recovery preview remains usable when old local data cannot be read", async () => {
-  const source = await readFile(dataManagementPath, "utf8");
-  const ast = createSourceFile("DataManagement.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);
-  const component = ast.statements.find((node) => isFunctionDeclaration(node) && node.name?.text === "BackupManager");
-  assert(component);
-  const compiled = transpileModule(component.getText(ast), {
-    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
-  }).outputText;
-  const STORAGE = { sessions: "sessions", errors: "errors", customTexts: "customTexts" };
-  const pending = {
-    version: 2,
-    exportedAt: "2026-09-30T00:00:00.000Z",
-    data: { sessions: [{}], errors: [], customTexts: [] },
-  };
-  for (const failure of [null, "damaged", "blocked"]) {
-    let stateIndex = 0;
-    const deps = {
-      React,
-      STORAGE,
-      useRef: () => ({ current: null }),
-      useEffect() {},
-      useState: () => [[pending, false, ""][stateIndex++], () => {}],
-      readLocalForBackup(key) {
-        if (failure && key === STORAGE.errors) {
-          throw new Error(failure === "damaged" ? "本机数据已损坏" : "浏览器拒绝读取");
-        }
-        return key === STORAGE.sessions ? [{}, {}] : [];
-      },
-    };
-    const Component = new Function(...Object.keys(deps), `${compiled}\nreturn BackupManager;`)(...Object.values(deps));
-    const html = renderToStaticMarkup(React.createElement(Component));
-    assert.match(html, /恢复前预览/);
-    assert.match(html, /确认覆盖本机数据/);
-    assert.match(html, /练习 -1/);
-    if (failure) assert.match(html, /错字 原数据无法读取/);
-    else assert.match(html, /错字 不变/);
-  }
-});
-
-test("onboarding bypasses saved common-character practice while ordinary visits restore it", async () => {
-  const source = await readFile(new URL("useArticleLibrary.ts", typingHooksDir), "utf8");
-  const ast = createSourceFile("useArticleLibrary.ts", source, ScriptTarget.ES2022, true, ScriptKind.TS);
-  let restoreCallback;
-  function visit(node) {
-    if (isCallExpression(node) && node.expression.getText(ast) === "useEffect" &&
-        node.arguments[0]?.getText(ast).includes("isCommonPracticeArticle(generated)")) {
-      restoreCallback = node.arguments[0].getText(ast);
-    }
-    node.forEachChild(visit);
-  }
-  visit(ast);
-  assert(restoreCallback);
-  const compiled = transpileModule(`const restore = ${restoreCallback};`, {
-    compilerOptions: { target: ScriptTarget.ES2022 },
-  }).outputText;
-  const generated = { id: "common-first-050", kind: "common" };
-  for (const onboardingPractice of [true, false]) {
-    const selected = [];
-    const deps = {
-      onboardingPractice,
-      STORAGE: { current: "current", currentGenerated: "generated" },
-      readLocal: (key) => key === "current" ? generated.id : generated,
-      isCommonPracticeArticle: (article) => article.kind === "common",
-      chooseArticle: (article, focus) => selected.push({ article, focus }),
-    };
-    const restore = new Function(...Object.keys(deps), `${compiled}\nreturn restore;`)(...Object.values(deps));
-    restore();
-    assert.deepEqual(selected, onboardingPractice ? [] : [{ article: generated, focus: false }]);
-  }
 });
 
 test("code drills restore input focus after a mouse advances a wrong answer", async () => {
@@ -405,33 +336,6 @@ test("data management exposes category cleanup, backup reminders, and lightweigh
   assert.doesNotMatch(styles, /\.storage-usage-list|\.storage-meter/);
 });
 
-test("article picker exposes title search, sorting, and separate accessible favorite controls", async () => {
-  const source = await readFile(new URL("ArticlePicker.tsx", typingHooksDir), "utf8");
-  const ast = createSourceFile("ArticlePicker.tsx", source, ScriptTarget.ES2022, true, ScriptKind.TSX);
-  const component = ast.statements.find((node) => isFunctionDeclaration(node) && node.name?.text === "ArticlePicker");
-  const compiled = transpileModule(component.getText(ast).replace("export function", "function"), {
-    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
-  }).outputText;
-  const Component = new Function("React", "Modal", "lengthLabels", `${compiled}\nreturn ArticlePicker;`)(
-    React, ({ children }) => React.createElement("section", null, children), { short: "短文" },
-  );
-  const props = {
-    filtered: [{ id: "one", title: "白板上的空位", topic: "办公", length: "short", wordCount: 100 }],
-    progressMap: new Map(), favoriteIds: new Set(["one"]),
-    query: "白板", favoritesOnly: true, sort: "recent", favoriteError: "",
-  };
-  const html = renderToStaticMarkup(React.createElement(Component, props));
-  assert.match(html, /aria-label="搜索文章标题"/);
-  assert.match(html, /aria-label="文章排序"/);
-  assert.match(html, /value="recent" selected=""/);
-  assert.match(html, /aria-pressed="true">只看收藏/);
-  assert.match(html, /aria-label="取消收藏文章：白板上的空位" aria-pressed="true"/);
-  assert.match(html, /<\/button><button class="article-favorite-toggle"/);
-  const empty = renderToStaticMarkup(React.createElement(Component, { ...props, filtered: [], favoriteError: "收藏未能保存" }));
-  assert.match(empty, /当前收藏中没有符合条件的文章/);
-  assert.match(empty, /role="alert">收藏未能保存/);
-});
-
 test("history filters are visually separate and expose pressed state", async () => {
   const [history, styles] = await Promise.all([
     readFile(historyViewPath, "utf8"),
@@ -645,8 +549,6 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
   assert.match(management, /if \(!saved\) return;/);
   assert.match(management, /addCustomArticlesWithinLimit\(currentItems, imported\)/);
-  assert.match(management, /inspectRequestRef/);
-  assert.match(management, /setPending\(null\);[\s\S]*setInspecting\(true\);[\s\S]*await file\.text\(\)/);
   assert.match(management, /importingRef/);
   assert.match(management, /MAX_CUSTOM_TEXT_FILE_BYTES/);
   assert.match(management, /自定义文章已满 20 篇/);
@@ -667,15 +569,13 @@ test("lookup keeps trimmed empty input idle and waits for deferred results", asy
 });
 
 test("cross-browser input, storage, download, and pending-save guards are wired", async () => {
-  const [typing, challenge, training, advanced, hesitation, ui, management, pwa, music, rhythmNavigation] =
+  const [challenge, training, advanced, hesitation, ui, pwa, music, rhythmNavigation] =
     await Promise.all([
-      readTypingSource(),
-      readFile(challengeViewPath, "utf8"),
+        readFile(challengeViewPath, "utf8"),
       readTrainingSource(),
       readAdvancedSource(),
       readFile(hesitationPracticePath, "utf8"),
       readFile(uiPath, "utf8"),
-      readFile(dataManagementPath, "utf8"),
       readFile(pwaControlPath, "utf8"),
       readFile(musicPath, "utf8"),
       readFile(rhythmNavigationPath, "utf8"),
@@ -690,74 +590,30 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
   assert.match(ui, /window\.history\.forward\(\)/);
   assert.match(training, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
   assert.match(challenge, /event\.nativeEvent\.isComposing \|\| event\.keyCode === 229/);
-  for (const source of [typing, advanced, hesitation]) {
+  for (const source of [advanced, hesitation]) {
     assert.match(source, /onDrop=\{/);
     assert.match(source, /insertFromDrop/);
   }
   assert.match(advanced, /takeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY\)/);
   assert.match(rhythmNavigation, /writeSessionValue\(PENDING_RHYTHM_SEGMENT_KEY/);
-  assert.match(management, /readLocalForBackup/);
-  assert.match(management, /createValidatedLocalBackup\(\)/);
   const backupReminder = await readFile(new URL("../app/backup-reminder.ts", import.meta.url), "utf8");
   assert.match(backupReminder, /parseBackupPayload\(createBackupPayload\(data, now\)\)/);
-  assert.match(management, /document\.body\.appendChild\(link\)/);
   assert.match(pwa, /offline-cache-timeout/);
   assert.match(music, /volumeControlUnavailable/);
   assert.match(hesitation, /document\.addEventListener\("visibilitychange"/);
 });
 
-test("failed local saves cannot be discarded or shown as successful", async () => {
-  const [component, typing, training, summary, advanced, management] = await Promise.all([
+test("settings and other training surfaces expose storage failures", async () => {
+  const [component, training, summary, advanced, management] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readTypingSource(),
     readTrainingSource(),
     readFile(keySummaryPath, "utf8"),
     readAdvancedSource(),
     readFile(dataManagementPath, "utf8"),
   ]);
 
-  assert.match(
-    typing,
-    /if \(hasPendingSave\(\)\) \{\s*window\.alert\("本次成绩尚未保存，请先重试保存。"\);\s*return;/s,
-  );
-  assert.match(
-    typing,
-    /const startRecommendedPhrasePractice = \(\) => \{[\s\S]*hasPendingSave\(\)[\s\S]*router\.push/,
-  );
   assert.match(component, /const saved = saveSettingsChanges\(settings, next\);\s*if \(!saved\)/);
   assert.match(component, /设置未能保存，原设置保持不变/);
-  assert.match(
-    typing,
-    /const previousRecent = readLocalArray<string>\(STORAGE\.recent\)/,
-  );
-  assert.match(
-    typing,
-    /const selectionWrites = new Map<string, unknown>\([\s\S]*\[STORAGE\.current, next\.id\][\s\S]*\[STORAGE\.currentGenerated, next\.kind === "common" \? next : null\]/,
-  );
-  assert.match(
-    typing,
-    /if \(next\.kind !== "common"\) \{\s*selectionWrites\.set\(STORAGE\.recent, nextRecent\);\s*\}\s*const selectionSaved = commitLocalWrites\(selectionWrites\);/,
-  );
-  assert.match(
-    typing,
-    /if \(!selectionSaved\) \{[\s\S]*return false;[\s\S]*\}[\s\S]*setArticle\(next\)/,
-  );
-  assert.match(typing, /文章选择未能保存，原练习保持不变/);
-  assert.match(typing, /if \(chooseArticle\(buildCommonPracticeArticle/);
-  assert.match(
-    typing,
-    /const practiceInProgress = startedAt !== null && !completed;/,
-  );
-  assert.match(
-    typing,
-    /usePendingSaveGuard\([\s\S]*\(completed && !sessionSaved\) \|\| practiceInProgress[\s\S]*本次练习尚未完成/,
-  );
-  assert.match(
-    typing,
-    /if \(!chooseArticle\(custom\)\) \{[\s\S]*writeLocal\(STORAGE\.customTexts, saved\)[\s\S]*return;/,
-  );
-  assert.match(typing, /disabled=\{practiceInProgress\}/);
-
   assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
   assert.match(training, /if \(pendingDrillSaveRef\.current\) \{/);
   assert.match(training, /if \(!force && !confirmDrillDeparture\(\)\) return false;/);
@@ -1750,37 +1606,4 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   assert.equal((input.match(/<textarea\b/g) ?? []).length, 1);
   assert.match(typing, /!isFocusSkin && diagnostics/);
   assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
-});
-
-test("practice character markup preserves Unicode, paragraph breaks and corrected input", async () => {
-  const source = await readFile(typingViewPath, "utf8");
-  const start = source.indexOf("  const renderedCharacters = useMemo(");
-  assert.ok(start >= 0);
-  const end = source.indexOf("  const seconds =", start);
-  const compiled = transpileModule(source.slice(start, end), {
-    compilerOptions: { jsx: JsxEmit.React, target: ScriptTarget.ES2022 },
-  }).outputText;
-  const renderCharacters = new Function(
-    "React", "useMemo", "isCommonPracticeArticle", "article",
-    "displayCharacters", "typedCharacters", "currentCharacterRef",
-    `${compiled}\nreturn renderedCharacters;`,
-  );
-  const displayCharacters = [
-    { character: "𠮷", visibleIndex: 0, targetIndex: 0 },
-    { character: "\n", visibleIndex: 1, targetIndex: null },
-    { character: "中", visibleIndex: 2, targetIndex: 1 },
-    { character: "国", visibleIndex: 3, targetIndex: 2 },
-  ];
-  const markup = (typed) => renderToStaticMarkup(React.createElement(React.Fragment, null,
-    renderCharacters(React, (factory) => factory(), () => false, {},
-      displayCharacters, Array.from(typed), { current: null }),
-  ));
-  assert.match(markup(""), /class="current">𠮷/);
-  assert.match(markup("𠮷错"), /class="correct">𠮷/);
-  assert.match(markup("𠮷错"), /class="wrong">中/);
-  assert.match(markup("𠮷错"), /class="current">国/);
-  assert.match(markup("𠮷中"), /class="correct">中/);
-  assert.match(markup("𠮷"), /class="current">中/);
-  assert.match(markup("𠮷中"), /class="paragraph-break">\n/);
-  assert.doesNotMatch(markup("𠮷中国"), /class="current"/);
 });

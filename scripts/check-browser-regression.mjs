@@ -5,19 +5,14 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { chromium, firefox, webkit } from "playwright";
 
+import { basePath, base, origin, output, fixture, text, open } from "./browser/helpers.mjs";
+import { typingRecovery, typingSessionLifecycle, typingIme, typingUnicodeAndCorrection, typingPasteAndDrop } from "./browser/typing.mjs";
+import { backupRoundtrip, backupUnreadable, backupRollback, backupInvalidAndStaleFile } from "./browser/backup.mjs";
+import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback } from "./browser/articles.mjs";
+
 const pagesMode = process.argv.includes("--pages");
-const basePath = (process.env.BROWSER_BASE_PATH ?? "").replace(/\/$/, "");
-const origin = (process.env.BROWSER_BASE_URL ?? "http://127.0.0.1:4176").replace(/\/$/, "");
-const base = `${origin}${basePath}`;
-const output = process.env.BROWSER_OUTPUT ?? `output/playwright/regression${pagesMode ? "-pages" : ""}`;
 const engines = { chromium, firefox, webkit };
 const results = [];
-const text = "五笔输入练习需要稳定节奏。";
-const fixture = {
-  id: "custom-browser-regression", title: "浏览器回归练习", text,
-  length: "short", topic: "自定义", wordCount: Array.from(text).length,
-  kind: "custom", version: 1,
-};
 let server;
 let workerRevision = 0;
 
@@ -66,11 +61,6 @@ async function prepare(context) {
   }, fixture);
 }
 
-async function open(page, route) {
-  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
-  await page.locator("main").waitFor();
-}
-
 async function waitForBrowserState(page, predicate, message) {
   // waitForFunction treats an async predicate's Promise as truthy in the
   // installed Playwright runtime. evaluate awaits its result before each poll.
@@ -85,9 +75,12 @@ async function waitForBrowserState(page, predicate, message) {
 async function scenario(engine, name, run, { workers = "block" } = {}) {
   const browser = await engines[engine].launch();
   const context = await browser.newContext({ serviceWorkers: workers });
+  context.setDefaultTimeout(15000);
+  context.setDefaultNavigationTimeout(30000);
   await prepare(context);
   const page = await context.newPage();
   const row = { engine, name, passed: false };
+  console.log(`RUN ${engine} ${name}`);
   await context.tracing.start({ screenshots: true, snapshots: true });
   try {
     await run({ page, context });
@@ -143,159 +136,6 @@ async function settingsWindows({ page, context }) {
   await other.evaluate(() => localStorage.setItem("wubi-test:settings:v1", JSON.stringify({ theme: "dark", showCodeHints: true })));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
-}
-
-async function typingRecovery({ page, context }) {
-  await open(page, "/");
-  const input = page.getByRole("textbox", { name: "跟打输入区" });
-  await input.waitFor();
-  assert.equal(await page.getByRole("region", { name: "练习文章，可使用方向键滚动" }).textContent(), text);
-  const history = await context.newPage();
-  await open(history, "/history");
-  await input.fill(text.slice(0, -1));
-  const unfinishedDialog = page.waitForEvent("dialog");
-  page.once("dialog", (dialog) => void dialog.accept());
-  await page.getByRole("link", { name: "成绩统计", exact: true }).click();
-  assert.equal((await unfinishedDialog).type(), "alert");
-  assert.equal(new URL(page.url()).pathname, `${basePath}/`);
-  assert.equal(await input.inputValue(), text.slice(0, -1), "取消离开应保留输入");
-  await page.evaluate(() => {
-    const write = Storage.prototype.setItem;
-    window.__regressionWrite = write;
-    Storage.prototype.setItem = function(key, value) {
-      if (key === "wubi-test:sessions:v1") throw new DOMException("quota", "QuotaExceededError");
-      return write.call(this, key, value);
-    };
-  });
-  // Model a Safari-style compositionend which still exposes a long Latin
-  // pre-edit buffer, followed by the committed candidate in the next input event.
-  await input.evaluate((el, prefix) => {
-    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-    el.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
-    setValue.call(el, `${prefix}qingxi`);
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertCompositionText", data: "qingxi", isComposing: true }));
-  }, text.slice(0, -1));
-  assert.equal(await input.inputValue(), `${text.slice(0, -1)}qingxi`, "候选预编辑不能被剩余字数截断");
-  assert.equal(await page.getByRole("button", { name: "重试保存" }).count(), 0, "composition期间不能提前结算");
-  await input.evaluate((el, committed) => {
-    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-    el.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "。" }));
-    setValue.call(el, committed);
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "。", isComposing: false }));
-  }, text);
-  await page.getByRole("button", { name: "重试保存" }).waitFor();
-  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length), 0);
-  const pendingDialog = page.waitForEvent("dialog");
-  page.once("dialog", (dialog) => void dialog.accept());
-  await page.getByRole("link", { name: "成绩统计", exact: true }).click();
-  assert.equal((await pendingDialog).type(), "alert");
-  assert.equal(new URL(page.url()).pathname, `${basePath}/`, "未保存成绩应阻止导航");
-  await page.evaluate(() => { Storage.prototype.setItem = window.__regressionWrite; });
-  await page.getByRole("button", { name: "重试保存" }).click();
-  await page.getByText("本次成绩已存入本机 · 可在成绩统计查看").waitFor();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length === 1);
-  await history.getByText(fixture.title, { exact: true }).waitFor();
-  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1"))[0].correctChars), Array.from(text).length);
-  await page.getByRole("link", { name: "成绩统计", exact: true }).click();
-  await page.waitForURL(`${base}/history${pagesMode ? "/" : ""}`);
-}
-
-async function typingSessionLifecycle({ page }) {
-  await open(page, "/");
-  const input = page.getByRole("textbox", { name: "跟打输入区" });
-  await input.waitFor();
-  // Drive the real Hook/React events with a deterministic wall clock. Interval
-  // callbacks still run normally; assertions use the persisted result.
-  await page.evaluate(() => {
-    window.__typingTestNow = Date.now();
-    Date.now = () => window.__typingTestNow;
-  });
-  const advance = (ms) => page.evaluate((delta) => { window.__typingTestNow += delta; }, ms);
-  const visibility = (hidden) => page.evaluate((value) => {
-    Object.defineProperty(document, "hidden", { configurable: true, value });
-    document.dispatchEvent(new Event("visibilitychange"));
-  }, hidden);
-  await input.press("w");
-  await advance(1000);
-  await input.fill("错");
-  await page.getByRole("button", { name: "暂停", exact: true }).click();
-  assert(await input.isDisabled());
-  await page.getByRole("button", { name: "重来", exact: true }).click();
-  assert.equal(await input.inputValue(), "", "重来应清除之前的输入");
-  assert(!(await input.isDisabled()), "重来应解除暂停");
-  assert(await page.getByRole("button", { name: "暂停", exact: true }).isDisabled(), "重来后尚未开始计时");
-
-  await input.press("w");
-  await advance(1000);
-  await input.fill("五");
-  await advance(1000);
-  await page.getByRole("button", { name: "暂停", exact: true }).click();
-  await advance(1000);
-  await visibility(true);
-  await advance(30000);
-  await visibility(false);
-  await advance(7000);
-  await page.getByRole("button", { name: "继续", exact: true }).click();
-  await advance(1000);
-  await visibility(true);
-  await advance(20000);
-  await visibility(false);
-  await advance(1000);
-  await input.fill(text);
-  await page.getByText("本次成绩已存入本机 · 可在成绩统计查看").waitFor();
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1")));
-  assert.equal(saved.length, 1, "重来的未完成练习不能写入成绩");
-  assert.equal(saved[0].durationSeconds, 4, "暂停与后台时间不能进入有效用时");
-  assert.equal(saved[0].pauseSeconds, 38);
-  assert.equal(saved[0].pauseCount, 1);
-  assert.equal(saved[0].retryCount, 1);
-  assert.equal(saved[0].errors, 1, "只记录重来后的按键临时错字");
-  assert.equal(saved[0].keyCount, 1, "重来前的按键应被清空");
-  await advance(10000);
-  await page.waitForTimeout(300);
-  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1"))), saved,
-    "结算后的时钟更新不能重复保存或改变成绩");
-}
-
-async function backupRoundtrip({ page }) {
-  await open(page, "/settings");
-  await page.getByRole("checkbox", { name: "显示编码提示" }).check();
-  const downloaded = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出完整备份", exact: true }).click();
-  const download = await downloaded;
-  const file = `${output}/backup.json`;
-  await download.saveAs(file);
-  const payload = JSON.parse(await readFile(file, "utf8"));
-  assert.equal(payload.data["wubi-test:settings:v1"].showCodeHints, true);
-  await page.getByRole("checkbox", { name: "显示编码提示" }).uncheck();
-  await page.getByLabel("选择 JSON 备份文件").setInputFiles(file);
-  await page.getByText("恢复前预览", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "确认覆盖本机数据" }).click();
-  await page.waitForEvent("load");
-  await page.getByRole("checkbox", { name: "显示编码提示" }).waitFor();
-  assert(await page.getByRole("checkbox", { name: "显示编码提示" }).isChecked(), "备份恢复后应重新显示导出时的设置");
-}
-
-async function articleLibrary({ page }) {
-  await open(page, "/");
-  await page.getByRole("button", { name: "选文章", exact: true }).click();
-  let dialog = page.getByRole("dialog", { name: "选择练习文章" });
-  await dialog.getByRole("searchbox", { name: "搜索文章标题" }).fill(fixture.title);
-  await dialog.getByText("共 1 篇符合当前筛选条件", { exact: true }).waitFor();
-  await dialog.getByRole("button", { name: `收藏文章：${fixture.title}`, exact: true }).click();
-  await dialog.getByRole("button", { name: "只看收藏", exact: true }).click();
-  assert.equal(await dialog.getByRole("button", { name: "只看收藏", exact: true }).getAttribute("aria-pressed"), "true");
-  await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).waitFor();
-  await dialog.getByRole("combobox", { name: "文章排序" }).selectOption("recent");
-  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
-  await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "选文章", exact: true }).click();
-  dialog = page.getByRole("dialog", { name: "选择练习文章" });
-  await dialog.getByRole("searchbox", { name: "搜索文章标题" }).fill(fixture.title);
-  await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).waitFor();
-  await dialog.getByRole("button", { name: "只看收藏", exact: true }).click();
-  await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).click();
-  await dialog.getByText("当前收藏中没有符合条件的文章。可以关闭“只看收藏”或调整筛选。", { exact: true }).waitFor();
 }
 
 async function trainingDrill({ page }) {
@@ -443,22 +283,45 @@ async function pagesOfflineUpdate({ page, context }) {
   await reopened.getByText("离线缓存已启用，断网后仍可打开。", { exact: true }).waitFor();
 }
 
+const interactionScenarios = [
+  ["settings-windows", settingsWindows],
+  ["typing-recovery", typingRecovery],
+  ["typing-session-lifecycle", typingSessionLifecycle],
+  ...["commit-before-end", "end-before-commit"].map((order) =>
+    [`typing-ime-${order}`, (context) => typingIme(context, order)]),
+  ["typing-unicode-correction", typingUnicodeAndCorrection],
+  ["typing-paste-drop", typingPasteAndDrop],
+  ["backup-roundtrip", backupRoundtrip],
+  ...["damaged", "blocked"].map((failure) =>
+    [`backup-unreadable-${failure}`, (context) => backupUnreadable(context, failure)]),
+  ["backup-rollback", backupRollback],
+  ["backup-invalid-stale-file", backupInvalidAndStaleFile],
+  ["article-library", articleLibrary],
+  ...["generated", "recent", "quota", "read"].map((failure) =>
+    [`article-selection-${failure}`, (context) => articleSelectionFailure(context, failure)]),
+  ["article-restart-failure", articleRestartFailure],
+  ["common-article-restore", commonArticleRestore],
+  ["custom-article-rollback", customArticleRollback],
+  ["training-drill", trainingDrill],
+  ["advanced-practice", advancedPractice],
+  ["music-shortcuts", musicShortcuts],
+];
+const availableScenarios = pagesMode
+  ? [["pages-offline-update", pagesOfflineUpdate, { workers: "allow" }]]
+  : interactionScenarios;
+const requestedScenarios = process.env.BROWSER_SCENARIOS?.split(",");
+for (const name of requestedScenarios ?? []) {
+  assert(availableScenarios.some(([candidate]) => candidate === name), `未知回归场景 ${name}`);
+}
+const selectedScenarios = availableScenarios.filter(([name]) => !requestedScenarios || requestedScenarios.includes(name));
+
 await mkdir(output, { recursive: true });
 try {
   await startServer();
   for (const engine of (process.env.BROWSER_ENGINES ?? (pagesMode ? "chromium" : "chromium,webkit")).split(",")) {
     assert(engines[engine], `未知浏览器 ${engine}`);
-    if (pagesMode) {
-      await scenario(engine, "pages-offline-update", pagesOfflineUpdate, { workers: "allow" });
-    } else {
-      await scenario(engine, "settings-windows", settingsWindows);
-      await scenario(engine, "typing-recovery", typingRecovery);
-      await scenario(engine, "typing-session-lifecycle", typingSessionLifecycle);
-      await scenario(engine, "backup-roundtrip", backupRoundtrip);
-      await scenario(engine, "article-library", articleLibrary);
-      await scenario(engine, "training-drill", trainingDrill);
-      await scenario(engine, "advanced-practice", advancedPractice);
-      await scenario(engine, "music-shortcuts", musicShortcuts);
+    for (const [name, run, options] of selectedScenarios) {
+      await scenario(engine, name, run, options);
     }
   }
 } finally {
