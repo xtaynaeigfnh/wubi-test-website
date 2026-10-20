@@ -309,7 +309,9 @@ npx playwright install chromium webkit
 npm run test:browser
 ```
 
-可用 `BROWSER_ENGINES=chromium` 选择引擎，或用 `BROWSER_BASE_URL` 指向已启动的开发站点。生产离线与更新保护必须基于真实静态导出运行，以下命令在 `/wubi-regression` 子路径验证完整缓存、断网练习、更新等待期间保留输入以及关闭全部窗口后启用新版本：
+关键流程使用真实页面操作与持久化结果断言，覆盖输入法、暂停恢复、文章切换失败回滚、保存重试及备份恢复异常；用例模块、旧测试迁移清单和系统输入法人工验收步骤见 [浏览器回归覆盖说明](tests/browser-coverage.md)。
+
+可用 `BROWSER_ENGINES=chromium` 选择引擎，用 `BROWSER_SCENARIOS=typing-recovery,backup-rollback` 定向运行场景，或用 `BROWSER_BASE_URL` 指向已启动的开发站点。生产离线与更新保护必须基于真实静态导出运行，以下命令在 `/wubi-regression` 子路径验证完整缓存、断网练习、更新等待期间保留输入以及关闭全部窗口后启用新版本：
 
 ```bash
 NEXT_PUBLIC_BASE_PATH=/wubi-regression npm run build:pages
