@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { assertServerRunning, resolveExportPath, startDevServer, stopDevServer } from "./browser-test-server.mjs";
 import { createServer } from "node:http";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
@@ -22,7 +22,7 @@ let workerRevision = 0;
 async function startServer() {
   if (process.env.BROWSER_BASE_URL) return;
   if (!pagesMode) {
-    server = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4176"], { stdio: "ignore", detached: true });
+    server = startDevServer(4176);
   } else {
     const root = resolve(process.env.BROWSER_PAGES_DIR ?? "out");
     const mime = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".txt": "text/plain", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".mp3": "audio/mpeg", ".woff2": "font/woff2" };
@@ -31,8 +31,7 @@ async function startServer() {
         const pathname = decodeURIComponent(new URL(request.url, origin).pathname);
         if (basePath && pathname !== basePath && !pathname.startsWith(`${basePath}/`)) throw new Error("outside base path");
         const relative = pathname.slice(basePath.length);
-        let file = resolve(root, `.${relative || "/"}`);
-        if (file !== root && !file.startsWith(`${root}/`)) throw new Error("outside export");
+        let file = resolveExportPath(root, relative);
         if ((await stat(file)).isDirectory()) file = resolve(file, "index.html");
         let data = await readFile(file);
         if (relative === "/sw.js" && workerRevision) {
@@ -45,7 +44,7 @@ async function startServer() {
     await new Promise((done) => server.listen(4176, "127.0.0.1", done));
   }
   for (let i = 0; i < 120; i++) {
-    if (!pagesMode && server.exitCode !== null) throw new Error(`回归开发服务器已退出：${server.exitCode}`);
+    if (!pagesMode) assertServerRunning(server);
     try { if ((await fetch(`${base}/`)).ok) return; } catch {}
     await new Promise((done) => setTimeout(done, 500));
   }
@@ -347,7 +346,7 @@ try {
     }
   }
 } finally {
-  if (server?.pid) { try { process.kill(-server.pid, "SIGTERM"); } catch {} }
+  if (server?.pid) await stopDevServer(server);
   else if (server) await new Promise((done) => server.close(done));
 }
 console.log(`完成 ${results.length} 项浏览器回归，失败 ${results.filter((row) => !row.passed).length} 项；报告：${output}/report.json`);
