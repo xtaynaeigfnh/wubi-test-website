@@ -30,8 +30,8 @@ const themeOptions: Array<{ id: ThemeId; description: string }> = [
 ];
 
 const skinOptions: Array<{ id: SkinId; description: string }> = [
-  { id: "letterpress", description: "顶部导航 · 网格纸面 · 完整指标" },
-  { id: "focus", description: "侧栏导航 · 清爽留白 · 专注跟打" },
+  { id: "letterpress", description: "胶囊顶栏 · 独立仪表卡 · 纯净画布" },
+  { id: "focus", description: "书斋侧栏 · 宣纸留白 · 沉浸跟打" },
 ];
 
 const settingsSections = [

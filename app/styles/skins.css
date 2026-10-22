@@ -1,29 +1,30 @@
 /* Shared skin chooser; thumbnails describe the two navigation layouts. */
 .skin-fieldset { min-width: 0; margin: 24px 0; padding: 0; border: 0; }
-.skin-fieldset legend { margin-bottom: 12px; font-weight: 600; }
+.skin-fieldset legend { margin-bottom: 12px; font-weight: 650; }
 .skin-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.skin-option { position: relative; min-width: 0; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border-default); border-radius: var(--radius-medium); background: var(--bg-paper); cursor: pointer; }
-.skin-option:has(input:checked) { border-color: var(--accent-bamboo); box-shadow: inset 0 0 0 1px var(--accent-bamboo); }
+.skin-option { position: relative; min-width: 0; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border-default); border-radius: var(--radius-medium); background: var(--bg-paper); cursor: pointer; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms var(--ease-out); }
+.skin-option:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.skin-option:has(input:checked) { border-color: var(--accent-bamboo); box-shadow: inset 0 0 0 1px var(--accent-bamboo), var(--shadow-panel); }
 .skin-option:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .skin-option > input { position: absolute; top: 16px; right: 16px; width: 18px; height: 18px; margin: 0; accent-color: var(--accent-bamboo); }
 .skin-option-copy { display: grid; gap: 6px; padding-right: 20px; }
 .skin-option-copy strong { font-size: 15px; }
 .skin-option-copy small { color: var(--text-secondary); font-size: 12px; line-height: 1.75; }
-.skin-thumbnail { height: 136px; display: grid; grid-template-rows: 24px 1fr; overflow: hidden; border: 1px solid #b9c9cd; border-radius: 4px; color: #14292e; background: #e7edf0; }
-.skin-thumbnail-nav { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8faf9; border-bottom: 1px solid #b9c9cd; }
-.skin-thumbnail-nav i { width: 18px; height: 4px; background: #086b66; }
-.skin-thumbnail-page { min-width: 0; display: grid; gap: 8px; padding: 10px 16px; background-image: linear-gradient(#086b6614 1px, transparent 1px), linear-gradient(90deg, #086b6614 1px, transparent 1px); background-size: 16px 16px; }
-.skin-thumbnail-page b { font: 600 12px/1.5 "Songti SC", "STSong", serif; }
-.skin-thumbnail-page > i { width: 55%; height: 3px; background: #7e969c; }
+.skin-thumbnail { height: 136px; display: grid; grid-template-rows: 28px 1fr; overflow: hidden; border: 1px solid #ddd9d0; border-radius: 12px; color: #14151a; background: #f5f4f0; }
+.skin-thumbnail-nav { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 10px; background: #ffffff; border-bottom: 1px solid #eae7e0; }
+.skin-thumbnail-nav i { width: 22px; height: 8px; border-radius: 999px; background: #165243; }
+.skin-thumbnail-page { min-width: 0; display: grid; gap: 8px; padding: 12px 16px; background: #f5f4f0; }
+.skin-thumbnail-page b { font: 650 12px/1.4 var(--font-display); }
+.skin-thumbnail-page > i { width: 48%; height: 3px; border-radius: 999px; background: #a8a399; }
 .skin-thumbnail-page > span { display: flex; gap: 6px; }
-.skin-thumbnail-page > span i { width: 24px; height: 12px; border: 1px solid #b9c9cd; background: #f8faf9; }
-.skin-thumbnail-page em { padding: 6px; border: 1px solid #b9c9cd; background: #f8faf9; font: 12px/1.5 "Kaiti SC", "KaiTi", serif; }
-[data-skin-option="focus"] .skin-thumbnail { grid-template-rows: 1fr; grid-template-columns: 36px 1fr; border-color: #dce1d7; border-radius: 9px; color: #18231c; background: #f6f7f3; }
-[data-skin-option="focus"] .skin-thumbnail-nav { flex-direction: column; align-items: stretch; padding: 12px 6px; gap: 12px; border: 0; border-right: 1px solid #dce1d7; background: #fff; }
-[data-skin-option="focus"] .skin-thumbnail-nav i { width: 100%; background: #c6ed78; }
+.skin-thumbnail-page > span i { width: 26px; height: 14px; border: 1px solid #ddd9d0; border-radius: 6px; background: #ffffff; }
+.skin-thumbnail-page em { padding: 6px 10px; border: 1px solid #ddd9d0; border-radius: 8px; background: #ffffff; font: 12px/1.5 "Songti SC", "STSong", serif; }
+[data-skin-option="focus"] .skin-thumbnail { grid-template-rows: 1fr; grid-template-columns: 42px 1fr; border-color: #dce1d7; border-radius: 12px; color: #18231c; background: #f7f6f2; }
+[data-skin-option="focus"] .skin-thumbnail-nav { flex-direction: column; align-items: stretch; justify-content: start; padding: 12px 6px; gap: 10px; border: 0; border-right: 1px solid #dce1d7; background: #ffffff; }
+[data-skin-option="focus"] .skin-thumbnail-nav i { width: 100%; height: 6px; border-radius: 999px; background: #c6ed78; }
 [data-skin-option="focus"] .skin-thumbnail-page { align-content: center; background-image: none; }
 [data-skin-option="focus"] .skin-thumbnail-page b, [data-skin-option="focus"] .skin-thumbnail-page em { font-family: var(--font-body); }
-[data-skin-option="focus"] .skin-thumbnail-page em { border-color: #dce1d7; background: #fff; border-radius: 6px; }
+[data-skin-option="focus"] .skin-thumbnail-page em { border-color: #dce1d7; background: #ffffff; border-radius: 8px; }
 
 /* Presentation restored from the pre-focus pages, with shared behavior. */
 :where(html:not([data-skin="focus"])) .article-side-filters { display: contents; }

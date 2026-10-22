@@ -1,6 +1,7 @@
 /* A 44px target is a project requirement, including desktop pointer controls. */
 button,
 a.skip-link,
+a.brand,
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 select {
   min-height: 44px;
