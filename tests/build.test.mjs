@@ -2,10 +2,31 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix, win32 } from "node:path";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { generateOfflineAssets } from "../scripts/generate-offline-assets.mjs";
+import { assertServerRunning, resolveExportPath } from "../scripts/browser-test-server.mjs";
+
+test("browser export server accepts nested files on Windows and POSIX and rejects escaped paths", () => {
+  for (const [paths, root] of [[posix, "/project/out"], [win32, "C:\\项目\\out"]]) {
+    for (const route of ["/", "/lookup/", "/_next/static/chunks/main.js"]) {
+      assert.equal(resolveExportPath(root, route, paths), paths.resolve(root, `.${route}`));
+    }
+    for (const route of ["/../secret", "/../out-other/main.js", "/../../secret"]) {
+      assert.throws(() => resolveExportPath(root, route, paths), /outside export/);
+    }
+  }
+  assert.throws(() => resolveExportPath("C:\\项目\\out", "/..\\secret", win32), /outside export/);
+});
+
+test("browser checks report development server launch errors and early exits immediately", () => {
+  assert.doesNotThrow(() => assertServerRunning({ exitCode: null, signalCode: null }));
+  const error = new Error("launch failed");
+  assert.throws(() => assertServerRunning({ startupError: error }), (actual) => actual === error);
+  assert.throws(() => assertServerRunning({ exitCode: 1, signalCode: null }), /已退出：1/);
+  assert.throws(() => assertServerRunning({ exitCode: null, signalCode: "SIGTERM" }), /已退出：SIGTERM/);
+});
 
 test("offline builds include lazy chunks and route payloads before their first visit", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "wubi-offline-"));

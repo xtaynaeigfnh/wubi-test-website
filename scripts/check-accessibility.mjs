@@ -1,7 +1,7 @@
 import { chromium, firefox, webkit } from "playwright";
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { assertServerRunning, startDevServer, stopDevServer } from "./browser-test-server.mjs";
 import assert from "node:assert/strict";
 
 const require = createRequire(import.meta.url);
@@ -86,9 +86,10 @@ let server;
 await mkdir(output, { recursive: true });
 try {
   if (!process.env.A11Y_BASE_URL) {
-    server = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4175"], { stdio: "ignore", detached: true });
+    server = startDevServer(4175);
     let ready = false;
     for (let i = 0; i < 120; i++) {
+      assertServerRunning(server);
       try { if ((await fetch(base)).ok) { ready = true; break; } } catch {}
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -160,7 +161,7 @@ try {
     } finally { await browser.close(); }
   }
 } finally {
-  if (server?.pid) { try { process.kill(-server.pid, "SIGTERM"); } catch {} }
+  await stopDevServer(server);
 }
 console.log(`完成 ${results.length} 项，失败 ${results.filter((r) => r.failures.length).length} 项；报告：${output}/report.json`);
 if (results.some((row) => row.failures.length)) process.exitCode = 1;
