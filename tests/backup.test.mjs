@@ -865,6 +865,79 @@ test("backup restore rolls back every key after a storage failure", () => {
   }
 });
 
+test("failed restore preserves untouched records when one storage key stays blocked", () => {
+  const original = new Map([
+    [STORAGE.settings, '{"theme":"light"}'],
+    [STORAGE.sessions, "[original sessions]"],
+    [STORAGE.errors, "[original errors]"],
+    [STORAGE.customTexts, "[original articles]"],
+  ]);
+  const values = new Map(original);
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => {
+      if (key === STORAGE.errors) throw new Error("blocked key");
+      values.delete(key);
+    },
+  } };
+  try {
+    assert.throws(() => restoreBackupPayload(createBackupPayload({})), /恢复未生效/);
+    assert.deepEqual(values, original);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("failed rollback still attempts to restore the remaining changed keys", () => {
+  const values = new Map([
+    [STORAGE.settings, "original settings"],
+    [STORAGE.sessions, "original sessions"],
+  ]);
+  let restoring = false;
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => {
+      if (restoring && key === STORAGE.sessions) throw new Error("blocked rollback");
+      values.set(key, value);
+    },
+    removeItem: (key) => {
+      if (key === STORAGE.errors) { restoring = true; throw new Error("blocked import"); }
+      values.delete(key);
+    },
+  } };
+  try {
+    assert.throws(() => restoreBackupPayload(createBackupPayload({})), /未能完整回滚/);
+    assert.equal(values.get(STORAGE.settings), "original settings");
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test("failed restore reverses quota-sensitive changes without removing untouched data", () => {
+  const original = new Map([[STORAGE.settings, "x".repeat(2000)], [STORAGE.errors, "[]"]]);
+  const values = new Map(original);
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => {
+      const size = [...values].reduce((sum, [entryKey, entryValue]) => sum + (entryKey === key ? 0 : entryValue.length), value.length);
+      if (key === STORAGE.errors || size > 2002) throw new DOMException("full", "QuotaExceededError");
+      values.set(key, value);
+    },
+    removeItem: (key) => {
+      assert.notEqual(key, STORAGE.errors, "untouched errors must not be deleted for rollback");
+      values.delete(key);
+    },
+  } };
+  try {
+    const payload = createBackupPayload({ [STORAGE.sessions]: [session()], [STORAGE.errors]: [] });
+    assert.throws(() => restoreBackupPayload(payload), /恢复未生效/);
+    assert.deepEqual(values, original);
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 test("backup restore cannot be overwritten by a pending key-usage write", () => {
   const values = new Map();
   const timers = new Map();
