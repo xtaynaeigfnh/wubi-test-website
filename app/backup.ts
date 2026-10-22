@@ -187,6 +187,7 @@ export function restoreBackupPayload(payload: BackupPayload): void {
   const previous = new Map(
     STORAGE_KEYS.map((key) => [key, window.localStorage.getItem(key)]),
   );
+  const writtenKeys: (typeof STORAGE_KEYS)[number][] = [];
   try {
     for (const key of STORAGE_KEYS) {
       if (key in validated.data) {
@@ -194,16 +195,22 @@ export function restoreBackupPayload(payload: BackupPayload): void {
       } else {
         window.localStorage.removeItem(key);
       }
+      writtenKeys.push(key);
     }
   } catch {
-    try {
-      for (const key of STORAGE_KEYS) {
-        window.localStorage.removeItem(key);
+    let rollbackFailed = false;
+    // Reverse successful changes so each restored storage state previously fit
+    // the quota. Do not delete untouched records to make room for rollback.
+    for (const key of writtenKeys.reverse()) {
+      try {
+        const oldValue = previous.get(key)!;
+        if (oldValue === null) window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, oldValue);
+      } catch {
+        rollbackFailed = true;
       }
-      for (const [key, oldValue] of previous) {
-        if (oldValue !== null) window.localStorage.setItem(key, oldValue);
-      }
-    } catch {
+    }
+    if (rollbackFailed) {
       throw new Error("恢复失败，且未能完整回滚；请立即刷新页面并重新导入备份");
     }
     throw new Error("本机存储空间不足，恢复未生效");
