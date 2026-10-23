@@ -93,6 +93,7 @@ export function useTypingSession({
       send({ type: "visibility", hidden: document.hidden, now: Date.now() });
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    handleVisibilityChange();
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [send]);
 
@@ -191,6 +192,7 @@ export function useTypingSession({
   const resetForArticle = useCallback((retryCount: number) => {
     const previous = current.current;
     if (send({ type: "reset", retryCount }) === previous) return;
+    send({ type: "visibility", hidden: document.hidden, now: Date.now() });
     clearInputTimers();
     composing.current = false;
   }, [clearInputTimers, send]);

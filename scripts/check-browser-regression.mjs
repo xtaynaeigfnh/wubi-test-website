@@ -199,6 +199,34 @@ async function advancedPractice({ page }) {
   assert.equal(saved.type, "rhythm");
 }
 
+async function typingBackgroundReset({ page, context }) {
+  await context.addInitScript(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+  });
+  await open(page, "/");
+  const input = page.getByRole("textbox", { name: "跟打输入区" });
+  await input.fill("五");
+  assert.equal(await input.inputValue(), "", "后台初始化不能启动练习");
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await input.fill("五");
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.getByRole("button", { name: "重来", exact: true }).click();
+  await input.fill("五");
+  assert.equal(await input.inputValue(), "", "后台重置不能启动练习");
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await input.fill("五");
+  assert.equal(await input.inputValue(), "五");
+}
+
 async function musicShortcuts({ page }) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "/settings");
@@ -357,6 +385,7 @@ const interactionScenarios = [
   ["training-plan-reviews", trainingPlanAndReviews],
   ["advanced-practice", advancedPractice],
   ["music-shortcuts", musicShortcuts],
+  ["typing-background-reset", typingBackgroundReset],
 ];
 const availableScenarios = pagesMode
   ? [["pages-offline-update", pagesOfflineUpdate, { workers: "allow" }]]
