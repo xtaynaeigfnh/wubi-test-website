@@ -1233,15 +1233,10 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /@keyframes music-brush-line/);
   assert.match(styles, /@keyframes music-ink-reveal/);
   assert.match(styles, /@keyframes music-seal-breathe/);
-  assert.match(styles, /\.music-ruler\s*\{/);
-  assert.match(styles, /\.music-ruler > button > span\s*\{[^}]*width:\s*100%;[^}]*height:\s*6px;/s);
-  assert.match(styles, /\.music-ruler > button\.active > span\s*\{[^}]*height:\s*22px;/s);
-  assert.doesNotMatch(styles, /\.music-ruler:hover > span|\.music-ruler > span:nth-child/);
   assert.doesNotMatch(music, /className="music-ruler"/);
   assert.match(styles, /html \.music-dock\s*\{[^}]*width: min\(288px/);
   assert.match(styles, /html \.music-track-copy\s*\{ animation: none/);
-  assert.match(styles, /\.music-ruler\s*\{[^}]*grid-auto-columns:\s*44px;[^}]*overflow-x:\s*auto/s);
-  assert.match(styles, /\.music-dock \.music-ruler > button\s*\{[^}]*min-width:\s*44px/);
+  assert.match(styles, /html \.music-track-row\s*\{[^}]*width: 100%;[^}]*min-width: 0;[^}]*min-height: 56px;[^}]*grid-template-columns: 22px minmax\(0, 1fr\) auto;/s);
   assert.match(
     styles,
     /@media \(max-width: 780px\)[\s\S]*\.music-mobile-controls/s,
