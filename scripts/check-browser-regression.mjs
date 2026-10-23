@@ -11,6 +11,7 @@ import { backupRoundtrip, backupUnreadable, backupRollback, backupInvalidAndStal
 import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback } from "./browser/articles.mjs";
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
+import { navigationLens } from "./browser/navigation.mjs";
 
 const pagesMode = process.argv.includes("--pages");
 const engines = { chromium, firefox, webkit };
@@ -202,8 +203,10 @@ async function advancedPractice({ page }) {
 async function musicShortcuts({ page }) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "/settings");
-  const ruler = page.getByRole("group", { name: "曲目刻度" });
-  const buttons = ruler.getByRole("button");
+  const dock = page.getByRole("complementary", { name: "背景音乐播放器" });
+  if (!await dock.isVisible()) await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
+  await dock.getByRole("button", { name: "展开曲目列表" }).click();
+  const buttons = dock.locator(".music-track-row");
   await buttons.first().waitFor();
   for (let index = 0; index < await buttons.count(); index++) {
     const button = buttons.nth(index);
@@ -212,12 +215,27 @@ async function musicShortcuts({ page }) {
     assert(box && box.width >= 44 && box.height >= 44, "切歌按钮不能被压缩");
     await button.press("Enter");
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-pressed") === "true");
-    assert(await button.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      const strip = element.parentElement.getBoundingClientRect();
-      return box.left >= strip.left - 1 && box.right <= strip.right + 1;
-    }), "键盘聚焦时，横向滚动应露出完整按钮");
   }
+  await page.keyboard.press("Escape");
+  assert.equal(await buttons.first().isVisible(), false);
+  assert.equal(await page.locator(":focus").getAttribute("aria-label"), "展开曲目列表");
+  await dock.getByRole("button", { name: "静音背景音乐", exact: true }).click();
+  await dock.getByRole("button", { name: "播放背景音乐", exact: true }).click();
+  await dock.getByRole("button", { name: "暂停背景音乐", exact: true }).waitFor();
+  assert.equal(await dock.evaluate((element) => element.getAnimations({ subtree: true })
+    .some((animation) => animation.effect?.getComputedTiming().iterations === Infinity)), false);
+  await dock.getByRole("button", { name: "暂停背景音乐", exact: true }).click();
+  await page.setViewportSize({ width: 320, height: 740 });
+  assert(await dock.getByRole("slider", { name: "播放进度", exact: true }).isVisible());
+  assert(await dock.getByRole("slider", { name: "背景音乐音量" }).isVisible());
+  const box = await dock.boundingBox();
+  assert(box && box.x >= 0 && box.x + box.width <= 320, "手机浮层不能超出视口");
+  await dock.getByRole("button", { name: "播放背景音乐", exact: true }).focus();
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "展开专注电台控制栏");
+  await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
+  assert.equal(await dock.getByRole("button", { name: "展开曲目列表" }).getAttribute("aria-expanded"), "false");
+  await page.waitForFunction(() => !document.querySelector(".music-dock[data-morphing]"));
   await page.screenshot({ path: `${output}/music-shortcuts.png`, fullPage: false });
 }
 
@@ -286,6 +304,7 @@ async function pagesOfflineUpdate({ page, context }) {
 }
 
 const interactionScenarios = [
+  ["navigation-lens", navigationLens],
   ["settings-windows", settingsWindows],
   ["typing-recovery", typingRecovery],
   ["typing-session-lifecycle", typingSessionLifecycle],

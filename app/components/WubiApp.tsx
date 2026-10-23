@@ -33,6 +33,7 @@ import { buildCustomThemeVariables, themeLabels } from "../theme";
 import { HesitationPracticeModal } from "./HesitationPracticeModal";
 import { SkinContext } from "./SkinContext";
 import { FirstUseGuide } from "./FirstUseGuide";
+import { useNavigationLens } from "./useNavigationLens";
 import type { KeySoundPlayer } from "./views/TypingView";
 
 const TrainingCenter = dynamic(
@@ -79,14 +80,13 @@ const navItems: Array<{
   view: AppView;
   href: string;
   label: string;
-  coordinate: string;
 }> = [
-  { view: "typing", href: "/", label: "文章测速", coordinate: "QW" },
-  { view: "training", href: "/training", label: "今日训练", coordinate: "ER" },
-  { view: "advanced", href: "/advanced", label: "进阶训练", coordinate: "DF" },
-  { view: "lookup", href: "/lookup", label: "五笔查码", coordinate: "UI" },
-  { view: "history", href: "/history", label: "成绩统计", coordinate: "OP" },
-  { view: "settings", href: "/settings", label: "设置", coordinate: "AS" },
+  { view: "typing", href: "/", label: "文章测速" },
+  { view: "training", href: "/training", label: "今日训练" },
+  { view: "advanced", href: "/advanced", label: "进阶训练" },
+  { view: "lookup", href: "/lookup", label: "五笔查码" },
+  { view: "history", href: "/history", label: "成绩统计" },
+  { view: "settings", href: "/settings", label: "设置" },
 ];
 
 const isNavItemActive = (view: AppView, itemView: AppView) =>
@@ -319,6 +319,8 @@ export function WubiApp({ view }: { view: AppView }) {
     );
   }, [view]);
 
+  useNavigationLens(mainNavRef, view, settings.skin, settingsReady);
+
   const currentThemeName = themeLabels[settings.theme];
   const quickTheme = getNextQuickTheme(settings.theme);
   const updateSettings = (next: UserSettings) => {
@@ -354,14 +356,18 @@ export function WubiApp({ view }: { view: AppView }) {
             <Link href="/" className="brand" aria-label="五笔测试网站首页">
               <span className="brand-mark" aria-hidden="true">
                 <i>五</i>
-                <b>86</b>
               </span>
               <span>
                 <strong>{settings.skin === "focus" ? "五笔练习" : "五笔测试网站"}</strong>
-                <small>{settings.skin === "focus" ? "WUBI · 86" : "WUBI 86 / LOCAL PRACTICE"}</small>
+                <small>86 版五笔</small>
               </span>
             </Link>
-            <nav ref={mainNavRef} className="main-nav" aria-label="主导航">
+            <nav
+              ref={mainNavRef}
+              className="main-nav"
+              aria-label="主导航"
+            >
+              <span className="nav-lens" aria-hidden="true" />
               {navItems.map((item) => (
                 <Link
                   key={item.view}
@@ -369,7 +375,6 @@ export function WubiApp({ view }: { view: AppView }) {
                   className={isNavItemActive(view, item.view) ? "nav-item active" : "nav-item"}
                   aria-current={isNavItemActive(view, item.view) ? "page" : undefined}
                 >
-                  <span aria-hidden="true">{item.coordinate}</span>
                   <strong>{item.label}</strong>
                 </Link>
               ))}
@@ -389,8 +394,7 @@ export function WubiApp({ view }: { view: AppView }) {
                 <b>{currentThemeName}</b>
               </button>
               <div className="local-badge">
-                <i />
-                <span><b>LOCAL</b> 数据只存本机</span>
+                <span>数据只存本机</span>
               </div>
             </div>
           </div>

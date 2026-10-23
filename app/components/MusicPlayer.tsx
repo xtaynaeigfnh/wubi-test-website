@@ -389,7 +389,7 @@ function MusicDock() {
   const unavailable = isLoading || !currentTrack;
   const statusText = isLoading
     ? "正在整理离线曲库…"
-    : error || notice || `${tracks.length} 首离线 Lo-fi，数据仍只存本机`;
+    : error || notice || `${tracks.length} 首离线音乐`;
 
   const clearCollapseTimer = useCallback(() => {
     if (collapseTimerRef.current !== null) {
@@ -557,6 +557,8 @@ function MusicDock() {
       className={collapsed ? "music-dock-peek is-visible" : "music-dock-peek"}
       aria-label="展开专注电台控制栏"
       title="展开专注电台"
+      aria-expanded={!collapsed}
+      aria-controls="music-player"
       aria-hidden={!collapsed}
       inert={!collapsed}
       onClick={revealDock}
@@ -574,6 +576,7 @@ function MusicDock() {
 
   const dock = (
     <aside
+      id="music-player"
       ref={dockRef}
       className={[
         "music-dock",
@@ -591,77 +594,20 @@ function MusicDock() {
       onBlurCapture={handleBlur}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.stopPropagation();
+        if (expanded) {
+          toggleLibrary();
+          dockRef.current?.querySelector<HTMLButtonElement>(".music-library-toggle")?.focus();
+        } else {
+          collapseDock();
+        }
+      }}
     >
-      <div
-        className={expanded && !collapsed ? "music-library-reveal is-expanded" : "music-library-reveal"}
-        aria-hidden={!expanded || collapsed}
-        inert={!expanded || collapsed}
-      >
-        <div className="music-library" id="music-library">
-          <div className="music-library-heading">
-            <div>
-              <span>OFFLINE RADIO / 曲目目录</span>
-              <strong>专注歌单</strong>
-            </div>
-            <small>{tracks.length} 首 · 播完自动循环</small>
-          </div>
-
-          <div className="music-mobile-controls">
-            <label>
-              <span>播放进度</span>
-              <input
-                type="range"
-                min={0}
-                max={Math.max(duration, 1)}
-                step={1}
-                value={Math.min(currentTime, Math.max(duration, 1))}
-                onChange={(event) => seek(Number(event.target.value))}
-              />
-            </label>
-            <label>
-              <span>
-                {volumeControlUnavailable
-                  ? "音量请用系统音量键"
-                  : `音量 ${Math.round(volume * 100)}%`}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={volume}
-                disabled={volumeControlUnavailable}
-                onChange={(event) => setVolume(Number(event.target.value))}
-              />
-            </label>
-          </div>
-
-          <div className="music-track-list">
-            {tracks.map((track, index) => (
-              <button
-                key={track.id}
-                type="button"
-                className={
-                  track.id === currentTrack?.id
-                    ? "music-track-row active"
-                    : "music-track-row"
-                }
-                aria-pressed={track.id === currentTrack?.id}
-                onClick={() => selectTrack(track.id)}
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{track.title}</strong>
-                <small>{track.artist}</small>
-                <time>{formatAudioTime(track.durationSeconds)}</time>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div className="music-dock-bar">
         <div className="music-station">
-          <span className={isPlaying ? "station-pulse active" : "station-pulse"}>
+          <span className="station-pulse" aria-hidden="true">
             <i />
             <i />
             <i />
@@ -735,27 +681,6 @@ function MusicDock() {
           </button>
         </div>
 
-        <div className="music-ruler" role="group" aria-label="曲目刻度">
-          {tracks.map((track, index) => (
-            <button
-              key={track.id}
-              type="button"
-              className={track.id === currentTrack?.id ? "active" : undefined}
-              aria-label={`切换到第 ${index + 1} 首：${track.title}`}
-              aria-pressed={track.id === currentTrack?.id}
-              title={track.title}
-              onFocus={(event) => event.currentTarget.scrollIntoView({
-                block: "nearest",
-                inline: "nearest",
-                behavior: "instant",
-              })}
-              onClick={() => selectTrack(track.id)}
-            >
-              <span aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-
         <label className="music-progress">
           <span>
             {formatAudioTime(currentTime)} / {formatAudioTime(duration)}
@@ -809,6 +734,44 @@ function MusicDock() {
           </svg>
         </button>
       </div>
+      <div
+        className={expanded && !collapsed ? "music-library-reveal is-expanded" : "music-library-reveal"}
+        aria-hidden={!expanded || collapsed}
+        hidden={!expanded || collapsed}
+        inert={!expanded || collapsed}
+      >
+        <div className="music-library" id="music-library">
+          <div className="music-library-heading">
+            <div>
+              <span>OFFLINE RADIO / 曲目目录</span>
+              <strong>专注歌单</strong>
+            </div>
+            <small>{tracks.length} 首 · 播完自动循环</small>
+          </div>
+
+          <div className="music-track-list">
+            {tracks.map((track, index) => (
+              <button
+                key={track.id}
+                type="button"
+                className={
+                  track.id === currentTrack?.id
+                    ? "music-track-row active"
+                    : "music-track-row"
+                }
+                aria-pressed={track.id === currentTrack?.id}
+                onClick={() => selectTrack(track.id)}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{track.title}</strong>
+                <small>{track.artist}</small>
+                <time>{formatAudioTime(track.durationSeconds)}</time>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
     </aside>
   );
   return (

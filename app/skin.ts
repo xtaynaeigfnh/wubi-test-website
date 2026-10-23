@@ -1,8 +1,8 @@
 import type { SkinId, ThemeId } from "./types";
 
 export const skinLabels: Record<SkinId, string> = {
-  letterpress: "铅字蓝图",
-  focus: "墨白专注",
+  letterpress: "曜石工坊",
+  focus: "竹韵书斋",
 };
 
 export function normalizeSkin(value: unknown): SkinId {
@@ -11,16 +11,16 @@ export function normalizeSkin(value: unknown): SkinId {
 
 export const skinThemeSwatches: Record<SkinId, Record<Exclude<ThemeId, "custom">, { canvas: string; accent: string }>> = {
   letterpress: {
-    system: { canvas: "#E7EDF0", accent: "#086B66" },
-    light: { canvas: "#E7EDF0", accent: "#086B66" },
-    dark: { canvas: "#09171A", accent: "#71D0C7" },
-    bamboo: { canvas: "#F2EBDD", accent: "#326455" },
-    qingdai: { canvas: "#DCE5E8", accent: "#3F6F70" },
+    system: { canvas: "#F5F4F0", accent: "#165243" },
+    light: { canvas: "#F5F4F0", accent: "#165243" },
+    dark: { canvas: "#0D0E12", accent: "#5EEAD4" },
+    bamboo: { canvas: "#F2ECE1", accent: "#2B5B4C" },
+    qingdai: { canvas: "#EBF0F2", accent: "#28586B" },
   },
   focus: {
-    system: { canvas: "#F6F7F3", accent: "#C6ED78" },
-    light: { canvas: "#F6F7F3", accent: "#C6ED78" },
-    dark: { canvas: "#141A16", accent: "#C6ED78" },
+    system: { canvas: "#F7F6F2", accent: "#D4E8B4" },
+    light: { canvas: "#F7F6F2", accent: "#D4E8B4" },
+    dark: { canvas: "#111412", accent: "#B8E08D" },
     bamboo: { canvas: "#F2EFE4", accent: "#D6E6A7" },
     qingdai: { canvas: "#EEF3F4", accent: "#B5DCE7" },
   },

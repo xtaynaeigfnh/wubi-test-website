@@ -68,16 +68,16 @@ export function animateMusicDock({
   dock.dataset.morphing = "true";
   peek.dataset.morphing = "true";
 
-  const duration = opening ? 560 : 480;
+  const duration = opening ? 260 : 200;
   const animations: Animation[] = [];
   const frame = (rect: DOMRect, compact: boolean) => ({
     transform: `translate3d(${rect.left}px, ${rect.top}px, 0)`,
     width: `${rect.width}px`,
     height: `${rect.height}px`,
-    borderRadius: compact ? "22px" : "0px",
+    borderRadius: compact ? peekStyle.borderRadius : dockStyle.borderRadius,
     background: compact ? peekStyle.backgroundColor : dockStyle.backgroundColor,
     boxShadow: compact ? peekStyle.boxShadow : dockStyle.boxShadow,
-    borderTopWidth: compact ? "1px" : "3px",
+    borderTopWidth: compact ? peekStyle.borderTopWidth : dockStyle.borderTopWidth,
     borderColor: compact ? peekStyle.borderColor : dockStyle.borderTopColor,
   });
   animations.push(surface.animate(

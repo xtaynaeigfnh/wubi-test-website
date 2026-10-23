@@ -2,17 +2,17 @@
 :root {
   --ui-text-body: 14px;
   --ui-text-meta: 12px;
-  --ui-title-panel: 22px;
-  --ui-panel-padding: clamp(16px, 2.5vw, 24px);
-  --ui-section-gap: 24px;
+  --ui-title-panel: 21px;
+  --ui-panel-padding: clamp(18px, 2.5vw, 26px);
+  --ui-section-gap: 22px;
 }
 
 body { font-size: var(--ui-text-body); }
 
 .eyebrow { font-size: var(--ui-text-meta); line-height: 1.6; }
 .subpage-heading h1, .history-heading h1 {
-  font-size: clamp(28px, 3.5vw, 44px);
-  line-height: 1.35;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.3;
   text-wrap: balance;
 }
 .subpage-heading p, .history-heading p {
@@ -40,7 +40,7 @@ body { font-size: var(--ui-text-body); }
 }
 .training-plan { gap: var(--ui-section-gap); align-items: start; }
 .training-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
-:where(html:not([data-skin="focus"])) .training-heading { min-height: 0; padding: 28px 24px; }
+:where(html:not([data-skin="focus"])) .training-heading { min-height: 0; padding: 28px 0 22px; }
 .due-review-card.is-empty { padding: 16px var(--ui-panel-padding); }
 .due-review-card.is-empty .training-card-header { display: none; }
 .due-review-card.is-empty .due-review-empty { min-height: 0; padding: 0; text-align: left; place-content: start; border: 0; background: transparent; }
@@ -121,10 +121,36 @@ body { font-size: var(--ui-text-body); }
   line-height: 1.75;
 }
 
+@media (max-width: 1180px) {
+  :where(html:not([data-skin="focus"])) .header-inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 14px;
+  }
+  :where(html:not([data-skin="focus"])) .nav-item {
+    padding-inline: 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  :where(html:not([data-skin="focus"])) .hero-row,
+  :where(html:not([data-skin="focus"])) .subpage-heading {
+    min-height: 0;
+    padding: 24px 0 18px;
+  }
+  :where(html:not([data-skin="focus"])) .nav-item {
+    min-height: 44px;
+    padding-inline: 10px;
+  }
+}
+
 @media (max-width: 780px) {
   :where(html:not([data-skin="focus"])) .training-brief,
-  :where(html:not([data-skin="focus"])) .training-goal-bridge { padding-inline: var(--ui-panel-padding); }
-  :where(html:not([data-skin="focus"])) .training-heading { padding: 24px 16px; }
+  :where(html:not([data-skin="focus"])) .training-goal-bridge { padding-inline: 0; }
+  :where(html:not([data-skin="focus"])) .training-heading { padding: 20px 0; }
+  :where(html:not([data-skin="focus"])) .main-nav {
+    border-radius: 16px;
+    padding: 4px;
+  }
   .main-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 4px; overflow: visible; }
   .nav-item { min-width: 0; justify-content: center; padding: 10px 6px; }
   .nav-item > span { display: none; }
@@ -152,6 +178,34 @@ body { font-size: var(--ui-text-body); }
   .adaptive-plan-steps li > :last-child { grid-column: 2; justify-self: start; }
   .plan-task-title small { white-space: normal; }
   .trend-labels span:last-child { text-align: right; }
+}
+
+@media (max-width: 620px) {
+  :where(html:not([data-skin="focus"])) .page-wrap,
+  :where(html:not([data-skin="focus"])) .site-footer {
+    width: calc(100% - 28px);
+  }
+  :where(html:not([data-skin="focus"])) .metric-strip {
+    box-shadow: none;
+  }
+  :where(html:not([data-skin="focus"])) .typing-card,
+  :where(html:not([data-skin="focus"])) .side-panel,
+  :where(html:not([data-skin="focus"])) .challenge-card,
+  :where(html:not([data-skin="focus"])) .history-panel,
+  :where(html:not([data-skin="focus"])) .settings-card,
+  :where(html:not([data-skin="focus"])) .summary-card,
+  :where(html:not([data-skin="focus"])) .trend-panel,
+  :where(html:not([data-skin="focus"])) .daily-progress-card,
+  :where(html:not([data-skin="focus"])) .smart-plan-card,
+  :where(html:not([data-skin="focus"])) .due-review-card,
+  :where(html:not([data-skin="focus"])) .hesitation-queue-card,
+  :where(html:not([data-skin="focus"])) .management-card,
+  :where(html:not([data-skin="focus"])) .pwa-card,
+  :where(html:not([data-skin="focus"])) .code-drill {
+    border-radius: var(--radius-medium);
+    border-inline: 1px solid var(--border-default);
+    box-shadow: var(--shadow-panel);
+  }
 }
 
 @media (max-width: 380px) {

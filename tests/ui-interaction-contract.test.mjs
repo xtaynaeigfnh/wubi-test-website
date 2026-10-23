@@ -58,6 +58,20 @@ async function readTypingSource() {
 }
 const historyViewPath = new URL("../app/components/views/HistoryView.tsx", import.meta.url);
 
+test("glass controls provide opaque and reduced-motion alternatives without covering interaction targets", async () => {
+  const styles = await readFile(new URL("../app/styles/liquid-glass.css", import.meta.url), "utf8");
+  const shell = await readFile(componentPath, "utf8");
+  assert.match(shell, /<small>86 版五笔<\/small>/);
+  assert.match(shell, /className="local-badge">\s*<span>数据只存本机<\/span>\s*<\/div>/);
+  assert.doesNotMatch(shell, /WUBI 86 \/ LOCAL PRACTICE/);
+  assert.match(styles, /\.main-nav > \.nav-lens\s*\{[^}]*pointer-events: none/);
+  assert.match(styles, /@supports not \(\(backdrop-filter/);
+  assert.match(styles, /prefers-reduced-transparency: reduce/);
+  assert.match(styles, /forced-colors: active/);
+  assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*transition: none/);
+  assert.match(styles, /\.nav-item:focus-visible\s*\{[^}]*outline: 2px solid/);
+});
+
 test("both skins share readable controls and reflow training and charts on narrow screens", async () => {
   const [styles, globals, trend] = await Promise.all([
     readFile(new URL("../app/styles/ui-refinements.css", import.meta.url), "utf8"),
@@ -799,7 +813,7 @@ test("mobile navigation scrolls the active route into view", async () => {
   const component = await readFile(componentPath, "utf8");
 
   assert.match(component, /const mainNavRef = useRef<HTMLElement>\(null\)/);
-  assert.match(component, /<nav ref=\{mainNavRef\}/);
+  assert.match(component, /<nav\s+ref=\{mainNavRef\}/);
   assert.match(component, /querySelector<HTMLElement>\(\s*'\[aria-current="page"\]'/s);
   assert.match(component, /navigation\.scrollWidth <= navigation\.clientWidth/);
   assert.match(component, /navigation\.scrollLeft = Math\.max\(/);
@@ -1223,7 +1237,9 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(styles, /\.music-ruler > button > span\s*\{[^}]*width:\s*100%;[^}]*height:\s*6px;/s);
   assert.match(styles, /\.music-ruler > button\.active > span\s*\{[^}]*height:\s*22px;/s);
   assert.doesNotMatch(styles, /\.music-ruler:hover > span|\.music-ruler > span:nth-child/);
-  assert.match(music, /className="music-ruler" role="group" aria-label="曲目刻度"/);
+  assert.doesNotMatch(music, /className="music-ruler"/);
+  assert.match(styles, /html \.music-dock\s*\{[^}]*width: min\(288px/);
+  assert.match(styles, /html \.music-track-copy\s*\{ animation: none/);
   assert.match(styles, /\.music-ruler\s*\{[^}]*grid-auto-columns:\s*44px;[^}]*overflow-x:\s*auto/s);
   assert.match(styles, /\.music-dock \.music-ruler > button\s*\{[^}]*min-width:\s*44px/);
   assert.match(
@@ -1544,6 +1560,11 @@ test("history overview keeps compact metrics on desktop and mobile", async () =>
   assert.match(styles, /\.history-page \.summary-card \{ padding: 16px 24px;/);
   assert.match(styles, /margin: 10px 0 8px; font-size: 28px;/);
   assert.match(styles, /\.history-page \.summary-card strong \{ font-size: 24px;/);
+});
+
+test("history filters wrap before touch targets become narrower than 44px", async () => {
+  const styles = await readFile(new URL("../app/styles/history-journal.css", import.meta.url), "utf8");
+  assert.match(styles, /\.history-page \.segmented\.small\.history-filter \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(44px, 1fr\)\)/);
 });
 
 test("music collapse uses a centered vector icon and a square touch target", async () => {
