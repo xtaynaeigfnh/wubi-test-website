@@ -1562,6 +1562,11 @@ test("history overview keeps compact metrics on desktop and mobile", async () =>
   assert.match(styles, /\.history-page \.summary-card strong \{ font-size: 24px;/);
 });
 
+test("history filters wrap before touch targets become narrower than 44px", async () => {
+  const styles = await readFile(new URL("../app/styles/history-journal.css", import.meta.url), "utf8");
+  assert.match(styles, /\.history-page \.segmented\.small\.history-filter \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(44px, 1fr\)\)/);
+});
+
 test("music collapse uses a centered vector icon and a square touch target", async () => {
   const music = await readFile(musicPath, "utf8");
   const styles = await readFile(new URL("../app/styles/music.css", import.meta.url), "utf8");
