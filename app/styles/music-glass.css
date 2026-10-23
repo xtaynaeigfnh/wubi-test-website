@@ -112,6 +112,7 @@ html .music-library-reveal {
 html .music-library-reveal.is-expanded { max-height: none; }
 html .music-library {
   width: 100%;
+  min-width: 0;
   max-height: 220px;
   margin: 0;
   overflow-y: auto;
@@ -127,6 +128,8 @@ html .music-library-heading span { display: none; }
 html .music-library-heading strong { font: 600 13px/1.4 var(--font-body); }
 html .music-library-heading small { font-size: 11px; }
 html .music-track-row {
+  width: 100%;
+  min-width: 0;
   min-height: 56px;
   padding: 10px 20px;
   grid-template-columns: 22px minmax(0, 1fr) auto;

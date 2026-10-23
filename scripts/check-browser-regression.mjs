@@ -236,6 +236,37 @@ async function musicShortcuts({ page }) {
   assert.equal(await dock.getByRole("button", { name: "展开曲目列表" }).getAttribute("aria-expanded"), "false");
   await page.waitForFunction(() => !document.querySelector(".music-dock[data-morphing]"));
   await page.screenshot({ path: `${output}/music-shortcuts.png`, fullPage: false });
+
+  // Keep the redesigned list: every track fits without horizontal scrolling,
+  // including when keyboard navigation scrolls the list vertically.
+  for (const skin of ["letterpress", "focus"]) {
+    await page.locator(`input[name="skin"][value="${skin}"]`).check();
+    await page.waitForFunction((value) => document.documentElement.dataset.skin === value, skin);
+    if (!await dock.isVisible()) await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
+    await dock.getByRole("button", { name: "展开曲目列表" }).click();
+    for (const width of [320, 375, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const button of await buttons.all()) {
+        await button.focus();
+        await button.press("Enter");
+        await page.waitForFunction(() => document.activeElement?.getAttribute("aria-pressed") === "true");
+        assert(await button.evaluate((element) => {
+          const row = element.getBoundingClientRect();
+          const list = element.closest(".music-library");
+          const bounds = list.getBoundingClientRect();
+          return row.width >= 44 && row.height >= 44 &&
+            row.left >= bounds.left - 1 && row.right <= bounds.right + 1 &&
+            list.scrollWidth <= list.clientWidth;
+        }), `${skin} ${width}px：曲目应完整容纳在列表内且保留点击区域`);
+      }
+      assert(await dock.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return box.left >= 0 && box.right <= innerWidth && element.scrollWidth <= element.clientWidth;
+      }), `${skin} ${width}px：播放器不能横向溢出`);
+      await page.screenshot({ path: `${output}/music-list-${skin}-${width}.png`, fullPage: false });
+    }
+    await page.keyboard.press("Escape");
+  }
 }
 
 async function pagesOfflineUpdate({ page, context }) {
