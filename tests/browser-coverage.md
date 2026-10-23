@@ -14,6 +14,7 @@
 - 备份异常：`backup-unreadable-damaged/blocked` 验证旧数据损坏/拒读仍可预览；`backup-rollback` 验证部分写入后失败恢复所有原始键并可重试；`backup-invalid-stale-file` 验证无效文件撤销旧预览、较早的慢文件不能覆盖最新选择。
 - 播放器自适应：`music-shortcuts` 保留新版曲目列表，在两套皮肤及 320、375、1440px 视口逐首通过键盘切歌，检查列表与浮层不横向溢出、每行点击区域至少 44px，并验证 Escape 关闭与焦点恢复。
 - 后台初始化与重置：`typing-background-reset` 验证后台加载页面和重来后不接受输入，返回前台后可以正常练习。
+- 系统音量限制：`music-volume-unavailable` 模拟浏览器拒绝网页设置音量，验证元数据加载无异常、静音仍有效、切歌后继续播放，并禁用不可用的音量滑块。
 
 ## 本轮迁移的旧测试
 
