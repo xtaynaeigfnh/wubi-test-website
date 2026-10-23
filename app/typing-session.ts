@@ -173,11 +173,13 @@ function commitInput(state: TypingSessionState, event: Extract<TypingSessionEven
 /** Pure event transitions: completion freezes metrics; only reset starts a new session. */
 export function typingSessionReducer(state: TypingSessionState, event: TypingSessionEvent): TypingSessionState {
   switch (event.type) {
-    case "reset":
+    case "reset": {
       // Failed/unfinished persistence must be retried before discarding the result.
       if (state.phase.status === "save-failed" ||
         (state.phase.status === "completed" && !state.phase.saved)) return state;
-      return createTypingSession(event.retryCount);
+      const next = createTypingSession(event.retryCount);
+      return { ...next, clock: { ...next.clock, hidden: state.clock.hidden } };
+    }
     case "start":
       return startSession(state, event.now);
     case "preedit":

@@ -23,6 +23,18 @@ const outcomeFor = (state, id = "session-test") => buildTypingOutcome({
   theoreticalCodeLength: 2, codeLengthAnalysis: null,
 });
 
+test("后台重置练习后仍拒绝输入，返回前台才开始新一轮计时", () => {
+  let state = reduce(start(), { type: "visibility", hidden: true, now: 1000 });
+  state = reduce(state, { type: "reset", retryCount: 1 });
+  assert.strictEqual(commit(state, "五", 5000), state);
+  assert.strictEqual(key(state, "w", "KeyW", 6000), state);
+  state = reduce(state, { type: "visibility", hidden: false, now: 10000 });
+  state = commit(state, "五", 11000);
+  assert.equal(state.clock.startedAt, 11000);
+  assert.equal(typingElapsed(state, 12000), 1);
+  assert.equal(state.retryCount, 1);
+});
+
 // These tests exercise public event sequences and results, not Hook order/source text.
 test("首次按键、输入法启动和直接提交均开始计时，重复开始不改变起点", () => {
   assert.equal(key(createTypingSession()).phase.status, "running");
