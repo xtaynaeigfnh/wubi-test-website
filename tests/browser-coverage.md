@@ -9,6 +9,7 @@
 - Unicode 与回改：`typing-unicode-correction` 在实际页面创建包含扩展汉字与段落的文章，验证正确/错误/当前位置、回删、回改、最终字符数和复盘数据。`typing-paste-drop` 验证真实 DOM 粘贴/拖入事件被阻止。
 - 文章选择：`article-selection-generated/recent/quota/read` 逐一模拟多键写入、容量及读取失败，检查原正文、弹窗、原始存储（含不存在的键）和成功重试后的刷新恢复；`article-restart-failure` 检查失败时不能清空正在输入的内容。
 - 文章库：`article-library` 操作真实搜索、排序和收藏控件，并验证收藏写入失败的提示；`common-article-restore` 检查常用字保存、最近文章列表保留、刷新恢复和首次引导改选短文；`custom-article-rollback` 检查新建自定义文章后的选择失败与回滚。
+- 刷新后的布局稳定性：首次使用引导在读取本机状态前预留入口位置，避免将练习按钮推离点击坐标。`article-library` 连续刷新三次，每次只点击一次“选文章”并验证收藏恢复；渲染测试检查初始占位不可见且不可交互，不以延时或重试点击掩盖布局跳动。
 - 成绩保存：`typing-recovery` 验证写入失败时无成功提示、下一轮不可用、重来和离开被阻止、再次失败后仍可重试，成功后只保存一次并更新另一个历史页面。
 - 备份恢复：`backup-roundtrip` 从实际完成的练习导出备份，再通过文件选择、预览、确认和重新加载验证成绩、错字、自定义文章和设置。预览本身不能修改数据。
 - 备份异常：`backup-unreadable-damaged/blocked` 验证旧数据损坏/拒读仍可预览；`backup-rollback` 验证部分写入后失败恢复所有原始键并可重试；`backup-invalid-stale-file` 验证无效文件撤销旧预览、较早的慢文件不能覆盖最新选择。

@@ -178,6 +178,8 @@ test("first-use guide is local, skippable, and turns three saved articles into a
   assert.match(guide, /if \(result.open\) \{\s*setDismissedForPractice\(false\);\s*setOpened\(true\);/);
   assert.match(guide, /onClose=\{\(\) => \{ if \(!progress\) skip\(\); else \{ setOpened\(false\); returnFocusToEntry\(\); \} \}\}/);
   assert.match(guide, /document\.querySelector<HTMLElement>\("\.first-use-entry button"\)\?\.focus\(\)/);
+  assert.match(guide, /className="first-use-entry" aria-hidden="true" style=\{\{ visibility: "hidden" \}\}/);
+  assert.match(guide, /disabled tabIndex=\{-1\}>首次使用引导<\/button>/);
   assert.match(guide, /durationDays: 7/);
   assert.match(guide, /window\.location\.assign/);
   assert.match(guide, /commitLocalWrites/);

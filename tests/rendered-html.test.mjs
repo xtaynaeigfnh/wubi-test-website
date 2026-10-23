@@ -36,6 +36,7 @@ test("server-renders the finished Chinese product shell", async () => {
   assert.match(html, /成绩统计/);
   assert.match(html, /专注电台/);
   assert.match(html, /300 篇练习文章/);
+  assert.match(html, /<aside class="first-use-entry" aria-hidden="true" style="visibility:hidden"><button[^>]*disabled[^>]*>首次使用引导<\/button><\/aside>/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
