@@ -227,6 +227,32 @@ async function typingBackgroundReset({ page, context }) {
   assert.equal(await input.inputValue(), "五");
 }
 
+async function musicVolumeUnavailable({ page, context }) {
+  await context.addInitScript(() => {
+    Object.defineProperty(HTMLMediaElement.prototype, "volume", {
+      configurable: true,
+      get: () => 1,
+      set: () => { throw new DOMException("System volume only", "NotSupportedError"); },
+    });
+  });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await open(page, "/settings");
+  await page.waitForFunction(() => document.querySelector("audio")?.readyState >= 1);
+  const dock = page.getByRole("complementary", { name: "背景音乐播放器" });
+  await dock.getByRole("button", { name: "静音背景音乐", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector("audio")?.muted);
+  await dock.getByRole("button", { name: "播放背景音乐", exact: true }).click();
+  await dock.getByRole("button", { name: "暂停背景音乐", exact: true }).waitFor();
+  await dock.getByRole("button", { name: "下一首", exact: true }).click();
+  await page.waitForFunction(() => {
+    const audio = document.querySelector("audio");
+    return audio?.readyState >= 1 && !audio.paused && audio.muted;
+  });
+  assert(await dock.getByRole("slider", { name: "背景音乐音量" }).isDisabled());
+  assert.deepEqual(errors, [], "系统音量限制不应中断元数据加载与切歌续播");
+}
+
 async function musicShortcuts({ page }) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "/settings");
@@ -385,6 +411,7 @@ const interactionScenarios = [
   ["training-plan-reviews", trainingPlanAndReviews],
   ["advanced-practice", advancedPractice],
   ["music-shortcuts", musicShortcuts],
+  ["music-volume-unavailable", musicVolumeUnavailable],
   ["typing-background-reset", typingBackgroundReset],
 ];
 const availableScenarios = pagesMode

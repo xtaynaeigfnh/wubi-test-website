@@ -139,11 +139,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     writeLocal(STORAGE.music, preferences);
   }, [currentTrack?.id, muted, preferencesReady, volume]);
 
-  useEffect(() => {
-    if (!audioRef.current) return;
+  const applyAudioPreferences = useCallback((audio: HTMLAudioElement) => {
     try {
-      audioRef.current.volume = volume;
-      const unavailable = Math.abs(audioRef.current.volume - volume) > 0.01;
+      audio.volume = volume;
+      const unavailable = Math.abs(audio.volume - volume) > 0.01;
       setVolumeControlUnavailable(unavailable);
       setNotice((current) =>
         unavailable
@@ -156,8 +155,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setVolumeControlUnavailable(true);
       setNotice(SYSTEM_VOLUME_NOTICE);
     }
-    audioRef.current.muted = muted;
-  }, [currentTrack?.id, muted, volume]);
+    audio.muted = muted;
+  }, [muted, volume]);
+
+  useEffect(() => {
+    if (audioRef.current) applyAudioPreferences(audioRef.current);
+  }, [applyAudioPreferences, currentTrack?.id]);
 
   const play = useCallback(async () => {
     if (!audioRef.current || !currentTrack) return;
@@ -304,8 +307,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
             if (Number.isFinite(measuredDuration) && measuredDuration > 0) {
               setDuration(measuredDuration);
             }
-            event.currentTarget.volume = volume;
-            event.currentTarget.muted = muted;
+            applyAudioPreferences(event.currentTarget);
             if (resumeAfterTrackChange.current) {
               resumeAfterTrackChange.current = false;
               void event.currentTarget.play().catch(() => {

@@ -11,6 +11,8 @@
 - `scripts/` 用于生成常用字与五笔数据，并校验文章语料。300 篇分级文章（短文 120、中篇 105、长文 45、水文 30）的正文是人工语料，存放在 `scripts/article-corpus/`（写作规则见该目录 `README.md`）；`generate-articles.mjs` 只做规范化、契约校验和写出，不再用模板拼装正文。原始数据和许可证位于 `third_party/`；重新分发时必须保留来源与授权信息。
 - `worker/`、`db/`、`drizzle/`、`vite.config.ts`、`build/sites-vite-plugin.ts` 和 `.openai/hosting.json` 支撑 Vinext/Sites/Cloudflare 运行环境；当前 D1 与 R2 均未启用，`db/schema.ts` 默认为空，`examples/d1/` 仅保留可选 D1 用法示例。GitHub Pages 静态导出配置位于 `next.config.ts` 和 `.github/workflows/pages.yml`。
 
+文章练习的纯状态转换与结算结果生成分别位于 `app/typing-session.ts` 和 `app/typing-outcome.ts`，事件序列测试位于 `tests/typing-session.test.mjs`。重置练习时必须保留并同步页面可见性，不能将后台状态当作练习统计清空。浏览器操作回归入口为 `scripts/check-browser-regression.mjs`，拆分场景位于 `scripts/browser/`，覆盖说明见 `tests/browser-coverage.md`；与无障碍检查共用 `scripts/browser-test-server.mjs` 启停服务。
+
 ## 构建、测试与开发命令
 
 使用 Node.js 22.13 或更高版本，并通过 `npm ci` 按锁文件精确安装依赖。
@@ -23,6 +25,7 @@
 - `npm test`：运行逻辑与数据测试，构建应用，再验证渲染后的 HTML。
 - `npm run lint` 和 `npm run typecheck`：分别执行 ESLint，以及刷新 Next.js 路由类型后的严格 TypeScript 检查。
 - `npm run test:a11y`：启动开发服务器并用 Playwright 检查主要路由的键盘、响应式和无障碍行为；需先安装 Chromium、Firefox 和 WebKit 浏览器，不包含在 `npm test` 中。
+- `npm run test:browser`：启动开发服务器并运行 Chromium、WebKit 的关键交互回归，需先安装对应浏览器；不包含在 `npm test` 中。`-- --pages` 运行静态导出的离线更新回归，先按 README 构建生产子路径产物。
 - `npm run db:generate`：仅在可选的 Drizzle/D1 schema 发生变化时生成迁移。
 
 ## 编码风格与命名约定

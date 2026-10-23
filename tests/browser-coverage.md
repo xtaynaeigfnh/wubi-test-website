@@ -1,6 +1,6 @@
 # 关键交互回归
 
-`npm run test:browser` 启动真实应用，默认逐项运行 Chromium 和 WebKit。入口负责服务启动、独立浏览器上下文、超时、截图与 trace；场景位于 `scripts/browser/`。CI 的 Browser interaction regression 步骤运行同一套用例。
+`npm run test:browser` 启动真实应用，默认逐项运行 Chromium 和 WebKit。入口 `scripts/check-browser-regression.mjs` 负责独立浏览器上下文、超时、截图与 trace，并保留播放器等场景；拆分的练习、备份、文章库等场景位于 `scripts/browser/`。服务启停由 `scripts/browser-test-server.mjs` 处理。CI 的 Browser interaction regression 步骤运行同一套用例。
 
 ## 行为与覆盖位置
 
@@ -14,6 +14,7 @@
 - 备份异常：`backup-unreadable-damaged/blocked` 验证旧数据损坏/拒读仍可预览；`backup-rollback` 验证部分写入后失败恢复所有原始键并可重试；`backup-invalid-stale-file` 验证无效文件撤销旧预览、较早的慢文件不能覆盖最新选择。
 - 播放器自适应：`music-shortcuts` 保留新版曲目列表，在两套皮肤及 320、375、1440px 视口逐首通过键盘切歌，检查列表与浮层不横向溢出、每行点击区域至少 44px，并验证 Escape 关闭与焦点恢复。
 - 后台初始化与重置：`typing-background-reset` 验证后台加载页面和重来后不接受输入，返回前台后可以正常练习。
+- 系统音量限制：`music-volume-unavailable` 模拟浏览器拒绝网页设置音量，验证元数据加载无异常、静音仍有效、切歌后继续播放，并禁用不可用的音量滑块。
 
 ## 本轮迁移的旧测试
 
@@ -30,6 +31,19 @@
 ```sh
 BROWSER_ENGINES=chromium BROWSER_SCENARIOS=typing-recovery,backup-rollback npm run test:browser
 ```
+
+Windows PowerShell：
+
+```powershell
+$env:BROWSER_ENGINES = "chromium"
+$env:BROWSER_SCENARIOS = "typing-recovery,backup-rollback"
+npm run test:browser
+Remove-Item Env:BROWSER_ENGINES, Env:BROWSER_SCENARIOS
+```
+
+默认报告目录已被 Git 忽略；自定义 `BROWSER_OUTPUT` 时建议放在 `output/playwright/acceptance/` 下，避免将截图、trace 和临时报告提交到仓库。Windows 上不要同时运行开发服务器和生产构建。
+
+覆盖列表说明用例的验证范围，不代表某次运行全部通过。报告中的页面导航超时表示尚未完成相应验证，应结合 trace 判断原因；重试或跨平台验证通过前，不应记录为成功。
 
 `BROWSER_SCENARIOS` 接受逗号分隔的完整场景名，拼错会失败；未设置时运行全部场景。`--pages` 仍专用于生产子路径离线更新回归。`BROWSER_OUTPUT` 可指定独立报告目录，避免定向调试覆盖全量报告。
 
