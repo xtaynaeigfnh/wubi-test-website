@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { open, basePath, fixture, text, typingInput, articleRegion, savedSessions, storageFault, restoreStorage, alertFrom, createCustomArticle } from "./helpers.mjs";
+import { open, basePath, output, fixture, text, typingInput, articleRegion, savedSessions, storageFault, restoreStorage, alertFrom, createCustomArticle } from "./helpers.mjs";
 
 export async function typingRecovery({ page, context }) {
   await open(page, "/");
@@ -65,6 +65,20 @@ export async function typingSessionLifecycle({ page }) {
   await open(page, "/");
   const input = page.getByRole("textbox", { name: "跟打输入区" });
   await input.waitFor();
+  const speedColors = () => page.locator(".metric.primary-metric").evaluate((element) => {
+    const root = document.documentElement;
+    const originalTheme = root.dataset.theme;
+    const colors = {};
+    for (const theme of ["light", "dark", "system", "bamboo", "qingdai", "custom"]) {
+      root.dataset.theme = theme;
+      const style = getComputedStyle(element);
+      colors[theme] = { background: style.backgroundColor, color: style.color };
+    }
+    if (originalTheme === undefined) delete root.dataset.theme;
+    else root.dataset.theme = originalTheme;
+    return colors;
+  });
+  const idleSpeedColors = await speedColors();
   // Drive the real Hook/React events with a deterministic wall clock. Interval
   // callbacks still run normally; assertions use the persisted result.
   await page.evaluate(() => {
@@ -79,6 +93,8 @@ export async function typingSessionLifecycle({ page }) {
   await input.press("w");
   await advance(1000);
   await input.fill("错");
+  assert.deepEqual(await speedColors(), idleSpeedColors, "开始输入后速度卡片不能变成浅底白字");
+  await page.locator(".metric.primary-metric").screenshot({ path: `${output}/speed-active.png` });
   await page.getByRole("button", { name: "暂停", exact: true }).click();
   assert(await input.isDisabled());
   await page.getByRole("button", { name: "重来", exact: true }).click();

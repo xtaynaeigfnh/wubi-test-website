@@ -677,7 +677,8 @@ html:where(:not([data-skin="focus"])) {
   letter-spacing: -0.04em;
 }
 
-:where(html:not([data-skin="focus"])) .metric.primary-metric {
+:where(html:not([data-skin="focus"])) .metric.primary-metric,
+:where(html:not([data-skin="focus"])) .metric.primary-metric.is-active {
   color: var(--text-on-accent);
   border-color: var(--accent-bamboo-fill);
   background: var(--accent-bamboo-fill);
