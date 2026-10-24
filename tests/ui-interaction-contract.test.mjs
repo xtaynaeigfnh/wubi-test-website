@@ -5,6 +5,11 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createSourceFile, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
 
+test("铅字皮肤速度卡片在输入中保留强调色背景", async () => {
+  const css = await readFile(new URL("../app/styles/letterpress.css", import.meta.url), "utf8");
+  assert.match(css, /:where\(html:not\(\[data-skin="focus"\]\)\) \.metric\.primary-metric\.is-active\s*\{[^}]*background: var\(--accent-bamboo-fill\)/);
+});
+
 // Article input, selection and backup interactions run against the real app in
 // scripts/browser/*.mjs. Keep layout/accessibility contracts here.
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
@@ -178,6 +183,8 @@ test("first-use guide is local, skippable, and turns three saved articles into a
   assert.match(guide, /if \(result.open\) \{\s*setDismissedForPractice\(false\);\s*setOpened\(true\);/);
   assert.match(guide, /onClose=\{\(\) => \{ if \(!progress\) skip\(\); else \{ setOpened\(false\); returnFocusToEntry\(\); \} \}\}/);
   assert.match(guide, /document\.querySelector<HTMLElement>\("\.first-use-entry button"\)\?\.focus\(\)/);
+  assert.match(guide, /className="first-use-entry" aria-hidden="true" style=\{\{ visibility: "hidden" \}\}/);
+  assert.match(guide, /disabled tabIndex=\{-1\}>首次使用引导<\/button>/);
   assert.match(guide, /durationDays: 7/);
   assert.match(guide, /window\.location\.assign/);
   assert.match(guide, /commitLocalWrites/);

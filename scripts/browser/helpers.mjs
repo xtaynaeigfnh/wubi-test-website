@@ -12,7 +12,13 @@ export const fixture = {
 };
 
 export async function open(page, route) {
-  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  // Cold routes on slow engines may never settle networkidle within the 30s
+  // goto budget; reopen once before treating it as a real failure.
+  try {
+    await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  } catch {
+    await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  }
   await page.locator("main").waitFor();
 }
 

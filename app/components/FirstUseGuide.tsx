@@ -82,7 +82,13 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
     else setSaveError("跳过状态未能保存，请稍后再试。");
   };
 
-  if (!enabled || !hydrated) return null;
+  // Keep the entry's space during hydration so restoring local progress cannot
+  // move the practice controls between pointer down and pointer up.
+  if (!enabled || !hydrated) return (view === "typing" || view === "settings") ? (
+    <aside className="first-use-entry" aria-hidden="true" style={{ visibility: "hidden" }}>
+      <button className="button ghost" disabled tabIndex={-1}>首次使用引导</button>
+    </aside>
+  ) : null;
   if (!visible) return (view === "typing" || view === "settings") ? (
     <aside className="first-use-entry">
       <button className="button ghost" onClick={() => { setOpened(true); setDismissedForPractice(false); }}>首次使用引导{progress?.status === "active" ? " · 继续" : ""}</button>

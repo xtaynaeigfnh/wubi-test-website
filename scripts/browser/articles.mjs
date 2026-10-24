@@ -19,11 +19,16 @@ export async function articleLibrary({ page }) {
   await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).waitFor();
   await dialog.getByRole("combobox", { name: "文章排序" }).selectOption("recent");
   await dialog.getByRole("button", { name: "关闭", exact: true }).click();
-  await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "选文章", exact: true }).click();
-  dialog = page.getByRole("dialog", { name: "选择练习文章" });
-  await dialog.getByRole("searchbox", { name: "搜索文章标题" }).fill(fixture.title);
-  await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).waitFor();
+  // Reload repeatedly and click as soon as the control is actionable. Do not
+  // hide hydration layout shifts with a sleep or a second click.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "选文章", exact: true }).click();
+    dialog = page.getByRole("dialog", { name: "选择练习文章" });
+    await dialog.getByRole("searchbox", { name: "搜索文章标题" }).fill(fixture.title);
+    await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).waitFor();
+    if (attempt < 2) await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  }
   await dialog.getByRole("button", { name: "只看收藏", exact: true }).click();
   await dialog.getByRole("button", { name: `取消收藏文章：${fixture.title}`, exact: true }).click();
   await dialog.getByText("当前收藏中没有符合条件的文章。可以关闭“只看收藏”或调整筛选。", { exact: true }).waitFor();
