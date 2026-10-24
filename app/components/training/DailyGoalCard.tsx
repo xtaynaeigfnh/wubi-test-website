@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { calculateDailyProgress } from "../../practice-statistics";
 import type { DailyGoal } from "../../types";
 
@@ -49,46 +50,88 @@ export function DailyGoalCard({
         unit="轮"
       />
       <div className="goal-editor">
-        <label>
-          每日字数
-          <input
-            type="number"
-            min={100}
-            max={10000}
-            step={100}
-            value={goal.targetChars}
-            onChange={(event) =>
-              updateGoal("targetChars", Number(event.target.value))
-            }
-          />
-        </label>
-        <label>
-          每日分钟
-          <input
-            type="number"
-            min={5}
-            max={180}
-            step={5}
-            value={goal.targetMinutes}
-            onChange={(event) =>
-              updateGoal("targetMinutes", Number(event.target.value))
-            }
-          />
-        </label>
-        <label>
-          每日轮数
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={goal.targetRounds}
-            onChange={(event) =>
-              updateGoal("targetRounds", Number(event.target.value))
-            }
-          />
-        </label>
+        <GoalEditorInput
+          label="每日字数"
+          min={100}
+          max={10000}
+          step={100}
+          value={goal.targetChars}
+          onCommit={(next) => updateGoal("targetChars", next)}
+        />
+        <GoalEditorInput
+          label="每日分钟"
+          min={5}
+          max={180}
+          step={5}
+          value={goal.targetMinutes}
+          onCommit={(next) => updateGoal("targetMinutes", next)}
+        />
+        <GoalEditorInput
+          label="每日轮数"
+          min={1}
+          max={20}
+          step={1}
+          value={goal.targetRounds}
+          onCommit={(next) => updateGoal("targetRounds", next)}
+        />
       </div>
     </div>
+  );
+}
+
+function GoalEditorInput({
+  label,
+  min,
+  max,
+  step,
+  value,
+  onCommit,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commitDraft = (raw: string) => {
+    if (draft === null) return;
+    setDraft(null);
+    const parsed = Number(raw);
+    if (raw.trim() === "" || !Number.isFinite(parsed)) return;
+    onCommit(Math.min(max, Math.max(min, parsed)));
+  };
+  return (
+    <label>
+      {label}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={draft ?? value}
+        onChange={(event) => {
+          const raw = event.target.value;
+          const parsed = Number(raw);
+          if (
+            raw.trim() !== "" &&
+            Number.isFinite(parsed) &&
+            parsed >= min &&
+            parsed <= max
+          ) {
+            setDraft(null);
+            onCommit(parsed);
+            return;
+          }
+          setDraft(raw);
+        }}
+        onBlur={(event) => commitDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commitDraft(event.currentTarget.value);
+        }}
+      />
+    </label>
   );
 }
 

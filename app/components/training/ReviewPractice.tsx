@@ -40,7 +40,7 @@ export function ReviewPractice({
       <CodeDrill
         key={`${drillResetRevision}:${activeDueReview?.targetType === "character"
           ? `due-${activeDueReview.targetId}`
-          : prescribedReview?.id ?? `review-${reviewPool.map((entry) => entry[0]).join("")}`}`}
+          : prescribedReview?.id ?? "review-training"}`}
         title={activeDueReview?.targetType === "character"
           ? `到期单字 · ${activeDueReview.text}`
           : prescribedReview?.title ?? "高频错题复练"}

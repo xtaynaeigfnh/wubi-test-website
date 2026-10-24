@@ -102,6 +102,15 @@ export function useTypingSession({
       ghostApiRef.current?.armActiveRace();
     }
   };
+  // A rejected edit leaves the reducer state untouched, so React can bail out
+  // of the controlled re-render and keep the rejected text in the textarea.
+  // Restore the committed value imperatively to enforce the block deterministically.
+  const revertRejectedInput = () => {
+    const committedValue = current.current.inputValue;
+    if (inputRef.current && inputRef.current.value !== committedValue) {
+      inputRef.current.value = committedValue;
+    }
+  };
   const startTimer = () => {
     if (!article) return;
     const previousStartedAt = current.current.clock.startedAt;
@@ -145,6 +154,10 @@ export function useTypingSession({
     const previous = current.current;
     const next = send({ type: "commit", value, target: targetText, now: Date.now() });
     armIfStarted(previous.clock.startedAt);
+    if (next === previous) {
+      revertRejectedInput();
+      return;
+    }
     if (Array.from(next.typed).length > Array.from(previous.typed).length) {
       ghostApiRef.current?.recordProgressSample(Array.from(next.typed).length, next.elapsed * 1000);
     }
@@ -217,7 +230,11 @@ export function useTypingSession({
     sessionSaved: state.phase.status === "completed" && state.phase.saved,
     targetCharacters,
     typedCharacters,
-    setInputValue: (value: string) => send({ type: "preedit", value }),
+    setInputValue: (value: string) => {
+      const previous = current.current;
+      if (send({ type: "preedit", value }) !== previous) return;
+      revertRejectedInput();
+    },
     startTimer,
     commitTypedValue,
     onKeyDown,
