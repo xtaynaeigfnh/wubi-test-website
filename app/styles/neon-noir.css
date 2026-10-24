@@ -1,0 +1,569 @@
+/* 霓虹夜行 (Neon Nightdrive) — 第三套全站皮肤。
+   概念：深夜航行的打字舱。靛蓝夜幕 + 城市光雾，霓虹青与霓虹品红双主线，
+   玻璃面板与背光键帽，跟打区是一块微微扫描线的 CRT 屏幕。
+   主题预设映射为四个夜航变体：夜城（青/品红）、深渊（品红/青）、
+   竹夜（萤绿/琥珀）、夜航（冰蓝/青）；自定义主题沿用用户色，仅取霓虹材质。
+   布局完全复用曜石工坊的骨架，这里只覆盖材质与光效。 */
+
+/* ---------- 令牌层 ---------- */
+
+:root[data-skin="neon"]:not([data-theme="custom"]) {
+  color-scheme: dark;
+  --text-on-accent: #ffffff;
+  --bg-canvas: #0a0f1e;
+  --bg-paper: #101728;
+  --bg-raised: #151e33;
+  --bg-key: #1b2740;
+  --text-primary: #eaf0ff;
+  --text-secondary: #93a0c4;
+  --border-default: #263352;
+  --border-subtle: #1c2740;
+  --border-strong: #46587f;
+  --accent-vermilion: #f0abfc;
+  --accent-vermilion-fill: #a21caf;
+  --accent-vermilion-dark: #f5d0fe;
+  --accent-bamboo: #22d3ee;
+  --accent-bamboo-fill: #0e7490;
+  --progress-fill: #155e75;
+  --state-success: #34d399;
+  --state-success-fill: #047857;
+  --state-error: #fb7185;
+  --state-error-fill: #9f1239;
+  --heat-smooth: #17203a;
+  --heat-mild: #6d28d9;
+  --heat-clear: #c026d3;
+  --heat-severe: #f43f5e;
+  --heat-severe-text: #fff0f6;
+  --focus-ring: #22d3ee;
+  --shadow-key: 0 2px 0 #060b16, 0 4px 10px rgba(0, 0, 0, 0.45);
+  --shadow-panel: 0 20px 50px -12px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --grid-line: rgba(34, 211, 238, 0.06);
+  --dock-bg: #0b1222;
+  --dock-text: #eaf0ff;
+  --radius-small: 8px;
+  --radius-medium: 12px;
+  --radius-large: 16px;
+  /* 皮肤私有：霓虹主线、动作填充与玻璃材质 */
+  --neon-a: #22d3ee;
+  --neon-a-fill: #0e7490;
+  --neon-b: #e879f9;
+  --neon-b-fill: #a21caf;
+  --neon-action-fill: linear-gradient(135deg, #0e7490, #a21caf);
+  --neon-action-text: #ffffff;
+  --glass-surface: color-mix(in srgb, var(--bg-paper) 66%, transparent);
+  --glass-edge: color-mix(in srgb, var(--neon-a) 24%, rgba(148, 163, 216, 0.22));
+  --glass-lens: linear-gradient(135deg, #0e7490, #a21caf);
+  --glass-highlight: rgba(214, 232, 255, 0.22);
+  --glass-shadow: rgba(0, 0, 0, 0.4);
+  scrollbar-color: #2a3a5e #0a0f1e;
+}
+
+:root[data-skin="neon"][data-theme="dark"] {
+  --bg-canvas: #07060e;
+  --bg-paper: #0f0d1c;
+  --bg-raised: #151228;
+  --bg-key: #1b1834;
+  --text-primary: #f2edff;
+  --text-secondary: #a79fc9;
+  --border-default: #2a2447;
+  --border-subtle: #1f1b3a;
+  --border-strong: #4d4480;
+  --accent-vermilion: #f0abfc;
+  --accent-vermilion-fill: #a21caf;
+  --accent-bamboo: #e879f9;
+  --accent-bamboo-fill: #a21caf;
+  --progress-fill: #3b1d5e;
+  --focus-ring: #e879f9;
+  --grid-line: rgba(232, 121, 249, 0.06);
+  --dock-bg: #0d0b18;
+  --neon-a: #e879f9;
+  --neon-a-fill: #a21caf;
+  --neon-b: #67e8f9;
+  --neon-b-fill: #0e7490;
+  --neon-action-fill: linear-gradient(135deg, #a21caf, #0e7490);
+  --glass-lens: linear-gradient(135deg, #a21caf, #0e7490);
+  --glass-edge: color-mix(in srgb, var(--neon-a) 26%, rgba(167, 159, 201, 0.24));
+  scrollbar-color: #37305c #07060e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="neon"][data-theme="system"] {
+    --bg-canvas: #07060e;
+    --bg-paper: #0f0d1c;
+    --bg-raised: #151228;
+    --bg-key: #1b1834;
+    --text-primary: #f2edff;
+    --text-secondary: #a79fc9;
+    --border-default: #2a2447;
+    --border-subtle: #1f1b3a;
+    --border-strong: #4d4480;
+    --accent-vermilion: #f0abfc;
+    --accent-vermilion-fill: #a21caf;
+    --accent-bamboo: #e879f9;
+    --accent-bamboo-fill: #a21caf;
+    --progress-fill: #3b1d5e;
+    --focus-ring: #e879f9;
+    --grid-line: rgba(232, 121, 249, 0.06);
+    --dock-bg: #0d0b18;
+    --neon-a: #e879f9;
+    --neon-a-fill: #a21caf;
+    --neon-b: #67e8f9;
+    --neon-b-fill: #0e7490;
+    --neon-action-fill: linear-gradient(135deg, #a21caf, #0e7490);
+    --glass-lens: linear-gradient(135deg, #a21caf, #0e7490);
+    --glass-edge: color-mix(in srgb, var(--neon-a) 26%, rgba(167, 159, 201, 0.24));
+    scrollbar-color: #37305c #07060e;
+  }
+}
+
+:root[data-skin="neon"][data-theme="bamboo"] {
+  --bg-canvas: #07130e;
+  --bg-paper: #0c1b14;
+  --bg-raised: #10231a;
+  --bg-key: #152b21;
+  --text-primary: #eaf6ee;
+  --text-secondary: #8fb3a2;
+  --border-default: #1f3a2e;
+  --border-subtle: #172e24;
+  --border-strong: #3f6b56;
+  --accent-vermilion: #fbbf24;
+  --accent-vermilion-fill: #b45309;
+  --accent-bamboo: #6ee7b8;
+  --accent-bamboo-fill: #166534;
+  --progress-fill: #14532d;
+  --focus-ring: #6ee7b8;
+  --grid-line: rgba(110, 231, 184, 0.05);
+  --dock-bg: #0a1811;
+  --neon-a: #6ee7b8;
+  --neon-a-fill: #166534;
+  --neon-b: #fbbf24;
+  --neon-b-fill: #b45309;
+  --neon-action-fill: linear-gradient(135deg, #166534, #b45309);
+  --glass-lens: linear-gradient(135deg, #166534, #b45309);
+  --glass-edge: color-mix(in srgb, var(--neon-a) 24%, rgba(143, 179, 162, 0.22));
+  scrollbar-color: #2a4a3a #07130e;
+}
+
+:root[data-skin="neon"][data-theme="qingdai"] {
+  --bg-canvas: #0a1424;
+  --bg-paper: #101e33;
+  --bg-raised: #152641;
+  --bg-key: #1b2f4f;
+  --text-primary: #eaf2ff;
+  --text-secondary: #90a6cc;
+  --border-default: #24385c;
+  --border-subtle: #1b2c4a;
+  --border-strong: #47618f;
+  --accent-vermilion: #22d3ee;
+  --accent-vermilion-fill: #0e7490;
+  --accent-bamboo: #93c5fd;
+  --accent-bamboo-fill: #1d4ed8;
+  --progress-fill: #1e3a8a;
+  --focus-ring: #93c5fd;
+  --grid-line: rgba(147, 197, 253, 0.06);
+  --dock-bg: #0c1729;
+  --neon-a: #93c5fd;
+  --neon-a-fill: #1d4ed8;
+  --neon-b: #22d3ee;
+  --neon-b-fill: #0e7490;
+  --neon-action-fill: linear-gradient(135deg, #1d4ed8, #0e7490);
+  --glass-lens: linear-gradient(135deg, #1d4ed8, #0e7490);
+  --glass-edge: color-mix(in srgb, var(--neon-a) 26%, rgba(144, 166, 204, 0.24));
+  scrollbar-color: #2c4166 #0a1424;
+}
+
+/* 自定义主题：沿用用户校准过的画布与强调色，动作面直接使用强调色本身。 */
+:root[data-skin="neon"][data-theme="custom"] {
+  --neon-a: var(--custom-accent, #22d3ee);
+  --neon-a-fill: var(--custom-accent, #22d3ee);
+  --neon-b: var(--custom-accent, #22d3ee);
+  --neon-b-fill: var(--custom-accent, #22d3ee);
+  --neon-action-fill: var(--custom-accent, #22d3ee);
+  --neon-action-text: var(--custom-accent-text, #ffffff);
+}
+
+/* ---------- 夜幕画布 ---------- */
+
+:root[data-skin="neon"] body {
+  background-color: var(--bg-canvas);
+  background-image:
+    radial-gradient(120% 55% at 50% -12%, color-mix(in srgb, var(--neon-a) 13%, transparent), transparent 62%),
+    radial-gradient(80% 40% at 88% 118%, color-mix(in srgb, var(--neon-b) 9%, transparent), transparent 64%),
+    repeating-linear-gradient(90deg, rgba(140, 160, 220, 0.045) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(0deg, rgba(140, 160, 220, 0.03) 0 1px, transparent 1px 72px);
+  background-attachment: fixed, fixed, fixed, fixed;
+}
+
+:root[data-skin="neon"] ::selection {
+  color: #051019;
+  background: var(--neon-a);
+}
+
+:root[data-skin="neon"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+:root[data-skin="neon"] ::-webkit-scrollbar-track { background: transparent; }
+:root[data-skin="neon"] ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--neon-a) 38%, var(--bg-key));
+  background-clip: content-box;
+}
+
+/* ---------- 顶栏与导航 ---------- */
+
+:root[data-skin="neon"] .site-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--neon-a) 16%, var(--border-default));
+  background:
+    linear-gradient(180deg, rgba(190, 215, 255, 0.05), transparent 72%),
+    color-mix(in srgb, var(--bg-canvas) 78%, transparent);
+}
+
+:root[data-skin="neon"] .site-header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--neon-a) 72%, transparent) 18%,
+    color-mix(in srgb, var(--neon-b) 66%, transparent) 82%,
+    transparent
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--neon-a) 42%, transparent);
+  pointer-events: none;
+}
+
+:root[data-skin="neon"] .brand-mark {
+  color: #07101d;
+  border: 1px solid rgba(214, 232, 255, 0.4);
+  background: linear-gradient(135deg, var(--neon-a), var(--neon-b));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 22px -4px color-mix(in srgb, var(--neon-a) 60%, transparent);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+:root[data-skin="neon"] .main-nav {
+  box-shadow:
+    inset 0 1px 0 rgba(214, 232, 255, 0.12),
+    inset 0 2px 14px rgba(0, 0, 0, 0.5),
+    0 14px 36px -10px rgba(0, 0, 0, 0.62);
+}
+
+:root[data-skin="neon"] .main-nav > .nav-lens {
+  border-color: rgba(214, 232, 255, 0.28);
+  box-shadow:
+    0 0 20px -2px color-mix(in srgb, var(--neon-a) 52%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+:root[data-skin="neon"] .main-nav[data-lens-ready] .nav-item.active,
+:root[data-skin="neon"] .nav-item.active {
+  color: var(--neon-action-text);
+}
+
+:root[data-skin="neon"] .nav-item:hover:not(.active) {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--neon-a) 10%, transparent);
+}
+
+:root[data-skin="neon"] .theme-switch {
+  color: var(--text-primary);
+  border-color: var(--glass-edge);
+}
+
+:root[data-skin="neon"] .theme-switch span {
+  color: var(--neon-a);
+}
+
+:root[data-skin="neon"] .local-badge span {
+  color: var(--neon-a);
+  font: 650 10px/1.4 var(--font-data);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Hero 与标题 ---------- */
+
+:root[data-skin="neon"] .eyebrow {
+  color: var(--neon-a);
+}
+
+:root[data-skin="neon"] .eyebrow::before {
+  content: "// ";
+  color: var(--neon-b);
+}
+
+:root[data-skin="neon"] .hero-row h1 em {
+  background: linear-gradient(100deg, var(--neon-a) 12%, var(--neon-b) 88%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--neon-a) 32%, transparent));
+}
+
+/* ---------- 按钮与分段控件 ---------- */
+
+:root[data-skin="neon"] .button.primary,
+:root[data-skin="neon"] .side-action {
+  color: var(--neon-action-text);
+  border: 1px solid rgba(214, 232, 255, 0.24);
+  background: var(--neon-action-fill);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 8px 26px -10px color-mix(in srgb, var(--neon-a) 62%, transparent);
+}
+
+:root[data-skin="neon"] .button.primary:hover:not(:disabled) {
+  color: var(--neon-action-text);
+  filter: brightness(1.12);
+}
+
+:root[data-skin="neon"] .button.secondary {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--neon-a) 30%, var(--border-default));
+  background: color-mix(in srgb, var(--bg-raised) 82%, transparent);
+}
+
+:root[data-skin="neon"] .button.secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--neon-a) 62%, var(--border-default));
+  box-shadow: 0 0 18px -6px color-mix(in srgb, var(--neon-a) 55%, transparent);
+}
+
+:root[data-skin="neon"] .practice-mode-mark,
+:root[data-skin="neon"] .training-tabs button.active,
+:root[data-skin="neon"] .segmented button.active,
+:root[data-skin="neon"] .history-filter button.active,
+:root[data-skin="neon"] .trend-range button.active {
+  color: var(--neon-action-text);
+  border-color: rgba(214, 232, 255, 0.22);
+  background: var(--neon-action-fill);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 6px 18px -8px color-mix(in srgb, var(--neon-a) 58%, transparent);
+}
+
+:root[data-skin="neon"] .practice-actions button.active {
+  color: var(--neon-a);
+  border-color: color-mix(in srgb, var(--neon-a) 55%, var(--border-default));
+  background: color-mix(in srgb, var(--neon-a) 14%, var(--bg-raised));
+  box-shadow: 0 0 16px -6px color-mix(in srgb, var(--neon-a) 50%, transparent);
+}
+
+:root[data-skin="neon"] .toolbar-actions .shuffle-action {
+  border-color: color-mix(in srgb, var(--neon-a) 42%, var(--border-default));
+  background: color-mix(in srgb, var(--neon-a) 9%, var(--bg-raised));
+}
+
+/* ---------- 面板与卡片 ---------- */
+
+:root[data-skin="neon"] .typing-card,
+:root[data-skin="neon"] .side-panel,
+:root[data-skin="neon"] .challenge-card,
+:root[data-skin="neon"] .history-panel,
+:root[data-skin="neon"] .settings-card,
+:root[data-skin="neon"] .summary-card,
+:root[data-skin="neon"] .lookup-search,
+:root[data-skin="neon"] .lookup-results,
+:root[data-skin="neon"] .trend-panel,
+:root[data-skin="neon"] .daily-progress-card,
+:root[data-skin="neon"] .smart-plan-card,
+:root[data-skin="neon"] .due-review-card,
+:root[data-skin="neon"] .hesitation-queue-card,
+:root[data-skin="neon"] .management-card,
+:root[data-skin="neon"] .pwa-card {
+  border-color: color-mix(in srgb, var(--neon-a) 18%, var(--border-default));
+  background-color: var(--bg-paper);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 46px -22px color-mix(in srgb, var(--neon-a) 50%, transparent);
+}
+
+:root[data-skin="neon"] .typing-card,
+:root[data-skin="neon"] .challenge-card,
+:root[data-skin="neon"] .trend-panel {
+  border-top: 1px solid color-mix(in srgb, var(--neon-a) 32%, transparent);
+}
+
+:root[data-skin="neon"] .metric {
+  border-color: color-mix(in srgb, var(--neon-a) 18%, var(--border-default));
+}
+
+:root[data-skin="neon"] .metric strong {
+  font-family: var(--font-data);
+  letter-spacing: -0.03em;
+}
+
+:root[data-skin="neon"] .metric.primary-metric,
+:root[data-skin="neon"] .metric.primary-metric.is-active {
+  color: var(--neon-action-text);
+  border-color: rgba(214, 232, 255, 0.22);
+  background: var(--neon-action-fill);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 30px -12px color-mix(in srgb, var(--neon-a) 62%, transparent);
+}
+
+:root[data-skin="neon"] .metric.primary-metric::before {
+  content: "";
+  position: absolute;
+  inset: 7px auto auto 7px;
+  width: 12px;
+  height: 12px;
+  border-top: 2px solid rgba(255, 255, 255, 0.6);
+  border-left: 2px solid rgba(255, 255, 255, 0.6);
+  opacity: 0.55;
+}
+
+:root[data-skin="neon"] .summary-card strong {
+  font-family: var(--font-data);
+}
+
+:root[data-skin="neon"] .summary-card.accent {
+  color: var(--neon-action-text);
+  border-color: rgba(214, 232, 255, 0.22);
+  background: var(--neon-action-fill);
+}
+
+/* ---------- 跟打舱：CRT 屏幕 ---------- */
+
+:root[data-skin="neon"] .article-text {
+  position: relative;
+  color: color-mix(in srgb, var(--text-secondary) 80%, var(--neon-a));
+  background-color: var(--bg-paper);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(190, 210, 255, 0.028) 0 1px, transparent 1px 3px),
+    radial-gradient(130% 80% at 50% 0%, color-mix(in srgb, var(--neon-a) 7%, transparent), transparent 58%),
+    linear-gradient(
+      90deg,
+      transparent 0 43px,
+      color-mix(in srgb, var(--neon-b) 42%, transparent) 43px 44px,
+      transparent 44px
+    );
+  box-shadow: inset 0 0 52px -18px color-mix(in srgb, var(--neon-a) 52%, transparent);
+}
+
+:root[data-skin="neon"] .article-text span.correct {
+  color: var(--state-success);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--state-success) 38%, transparent);
+}
+
+:root[data-skin="neon"] .article-text span.wrong {
+  color: var(--state-error);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--state-error) 40%, transparent);
+}
+
+:root[data-skin="neon"] .article-text span.current {
+  color: #f4fbff;
+  border-radius: 6px;
+  outline: 1px solid color-mix(in srgb, var(--neon-a) 85%, transparent);
+  background: color-mix(in srgb, var(--neon-a) 20%, transparent);
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--neon-a) 45%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--neon-a) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-skin="neon"] .article-text span.current {
+    animation: neon-caret-breathe 1.3s ease-in-out infinite;
+  }
+}
+
+@keyframes neon-caret-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 16px color-mix(in srgb, var(--neon-a) 45%, transparent),
+      inset 0 0 10px color-mix(in srgb, var(--neon-a) 18%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 5px color-mix(in srgb, var(--neon-a) 20%, transparent),
+      inset 0 0 4px color-mix(in srgb, var(--neon-a) 8%, transparent);
+  }
+}
+
+:root[data-skin="neon"] .typing-input {
+  border-top: 1px solid color-mix(in srgb, var(--neon-a) 22%, var(--border-subtle));
+  background:
+    linear-gradient(180deg, rgba(190, 210, 255, 0.02), transparent),
+    var(--bg-raised);
+}
+
+:root[data-skin="neon"] .ghost-progress-marker {
+  border-left: 2px dashed var(--neon-b);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--neon-b) 60%, transparent));
+}
+
+:root[data-skin="neon"] .ghost-progress-marker::before {
+  color: var(--neon-b);
+}
+
+/* ---------- 背光键帽与字根轨 ---------- */
+
+:root[data-skin="neon"] .root-rail,
+:root[data-skin="neon"] .root-zone-rail {
+  border-block-color: color-mix(in srgb, var(--neon-a) 16%, var(--border-subtle));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--neon-a) 5%, transparent), transparent),
+    var(--bg-raised);
+}
+
+:root[data-skin="neon"] .root-rail b,
+:root[data-skin="neon"] .root-zone-rail strong {
+  color: var(--neon-a);
+}
+
+:root[data-skin="neon"] .keyboard-visual span,
+:root[data-skin="neon"] .code-slots span {
+  border-color: color-mix(in srgb, var(--neon-a) 26%, var(--border-default));
+  background:
+    linear-gradient(180deg, rgba(190, 210, 255, 0.05), transparent),
+    var(--bg-key);
+  box-shadow:
+    inset 0 -2px 0 color-mix(in srgb, var(--neon-a) 45%, transparent),
+    inset 0 1px 0 rgba(214, 232, 255, 0.14),
+    0 0 12px -4px color-mix(in srgb, var(--neon-a) 55%, transparent);
+}
+
+/* ---------- 挑战与查码 ---------- */
+
+:root[data-skin="neon"] .challenge-start::before {
+  background: linear-gradient(135deg, var(--neon-a), var(--neon-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--neon-a) 38%, transparent));
+}
+
+:root[data-skin="neon"] .challenge-card {
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--neon-a) 7%, transparent), transparent 62%),
+    var(--bg-paper);
+}
+
+:root[data-skin="neon"] .lookup-row code {
+  color: var(--neon-a);
+}
+
+/* ---------- 弹窗与页脚 ---------- */
+
+:root[data-skin="neon"] .modal-backdrop {
+  background: color-mix(in srgb, #05070f 74%, transparent);
+}
+
+:root[data-skin="neon"] .modal {
+  border-color: color-mix(in srgb, var(--neon-a) 26%, var(--border-default));
+  box-shadow:
+    0 30px 80px -20px rgba(0, 0, 0, 0.72),
+    0 0 50px -18px color-mix(in srgb, var(--neon-a) 45%, transparent);
+}
+
+:root[data-skin="neon"] .site-footer {
+  border-top: 1px solid color-mix(in srgb, var(--neon-a) 14%, var(--border-default));
+}
+
+:root[data-skin="neon"] .site-footer b {
+  color: var(--neon-a);
+  font-family: var(--font-data);
+  letter-spacing: 0.08em;
+}

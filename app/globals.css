@@ -43,4 +43,5 @@
 @import "./styles/ui-refinements.css"; /* 两套皮肤共用的阅读层级、控件与窄屏排版 */
 @import "./styles/liquid-glass.css"; /* 导航与操作控件的玻璃材质及降级 */
 @import "./styles/music-glass.css"; /* 紧凑电台浮层与轻玻璃材质 */
+@import "./styles/neon-noir.css"; /* 02 霓虹夜行：夜幕、玻璃、CRT 跟打舱与背光键帽 */
 @import "./styles/accessibility.css"; /* 键盘、触控与对比度保障 */

@@ -417,7 +417,7 @@ export interface ArticleProgress {
   errors: number;
 }
 
-export type SkinId = "letterpress" | "focus";
+export type SkinId = "letterpress" | "focus" | "neon";
 
 export type ThemeId =
   | "system"

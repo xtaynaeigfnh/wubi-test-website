@@ -358,7 +358,7 @@ export function WubiApp({ view }: { view: AppView }) {
                 <i>五</i>
               </span>
               <span>
-                <strong>{settings.skin === "focus" ? "五笔练习" : "五笔测试网站"}</strong>
+                <strong>{settings.skin === "focus" ? "五笔练习" : settings.skin === "neon" ? "五笔夜行场" : "五笔测试网站"}</strong>
                 <small>86 版五笔</small>
               </span>
             </Link>
@@ -401,7 +401,7 @@ export function WubiApp({ view }: { view: AppView }) {
         </header>
 
         <main className="page-wrap" id="main-content">
-          {settings.skin === "letterpress" && <FirstUseGuide enabled={settingsReady} view={view} />}
+          {settings.skin !== "focus" && <FirstUseGuide enabled={settingsReady} view={view} />}
           {settingsSaveError && (
             <p className="plan-message" role="alert">{settingsSaveError}</p>
           )}
@@ -466,7 +466,7 @@ export function WubiApp({ view }: { view: AppView }) {
           <PetCompanion species={settings.petSpecies} />
         )}
         <footer className="site-footer">
-          <span><b>86 / OFFLINE</b>{settings.skin === "letterpress" && " 慢慢练，手会记住。"}</span>
+          <span><b>86 / OFFLINE</b>{settings.skin === "neon" ? " 夜色载速，码上飞驰。" : settings.skin === "letterpress" && " 慢慢练，手会记住。"}</span>
           <span>
             86 版码表来自 Rime 五笔方案（LGPL-3.0） · 记录不会离开当前浏览器
           </span>

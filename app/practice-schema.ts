@@ -778,7 +778,7 @@ export function isSettings(value: unknown): value is UserSettings {
     typeof value.showCodeHints === "boolean" &&
     typeof value.showGhostGap === "boolean" &&
     typeof value.sound === "boolean" &&
-    (!Object.hasOwn(value, "skin") || ["letterpress", "focus"].includes(String(value.skin))) &&
+    (!Object.hasOwn(value, "skin") || ["letterpress", "focus", "neon"].includes(String(value.skin))) &&
     ["light", "dark", "system", "bamboo", "qingdai", "custom"].includes(
       String(value.theme),
     ) &&
