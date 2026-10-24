@@ -32,6 +32,7 @@ const themeOptions: Array<{ id: ThemeId; description: string }> = [
 const skinOptions: Array<{ id: SkinId; description: string }> = [
   { id: "letterpress", description: "胶囊顶栏 · 独立仪表卡 · 纯净画布" },
   { id: "focus", description: "书斋侧栏 · 宣纸留白 · 沉浸跟打" },
+  { id: "neon", description: "夜色霓虹 · 玻璃面板 · 赛博夜航" },
 ];
 
 const settingsSections = [

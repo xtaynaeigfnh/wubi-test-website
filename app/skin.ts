@@ -3,10 +3,11 @@ import type { SkinId, ThemeId } from "./types";
 export const skinLabels: Record<SkinId, string> = {
   letterpress: "曜石工坊",
   focus: "竹韵书斋",
+  neon: "霓虹夜行",
 };
 
 export function normalizeSkin(value: unknown): SkinId {
-  return value === "focus" ? "focus" : "letterpress";
+  return value === "focus" || value === "neon" ? value : "letterpress";
 }
 
 export const skinThemeSwatches: Record<SkinId, Record<Exclude<ThemeId, "custom">, { canvas: string; accent: string }>> = {
@@ -23,5 +24,12 @@ export const skinThemeSwatches: Record<SkinId, Record<Exclude<ThemeId, "custom">
     dark: { canvas: "#111412", accent: "#B8E08D" },
     bamboo: { canvas: "#F2EFE4", accent: "#D6E6A7" },
     qingdai: { canvas: "#EEF3F4", accent: "#B5DCE7" },
+  },
+  neon: {
+    system: { canvas: "#0A0F1E", accent: "#22D3EE" },
+    light: { canvas: "#0A0F1E", accent: "#22D3EE" },
+    dark: { canvas: "#07060E", accent: "#E879F9" },
+    bamboo: { canvas: "#07140F", accent: "#6EE7B8" },
+    qingdai: { canvas: "#0A1424", accent: "#93C5FD" },
   },
 };
