@@ -1210,6 +1210,11 @@ test("one root-level audio player exposes accessible manual controls", async () 
   assert.match(music, /aria-label="下一首"/);
   assert.match(music, /aria-label="播放进度"/);
   assert.match(music, /aria-label="背景音乐音量"/);
+  assert.match(music, /<LocalMusicImport/);
+  const localImport = await readFile(new URL("../app/components/LocalMusicImport.tsx", import.meta.url), "utf8");
+  assert.match(localImport, /aria-label="选择本地歌曲"/);
+  assert.match(localImport, /role="status"/);
+  assert.match(localImport, /刷新后需重新选择/);
   assert.match(music, /aria-label=\{muted \? "取消背景音乐静音" : "静音背景音乐"\}/);
   assert.doesNotMatch(music, /if \(muted\) setMuted\(false\)/);
   assert.match(music, /aria-expanded=\{expanded\}/);

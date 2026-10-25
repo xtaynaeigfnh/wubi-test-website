@@ -29,6 +29,8 @@
 
 ## 定向运行与诊断
 
+`local-music` 使用仓库已有 CC0 音频验证五首本地文件导入、混合损坏文件跳过、无效选择保留歌单、实际播放与切歌续播、最后一首自动循环、单曲循环、站内切页续播、退出释放对象 URL、刷新回到内置歌单，以及 320/768/1440px 下播放器的无障碍和溢出检查。也可在 `--pages` 模式下验证生产子路径。
+
 ```sh
 BROWSER_ENGINES=chromium BROWSER_SCENARIOS=typing-recovery,backup-rollback npm run test:browser
 ```
@@ -46,7 +48,7 @@ Remove-Item Env:BROWSER_ENGINES, Env:BROWSER_SCENARIOS
 
 覆盖列表说明用例的验证范围，不代表某次运行全部通过。报告中的页面导航超时表示尚未完成相应验证，应结合 trace 判断原因；重试或跨平台验证通过前，不应记录为成功。
 
-`BROWSER_SCENARIOS` 接受逗号分隔的完整场景名，拼错会失败；未设置时运行全部场景。`--pages` 仍专用于生产子路径离线更新回归。`BROWSER_OUTPUT` 可指定独立报告目录，避免定向调试覆盖全量报告。
+`BROWSER_SCENARIOS` 接受逗号分隔的完整场景名，拼错会失败；未设置时运行全部场景。`--pages` 用于生产子路径离线更新及本地音乐回归。`BROWSER_OUTPUT` 可指定独立报告目录，避免定向调试覆盖全量报告。
 
 测试只在独立上下文中准备本机数据，或替换平台边界（Storage、File.text、时钟和 visibility 事件）制造可重复故障；不调用产品内部处理函数、不替换 React Hook。操作优先通过可访问名称、角色和标签定位；正确/错误字符的样式状态是有限的视觉检查例外。恢复成功等待真实页面加载，避免“先点击再订阅加载事件”的竞态。
 

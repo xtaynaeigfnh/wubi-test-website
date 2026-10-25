@@ -1,4 +1,22 @@
 /* The player is a quiet floating control, with an opaque-enough reading tint. */
+html .music-local-import { padding: 8px 20px; }
+html .music-local-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+html .music-local-actions button {
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  background: var(--bg-paper);
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  font: inherit;
+}
+html .music-local-import p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+html .music-local-import p:empty { display: none; }
 html .music-content { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 
 html .music-dock {

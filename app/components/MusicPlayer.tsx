@@ -15,6 +15,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { animateMusicDock, captureMusicDock, type MusicDockMotion, type MusicDockSnapshot } from "./music-dock-motion";
+import { LocalMusicImport } from "./LocalMusicImport";
+import { readLocalMusic, releaseLocalMusic } from "../local-music";
 import { readLocal, STORAGE, writeLocal } from "../storage";
 import {
   DEFAULT_MUSIC_PREFERENCES,
@@ -32,6 +34,11 @@ import type {
 
 export interface MusicPlayerContextValue {
   catalog: MusicCatalog | null;
+  localMusicActive: boolean;
+  importBusy: boolean;
+  importMessage: string;
+  importMusic: (files: File[]) => Promise<void>;
+  clearLocalMusic: () => void;
   currentTrack: MusicTrack | null;
   currentTrackIndex: number;
   isPlaying: boolean;
@@ -69,7 +76,17 @@ export function useMusicPlayer(): MusicPlayerContextValue {
 export function MusicProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const resumeAfterTrackChange = useRef(false);
-  const [catalog, setCatalog] = useState<MusicCatalog | null>(null);
+  const [builtInCatalog, setCatalog] = useState<MusicCatalog | null>(null);
+  const [localTracks, setLocalTracks] = useState<MusicTrack[]>([]);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  const importController = useRef<AbortController | null>(null);
+  const localMusicActive = localTracks.length > 0;
+  const catalog = useMemo<MusicCatalog | null>(() => localMusicActive
+    ? { version: 1, tracks: localTracks } : builtInCatalog,
+  [builtInCatalog, localMusicActive, localTracks]);
+  useEffect(() => () => releaseLocalMusic(localTracks), [localTracks]);
+  useEffect(() => () => importController.current?.abort(), []);
   const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,14 +116,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         const saved = readLocal<unknown>(STORAGE.music, null);
         const preferences = parseMusicPreferences(saved, nextCatalog.tracks);
         setCatalog(nextCatalog);
-        setCurrentTrackId(preferences.trackId);
+        setCurrentTrackId((current) => current?.startsWith("local-") ? current : preferences.trackId);
         setVolumeState(preferences.volume);
         setMutedState(preferences.muted);
-        setDuration(
-          nextCatalog.tracks.find(
-            (track) => track.id === preferences.trackId,
-          )?.durationSeconds ?? nextCatalog.tracks[0].durationSeconds,
-        );
+
         setNotice(
           invalidTrackCount > 0
             ? `已跳过 ${invalidTrackCount} 首目录信息不完整的曲目`
@@ -132,12 +145,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!preferencesReady) return;
     const preferences: MusicPreferences = {
-      trackId: currentTrack?.id ?? null,
+      trackId: localMusicActive ? null : currentTrack?.id ?? null,
       volume,
       muted,
     };
     writeLocal(STORAGE.music, preferences);
-  }, [currentTrack?.id, muted, preferencesReady, volume]);
+  }, [currentTrack?.id, localMusicActive, muted, preferencesReady, volume]);
 
   const applyAudioPreferences = useCallback((audio: HTMLAudioElement) => {
     try {
@@ -240,13 +253,60 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setMutedState(nextMuted);
   }, []);
 
+  const importMusic = useCallback(async (files: File[]) => {
+    if (importController.current || !files.length) return;
+    if (files.length > 20) {
+      setImportMessage("一次最多选择 20 首歌曲，原歌单未改变。");
+      return;
+    }
+    const controller = new AbortController();
+    importController.current = controller;
+    setImportBusy(true);
+    setImportMessage("");
+    const results = await Promise.allSettled(files.map((file) => readLocalMusic(file, controller.signal)));
+    const imported = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    if (controller.signal.aborted) {
+      releaseLocalMusic(imported);
+      return;
+    }
+    const failed = results.filter((result) => result.status === "rejected").length;
+    if (imported.length) {
+      audioRef.current?.pause();
+      resumeAfterTrackChange.current = false;
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(imported[0].durationSeconds);
+      setCurrentTrackId(imported[0].id);
+      setLocalTracks(imported);
+      setError("");
+    }
+    setImportMessage(imported.length
+      ? `已导入 ${imported.length} 首，点播放开始${failed ? `；${failed} 个文件无法读取或格式不支持，已跳过` : ""}。`
+      : "没有可播放的文件，原歌单未改变。请检查格式、大小及文件是否受保护。");
+    importController.current = null;
+    setImportBusy(false);
+  }, []);
+
+  const clearLocalMusic = useCallback(() => {
+    audioRef.current?.pause();
+    resumeAfterTrackChange.current = false;
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(builtInCatalog?.tracks[0]?.durationSeconds ?? 0);
+    setCurrentTrackId(builtInCatalog?.tracks[0]?.id ?? null);
+    setLocalTracks([]);
+    setImportMessage("已返回内置歌单，本地歌曲已移除。");
+    setError("");
+  }, [builtInCatalog]);
+
   const value = useMemo<MusicPlayerContextValue>(
     () => ({
       catalog,
+      localMusicActive, importBusy, importMessage, importMusic, clearLocalMusic,
       currentTrack,
       currentTrackIndex: currentTrack ? Math.max(0, currentTrackIndex) : -1,
       isPlaying,
-      isLoading,
+      isLoading: isLoading && !localMusicActive,
       currentTime,
       duration,
       volume,
@@ -266,6 +326,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }),
     [
       catalog,
+      localMusicActive, importBusy, importMessage, importMusic, clearLocalMusic,
       currentTime,
       currentTrack,
       currentTrackIndex,
@@ -315,7 +376,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
               });
             }
           }}
-          onEnded={() => move(1, true)}
+          onEnded={(event) => {
+            if (tracks.length === 1) {
+              event.currentTarget.currentTime = 0;
+              void play();
+            } else move(1, true);
+          }}
           onError={() => {
             setIsPlaying(false);
             setError("曲目加载失败，请切换其他曲目");
@@ -324,7 +390,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           {currentTrack.sources.map((source) => (
             <source
               key={`${source.type}:${source.src}`}
-              src={withBasePath(source.src)}
+              src={localMusicActive ? source.src : withBasePath(source.src)}
               type={source.type}
             />
           ))}
@@ -338,6 +404,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 function MusicDock() {
   const {
     catalog,
+    localMusicActive, importBusy, importMessage, importMusic, clearLocalMusic,
     currentTrack,
     currentTrackIndex,
     isPlaying,
@@ -391,7 +458,7 @@ function MusicDock() {
   const unavailable = isLoading || !currentTrack;
   const statusText = isLoading
     ? "正在整理离线曲库…"
-    : error || notice || `${tracks.length} 首离线音乐`;
+    : error || notice || `${tracks.length} 首${localMusicActive ? "本地歌曲" : "离线音乐"}`;
 
   const clearCollapseTimer = useCallback(() => {
     if (collapseTimerRef.current !== null) {
@@ -746,11 +813,18 @@ function MusicDock() {
           <div className="music-library-heading">
             <div>
               <span>OFFLINE RADIO / 曲目目录</span>
-              <strong>专注歌单</strong>
+              <strong>{localMusicActive ? "我的本地歌单" : "专注歌单"}</strong>
             </div>
             <small>{tracks.length} 首 · 播完自动循环</small>
           </div>
 
+          <LocalMusicImport
+            active={localMusicActive}
+            busy={importBusy}
+            message={importMessage}
+            onImport={importMusic}
+            onClear={clearLocalMusic}
+          />
           <div className="music-track-list">
             {tracks.map((track, index) => (
               <button

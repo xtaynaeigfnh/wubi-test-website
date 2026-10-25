@@ -12,6 +12,7 @@ import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonA
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
+import { localMusic } from "./browser/local-music.mjs";
 
 const pagesMode = process.argv.includes("--pages");
 const engines = { chromium, firefox, webkit };
@@ -388,6 +389,7 @@ async function pagesOfflineUpdate({ page, context }) {
 }
 
 const interactionScenarios = [
+  ["local-music", localMusic],
   ["navigation-lens", navigationLens],
   ["settings-windows", settingsWindows],
   ["typing-recovery", typingRecovery],
@@ -415,7 +417,7 @@ const interactionScenarios = [
   ["typing-background-reset", typingBackgroundReset],
 ];
 const availableScenarios = pagesMode
-  ? [["pages-offline-update", pagesOfflineUpdate, { workers: "allow" }]]
+  ? [["pages-offline-update", pagesOfflineUpdate, { workers: "allow" }], ["local-music", localMusic]]
   : interactionScenarios;
 const requestedScenarios = process.env.BROWSER_SCENARIOS?.split(",");
 for (const name of requestedScenarios ?? []) {
