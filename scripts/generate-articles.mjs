@@ -68,6 +68,10 @@ const retiredPhrases = [
   "日子照常",
   "事情不大",
   "眼不见为净",
+  "之道在于",
+  "之道正在于",
+  "方得从容",
+  "方能",
 ];
 
 const asciiPattern = /[A-Za-z\u0020\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/u;
