@@ -1,12 +1,17 @@
 "use client";
 
+import { withStorageWriteLock } from "../../storage-lock";
 import { useEffect, useMemo } from "react";
 import {
   getProgress,
+  getErrors,
+  getSessions,
+  readTrainingPlan,
+  readSpacedReviewState,
   localDateKey,
   startTrainingTask,
   writeTrainingPlan,
-} from "../../practice-store";
+} from "../../practice-transactions";
 import { readSettings } from "../../settings-store";
 import { buildDueReviewQueue, type SpacedReviewState } from "../../spaced-review";
 import { readLocal, STORAGE, writeLocal } from "../../storage";
@@ -57,7 +62,6 @@ export function useTrainingPlan({
   reviewState,
   loading,
   loadError,
-  dueReviewQueue,
   confirmDrillDeparture,
   selectTrainingTab,
   setZone,
@@ -73,28 +77,35 @@ export function useTrainingPlan({
     ) {
       return;
     }
-    const next = generateDailyTrainingPlan({
-      date: localDateKey(new Date()),
-      articles,
-      progress: getProgress(),
-      sessions,
-      weakItems: errors,
-      entries,
-      dueReviewItems: buildDueReviewQueue(reviewState).items
-        .filter((item) => item.targetType !== "hesitation" && item.code)
-        .map((item): WubiEntry => [
-          item.text,
-          item.code as string,
-          item.expectedBenefit,
-        ]),
-      preferredLength: readSettings().preferredLength,
-    });
-    if (writeTrainingPlan(next)) {
-      setPlan(next);
-      setPlanMessage("");
-    } else {
-      setPlanMessage("今日计划未能保存，请检查浏览器存储空间。");
-    }
+    let active = true;
+    void withStorageWriteLock(() => {
+      if (!active) return;
+      const latest = readTrainingPlan();
+      if (latest?.date === localDateKey(new Date())) { setPlan(latest); return; }
+      const next = generateDailyTrainingPlan({
+        date: localDateKey(new Date()),
+        articles,
+        progress: getProgress(),
+        sessions: getSessions(),
+        weakItems: getErrors(),
+        entries,
+        dueReviewItems: buildDueReviewQueue(readSpacedReviewState()).items
+          .filter((item) => item.targetType !== "hesitation" && item.code)
+          .map((item): WubiEntry => [
+            item.text,
+            item.code as string,
+            item.expectedBenefit,
+          ]),
+        preferredLength: readSettings().preferredLength,
+      });
+      if (writeTrainingPlan(next)) {
+        setPlan(next);
+        setPlanMessage("");
+      } else {
+        setPlanMessage("今日计划未能保存，请检查浏览器存储空间。");
+      }
+    }).catch(() => { if (active) setPlanMessage("今日计划暂时无法安全保存，请重试。"); });
+    return () => { active = false; };
   }, [articles, entries, errors, loadError, loading, plan, reviewState, sessions, setPlan, setPlanMessage]);
 
   const explainedWeaknesses = useMemo(
@@ -107,55 +118,58 @@ export function useTrainingPlan({
       .slice(0, 5),
     [errors],
   );
-  const startPlanTask = (task: TrainingTask) => {
+  const startPlanTask = async (task: TrainingTask) => {
     if (!confirmDrillDeparture()) return false;
-    const previousCurrent = readLocal<string | null>(STORAGE.current, null);
-    const previousGenerated = readLocal<PracticeArticle | null>(
-      STORAGE.currentGenerated,
-      null,
-    );
-    if (
-      task.type === "article" &&
-      task.articleId &&
-      (!writeLocal(STORAGE.current, task.articleId) ||
-        !writeLocal(STORAGE.currentGenerated, null))
-    ) {
-      writeLocal(STORAGE.current, previousCurrent);
-      writeLocal(STORAGE.currentGenerated, previousGenerated);
-      setPlanMessage("文章选择未能保存，请检查浏览器存储空间后重试。");
-      return false;
-    }
-    const next = startTrainingTask(task.id);
-    if (!next) {
-      if (task.type === "article" && task.articleId) {
+    return withStorageWriteLock(() => {
+      const previousCurrent = readLocal<string | null>(STORAGE.current, null);
+      const previousGenerated = readLocal<PracticeArticle | null>(
+        STORAGE.currentGenerated,
+        null,
+      );
+      if (
+        task.type === "article" &&
+        task.articleId &&
+        (!writeLocal(STORAGE.current, task.articleId) ||
+          !writeLocal(STORAGE.currentGenerated, null))
+      ) {
         writeLocal(STORAGE.current, previousCurrent);
         writeLocal(STORAGE.currentGenerated, previousGenerated);
+        setPlanMessage("文章选择未能保存，请检查浏览器存储空间后重试。");
+        return false;
       }
-      setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
-      return false;
-    }
-    setPlan(next);
-    setPlanMessage("");
-    if (task.type === "review") {
-      selectTrainingTab("review", true);
-    } else if (task.type === "roots") {
-      const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
-      if (nextZone) setZone(nextZone);
-      selectTrainingTab("roots", true);
-    }
-    return true;
+      const next = startTrainingTask(task.id);
+      if (!next) {
+        if (task.type === "article" && task.articleId) {
+          writeLocal(STORAGE.current, previousCurrent);
+          writeLocal(STORAGE.currentGenerated, previousGenerated);
+        }
+        setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
+        return false;
+      }
+      setPlan(next);
+      setPlanMessage("");
+      if (task.type === "review") {
+        selectTrainingTab("review", true);
+      } else if (task.type === "roots") {
+        const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
+        if (nextZone) setZone(nextZone);
+        selectTrainingTab("roots", true);
+      }
+      return true;
+    }).catch(() => { setPlanMessage("任务暂时无法安全保存，请重试。"); return false; });
   };
 
-  const changePlanGroup = () => {
+  const changePlanGroup = async () => withStorageWriteLock(() => {
+    const plan = readTrainingPlan();
     if (!plan) return;
     const next = regenerateIncompleteTasks(plan, {
       date: plan.date,
       articles,
       progress: getProgress(),
-      sessions,
-      weakItems: errors,
+      sessions: getSessions(),
+      weakItems: getErrors(),
       entries,
-      dueReviewItems: dueReviewQueue.items
+      dueReviewItems: buildDueReviewQueue(readSpacedReviewState()).items
         .filter((item) => item.targetType !== "hesitation" && item.code)
         .map((item): WubiEntry => [
           item.text,
@@ -186,7 +200,7 @@ export function useTrainingPlan({
     } else {
       setPlanMessage("新分组未能保存，原计划保持不变。");
     }
-  };
+  }).catch(() => setPlanMessage("新分组暂时无法安全保存，请重试。"));
 
   const prescribedReview = plan?.tasks.find(
     (task) => task.type === "review" && task.status === "in-progress",

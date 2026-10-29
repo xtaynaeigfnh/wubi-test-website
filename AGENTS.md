@@ -45,3 +45,7 @@ GitHub Pages 工作流在 PR 和 main 推送时运行生产依赖审计、lint�
 ## 临时依赖保护
 
 `npm ci` 的 postinstall 会运行 `scripts/patch-braces.mjs`，为尚无上游修复版的 braces 3.0.3 加入深度限制；版本和源码哈希变化必须人工复核。不得通过跳过安装脚本或删除安全测试来消除失败。上游修复后升级、移除临时补丁，并重新跑全量审计与测试。详见 README 的依赖安全维护。
+
+## 多窗口事务
+
+浏览器的练习持久化操作应使用 `app/practice-transactions.ts` 异步入口，等待保存结果后再更新成功状态。复合操作使用 `app/storage-lock.ts` 的 `withStorageWriteLock` 包裹完整读改写；回调必须同步，不在锁内等待网络或其它异步任务。同步存储核心仅供锁内组合和单元测试使用。读取修复使用带旧值比较的 `repairLocalValue`，不能在读取路径无锁覆盖整份数据。

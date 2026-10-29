@@ -12,6 +12,7 @@ import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonA
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
+import { concurrentPracticeSaves, corruptHistoryRecovery } from "./browser/concurrent-storage.mjs";
 import { localMusic } from "./browser/local-music.mjs";
 
 const pagesMode = process.argv.includes("--pages");
@@ -158,8 +159,21 @@ async function trainingDrill({ page }) {
     const character = await page.locator(".drill-question").textContent();
     const code = entries.get(character.trim());
     assert(code, `应能查到题目编码：${character}`);
+    if (index === 19) {
+      await page.evaluate(() => {
+        void navigator.locks.request("wubi-test:local-data-write:v1", () => new Promise((resolve) => { window.__releaseDrillLock = resolve; }));
+      });
+      await page.waitForFunction(() => Boolean(window.__releaseDrillLock));
+    }
     await input.fill(code);
     await input.press("Enter");
+    if (index === 19) {
+      const saving = page.getByRole("button", { name: "正在保存…", exact: true });
+      await saving.waitFor();
+      assert(await saving.isDisabled(), "等待存储时不能开始下一轮");
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length), 0);
+      await page.evaluate(() => window.__releaseDrillLock());
+    }
     if (index < 19) {
       await page.locator(".drill-progress").getByText(`第 ${index + 2} / 20 题`, { exact: true }).waitFor();
     }
@@ -177,6 +191,17 @@ async function advancedPractice({ page }) {
   const input = page.getByRole("textbox", { name: "进阶训练输入区" });
   const target = await page.getByLabel("练习正文").textContent();
   await input.fill(target.slice(0, 3));
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await input.fill(target);
+  assert.equal(await input.inputValue(), target.slice(0, 3), "进阶后台输入应被还原");
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length), 0);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
   await page.getByRole("button", { name: "暂停", exact: true }).click();
   assert(await input.isDisabled());
   await page.getByRole("button", { name: "继续", exact: true }).click();
@@ -415,6 +440,9 @@ const interactionScenarios = [
   ["music-shortcuts", musicShortcuts],
   ["music-volume-unavailable", musicVolumeUnavailable],
   ["typing-background-reset", typingBackgroundReset],
+  ["corrupt-history-recovery", corruptHistoryRecovery],
+  ["concurrent-practice-saves", concurrentPracticeSaves],
+  ["concurrent-practice-idb", (context) => concurrentPracticeSaves(context, true)],
 ];
 const availableScenarios = pagesMode
   ? [["pages-offline-update", pagesOfflineUpdate, { workers: "allow" }], ["local-music", localMusic]]

@@ -14,7 +14,7 @@ import {
   recordKeyUsage,
   readTrainingPlan,
   savePracticeOutcome,
-} from "../../../practice-store";
+} from "../../../practice-transactions";
 import {
   canAcceptTyping,
   createTypingSession,
@@ -118,8 +118,8 @@ export function useTypingSession({
     armIfStarted(previousStartedAt);
   };
 
-  const saveOutcome = useCallback((outcome: TypingOutcome) => {
-    const saved = savePracticeOutcome(outcome.session, outcome.observations, outcome.phraseOpportunities);
+  const saveOutcome = useCallback(async (outcome: TypingOutcome) => {
+    const saved = await savePracticeOutcome(outcome.session, outcome.observations, outcome.phraseOpportunities);
     send({ type: "save-result", sessionId: outcome.session.id, saved });
     if (saved) ghostApiRef.current?.refreshSessions();
     return saved;
@@ -143,9 +143,9 @@ export function useTypingSession({
       ghostTimeline: ghostApiRef.current?.finalizeTimeline(targetCharacters.length, snapshot.elapsed) ?? undefined,
     });
     send({ type: "settle", outcome });
-    if (!saveOutcome(outcome)) {
-      window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
-    }
+    void saveOutcome(outcome).then((saved) => {
+      if (!saved) window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
+    });
   }, [article, state.phase, visibleText, targetText, targetCharacters.length,
     wubiCodesRef, theoreticalCodeLength, codeLengthAnalysis, ghostApiRef, send, saveOutcome]);
 
@@ -192,10 +192,10 @@ export function useTypingSession({
     }
   };
 
-  const retrySave = useCallback(() => {
+  const retrySave = useCallback(async () => {
     const phase = current.current.phase;
     if (phase.status !== "save-failed") return false;
-    if (!saveOutcome(phase.outcome)) {
+    if (!await saveOutcome(phase.outcome)) {
       window.alert("仍未能保存，请清理部分本机数据后再试。");
       return false;
     }

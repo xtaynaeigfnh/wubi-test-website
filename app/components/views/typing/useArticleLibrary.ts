@@ -15,7 +15,7 @@ import {
   getProgress,
   localDateKey,
   readTrainingPlan,
-} from "../../../practice-store";
+} from "../../../practice-transactions";
 import { MAX_CUSTOM_TEXT_LENGTH } from "../../../practice-constraints";
 import {
   commitLocalWrites,

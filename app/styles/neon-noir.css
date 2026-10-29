@@ -513,6 +513,10 @@
   color: var(--neon-a);
 }
 
+:root[data-skin="neon"] .root-zone-rail button.active strong {
+  color: var(--text-on-accent);
+}
+
 :root[data-skin="neon"] .keyboard-visual span,
 :root[data-skin="neon"] .code-slots span {
   border-color: color-mix(in srgb, var(--neon-a) 26%, var(--border-default));

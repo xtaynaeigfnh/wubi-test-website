@@ -1,5 +1,7 @@
 "use client";
 
+import { hasStorageWriteLock, withStorageWriteLock } from "./storage-lock.ts";
+
 export const STORAGE = {
   settings: "wubi-test:settings:v1",
   sessions: "wubi-test:sessions:v1",
@@ -68,6 +70,16 @@ export function writeLocal<T>(key: string, value: T): boolean {
   } catch {
     return false;
   }
+}
+
+// Read-side repairs must not overwrite a newer tab's completed transaction.
+// In a transaction (and pure Node storage tests) they remain synchronous.
+export function repairLocalValue(key: string, previous: unknown, value: unknown): boolean {
+  if (hasStorageWriteLock() || typeof document === "undefined") return writeLocal(key, value);
+  void withStorageWriteLock(() => {
+    if (JSON.stringify(readLocal(key, null)) === JSON.stringify(previous)) writeLocal(key, value);
+  }).catch(() => undefined);
+  return false;
 }
 
 export function commitLocalWrites(writes: Map<string, unknown>): boolean {

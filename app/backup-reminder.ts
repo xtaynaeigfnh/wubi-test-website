@@ -1,6 +1,6 @@
 "use client";
 
-import { createBackupPayload, MAX_BACKUP_BYTES, parseBackupPayload, readLocalForBackup } from "./backup.ts";
+import { createBackupPayload, MAX_BACKUP_BYTES, parseBackupPayload, readLocalForBackup, serializeBackupPayload } from "./backup.ts";
 import { STORAGE, STORAGE_KEYS, writeLocal } from "./storage.ts";
 import { readKeyUsage } from "./practice-store.ts";
 import type { BackupPayload, SessionResult } from "./types.ts";
@@ -78,7 +78,7 @@ export function createValidatedLocalBackup(now = new Date()): BackupPayload {
   // Include keystrokes waiting for the debounced write, even when storage is full.
   data[STORAGE.keyUsage] = readKeyUsage();
   const payload = parseBackupPayload(createBackupPayload(data, now));
-  if (new TextEncoder().encode(JSON.stringify(payload, null, 2)).byteLength > MAX_BACKUP_BYTES) {
+  if (new TextEncoder().encode(serializeBackupPayload(payload)).byteLength > MAX_BACKUP_BYTES) {
     throw new Error("本机数据已超过单个备份文件的安全大小，请先清理部分历史记录。");
   }
   return payload;

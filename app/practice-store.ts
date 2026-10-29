@@ -1,4 +1,6 @@
 "use client";
+import { MAX_WEAKNESS_COUNT } from "./practice-constraints.ts";
+import { hasStorageWriteLock, withStorageWriteLock } from "./storage-lock.ts";
 import { PRACTICE_SAVED_EVENT } from "./pet-events.ts";
 
 import {
@@ -19,6 +21,7 @@ import {
   STORAGE,
   readLocal,
   writeLocal,
+  repairLocalValue,
   commitLocalWrites,
 } from "./storage.ts";
 import type {
@@ -74,11 +77,11 @@ function readValidatedLocalArray<T>(
 ): T[] {
   const raw = readLocal<unknown>(key, []);
   if (!Array.isArray(raw)) {
-    writeLocal(key, []);
+    repairLocalValue(key, raw, []);
     return [];
   }
   const validated = raw.slice(0, maximum).filter(validator);
-  if (validated.length !== raw.length) writeLocal(key, validated);
+  if (validated.length !== raw.length) repairLocalValue(key, raw, validated);
   return validated;
 }
 
@@ -146,6 +149,10 @@ export function syncSpacedReviewState(
   const stored = readLocal<unknown>(STORAGE.reviewState, null);
   if (isBoundedSpacedReviewState(stored)) return stored;
   const state = buildSpacedReviewStateCandidate(now);
+  if (typeof document !== "undefined" && !hasStorageWriteLock()) {
+    void withStorageWriteLock(() => syncSpacedReviewState(now)).catch(() => undefined);
+    return state;
+  }
   if (!writeLocal(STORAGE.reviewState, state)) return null;
   recordMaintenanceEvent(
     "migration",
@@ -241,7 +248,10 @@ export function recordKeyUsage(code: string): void {
   if (next === current) return;
   pendingKeyUsage = next;
   if (keyUsageTimer !== null) return;
-  keyUsageTimer = window.setTimeout(flushPendingKeyUsage, 180);
+  keyUsageTimer = window.setTimeout(() => {
+    if (typeof document === "undefined") flushPendingKeyUsage();
+    else void withStorageWriteLock(flushPendingKeyUsage).catch(() => undefined);
+  }, 180);
 }
 
 export function clearKeyUsage(): boolean {
@@ -273,7 +283,7 @@ export function getSessions() {
   });
   const pruned = pruneHeatmaps(pruneRhythmCurves(pruneGhostTimelines(unique)));
   if (JSON.stringify(pruned) !== JSON.stringify(stored)) {
-    if (writeLocal(STORAGE.sessions, pruned)) {
+    if (repairLocalValue(STORAGE.sessions, stored, pruned)) {
       recordMaintenanceEvent(
         "eviction",
         "已按保留上限移除旧热力图、幽灵时间线或节奏曲线，成绩摘要保持不变。",
@@ -316,7 +326,7 @@ export function getCustomArticles(): PracticeArticle[] {
     return true;
   });
   if (unique.length !== stored.length) {
-    writeLocal(STORAGE.customTexts, unique);
+    repairLocalValue(STORAGE.customTexts, stored, unique);
   }
   return unique;
 }
@@ -325,7 +335,7 @@ export function getProgress(): ArticleProgress[] {
   const stored = readLocal<unknown>(STORAGE.progress, []);
   const normalized = normalizeArticleProgress(stored);
   if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
-    writeLocal(STORAGE.progress, normalized);
+    repairLocalValue(STORAGE.progress, stored, normalized);
   }
   return normalized;
 }
@@ -334,7 +344,7 @@ export function readTrainingPlan(): DailyTrainingPlan | null {
   const value = readLocal<unknown>(STORAGE.trainingPlan, null);
   if (value === null) return null;
   if (isDailyTrainingPlan(value)) return value;
-  writeLocal(STORAGE.trainingPlan, null);
+  repairLocalValue(STORAGE.trainingPlan, value, null);
   return null;
 }
 
@@ -379,7 +389,7 @@ export function readHesitationQueue(
   } else if (!resetOnDateMismatch) {
     return empty;
   }
-  writeLocal(STORAGE.hesitationQueue, empty);
+  repairLocalValue(STORAGE.hesitationQueue, value, empty);
   return empty;
 }
 
@@ -888,7 +898,7 @@ export function getErrors(): ErrorStat[] {
   const stored = readValidatedLocalArray(STORAGE.errors, 300, isErrorStat);
   const merged = mergeErrorStatsByText(stored).map(normalizeErrorStat);
   if (JSON.stringify(merged) !== JSON.stringify(stored)) {
-    writeLocal(STORAGE.errors, merged);
+    repairLocalValue(STORAGE.errors, stored, merged);
   }
   return merged;
 }
@@ -910,7 +920,7 @@ export function getPhraseOpportunities(): PhraseOpportunityStat[] {
   );
   const merged = mergePhraseOpportunityStats(stored);
   if (JSON.stringify(stored) !== JSON.stringify(merged)) {
-    writeLocal(STORAGE.phraseOpportunities, merged);
+    repairLocalValue(STORAGE.phraseOpportunities, stored, merged);
   }
   return merged;
 }
@@ -1136,14 +1146,14 @@ function mergeErrorStatsByText(errors: ErrorStat[]): ErrorStat[] {
       continue;
     }
     const existingCodingErrors = existing.codingErrors ?? existing.count;
-    existing.count += error.count;
+    existing.count = Math.min(MAX_WEAKNESS_COUNT, existing.count + error.count);
     existing.codingErrors =
-      existingCodingErrors + (error.codingErrors ?? error.count);
+      Math.min(MAX_WEAKNESS_COUNT, existingCodingErrors + (error.codingErrors ?? error.count));
     existing.hesitationPoints =
-      (existing.hesitationPoints ?? 0) + (error.hesitationPoints ?? 0);
+      Math.min(MAX_WEAKNESS_COUNT, (existing.hesitationPoints ?? 0) + (error.hesitationPoints ?? 0));
     existing.correctionCount =
-      (existing.correctionCount ?? 0) + (error.correctionCount ?? 0);
-    existing.seenCount = (existing.seenCount ?? 0) + (error.seenCount ?? 0);
+      Math.min(MAX_WEAKNESS_COUNT, (existing.correctionCount ?? 0) + (error.correctionCount ?? 0));
+    existing.seenCount = Math.min(MAX_WEAKNESS_COUNT, (existing.seenCount ?? 0) + (error.seenCount ?? 0));
     existing.correctStreak = Math.max(
       existing.correctStreak ?? 0,
       error.correctStreak ?? 0,

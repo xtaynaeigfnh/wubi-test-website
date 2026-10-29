@@ -197,12 +197,14 @@ export function isRhythmSummary(value: unknown): value is RhythmSummary {
     finiteOrNull(summary.crossHandMedianMs) &&
     Array.isArray(summary.curve) && summary.curve.length <= MAX_CURVE_POINTS &&
     summary.curve.every((point, index) =>
+      point !== null && typeof point === "object" && !Array.isArray(point) &&
       Number.isInteger(point.characterCount) && point.characterCount >= 1 && point.characterCount <= summary.characterCount &&
       (index === 0 || point.characterCount > summary.curve[index - 1].characterCount) &&
       Number.isInteger(point.intervalMs) && point.intervalMs >= 0 && point.intervalMs <= MAX_INTERVAL_MS,
     ) &&
     Array.isArray(summary.weakSegments) && summary.weakSegments.length <= 3 &&
     summary.weakSegments.every((segment) =>
+      segment !== null && typeof segment === "object" && !Array.isArray(segment) &&
       Number.isInteger(segment.start) && segment.start >= 0 && segment.start < summary.characterCount &&
       typeof segment.text === "string" && Array.from(segment.text).length >= 8 && Array.from(segment.text).length <= 15 &&
       segment.start + Array.from(segment.text).length <= summary.characterCount &&

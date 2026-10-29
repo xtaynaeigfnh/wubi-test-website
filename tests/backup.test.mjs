@@ -751,7 +751,7 @@ test("backup rejects noncanonical ghost retention and duplicate session IDs", ()
 
 test("old backups clear phrase opportunities and UTF-8 byte limits are enforced", () => {
   const oversized = createBackupPayload({
-    [STORAGE.sessions]: Array.from({ length: 20 }, (_, index) =>
+    [STORAGE.sessions]: Array.from({ length: 150 }, (_, index) =>
       session({
         id: `large-${index}`,
         errorChars: Array.from({ length: 5000 }, () => "错错错错错错错错"),

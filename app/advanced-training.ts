@@ -421,6 +421,8 @@ export function isAdvancedSeason(value: unknown): value is AdvancedSeason {
     !season.days.every((day) => Boolean(day) && typeof day === "object" && !Array.isArray(day))
   ) return false;
   const durationDays = season.durationDays ?? 14;
+  // Validate nested data before deriving maps and cross-field relationships.
+  if (season.assessment !== undefined && !isAssessment(season.assessment, durationDays)) return false;
   const schedule = scheduleForDuration(durationDays);
   const isOpen = season.status === "active" || season.status === "paused";
   const startedAt = new Date(season.startedAt).getTime();

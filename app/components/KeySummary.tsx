@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { clearKeyUsage, readKeyUsage } from "../practice-store";
+import { clearKeyUsage, readKeyUsage } from "../practice-transactions";
 import { KEYBOARD_KEYS, summarizeKeyUsage, type KeyUsageMap } from "../key-usage";
 import { KeyboardHeatmap } from "./summary/KeyboardHeatmap";
 import { UsageCharts } from "./summary/UsageCharts";
@@ -34,9 +34,9 @@ export function KeySummary({ embedded = false }: { embedded?: boolean }) {
   }, []);
   const summary = useMemo(() => summarizeKeyUsage(usage), [usage]);
   const dominantRow = [...summary.rows].sort((a, b) => b.count - a.count)[0];
-  const reset = () => {
+  const reset = async () => {
     if (!window.confirm("确定清空全部按键使用记录吗？练习成绩和错题不会受到影响。")) return;
-    if (!clearKeyUsage()) {
+    if (!await clearKeyUsage()) {
       setResetError("按键记录未能清空，请检查浏览器存储空间后重试。");
       return;
     }

@@ -374,7 +374,7 @@ test("history filters are visually separate and expose pressed state", async () 
   assert.match(styles, /\.history-filter button\s*\{[^}]*border:\s*1px solid/s);
   assert.match(history, />\s*清除练习数据与计划\s*</);
   const clearResults = history.match(
-    /const clearResults = \(\) => \{[\s\S]*?\n  \};/,
+    /const clearResults = async \(\) => \{[\s\S]*?\n  \};/,
   )?.[0];
   assert.ok(clearResults);
   assert.doesNotMatch(clearResults, /clearKeyUsage/);
@@ -644,7 +644,7 @@ test("settings and other training surfaces expose storage failures", async () =>
   assert.match(training, /if \(!writeLocal\(STORAGE\.dailyGoal, next\)\)/);
   assert.match(training, /每日目标未能保存，原目标保持不变/);
 
-  assert.match(summary, /if \(!clearKeyUsage\(\)\)/);
+  assert.match(summary, /if \(!await clearKeyUsage\(\)\)/);
   assert.match(summary, /按键记录未能清空/);
   assert.match(advanced, /scenarioLoadError/);
   assert.match(advanced, /setScenarioLoadAttempt\(\(value\) => value \+ 1\)/);
@@ -719,7 +719,7 @@ test("unfinished drills require one discard decision while failed saves stay blo
   );
   assert.match(
     training,
-    /const startPlanTask = \(task: TrainingTask\) => \{\s*if \(!confirmDrillDeparture\(\)\) return false;[\s\S]*?startTrainingTask\(task\.id\)[\s\S]*?setPlan\(next\)/,
+    /const startPlanTask = async \(task: TrainingTask\) => \{\s*if \(!confirmDrillDeparture\(\)\) return false;[\s\S]*?startTrainingTask\(task\.id\)[\s\S]*?setPlan\(next\)/,
   );
   assert.match(training, /key=\{`\$\{drillResetRevision\}:/);
 
@@ -941,7 +941,7 @@ test("history exposes an accessible weekly report and local image download", asy
   assert.match(card, /canvas\.toBlob/);
   assert.match(card, /anchor\.download = `五笔周报-/);
   assert.match(card, /window\.setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 1000\)/);
-  assert.match(history, /if \(!clearPracticeHistory\(\)\)/);
+  assert.match(history, /if \(!await clearPracticeHistory\(\)\)/);
 });
 
 test("code hint pairs the current character with a compact toolbar code card", async () => {
@@ -1635,4 +1635,11 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   assert.equal((input.match(/<textarea\b/g) ?? []).length, 1);
   assert.match(typing, /!isFocusSkin && diagnostics/);
   assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
+});
+
+test("霓虹字根选中标题保持高对比颜色，默认无障碍覆盖所有皮肤", async () => {
+  const css = await readFile(new URL("../app/styles/neon-noir.css", import.meta.url), "utf8");
+  assert.match(css, /\.root-zone-rail button\.active strong\s*\{\s*color: var\(--text-on-accent\)/);
+  const script = await readFile(new URL("../scripts/check-accessibility.mjs", import.meta.url), "utf8");
+  assert.match(script, /A11Y_SKINS \?\? "letterpress,focus,neon"/);
 });

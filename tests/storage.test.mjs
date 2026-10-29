@@ -315,3 +315,29 @@ test("local IDs and temporary session values survive restricted browser capabili
     delete globalThis.window;
   }
 });
+
+test("写锁串行执行完整读改写，失败释放锁且随后操作继续", async (context) => {
+  const { withStorageWriteLock } = await import("../app/storage-lock.ts");
+  const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  let tail = Promise.resolve();
+  const names = [];
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: {
+    request(name, operation) {
+      names.push(name);
+      const result = tail.then(operation);
+      tail = result.catch(() => undefined);
+      return result;
+    },
+  } } });
+  context.after(() => { if (original) Object.defineProperty(globalThis, "navigator", original); else delete globalThis.navigator; });
+  const seen = [];
+  let value = 0;
+  await Promise.all(Array.from({ length: 10 }, () => withStorageWriteLock(() => {
+    seen.push(value); value += 1;
+  })));
+  assert.deepEqual(seen, Array.from({ length: 10 }, (_, i) => i));
+  await assert.rejects(withStorageWriteLock(() => { throw new Error("expected failure"); }), /expected failure/);
+  await withStorageWriteLock(() => { value += 1; });
+  assert.equal(value, 11);
+  assert.equal(new Set(names).size, 1);
+});

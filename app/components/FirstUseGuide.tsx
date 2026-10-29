@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAdvancedSeason } from "../advanced-training";
 import { readAdvancedSeasonArchive } from "../advanced-season-storage";
-import { createLocalId, getErrors, getSessions } from "../practice-store";
+import { createLocalId, getErrors, getSessions } from "../practice-transactions";
+import { withStorageWriteLock } from "../storage-lock";
 import { commitLocalWrites, readLocal, STORAGE, writeLocal } from "../storage";
 import type { SessionResult } from "../types";
 
@@ -36,28 +37,35 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
 
   useEffect(() => {
     if (!enabled) return;
+    let active = true;
     const refresh = () => {
-      const storedProgress = readProgress();
-      const nextSessions = getSessions();
-      const result = reconcileOnboarding(storedProgress, nextSessions);
-      const changed = result.progress !== storedProgress;
-      const saved = !changed || (result.progress && writeProgress(result.progress));
-      setProgress(saved ? result.progress : storedProgress);
-      if (result.open) {
-        setDismissedForPractice(false);
-        setOpened(true);
-      }
-      if (!saved) {
-        setSaveError("成绩已保存，但引导进度未能保存，请检查浏览器存储空间后刷新重试。");
-      }
-      setSessions(nextSessions);
-      setHydrated(true);
+      void withStorageWriteLock(() => {
+        if (!active) return;
+        const storedProgress = readProgress();
+        const nextSessions = getSessions();
+        const result = reconcileOnboarding(storedProgress, nextSessions);
+        const changed = result.progress !== storedProgress;
+        const saved = !changed || (result.progress && writeProgress(result.progress));
+        setProgress(saved ? result.progress : storedProgress);
+        if (result.open) {
+          setDismissedForPractice(false);
+          setOpened(true);
+        }
+        if (!saved) {
+          setSaveError("成绩已保存，但引导进度未能保存，请检查浏览器存储空间后刷新重试。");
+        }
+        setSessions(nextSessions);
+        setHydrated(true);
+      }).catch(() => {
+        if (active) { setHydrated(true); setSaveError("引导进度暂时无法安全同步，请重试。"); }
+      });
     };
     refresh();
     window.addEventListener("wubi:practice-saved", refresh);
     window.addEventListener("focus", refresh);
     window.addEventListener("storage", refresh);
     return () => {
+      active = false;
       window.removeEventListener("wubi:practice-saved", refresh);
       window.removeEventListener("focus", refresh);
       window.removeEventListener("storage", refresh);
@@ -114,29 +122,32 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
     window.location.assign(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/?onboarding=1&step=${tested}`);
   };
   const createGoal = () => {
-    if (!baseline || goalCreated) return;
-    if (baseline.sessions.some((session) => session.durationSeconds < 5 || session.speed > 1000)) {
-      setSaveError("短测耗时过短或速度异常，暂不据此建立目标。请重新完成自然输入的短测。"); return;
-    }
-    const archive = readAdvancedSeasonArchive();
-    if (!archive) { setSaveError("阶段目标数据无法读取，请先检查或恢复备份。"); return; }
-    if (archive.active) {
+    void withStorageWriteLock(() => {
+      if (!baseline || goalCreated) return;
+      if (baseline.sessions.some((session) => session.durationSeconds < 5 || session.speed > 1000)) {
+        setSaveError("短测耗时过短或速度异常，暂不据此建立目标。请重新完成自然输入的短测。"); return;
+      }
+      const archive = readAdvancedSeasonArchive();
+      if (!archive) { setSaveError("阶段目标数据无法读取，请先检查或恢复备份。"); return; }
+      if (archive.active) {
+        setGoalCreated(true);
+        setSaveError("已有阶段目标，保留当前目标；可直接进行推荐复练。");
+        return;
+      }
+      const season = createAdvancedSeason(createLocalId(), new Date(), {
+        durationDays: 7,
+        goalMetric: baseline.metric,
+      });
+      const nextProgress = { ...current, goalMetric: baseline.metric };
+      if (!commitLocalWrites(new Map<string, unknown>([
+        [STORAGE.advancedSeason, { ...archive, active: season }],
+        [STORAGE.onboarding, nextProgress],
+      ]))) { setSaveError("目标未能保存，已有成绩保持不变，请重试。"); return; }
+      setProgress(nextProgress);
       setGoalCreated(true);
-      setSaveError("已有阶段目标，保留当前目标；可直接进行推荐复练。");
-      return;
-    }
-    const season = createAdvancedSeason(createLocalId(), new Date(), {
-      durationDays: 7,
-      goalMetric: baseline.metric,
-    });
-    const nextProgress = { ...current, goalMetric: baseline.metric };
-    if (!commitLocalWrites(new Map<string, unknown>([
-      [STORAGE.advancedSeason, { ...archive, active: season }],
-      [STORAGE.onboarding, nextProgress],
-    ]))) { setSaveError("目标未能保存，已有成绩保持不变，请重试。"); return; }
-    setProgress(nextProgress);
-    setGoalCreated(true);
+    }).catch(() => setSaveError("目标暂时无法安全保存，请重试。"));
   };
+
   const goToPractice = () => {
     if (!baseline) return;
     const next = { ...current, status: "active" as const, practiceStartedAt: new Date().toISOString(), practiceSessionId: undefined };

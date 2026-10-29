@@ -1,3 +1,4 @@
+import { MAX_WEAKNESS_COUNT } from "./practice-constraints.ts";
 import type {
   ArticleProgress,
   DailyTrainingPlan,
@@ -450,7 +451,9 @@ export function regenerateIncompleteTasks(
     ...regenerated,
     estimatedMinutes: tasks.reduce((sum, task) => sum + task.estimatedMinutes, 0),
     tasks,
-    weakSnapshot: { ...plan.weakSnapshot, ...regenerated.weakSnapshot },
+    // This is the day's original baseline, not the union of every new group.
+    // Keeping it stable also makes the final resolved/remaining comparison fair.
+    weakSnapshot: { ...plan.weakSnapshot },
   };
 }
 
@@ -485,18 +488,18 @@ export function applyWeakObservations(
       .reduce((sum, row) => sum + clamp(row.severity ?? 1, 1, 3), 0);
     const correctionCount = rows.filter((row) => row.kind === "correction").length;
     item.code = rows.find((row) => row.code)?.code ?? item.code;
-    item.codingErrors = stat.codingErrors + codingErrors;
+    item.codingErrors = Math.min(MAX_WEAKNESS_COUNT, stat.codingErrors + codingErrors);
     item.count = item.codingErrors;
-    item.hesitationPoints = stat.hesitationPoints + hesitationPoints;
-    item.correctionCount = stat.correctionCount + correctionCount;
-    item.seenCount = stat.seenCount + 1;
+    item.hesitationPoints = Math.min(MAX_WEAKNESS_COUNT, stat.hesitationPoints + hesitationPoints);
+    item.correctionCount = Math.min(MAX_WEAKNESS_COUNT, stat.correctionCount + correctionCount);
+    item.seenCount = Math.min(MAX_WEAKNESS_COUNT, stat.seenCount + 1);
     if (negative) {
       item.mastery = Math.max(0, stat.mastery - 1);
       item.correctStreak = 0;
       item.lastSeen = rows.find((row) => row.occurredAt)?.occurredAt ?? now.toISOString();
     } else {
       item.mastery = Math.min(5, stat.mastery + 1);
-      item.correctStreak = stat.correctStreak + 1;
+      item.correctStreak = Math.min(MAX_WEAKNESS_COUNT, stat.correctStreak + 1);
       item.lastCorrect = rows.find((row) => row.occurredAt)?.occurredAt ?? now.toISOString();
     }
     items.set(text, item);

@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { buildChallengePool } from "../../training-pools";
-import { createLocalId, recordKeyUsage, savePracticeOutcome } from "../../practice-store";
+import { createLocalId, recordKeyUsage, savePracticeOutcome } from "../../practice-transactions";
 import { loadWubiChallenge } from "../../content-loader";
 import { calculateAccuracy, calculateRemainingSeconds } from "../../typing-metrics";
 import type { SessionResult, WeakObservation, WubiEntry } from "../../types";
@@ -151,7 +151,7 @@ export function ChallengeView({
   }, [pool]);
 
   const finishChallenge = useCallback(
-    (
+    async (
       answered: number,
       correctAnswers: number,
       reason: "complete" | "timeout",
@@ -196,7 +196,9 @@ export function ChallengeView({
           observations: [...challengeObservationsRef.current],
         };
         pendingChallengeSaveRef.current = pending;
-        if (!savePracticeOutcome(session, pending.observations)) {
+        setChallengeSaveFailed(true);
+        setStarted(false);
+        if (!await savePracticeOutcome(session, pending.observations)) {
           setChallengeSaveFailed(true);
           window.alert("本次成绩未能保存，请检查浏览器存储空间后再试。");
         } else {
@@ -280,10 +282,10 @@ export function ChallengeView({
     nextQuestion();
   };
 
-  const retryChallengeSave = () => {
+  const retryChallengeSave = async () => {
     const pending = pendingChallengeSaveRef.current;
     if (!pending) return;
-    if (!savePracticeOutcome(pending.session, pending.observations)) {
+    if (!await savePracticeOutcome(pending.session, pending.observations)) {
       window.alert("仍未能保存，请清理部分本机数据后再试。");
       return;
     }

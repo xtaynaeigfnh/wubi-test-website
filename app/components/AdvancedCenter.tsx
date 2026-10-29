@@ -1,4 +1,6 @@
 "use client";
+
+import { writeAdvancedSeasonArchive, saveCurrentAdvancedPracticeOutcome } from "../practice-transactions";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { AdvancedPractice, type PracticeTarget } from "./advanced/AdvancedPractice";
@@ -8,12 +10,10 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { KeySoundPlayer } from "./views/TypingView";
-import { createLocalId, getSessions } from "../practice-store";
-import { readLocal, STORAGE, takeSessionValue, writeLocal } from "../storage";
+import { createLocalId, getSessions } from "../practice-transactions";
+import { readLocal, STORAGE, takeSessionValue } from "../storage";
 import {
   readAdvancedSeasonArchive,
-  writeAdvancedSeasonArchive,
-  saveCurrentAdvancedPracticeOutcome,
 } from "../advanced-season-storage";
 import { loadArticles } from "../content-loader";
 import {
@@ -266,14 +266,17 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     const rawStored = readLocal<unknown>(STORAGE.advancedSeason, EMPTY_ARCHIVE);
     const stored = isAdvancedSeasonArchive(rawStored) ? rawStored : EMPTY_ARCHIVE;
     if (!isAdvancedSeasonArchive(rawStored)) {
-      writeLocal(STORAGE.advancedSeason, EMPTY_ARCHIVE);
+      setSeasonSaveFailed(true);
+      setSeasonMessage("阶段目标数据无法读取，原始数据已保留，请检查或恢复备份。");
     }
     if (stored.active) {
       const active = expireAdvancedSeason(stored.active);
       const normalized = archiveFinishedSeason(stored, active);
       setArchive(normalized);
       if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
-        writeAdvancedSeasonArchive(stored, normalized);
+        void writeAdvancedSeasonArchive(stored, normalized).then((saved) => {
+          if (!saved) setSeasonSaveFailed(true);
+        });
       }
     } else {
       setArchive(stored);
@@ -329,23 +332,23 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     const baselineScenario = scenarios.find((item) => item.id === "quiet-office-one");
     if (!baselineScenario) return;
     const currentIdentity = buildAdvancedAssessmentIdentity(baselineScenario);
-    setArchive((previous) => {
-      const current = readAdvancedSeasonArchive() ?? previous;
-      if (!current.active) return current;
-      const invalidated = invalidateAdvancedSeasonForContent(
-        current.active,
-        currentIdentity,
-      );
-      if (invalidated === current.active) return current;
-      const next = archiveFinishedSeason(current, invalidated);
-      if (!writeAdvancedSeasonArchive(current, next)) {
+    let active = true;
+    const current = readAdvancedSeasonArchive();
+    if (!current?.active) return;
+    const invalidated = invalidateAdvancedSeasonForContent(current.active, currentIdentity);
+    if (invalidated === current.active) return;
+    const next = archiveFinishedSeason(current, invalidated);
+    void writeAdvancedSeasonArchive(current, next).then((saved) => {
+      if (!active) return;
+      if (!saved) {
         setSeasonSaveFailed(true);
-        setSeasonMessage("正文变化状态未能保存，请检查浏览器存储空间。");
-        return current;
+        setSeasonMessage("正文变化状态未能保存，其他窗口可能已更新，请重试。");
+        return;
       }
+      setArchive(readAdvancedSeasonArchive() ?? next);
       setSeasonMessage("评测正文已经变化，旧周期已转为只读摘要。");
-      return next;
     });
+    return () => { active = false; };
   }, [scenarios]);
 
   useEffect(() => {
@@ -407,7 +410,7 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     setPractice(null);
   };
 
-  const startSeason = () => {
+  const startSeason = async () => {
     if (archive.active || seasonActionLockRef.current) return;
     seasonActionLockRef.current = true;
     const season = createAdvancedSeason(createLocalId(), new Date(), {
@@ -415,7 +418,7 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
       goalMetric,
     });
     const next = { ...archive, active: season };
-    if (writeAdvancedSeasonArchive(archive, next)) {
+    if (await writeAdvancedSeasonArchive(archive, next)) {
       setArchive(next);
       setSeasonSaveFailed(false);
       setSeasonMessage("阶段目标已建立；完成第一天后会生成个人观察区间。");
@@ -426,7 +429,7 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     window.setTimeout(() => { seasonActionLockRef.current = false; }, 0);
   };
 
-  const updateSeason = (
+  const updateSeason = async (
     update: (season: AdvancedSeason) => AdvancedSeason,
     successMessage: string,
   ) => {
@@ -434,7 +437,7 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     seasonActionLockRef.current = true;
     const season = update(archive.active);
     const next = archiveFinishedSeason(archive, season);
-    if (writeAdvancedSeasonArchive(archive, next)) {
+    if (await writeAdvancedSeasonArchive(archive, next)) {
       setArchive(next);
       setSeasonSaveFailed(false);
       setSeasonMessage(successMessage);
@@ -458,12 +461,12 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     updateSeason((season) => cancelAdvancedSeason(season), "阶段目标已取消；已有成绩没有删除。");
   };
 
-  const startSeasonPractice = () => {
+  const startSeasonPractice = async () => {
     if (!archive.active || archive.active.status === "paused") return;
     const current = expireAdvancedSeason(archive.active);
     if (current.status !== "active") {
       const next = archiveFinishedSeason(archive, current);
-      if (writeAdvancedSeasonArchive(archive, next)) setArchive(next);
+      if (await writeAdvancedSeasonArchive(archive, next)) setArchive(next);
       else setSeasonSaveFailed(true);
       return;
     }

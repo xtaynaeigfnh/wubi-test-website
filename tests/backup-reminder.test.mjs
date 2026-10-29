@@ -172,3 +172,21 @@ test("提醒记录写失败保留旧值并返回失败，异常元信息不触�
   assert.equal(deferBackupReminder(now), false);
   assert.equal(values.get(BACKUP_REMINDER_KEY), original);
 });
+
+test("超过旧 2 MB 限制的合法本机历史仍能完整导出并恢复", async (context) => {
+  const { isValidSessionCollection } = await import("../app/practice-store.ts");
+  const { serializeBackupPayload, MAX_BACKUP_BYTES, parseBackupPayload } = await import("../app/backup.ts");
+  const rows = Array.from({ length: 351 }, (_, index) => session({
+    id: `large-valid-${index}`, errorChars: Array.from({ length: 1199 }, () => "甲"),
+  }));
+  const values = storageHarness(context, rows);
+  assert.equal(isValidSessionCollection(rows), true);
+  const payload = createValidatedLocalBackup(now);
+  const serialized = serializeBackupPayload(payload);
+  assert(Buffer.byteLength(serialized) > 2 * 1024 * 1024);
+  assert(Buffer.byteLength(serialized) < MAX_BACKUP_BYTES);
+  const parsed = parseBackupPayload(JSON.parse(serialized));
+  values.clear();
+  restoreBackupPayload(parsed);
+  assert.deepEqual(JSON.parse(values.get(STORAGE.sessions)), rows);
+});

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { buildTrendSeries } from "../practice-statistics";
-import { localDateKey } from "../practice-store";
+import { localDateKey } from "../practice-transactions";
 import type { SessionResult } from "../types";
 
 export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {

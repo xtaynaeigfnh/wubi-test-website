@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSessions } from "../../../practice-store";
+import { getSessions } from "../../../practice-transactions";
 import {
   buildGhostTimeline,
   compareGhostSegments,

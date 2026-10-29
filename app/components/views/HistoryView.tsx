@@ -11,7 +11,7 @@ import {
   getPhraseOpportunities,
   getProgress,
   getSessions,
-} from "../../practice-store";
+} from "../../practice-transactions";
 import { formatDuration } from "../../format";
 import { FALLBACK_ARTICLE_COUNT, loadArticleMetadata } from "../../content-loader";
 import type {
@@ -175,9 +175,9 @@ export function HistoryView({
     [errors, phraseOpportunities, reportNow, sessions],
   );
 
-  const clearResults = () => {
+  const clearResults = async () => {
     if (!window.confirm("确定清除全部本地成绩、错题、今日训练与阶段目标吗？此操作无法撤销。")) return;
-    if (!clearPracticeHistory()) {
+    if (!await clearPracticeHistory()) {
       window.alert("清除未完成，本机数据已恢复到操作前的状态，请稍后重试。");
       return;
     }

@@ -11,7 +11,7 @@ import {
   readHesitationQueue,
   saveHesitationPracticeOutcome,
   startHesitationQueueItem,
-} from "../practice-store";
+} from "../practice-transactions";
 import { defaultCustomTheme, defaultSettings } from "../practice-schema";
 import { readSettings } from "../settings-store";
 import { STORAGE } from "../storage";
@@ -186,8 +186,8 @@ export function WubiApp({ view }: { view: AppView }) {
   useEffect(refreshHesitationState, [refreshHesitationState]);
 
   const addHesitationToQueue = useCallback(
-    (target: HesitationPracticeTarget) => {
-      const result = addHesitationQueueItem(target);
+    async (target: HesitationPracticeTarget) => {
+      const result = await addHesitationQueueItem(target);
       setHesitationQueue(result.queue);
       if (result.result === "duplicate") {
         window.alert("这一段已在今日加练中。");
@@ -203,12 +203,12 @@ export function WubiApp({ view }: { view: AppView }) {
   );
 
   const startQueuedHesitationPractice = useCallback(
-    (itemId: string, target: HesitationPracticeTarget) => {
+    async (itemId: string, target: HesitationPracticeTarget) => {
       if (!itemId) {
         setActiveHesitationPractice({ target });
         return;
       }
-      const queue = startHesitationQueueItem(itemId);
+      const queue = await startHesitationQueueItem(itemId);
       if (!queue) {
         window.alert("加练状态未能保存，请检查浏览器存储空间后再试。");
         return;
@@ -220,7 +220,7 @@ export function WubiApp({ view }: { view: AppView }) {
   );
 
   const saveHesitationAttempts = useCallback(
-    (attempts: HesitationAttemptTuple) => {
+    async (attempts: HesitationAttemptTuple) => {
       if (!activeHesitationPractice) {
         return { ok: false, message: "练习目标已经失效，请关闭后重新进入。" };
       }
@@ -230,7 +230,7 @@ export function WubiApp({ view }: { view: AppView }) {
         attempts[2].completedAt,
       );
       const session = buildHesitationSession(result);
-      const saved = saveHesitationPracticeOutcome(
+      const saved = await saveHesitationPracticeOutcome(
         session,
         buildHesitationObservations(result),
         activeHesitationPractice.queueItemId,

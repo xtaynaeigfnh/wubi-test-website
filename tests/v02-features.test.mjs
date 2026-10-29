@@ -417,3 +417,28 @@ test("review pool rejects invalid backup codes and deduplicates repeated text", 
 
   assert.deepEqual(review, [["测", "im", 150000]]);
 });
+
+test("换组时弱项排名改变仍保留有界的当日初始比较基线", async () => {
+  const { isDailyTrainingPlan } = await import("../app/practice-schema.ts");
+  const now = new Date("2026-10-25T10:00:00Z");
+  const weakItems = Array.from({ length: 50 }, (_, index) => ({ text: String.fromCodePoint(0x4e00 + index), code: "a", count: 5, lastSeen: now.toISOString() }));
+  const input = { date: "2026-10-25", now, articles: trainingArticles, progress: [], sessions: [], weakItems, entries: trainingEntries, preferredLength: "all" };
+  const initial = generateDailyTrainingPlan(input);
+  const changed = regenerateIncompleteTasks(initial, { ...input, weakItems: [...weakItems.slice(1), { ...weakItems[0], text: "新" }] });
+  assert.deepEqual(changed.weakSnapshot, initial.weakSnapshot);
+  assert.notStrictEqual(changed.weakSnapshot, initial.weakSnapshot);
+  assert.equal(Object.keys(changed.weakSnapshot).length, 50);
+  assert.equal(changed.revision, initial.revision + 1);
+  assert.equal(isDailyTrainingPlan(changed), true);
+});
+
+test("弱项所有累加字段在上限饱和，仍能经过保存校验", async () => {
+  const { isErrorStat } = await import("../app/practice-schema.ts");
+  const { MAX_WEAKNESS_COUNT: max } = await import("../app/practice-constraints.ts");
+  const item = { text: "测", code: "imyt", count: max, codingErrors: max, hesitationPoints: max, correctionCount: max, seenCount: max, correctStreak: max, lastSeen: new Date().toISOString() };
+  for (const observations of [[{ text: "测", kind: "correct" }], ["coding-error", "hesitation", "correction"].map((kind) => ({ text: "测", kind, severity: 3 }))]) {
+    const [next] = applyWeakObservations([item], observations);
+    assert.equal(isErrorStat(next), true);
+    for (const field of ["count", "codingErrors", "hesitationPoints", "correctionCount", "seenCount"]) assert.equal(next[field], max);
+  }
+});

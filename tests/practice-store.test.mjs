@@ -1243,3 +1243,38 @@ test("practice completion notifies only after a successful new save, including r
     delete globalThis.window;
   }
 });
+
+test("并发成绩事务保留不同成绩及累计进度，失败事务不回滚别人的提交", async (context) => {
+  const transactional = await import("../app/practice-transactions.ts");
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const values = new Map();
+  let tail = Promise.resolve();
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: {
+    request(_name, operation) { const next = tail.then(operation); tail = next.catch(() => undefined); return next; },
+  } } });
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  } };
+  context.after(() => {
+    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow); else delete globalThis.window;
+    if (originalNavigator) Object.defineProperty(globalThis, "navigator", originalNavigator); else delete globalThis.navigator;
+  });
+  const results = await Promise.all(["tab-a", "tab-b"].map((id) => transactional.savePracticeOutcome(session({ id, articleId: "shared" }))));
+  assert.deepEqual(results, [true, true]);
+  assert.deepEqual(new Set(getSessions().map((row) => row.id)), new Set(["tab-a", "tab-b"]));
+  assert.equal(getProgress().find((row) => row.articleId === "shared").attempts, 2);
+  const committed = new Map(values);
+  const set = window.localStorage.setItem;
+  let failed = false;
+  window.localStorage.setItem = (key, value) => {
+    if (key === STORAGE.progress && !failed) { failed = true; throw new Error("quota"); }
+    set(key, value);
+  };
+  assert.equal(await transactional.savePracticeOutcome(session({ id: "failed-tab", articleId: "shared" })), false);
+  assert.deepEqual(values, committed);
+  assert.equal(await transactional.savePracticeOutcome(session({ id: "retry-tab", articleId: "shared" })), true);
+  assert.equal(getProgress().find((row) => row.articleId === "shared").attempts, 3);
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   buildTrainingSummary,
   scoreWeakItem,
@@ -17,7 +18,7 @@ type DailyTrainingPlanCardProps = {
   trainingSummary: ReturnType<typeof buildTrainingSummary> | null;
   selectTrainingTab: (next: "review", force?: boolean) => boolean;
   nextTrainingTask: TrainingTask | null;
-  startPlanTask: (task: TrainingTask) => boolean;
+  startPlanTask: (task: TrainingTask) => Promise<boolean>;
   changePlanGroup: () => void;
   explainedWeaknesses: { item: ErrorStat; result: ReturnType<typeof scoreWeakItem>; }[];
 };
@@ -34,6 +35,7 @@ export function DailyTrainingPlanCard({
   changePlanGroup,
   explainedWeaknesses,
 }: DailyTrainingPlanCardProps) {
+  const router = useRouter();
   return (
     <div className="smart-plan-card adaptive-plan-card" id="today-training-plan" tabIndex={-1}>
       <header className="panel-title training-card-header">
@@ -123,8 +125,9 @@ export function DailyTrainingPlanCard({
                   ) : task.type === "article" ? (
                     <Link
                       href="/"
-                      onClick={(event) => {
-                        if (!startPlanTask(task)) event.preventDefault();
+                      onClick={async (event) => {
+                        event.preventDefault();
+                        if (await startPlanTask(task)) router.push("/");
                       }}
                     >
                       {actionLabel}

@@ -264,7 +264,8 @@ test("service worker creates valid cached audio range responses", async () => {
 test("service worker upgrade removes old app caches and preserves unrelated caches", async () => {
   const worker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   const listeners = new Map();
-  const cacheNames = new Set(["wubi-test-v19", "wubi-test-v20", "wubi-test-v21", "other-app-v1"]);
+  const prefix = "wubi-test-scope:%2Fwubi:";
+  const cacheNames = new Set([`${prefix}wubi-test-v19`, `${prefix}wubi-test-v20`, `${prefix}wubi-test-v21`, "wubi-test-scope:%2Fother:wubi-test-v20", "wubi-test-v20", "other-app-v1"]);
   let claimed = false;
   runInNewContext(worker, {
     URL,
@@ -281,7 +282,7 @@ test("service worker upgrade removes old app caches and preserves unrelated cach
   let activation;
   listeners.get("activate")({ waitUntil: (promise) => { activation = promise; } });
   await activation;
-  assert.deepEqual([...cacheNames], ["wubi-test-v21", "other-app-v1"]);
+  assert.deepEqual([...cacheNames], [`${prefix}wubi-test-v21`, "wubi-test-scope:%2Fother:wubi-test-v20", "wubi-test-v20", "other-app-v1"]);
   assert.equal(claimed, true);
 });
 
@@ -354,4 +355,35 @@ test("versioned build assets avoid network traffic on cache hits and fill misses
   assert.equal(await (await request("/wubi/data/articles-index.json")).text(), "fresh");
   offline = true;
   assert.equal(await (await request("/wubi/data/articles-index.json")).text(), "fresh");
+});
+
+test("不同 scope 的离线读取和新版本清理互不干扰", async () => {
+  const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
+  const stores = new Map();
+  const cacheFor = (name) => {
+    if (!stores.has(name)) stores.set(name, new Map());
+    const store = stores.get(name);
+    return { match: async (request) => store.get(typeof request === "string" ? request : request.url)?.clone() };
+  };
+  for (const scope of ["/a", "/b"]) {
+    const name = `wubi-test-scope:${encodeURIComponent(scope)}:wubi-test-v21`;
+    cacheFor(name);
+    stores.get(name).set(`https://example.com${scope}/`, new Response(scope));
+  }
+  const oldA = "wubi-test-scope:%2Fa:wubi-test-v20";
+  cacheFor(oldA);
+  const listeners = new Map();
+  const context = {
+    URL, Request, Response, Headers,
+    caches: { open: async (name) => cacheFor(name), keys: async () => [...stores.keys()], delete: async (name) => stores.delete(name), match: () => { throw new Error("global cache lookup is unsafe"); } },
+    self: { registration: { scope: "https://example.com/a/" }, location: { origin: "https://example.com" }, clients: { claim() {} }, addEventListener: (name, handler) => listeners.set(name, handler) },
+  };
+  runInNewContext(source, context);
+  let activation;
+  listeners.get("activate")({ waitUntil: (value) => { activation = value; } });
+  await activation;
+  assert.equal(stores.has(oldA), false);
+  assert.equal(stores.has("wubi-test-scope:%2Fb:wubi-test-v21"), true);
+  assert.equal(await (await context.matchNavigationCache(new Request("https://example.com/a/"))).text(), "/a");
+  assert.equal(await context.matchCurrentCache("https://example.com/b/"), undefined);
 });

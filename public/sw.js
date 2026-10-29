@@ -2,6 +2,9 @@ const CACHE_NAME = "wubi-test-v21";
 // Production builds replace this with every emitted client asset and Pages payload.
 const BUILD_ASSETS = [];
 const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, "");
+// CacheStorage is origin-wide, so both reads and cleanup must be scope-local.
+const CACHE_PREFIX = `wubi-test-scope:${encodeURIComponent(scopePath || "/")}:`;
+const SCOPED_CACHE_NAME = `${CACHE_PREFIX}${CACHE_NAME}`;
 const withBase = (path) => `${scopePath}${path}`;
 const BUILD_ASSET_PATHS = new Set(BUILD_ASSETS.map(withBase));
 const ROUTE_PATHS = [
@@ -34,7 +37,7 @@ const PRECACHE = [
 const AUDIO_PATH_PREFIX = withBase("/audio/tracks/");
 
 async function installOfflineBundle() {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open(SCOPED_CACHE_NAME);
   await cache.addAll(PRECACHE);
   if (BUILD_ASSETS.length) await cache.addAll(BUILD_ASSETS.map(withBase));
   const shellAssets = new Set();
@@ -51,8 +54,13 @@ async function installOfflineBundle() {
   if (shellAssets.size) await cache.addAll(Array.from(shellAssets));
 }
 
+async function matchCurrentCache(request, options) {
+  const cache = await caches.open(SCOPED_CACHE_NAME);
+  return cache.match(request, options);
+}
+
 async function matchNavigationCache(request) {
-  const direct = await caches.match(request, { ignoreSearch: true });
+  const direct = await matchCurrentCache(request, { ignoreSearch: true });
   if (direct) return direct;
 
   const alternateUrl = new URL(request.url);
@@ -60,8 +68,8 @@ async function matchNavigationCache(request) {
     ? alternateUrl.pathname.slice(0, -1)
     : `${alternateUrl.pathname}/`;
   return (
-    (await caches.match(alternateUrl.toString(), { ignoreSearch: true })) ||
-    (await caches.match(withBase("/"), { ignoreSearch: true }))
+    (await matchCurrentCache(alternateUrl.toString(), { ignoreSearch: true })) ||
+    (await matchCurrentCache(withBase("/"), { ignoreSearch: true }))
   );
 }
 
@@ -123,7 +131,7 @@ function handleAudioRangeRequest(event, request, rangeHeader) {
   headers.delete("Range");
   const fullRequest = new Request(request, { headers });
   const cachedAudio = caches
-    .open(CACHE_NAME)
+    .open(SCOPED_CACHE_NAME)
     .then((cache) => cache.match(fullRequest));
   const cacheFullAudio = cachedAudio.then(async (cached) => {
     if (cached) return cached;
@@ -131,7 +139,7 @@ function handleAudioRangeRequest(event, request, rangeHeader) {
     if (!response.ok || response.status === 206) {
       throw new Error(`HTTP ${response.status}`);
     }
-    const cache = await caches.open(CACHE_NAME);
+    const cache = await caches.open(SCOPED_CACHE_NAME);
     await cache.put(fullRequest, response.clone());
     return response;
   });
@@ -169,7 +177,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("wubi-test-") && key !== CACHE_NAME)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== SCOPED_CACHE_NAME)
             .map((key) => caches.delete(key))
         )
       )
@@ -195,7 +203,7 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (!response.ok) return;
           return caches
-            .open(CACHE_NAME)
+            .open(SCOPED_CACHE_NAME)
             // Cache.put 规范禁止 navigate 模式的请求，改用同 URL 的普通 GET 请求作键。
             .then((cache) =>
               cache.put(new Request(request.url), response.clone()),
@@ -228,7 +236,7 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (!response.ok) return;
           return caches
-            .open(CACHE_NAME)
+            .open(SCOPED_CACHE_NAME)
             .then((cache) => cache.put(request, response.clone()));
         })
         .catch(() => undefined)
@@ -237,7 +245,7 @@ self.addEventListener("fetch", (event) => {
       networkResponse
         .catch(async () => {
           return (
-            (await caches.match(request)) ||
+            (await matchCurrentCache(request)) ||
             new Response("离线数据尚未缓存。", {
               status: 503,
               headers: { "Content-Type": "text/plain; charset=utf-8" }
@@ -250,7 +258,7 @@ self.addEventListener("fetch", (event) => {
 
   // Build assets belong to this worker's version. A cache hit needs no re-download.
   if (BUILD_ASSET_PATHS.has(url.pathname)) {
-    const assetResponse = caches.open(CACHE_NAME).then(async (cache) => {
+    const assetResponse = caches.open(SCOPED_CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request, {
         // Static export payloads are identical across Next's cache-busting queries.
         ignoreSearch: url.pathname.endsWith(".txt"),
@@ -273,13 +281,13 @@ self.addEventListener("fetch", (event) => {
       .then((response) => {
         if (!response.ok) return;
         return caches
-          .open(CACHE_NAME)
+          .open(SCOPED_CACHE_NAME)
           .then((cache) => cache.put(request, response.clone()));
       })
       .catch(() => undefined)
   );
   event.respondWith(
-    caches.match(request).then((cached) => {
+    matchCurrentCache(request).then((cached) => {
       if (cached) return cached;
       return networkResponse;
     })

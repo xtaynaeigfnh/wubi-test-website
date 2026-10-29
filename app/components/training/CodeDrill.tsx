@@ -6,7 +6,7 @@ import {
   recordKeyUsage,
   savePracticeOutcome,
   type PhrasePracticeInput,
-} from "../../practice-store";
+} from "../../practice-transactions";
 import { calculateAccuracy } from "../../typing-metrics";
 import type { SessionResult, TrainingTask, WeakObservation, WubiEntry } from "../../types";
 
@@ -45,6 +45,8 @@ export function CodeDrill({
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState<WubiEntry[]>([]);
   const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [pendingSave, setPendingSave] = useState<{
     session: SessionResult;
     observations: WeakObservation[];
@@ -121,6 +123,7 @@ export function CodeDrill({
   }, [started]);
 
   const start = () => {
+    if (savingRef.current) return;
     if (advanceTimer.current !== null) {
       window.clearTimeout(advanceTimer.current);
       advanceTimer.current = null;
@@ -147,7 +150,7 @@ export function CodeDrill({
     nextQuestion();
   };
 
-  const finish = (finalAnswered: number, finalCorrect: number) => {
+  const finish = async (finalAnswered: number, finalCorrect: number) => {
     if (finishedLock.current) return;
     finishedLock.current = true;
     onInProgressChange(false);
@@ -182,12 +185,19 @@ export function CodeDrill({
     };
     const savedObservations = [...observations.current];
     const savedPhrasePractices = [...phrasePracticeAnswers.current];
-    const saved = savePracticeOutcome(
+    onPendingSaveChange(true);
+    savingRef.current = true;
+    setSaving(true);
+    setStarted(false);
+    setFinished(true);
+    const saved = await savePracticeOutcome(
       session,
       savedObservations,
       [],
       savedPhrasePractices,
     );
+    savingRef.current = false;
+    setSaving(false);
     if (!saved) {
       setSaveError("本轮成绩尚未保存，请清理部分本机数据后重试。");
       setPendingSave({
@@ -207,16 +217,19 @@ export function CodeDrill({
     if (saved) onSessionSaved();
   };
 
-  const retrySave = () => {
-    if (!pendingSave) return;
-    if (
-      !savePracticeOutcome(
+  const retrySave = async () => {
+    if (!pendingSave || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    const saved = await savePracticeOutcome(
         pendingSave.session,
         pendingSave.observations,
         [],
         pendingSave.phrasePractices,
-      )
-    ) {
+      );
+    savingRef.current = false;
+    setSaving(false);
+    if (!saved) {
       setSaveError("仍未能保存，请清理部分本机数据后再试。");
       return;
     }
@@ -299,9 +312,10 @@ export function CodeDrill({
           )}
           <button
             className="button primary"
+            disabled={saving}
             onClick={saveError ? retrySave : start}
           >
-            {saveError ? "重试保存" : finished ? "再练一轮" : "开始专项"}
+            {saving ? "正在保存…" : saveError ? "重试保存" : finished ? "再练一轮" : "开始专项"}
           </button>
         </div>
       ) : (

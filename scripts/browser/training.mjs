@@ -20,6 +20,14 @@ export async function trainingPlanAndReviews({ page }) {
   await plan.getByRole("button", { name: "换一组", exact: true }).waitFor();
   const initial = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:training-plan:v1")));
   assert.equal(initial.tasks.length, 3);
+  await page.evaluate(() => {
+    const plan = JSON.parse(localStorage.getItem("wubi-test:training-plan:v1"));
+    plan.date = "2000-01-01";
+    localStorage.setItem("wubi-test:training-plan:v1", JSON.stringify(plan));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:training-plan:v1") ?? "null")?.date !== "2000-01-01");
+  await plan.getByRole("button", { name: "换一组", exact: true }).waitFor();
   const due = page.locator(".due-review-list li");
   const character = due.filter({ hasText: "“五”" });
   await storageFault(page, { writeKey: "wubi-test:review-state:v1" });
@@ -55,7 +63,7 @@ export async function trainingPlanAndReviews({ page }) {
   assert.equal((await savedSessions(page)).length, 2);
   assert.equal(await due.count(), 0);
   await page.locator("#training-task-roots").getByRole("button").click();
-  assert.equal(new URL(page.url()).searchParams.get("tab"), "roots");
+  await page.waitForURL((url) => url.searchParams.get("tab") === "roots");
   for (const button of await page.getByRole("tablist", { name: "五码根区" }).getByRole("tab").all()) {
     assert(await button.isDisabled(), "处方字根练习锁定指定分区");
   }

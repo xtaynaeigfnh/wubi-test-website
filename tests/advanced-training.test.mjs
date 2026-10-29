@@ -990,7 +990,7 @@ test("advanced page exposes accessible tabs and quiet copy", async () => {
   assert.match(component, /if \(event\.ctrlKey \|\| event\.metaKey \|\| event\.altKey\) return;/);
   assert.match(component, />重试保存<\/button>/);
   assert.match(component, /retrySaveLockRef/);
-  assert.match(component, /disabled=\{paused \|\| saveFailed\}/);
+  assert.match(component, /disabled=\{paused \|\| saving \|\| saveFailed\}/);
   assert.doesNotMatch(component, /if \(!onSave\(session\)\) \{\s*finishedRef\.current = false;/);
   assert.match(component, /startedAtRef\.current === null \|\|[\s\S]*pauseAtRef\.current !== null/);
   assert.doesNotMatch(component, /排行榜|段位|失败动画|强制连击/);
@@ -1020,7 +1020,7 @@ test("advanced page exposes the complete v0.8 goal and assessment contract", asy
   assert.match(component, /确定取消当前阶段目标吗？已有练习成绩会保留/);
   assert.match(component, /updateSeason\(\(season\) => cancelAdvancedSeason\(season\), "阶段目标已取消；已有成绩没有删除。"\)/);
 
-  assert.match(component, /invalidateAdvancedSeasonForContent\(\s*current\.active,\s*currentIdentity,\s*\)/);
+  assert.match(component, /invalidateAdvancedSeasonForContent\(\s*current\.active,\s*currentIdentity\s*\)/);
   assert.match(component, /评测正文已经变化，旧周期已转为只读摘要。/);
   assert.match(component, /latestSeason\.status === "invalidated" \? "正文变化后失效"/);
   assert.match(component, /<h3 id=\{`season-evaluation-\$\{season\.id\}`\}>基线、过程与复测<\/h3>/);
@@ -1136,5 +1136,65 @@ test("season completion reads current progress and keeps newer history on retry"
     assert.equal(saveCurrentAdvancedPracticeOutcome(result), false);
   } finally {
     delete globalThis.window;
+  }
+});
+
+test("进阶练习拒绝后台输入和迟到候选，返回前台后才恢复", async () => {
+  const practice = await createAdvancedPracticeHarness("甲乙丙");
+  practice.visibility("hidden");
+  practice.key();
+  practice.input("onCompositionStart", "");
+  practice.input("onChange", "abc", { isComposing: true });
+  practice.input("onCompositionEnd", "甲乙丙");
+  practice.flush();
+  assert.equal(practice.value, "");
+  assert.equal(practice.keys.length, 0);
+  assert.equal(practice.sessions.length, 0);
+  practice.visibility("visible");
+  practice.at(1000);
+  practice.key();
+  practice.at(2000);
+  practice.input("onChange", "甲");
+  practice.input("onCompositionStart", "甲");
+  practice.input("onChange", "甲yi", { isComposing: true });
+  practice.at(3000);
+  practice.visibility("hidden");
+  practice.at(12000);
+  practice.input("onChange", "甲乙丙");
+  practice.input("onCompositionEnd", "甲乙丙");
+  practice.flush();
+  assert.equal(practice.value, "甲");
+  assert.equal(practice.sessions.length, 0);
+  practice.visibility("visible");
+  practice.at(13000);
+  practice.input("onChange", "甲乙丙");
+  assert.equal(practice.sessions.length, 1);
+  assert.equal(practice.sessions[0].durationSeconds, 3);
+  assert.equal(practice.sessions[0].correctChars, 3);
+});
+
+test("暂停撤销组合提交定时器，旧闭包不会保存候选字母", async () => {
+  const practice = await createAdvancedPracticeHarness();
+  practice.at(1000); practice.key();
+  practice.at(2000); practice.input("onCompositionStart", "");
+  practice.input("onChange", "jia", { isComposing: true });
+  practice.input("onCompositionEnd", "甲");
+  practice.pause(); practice.at(3000); practice.flush();
+  assert.equal(practice.value, "");
+  assert.equal(practice.sessions.length, 0);
+  practice.pause(); practice.at(4000);
+  practice.input("onChange", "甲乙丙");
+  assert.equal(practice.sessions[0].correctChars, 3);
+});
+
+test("节奏与阶段校验对嵌套坏值返回 false 而不抛异常", () => {
+  const summary = buildRhythmSummary({ text: "甲乙丙丁戊己庚辛", delays: [100, 200] });
+  for (const bad of [null, [], "bad", 1, {}]) {
+    assert.equal(isRhythmSummary({ ...summary, curve: [bad] }), false);
+    assert.equal(isRhythmSummary({ ...summary, weakSegments: [bad] }), false);
+    assert.equal(isAdvancedSeason({ ...createAdvancedSeason("nested"), assessment: { version: 1, snapshots: [bad] } }), false);
+  }
+  for (const assessment of [{}, { version: 1 }, null, [], { version: 1, snapshots: null }]) {
+    assert.equal(isAdvancedSeason({ ...createAdvancedSeason("nested"), assessment }), false);
   }
 });

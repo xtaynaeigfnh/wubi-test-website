@@ -7,9 +7,12 @@ export async function localMusic({ page }) {
   const catalog = JSON.parse(await readFile("public/data/music-catalog.json", "utf8"));
   const buffer = await readFile(`public${catalog.tracks[0].sources[0].src}`);
   await open(page, "/");
-  if (await page.getByRole("button", { name: "展开专注电台控制栏" }).isVisible()) {
-    await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
-  }
+  // Start from the settled collapsed state. On cold WebKit runs, click's
+  // actionability check can outlast auto-collapse after an isVisible snapshot.
+  const reveal = page.getByRole("button", { name: "展开专注电台控制栏" });
+  await reveal.waitFor({ state: "visible" });
+  await reveal.click();
+  await page.getByRole("complementary", { name: "背景音乐播放器" }).waitFor();
   await page.getByRole("button", { name: "展开曲目列表" }).click();
   const input = page.getByLabel("选择本地歌曲");
   const songs = Array.from({ length: 5 }, (_, index) => ({ name: `本地歌曲${index + 1}.mp3`, mimeType: "audio/mpeg", buffer }));

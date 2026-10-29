@@ -16,7 +16,7 @@ import {
   readSpacedReviewState,
   readTrainingPlan,
   syncSpacedReviewState,
-} from "../practice-store";
+} from "../practice-transactions";
 import { readDailyGoal } from "../settings-store";
 import { type SpacedReviewItem, type SpacedReviewState } from "../spaced-review";
 import { STORAGE, writeLocal } from "../storage";

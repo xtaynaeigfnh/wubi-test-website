@@ -70,7 +70,13 @@ export function createBackupPayload(
   };
 }
 
-export const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+// The full local dataset can exceed 2 MB well before browser storage is full.
+// Keep import bounded, and use this same limit for compact exports.
+export const MAX_BACKUP_BYTES = 16 * 1024 * 1024;
+
+export function serializeBackupPayload(payload: BackupPayload): string {
+  return JSON.stringify(payload);
+}
 function isValidBackupValue(key: string, value: unknown): boolean {
   if (value === null) return true;
   switch (key) {

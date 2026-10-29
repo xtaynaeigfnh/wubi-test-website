@@ -16,7 +16,7 @@ import type {
   UserSettings,
   WubiEntry,
 } from "./types";
-import { MAX_CUSTOM_TEXT_LENGTH, MAX_TYPING_DELAY_MS } from "./practice-constraints.ts";
+import { MAX_CUSTOM_TEXT_LENGTH, MAX_TYPING_DELAY_MS, MAX_WEAKNESS_COUNT } from "./practice-constraints.ts";
 import {
   ghostTimelineByteLength,
   getGhostSampleStep,
@@ -525,7 +525,7 @@ export function isErrorStat(value: unknown): value is ErrorStat {
     value.text.length > 0 &&
     (value.code === undefined ||
       (isBoundedString(value.code, 4) && /^[a-y]{1,4}$/i.test(value.code))) &&
-    isFiniteRange(value.count, 0, 1_000_000) &&
+    isFiniteRange(value.count, 0, MAX_WEAKNESS_COUNT) &&
     Number.isInteger(value.count) &&
     isDateString(value.lastSeen) &&
     (value.firstSeen === undefined || isDateString(value.firstSeen)) &&
@@ -535,7 +535,7 @@ export function isErrorStat(value: unknown): value is ErrorStat {
     optionalIntegerFields.every(
       (field) =>
         value[field] === undefined ||
-        (isFiniteRange(value[field], 0, 1_000_000) &&
+        (isFiniteRange(value[field], 0, MAX_WEAKNESS_COUNT) &&
           Number.isInteger(value[field])),
     )
   );

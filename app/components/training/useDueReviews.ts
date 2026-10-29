@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { deferSpacedReviewTarget, readTrainingPlan } from "../../practice-store";
+import { deferSpacedReviewTarget, readTrainingPlan } from "../../practice-transactions";
 import {
   buildDueReviewQueue,
   createEmptySpacedReviewState,
@@ -71,8 +71,8 @@ export function useDueReviews({
     });
   };
 
-  const deferDueReview = (item: SpacedReviewItem) => {
-    const next = deferSpacedReviewTarget(item.targetType, item.targetId);
+  const deferDueReview = async (item: SpacedReviewItem) => {
+    const next = await deferSpacedReviewTarget(item.targetType, item.targetId);
     if (!next) {
       setReviewMessage("暂缓状态未能保存，这项复习仍保留在今天的队列中。");
       return;

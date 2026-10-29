@@ -278,8 +278,8 @@ export function TypingView({
     }
     router.push("/training?tab=phrase");
   };
-  const retryPracticeSave = () => {
-    if (!retrySave()) return;
+  const retryPracticeSave = async () => {
+    if (!await retrySave()) return;
     refreshProgress();
     refreshSessions();
   };

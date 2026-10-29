@@ -1,12 +1,12 @@
 "use client";
+
+import { clearAllMaintenanceData, clearMaintenanceTarget, restoreBackupPayload } from "../practice-transactions";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useRef, useState } from "react";
 import { addCustomArticlesWithinLimit } from "../article-practice";
 import {
   buildLightweightStatisticsSummary,
-  clearAllMaintenanceData,
-  clearMaintenanceTarget,
   inspectAllCleanup,
   inspectCleanup,
   readStorageDataSnapshot,
@@ -18,14 +18,15 @@ import {
   localDateKey,
   readMaintenanceLog,
   truncateUnicode,
-} from "../practice-store";
+} from "../practice-transactions";
 import {
   MAX_BACKUP_BYTES,
+  serializeBackupPayload,
   parseBackupPayload,
   readLocalForBackup,
-  restoreBackupPayload,
 } from "../backup";
 import { MAX_CUSTOM_TEXT_LENGTH } from "../practice-constraints";
+import { withStorageWriteLock } from "../storage-lock";
 import { STORAGE, writeLocal } from "../storage";
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../article-preferences";
 import {
@@ -86,7 +87,7 @@ function StorageManager({
     }
   }, [revision]);
 
-  const cleanupAll = () => {
+  const cleanupAll = async () => {
     try {
       const preview = inspectAllCleanup();
       if (!preview.count) {
@@ -100,7 +101,7 @@ function StorageManager({
         setMessage("已取消清理，本机数据未改变。");
         return;
       }
-      if (!clearAllMaintenanceData()) {
+      if (!await clearAllMaintenanceData()) {
         setMessage("清理未能保存，本机数据已保持原样。请检查浏览器存储空间。");
         return;
       }
@@ -111,7 +112,7 @@ function StorageManager({
     }
   };
 
-  const cleanupTarget = (target: CleanupTarget) => {
+  const cleanupTarget = async (target: CleanupTarget) => {
     try {
       const preview = inspectCleanup(target);
       if (!preview.count) {
@@ -124,7 +125,7 @@ function StorageManager({
         setMessage("已取消清理，本机数据未改变。");
         return;
       }
-      if (!clearMaintenanceTarget(target)) {
+      if (!await clearMaintenanceTarget(target)) {
         setMessage("清理未能保存，本机数据已保持原样。请检查浏览器存储空间。");
         return;
       }
@@ -268,10 +269,10 @@ function BackupManager({ revision }: { revision: number }) {
     }
   };
 
-  const exportBackup = () => {
+  const exportBackup = async () => {
     try {
-      const payload = createValidatedLocalBackup();
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      const payload = await withStorageWriteLock(() => createValidatedLocalBackup());
+      const blob = new Blob([serializeBackupPayload(payload)], {
         type: "application/json",
       });
       if (blob.size > MAX_BACKUP_BYTES) {
@@ -285,7 +286,7 @@ function BackupManager({ revision }: { revision: number }) {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-      const recorded = recordBackupDownload(payload);
+      const recorded = await withStorageWriteLock(() => recordBackupDownload(payload));
       if (recorded) {
         try {
           setReminder(readBackupReminderStatus());
@@ -327,10 +328,10 @@ function BackupManager({ revision }: { revision: number }) {
     }
   };
 
-  const restore = () => {
+  const restore = async () => {
     if (!pending || inspecting) return;
     try {
-      restoreBackupPayload(pending);
+      await restoreBackupPayload(pending);
       setMessage("恢复完成，正在重新载入页面。");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {

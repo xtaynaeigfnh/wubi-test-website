@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { KeySoundPlayer } from "../views/typing/useTypingSession";
-import { createLocalId, recordKeyUsage } from "../../practice-store";
+import { createLocalId, recordKeyUsage } from "../../practice-transactions";
 import {
   applyTypingDelaySample,
   calculateKeyAccuracy,
@@ -51,7 +51,7 @@ export function AdvancedPractice({
   playKeySound: KeySoundPlayer;
   roundLabel?: string;
   onCancel: () => void;
-  onSave: (session: SessionResult) => boolean;
+  onSave: (session: SessionResult) => boolean | Promise<boolean>;
   onComplete: (session: SessionResult) => void;
 }) {
   const cleanTarget = useMemo(() => target.text.replace(/\s+/g, ""), [target.text]);
@@ -68,8 +68,9 @@ export function AdvancedPractice({
   const [hasStarted, setHasStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
   usePendingSaveGuard(
-    saveFailed || (hasStarted && !finished),
+    saving || saveFailed || (hasStarted && !finished),
     saveFailed
       ? "本次成绩尚未保存，请先重试保存。"
       : "练习正在进行，退出会丢失本次输入。",
@@ -98,6 +99,19 @@ export function AdvancedPractice({
   const committedRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const compositionCommitTimerRef = useRef<number | null>(null);
+  const compositionRevisionRef = useRef(0);
+  const discardComposition = useCallback(() => {
+    compositionRevisionRef.current += 1;
+    if (compositionCommitTimerRef.current !== null) {
+      window.clearTimeout(compositionCommitTimerRef.current);
+      compositionCommitTimerRef.current = null;
+    }
+    composingRef.current = false;
+    setInputValue(committedRef.current);
+    if (inputRef.current) inputRef.current.value = committedRef.current;
+  }, []);
+  const acceptsInput = () => document.visibilityState !== "hidden" &&
+    pauseAtRef.current === null && !finishedRef.current;
 
   const activeElapsed = useCallback((now: number) => {
     if (startedAtRef.current === null) return 0;
@@ -113,6 +127,7 @@ export function AdvancedPractice({
     const onVisibility = () => {
       const now = performance.now();
       if (document.visibilityState === "hidden") {
+        discardComposition();
         if (
           startedAtRef.current === null ||
           pauseAtRef.current !== null ||
@@ -126,7 +141,7 @@ export function AdvancedPractice({
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [activeElapsed]);
+  }, [activeElapsed, discardComposition]);
 
   useEffect(
     () => () => {
@@ -138,12 +153,13 @@ export function AdvancedPractice({
   );
 
   const startTimer = () => {
+    if (!acceptsInput()) return;
     if (startedAtRef.current !== null) return;
     startedAtRef.current = performance.now();
     setHasStarted(true);
   };
 
-  const finish = (committed: string) => {
+  const finish = async (committed: string) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setFinished(true);
@@ -194,7 +210,10 @@ export function AdvancedPractice({
       seasonDay: target.seasonDay,
     };
     pendingSaveRef.current = session;
-    if (!onSave(session)) {
+    setSaving(true);
+    const saved = await onSave(session);
+    setSaving(false);
+    if (!saved) {
       setSaveFailed(true);
       return;
     }
@@ -202,11 +221,11 @@ export function AdvancedPractice({
     onComplete(session);
   };
 
-  const retrySave = () => {
+  const retrySave = async () => {
     const session = pendingSaveRef.current;
     if (!session || retrySaveLockRef.current) return;
     retrySaveLockRef.current = true;
-    if (!onSave(session)) {
+    if (!await onSave(session)) {
       retrySaveLockRef.current = false;
       return;
     }
@@ -217,7 +236,7 @@ export function AdvancedPractice({
   };
 
   const commitValue = (value: string) => {
-    if (paused || finishedRef.current) return;
+    if (!acceptsInput()) return;
     const committed = Array.from(value.replace(/[\r\n\s]/g, ""))
       .slice(0, targetCharacters.length)
       .join("");
@@ -256,7 +275,7 @@ export function AdvancedPractice({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (paused || finishedRef.current) return;
+    if (!acceptsInput()) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const now = performance.now();
     if (
@@ -289,12 +308,18 @@ export function AdvancedPractice({
   const togglePause = () => {
     if (startedAtRef.current === null) return;
     const now = performance.now();
+    discardComposition();
     if (paused) {
       if (pauseAtRef.current !== null) pausedMsRef.current += Math.max(0, now - pauseAtRef.current);
       pauseAtRef.current = null;
+      if (document.visibilityState === "hidden") inactiveAtRef.current = now;
       setPaused(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     } else {
+      if (inactiveAtRef.current !== null) {
+        inactiveMsRef.current += Math.max(0, now - inactiveAtRef.current);
+        inactiveAtRef.current = null;
+      }
       pauseAtRef.current = now;
       pauseCountRef.current += 1;
       setPaused(true);
@@ -345,7 +370,7 @@ export function AdvancedPractice({
         ref={inputRef}
         autoFocus
         value={inputValue}
-        disabled={paused || saveFailed}
+        disabled={paused || saving || saveFailed}
         aria-label="进阶训练输入区"
         placeholder={paused ? "练习已暂停" : "在这里开始输入"}
         onKeyDown={onKeyDown}
@@ -358,6 +383,10 @@ export function AdvancedPractice({
           }
         }}
         onChange={(event) => {
+          if (!acceptsInput()) {
+            discardComposition();
+            return;
+          }
           const next = event.target.value;
           const nativeEvent = event.nativeEvent as InputEvent;
           if (
@@ -372,17 +401,25 @@ export function AdvancedPractice({
           commitValue(next);
         }}
         onCompositionStart={() => {
+          if (!acceptsInput()) return;
+          discardComposition();
           composingRef.current = true;
           startTimer();
         }}
         onCompositionEnd={(event) => {
+          if (!acceptsInput() || !composingRef.current) {
+            discardComposition();
+            return;
+          }
           composingRef.current = false;
           const endedValue = event.currentTarget.value;
+          const revision = compositionRevisionRef.current;
           if (compositionCommitTimerRef.current !== null) {
             window.clearTimeout(compositionCommitTimerRef.current);
           }
           compositionCommitTimerRef.current = window.setTimeout(() => {
             compositionCommitTimerRef.current = null;
+            if (revision !== compositionRevisionRef.current || !acceptsInput()) return;
             commitValue(inputRef.current?.value ?? endedValue);
           }, 0);
         }}
@@ -396,7 +433,7 @@ export function AdvancedPractice({
       <div className="advanced-practice-actions">
         <button
           className="button secondary"
-          disabled={saveFailed}
+          disabled={saving || saveFailed}
           onClick={() => {
             if (hasStarted && !finished && !window.confirm("退出会丢失本次输入，确定退出吗？")) return;
             onCancel();
