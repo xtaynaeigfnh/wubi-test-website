@@ -314,7 +314,7 @@ npx playwright install chromium firefox webkit
 npm run test:a11y
 ```
 
-无障碍脚本默认会启动本地开发服务器，在 Chromium、Firefox 和 WebKit 中检查两套皮肤和多个视口，并把结果写入 `output/playwright/accessibility/`。也可通过 `A11Y_BASE_URL` 指向已启动的网站，或通过 `A11Y_SKINS=letterpress` / `A11Y_SKINS=focus` 指定单套皮肤。它不包含在 `npm test` 中；CI 会运行 Chromium、WebKit 的手机浅色与桌面深色组合，并覆盖两套皮肤。完整三浏览器、多视口检查仍可在本地单独运行。
+无障碍脚本默认会启动本地开发服务器，在 Chromium、Firefox 和 WebKit 中检查 letterpress、focus、neon 三套皮肤和多个视口，并把结果写入 `output/playwright/accessibility/`。也可通过 `A11Y_BASE_URL` 指向已启动的网站，或通过 `A11Y_SKINS=letterpress` / `A11Y_SKINS=focus` / `A11Y_SKINS=neon` 指定单套皮肤。它不包含在 `npm test` 中；CI 会运行 Chromium、WebKit 的手机浅色与桌面深色组合，并覆盖三套皮肤。完整三浏览器、多视口检查仍可在本地单独运行。
 
 关键操作浏览器回归默认启动开发服务器，使用 Chromium 和 WebKit 检查多窗口设置、输入法组合事件、成绩保存失败后的重试与离开保护、备份恢复，以及文章搜索和收藏、字根专项、进阶练习的失败重试和播放器快捷切歌：
 
@@ -344,6 +344,8 @@ Remove-Item Env:NEXT_PUBLIC_BASE_PATH, Env:BROWSER_BASE_PATH, Env:BROWSER_ENGINE
 ```
 
 Windows 上应先停止开发服务器，再运行生产构建，避免开发文件监听与输出目录写入发生冲突。浏览器检查的内置开发服务器使用共享的 `scripts/browser-test-server.mjs`，负责跨平台启动、启动失败提示与子进程清理。
+
+多窗口存储回归使用定时轮询等待数据同步，避免依赖后台标签页的动画帧；超时会附带本地存储快照。定向复现命令和诊断方法见 [存储同步等待与超时诊断](tests/browser-coverage.md#存储同步等待与超时诊断)。
 
 报告、失败截图与 trace 存放在 `output/playwright/regression/` 和 `output/playwright/regression-pages/`。PR 和 `main` 推送都会执行质量检查、生产依赖安全审计、双引擎操作回归、手机与桌面无障碍检查以及生产子路径离线回归。只有 `main` 的推送或手动运行会进入发布步骤，PR 只检查、不部署。
 

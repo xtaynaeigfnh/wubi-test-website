@@ -54,6 +54,20 @@ Remove-Item Env:BROWSER_ENGINES, Env:BROWSER_SCENARIOS
 
 每个浏览器操作都有超时；失败会返回非零退出码，并保存对应截图和 trace。业务断言同时检查界面与存储，不能只因为控件存在就算通过。
 
+### 存储同步等待与超时诊断
+
+`scripts/browser/concurrent-storage.mjs` 中的成绩收敛、损坏成绩清理和文章版本进度等待共用 `waitForStorageState`，每 100 毫秒检查一次，仍遵守场景的 15 秒默认超时。它不依赖 `waitForFunction` 默认的动画帧轮询：后台标签页可能暂停绘制，模拟 `document.hidden` 为 false 也不能保证动画帧继续执行。
+
+定向运行这四个场景（默认覆盖 Chromium 和 WebKit）：
+
+```sh
+BROWSER_SCENARIOS=article-version-progress,concurrent-practice-saves,concurrent-practice-idb,corrupt-history-recovery npm run test:browser
+```
+
+仅复现 WebKit 时再设置 `BROWSER_ENGINES=webkit`；PowerShell 按上文方式设置和清除对应环境变量。定时轮询保留原有的成绩数量、版本隔离、累计次数与刷新后保留断言，不放宽数据正确性要求。
+
+等待超时会在错误信息中附加 `Local storage at timeout`，记录被检查页面当时所有 `wubi-test:` 键的值（读取失败时为 null）。错误信息同时写入控制台与 `report.json`。结合两个窗口的 trace、保存提示和快照中的成绩及进度判断原因；单个窗口的一次快照不能独自证明另一个窗口的状态或数据永久丢失。不能只凭超时就认定为动画帧问题，也不能用延长超时替代数据完整性检查。
+
 ## 系统输入法人工验收
 
 自动化派发的 CompositionEvent 不能替代操作系统五笔候选窗。发布输入适配改动时，在 macOS Safari 和 Chromium 中各用实际五笔输入法检查：
