@@ -70,7 +70,7 @@ Remove-Item Env:BROWSER_ENGINES, Env:BROWSER_SCENARIOS
 
 ### 深度审查问题回归
 
-`concurrent-practice-saves` 通过平台 Web Lock 暂停实际页面保存，在两个标签页完成输入后释放锁，验证等待期间没有成功提示、两条不同成绩均保存且刷新不丢失；`concurrent-practice-idb` 关闭 Web Locks 后验证 IndexedDB 兼容路径。`corrupt-history-recovery` 验证嵌套坏成绩不再阻断首页，正常成绩保留。`advanced-practice` 增加后台输入拒绝、恢复后暂停与保存失败重试。
+`concurrent-practice-saves` 通过平台 Web Lock 暂停实际页面保存，在两个标签页完成输入后释放锁，验证等待期间没有成功提示、两个窗口的存储视图都收敛到两条不同成绩且刷新不丢失；`concurrent-practice-idb` 关闭 Web Locks 后验证 IndexedDB 兼容路径。`corrupt-history-recovery` 验证嵌套坏成绩不再阻断首页，正常成绩保留。`advanced-practice` 增加后台输入拒绝、恢复后暂停与保存失败重试。
 
 无障碍默认覆盖 letterpress、focus、neon 三套皮肤；霓虹选中态标题需在手机浅色和桌面深色下同时通过。样式契约检查不能替代实际对比度测量。
 

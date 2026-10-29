@@ -28,6 +28,11 @@ export async function concurrentPracticeSaves({ page, context }, fallback = fals
     }
     await page.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
     await other.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
+    // Cross-window localStorage notifications can arrive after the other tab's
+    // save UI updates. Require both views to converge, then verify after reload.
+    for (const tab of [page, other]) {
+      await tab.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:sessions:v1") ?? "[]").length === 2);
+    }
     const rows = await savedSessions(page);
     assert.equal(rows.length, 2);
     assert.equal(new Set(rows.map((row) => row.id)).size, 2);
@@ -83,6 +88,7 @@ export async function articleVersionProgress({ page, context }) {
     for (const tab of [page, other]) {
       await tab.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
     }
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:article-progress:v1") ?? "[]").length === 4);
     let rows = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:article-progress:v1")));
     assert.deepEqual(rows.map((row) => [row.articleVersion ?? null, row.attempts]).sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0)), [[null, 10], [4, 10], [5, 1], [6, 1]]);
     assert.deepEqual((await savedSessions(page)).map((row) => row.articleVersion).sort(), [5, 6]);
@@ -92,6 +98,7 @@ export async function articleVersionProgress({ page, context }) {
     for (const tab of [page, other]) {
       await tab.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
     }
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:article-progress:v1") ?? "[]").find((row) => row.articleVersion === 6)?.attempts === 3);
     rows = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:article-progress:v1")));
     assert.equal(rows.find((row) => row.articleVersion === 6).attempts, 3);
     assert.equal(rows.find((row) => row.articleVersion === 5).attempts, 1);
