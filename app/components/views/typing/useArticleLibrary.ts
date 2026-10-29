@@ -27,6 +27,7 @@ import {
 import { loadArticles, loadCommonCharacters } from "../../../content-loader";
 import { selectLibraryArticles, type ArticleSort } from "../../../article-library";
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../../../article-preferences";
+import { buildArticleProgressMap } from "../../../article-progress";
 import type {
   ArticleFilter,
   ArticleProgress,
@@ -147,8 +148,8 @@ export function useArticleLibrary(
     setLoadAttempt((value) => value + 1);
   }, []);
   const progressMap = useMemo(
-    () => new Map(progress.map((row) => [row.articleId, row])),
-    [progress],
+    () => buildArticleProgressMap(articles, progress),
+    [articles, progress],
   );
   const availableArticles = useMemo(
     () => [...customTexts, ...articles],
@@ -377,9 +378,7 @@ export function useArticleLibrary(
   };
 
   const pickMostDifficult = () => {
-    const articleIds = new Set(articles.map((item) => item.id));
-    const target = [...getProgress()]
-      .filter((item) => articleIds.has(item.articleId))
+    const target = [...buildArticleProgressMap(articles, getProgress()).values()]
       .sort((a, b) => b.errors - a.errors)
       .find((item) => item.errors > 0);
     const found = articles.find((item) => item.id === target?.articleId);

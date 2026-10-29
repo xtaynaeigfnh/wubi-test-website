@@ -270,6 +270,7 @@ export interface SessionResult {
   id: string;
   type: "article" | "challenge" | "review" | "roots" | "hesitation" | "rhythm" | "scenario";
   articleId?: string;
+  articleVersion?: number;
   title: string;
   date: string;
   durationSeconds: number;
@@ -410,6 +411,7 @@ export interface TrainingSummary {
 
 export interface ArticleProgress {
   articleId: string;
+  articleVersion?: number;
   attempts: number;
   bestSpeed: number;
   completed: boolean;

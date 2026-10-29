@@ -1643,3 +1643,11 @@ test("霓虹字根选中标题保持高对比颜色，默认无障碍覆盖所�
   const script = await readFile(new URL("../scripts/check-accessibility.mjs", import.meta.url), "utf8");
   assert.match(script, /A11Y_SKINS \?\? "letterpress,focus,neon"/);
 });
+
+
+test("成绩记录展示正文版本并说明当前版本完成度口径", async () => {
+  const history = await readFile(new URL("../app/components/views/HistoryView.tsx", import.meta.url), "utf8");
+  assert.match(history, /正文版本未记录/);
+  assert.match(history, /当前版本文章完成度/);
+  assert.match(history, /旧版及未记录版本的成绩仍保留/);
+});

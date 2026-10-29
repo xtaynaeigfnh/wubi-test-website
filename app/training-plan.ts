@@ -1,4 +1,5 @@
 import { MAX_WEAKNESS_COUNT } from "./practice-constraints.ts";
+import { articleProgressKey, buildArticleProgressMap } from "./article-progress.ts";
 import type {
   ArticleProgress,
   DailyTrainingPlan,
@@ -254,13 +255,16 @@ function selectArticle(
     input.sessions
       .filter((session) => session.type === "article" && session.articleId)
       .slice(0, 10)
-      .map((session) => session.articleId as string),
+      .map((session) => articleProgressKey({
+        articleId: session.articleId as string,
+        articleVersion: session.articleVersion,
+      })),
   );
   const fresh = candidates.filter(
-    (article) => !recent.has(article.id) && !excluded.has(article.id),
+    (article) => !recent.has(articleProgressKey({ articleId: article.id, articleVersion: article.version })) && !excluded.has(article.id),
   );
   if (fresh.length) candidates = fresh;
-  const progress = new Map(input.progress.map((item) => [item.articleId, item]));
+  const progress = buildArticleProgressMap(candidates, input.progress);
   const ranked = candidates.map((article) => {
     const weakness = activeWeak.slice(0, 20).reduce(
       (sum, item) =>

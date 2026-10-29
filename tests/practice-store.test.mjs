@@ -1044,7 +1044,7 @@ test("failed article progress repair preserves the original stored value", () =>
 
 test("session and article progress writes roll back together after storage failure", () => {
   const oldSessions = JSON.stringify([session({ id: "old" })]);
-  const oldProgress = JSON.stringify([]);
+  const oldProgress = JSON.stringify([articleProgress({ articleId: "article-1", articleVersion: 5 })]);
   const values = new Map([
     [STORAGE.sessions, oldSessions],
     [STORAGE.progress, oldProgress],
@@ -1064,7 +1064,7 @@ test("session and article progress writes roll back together after storage failu
     },
   };
   try {
-    assert.equal(saveSession(session({ id: "new", articleId: "article-1" })), false);
+    assert.equal(saveSession(session({ id: "new", articleId: "article-1", articleVersion: 5 })), false);
     assert.equal(values.get(STORAGE.sessions), oldSessions);
     assert.equal(values.get(STORAGE.progress), oldProgress);
   } finally {
@@ -1277,4 +1277,31 @@ test("并发成绩事务保留不同成绩及累计进度，失败事务不回�
   assert.deepEqual(values, committed);
   assert.equal(await transactional.savePracticeOutcome(session({ id: "retry-tab", articleId: "shared" })), true);
   assert.equal(getProgress().find((row) => row.articleId === "shared").attempts, 3);
+});
+
+test("不同正文版本独立累计进度，旧记录保留且保存重试不重复累计", () => {
+  const legacy = articleProgress({ completed: true, bestSpeed: 999 });
+  const values = new Map([[STORAGE.progress, JSON.stringify([legacy])]]);
+  globalThis.window = { localStorage: {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  } };
+  try {
+    const v4 = session({ id: "v4", articleId: legacy.articleId, articleVersion: 4, speed: 90, errors: 2 });
+    const v5 = session({ id: "v5", articleId: legacy.articleId, articleVersion: 5, speed: 50, errors: 1 });
+    assert.equal(saveSession(v4), true);
+    assert.equal(saveSession(v5), true);
+    assert.equal(saveSession(v5), true);
+    assert.equal(saveSession({ ...v5, id: "v5-again", speed: 60 }), true);
+    const rows = getProgress();
+    assert.equal(rows.length, 3);
+    assert.deepEqual(rows[0], legacy);
+    assert.equal(rows[1].attempts, 1);
+    assert.equal(rows[1].bestSpeed, 90);
+    assert.equal(rows[2].attempts, 2);
+    assert.equal(rows[2].bestSpeed, 60);
+    assert.equal(rows[2].errors, 2);
+    assert.equal(getSessions()[0].articleVersion, 5);
+  } finally { delete globalThis.window; }
 });

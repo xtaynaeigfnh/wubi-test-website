@@ -224,6 +224,7 @@ test("结算保存重试只增加一次成绩、文章进度和弱项统计", (c
   assert.deepEqual(values, savedValues);
   assert.equal(getSessions().length, 1);
   assert.equal(getProgress()[0].attempts, 1);
+  assert.equal(getProgress()[0].articleVersion, article.version);
   assert.equal(getSessions()[0].durationSeconds, 4);
   assert.equal(getSessions()[0].correctionCount, 1);
 });
@@ -261,4 +262,15 @@ test("输入法Process键通过物理键位累计字母和左右手，选字与�
   assert.equal(state.selectionCount, 2);
   assert.equal(state.enterCount, 1);
   assert.equal(state.backspaceCount, 1);
+});
+
+test("文章结算在无幽灵数据时仍记录正文版本，自定义和常用字不记入文章进度", () => {
+  const state = commit(start(), target, 4000);
+  const outcome = outcomeFor(state);
+  assert.equal(outcome.session.articleVersion, article.version);
+  for (const kind of ["custom", "common"]) {
+    const result = buildTypingOutcome({ state, article: { ...article, kind }, visibleText: target, targetText: target, id: kind, wubiCodes: new Map(), theoreticalCodeLength: 2, codeLengthAnalysis: null });
+    assert.equal(result.session.articleId, undefined);
+    assert.equal(result.session.articleVersion, undefined);
+  }
 });

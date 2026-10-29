@@ -150,3 +150,18 @@ test("旧成绩兼容缺省大对象，新成绩仍校验热力图和幽灵时�
     assert.equal(schema.isSessionResult(invalid), false);
   }
 });
+
+test("文章进度只合并相同正文版本，旧记录独立保留并拒绝非法版本", () => {
+  const rows = [articleProgress(), articleProgress({ articleVersion: 4 }), articleProgress({ articleVersion: 5 }), articleProgress({ articleVersion: 5, attempts: 2 })];
+  const normalized = schema.normalizeArticleProgress(rows);
+  assert.equal(normalized.length, 3);
+  assert.deepEqual(normalized.map((row) => row.attempts), [1, 1, 3]);
+  assert.equal(schema.isValidArticleProgressCollection(normalized), true);
+  assert.equal(schema.isValidArticleProgressCollection(rows), false);
+  for (const articleVersion of [null, 0, -1, 1.5, "5", 1_000_001, Infinity]) {
+    assert.deepEqual(schema.normalizeArticleProgress([articleProgress({ articleVersion })]), []);
+    assert.equal(schema.isSessionResult(session({ articleVersion })), false);
+  }
+  assert.equal(schema.isSessionResult(session({ articleVersion: 5 })), true);
+  assert.equal(schema.isSessionResult(session()), true);
+});

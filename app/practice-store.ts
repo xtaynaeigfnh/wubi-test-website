@@ -1,4 +1,5 @@
 "use client";
+import { articleProgressKey } from "./article-progress.ts";
 import { MAX_WEAKNESS_COUNT } from "./practice-constraints.ts";
 import { hasStorageWriteLock, withStorageWriteLock } from "./storage-lock.ts";
 import { PRACTICE_SAVED_EVENT } from "./pet-events.ts";
@@ -738,7 +739,9 @@ function persistPracticeOutcome(
   )));
   const progress = getProgress();
   if (session.type === "article" && session.articleId) {
-    const existing = progress.find((row) => row.articleId === session.articleId);
+    const identity = { articleId: session.articleId, articleVersion: session.articleVersion };
+    const key = articleProgressKey(identity);
+    const existing = progress.find((row) => articleProgressKey(row) === key);
     if (existing) {
       existing.attempts = Math.min(
         MAX_ARTICLE_PROGRESS_VALUE,
@@ -757,6 +760,7 @@ function persistPracticeOutcome(
     } else {
       progress.push({
         articleId: session.articleId,
+        ...(session.articleVersion === undefined ? {} : { articleVersion: session.articleVersion }),
         attempts: 1,
         bestSpeed: Math.min(MAX_ARTICLE_PROGRESS_VALUE, session.speed),
         completed: true,

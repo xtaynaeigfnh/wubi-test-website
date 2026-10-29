@@ -54,3 +54,51 @@ export async function corruptHistoryRecovery({ page, context }) {
   assert.equal((await savedSessions(page))[0].id, "kept-valid");
   assert.deepEqual(errors, []);
 }
+
+export async function articleVersionProgress({ page, context }) {
+  const article = { id: "short-version-test", title: "正文版本隔离练习", text, length: "short", topic: "日常", wordCount: Array.from(text).length, version: 5 };
+  let version = 5;
+  await context.route("**/data/articles-*.json", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const rows = path.endsWith("articles-index.json") ? [{ ...article, version }]
+      : path.endsWith("articles-short.json") ? [{ id: article.id, text }] : [];
+    await route.fulfill({ json: rows });
+  });
+  await context.addInitScript((article) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    if (localStorage.getItem("version-progress-seeded")) return;
+    localStorage.setItem("version-progress-seeded", "true");
+    localStorage.setItem("wubi-test:current-article:v1", JSON.stringify(article.id));
+    const row = { articleId: article.id, attempts: 10, bestSpeed: 999, completed: true, lastPracticed: "2026-10-01T00:00:00Z", errors: 99 };
+    localStorage.setItem("wubi-test:article-progress:v1", JSON.stringify([row, { ...row, articleVersion: 4 }]));
+  }, article);
+  await open(page, "/");
+  await typingInput(page).waitFor();
+  version = 6;
+  const other = await context.newPage();
+  try {
+    await open(other, "/");
+    await typingInput(other).waitFor();
+    await Promise.all([typingInput(page).fill(text), typingInput(other).fill(text)]);
+    for (const tab of [page, other]) {
+      await tab.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
+    }
+    let rows = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:article-progress:v1")));
+    assert.deepEqual(rows.map((row) => [row.articleVersion ?? null, row.attempts]).sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0)), [[null, 10], [4, 10], [5, 1], [6, 1]]);
+    assert.deepEqual((await savedSessions(page)).map((row) => row.articleVersion).sort(), [5, 6]);
+    // Both windows now practice version 6: the shared write lock must retain both attempts.
+    await Promise.all([page.reload({ waitUntil: "networkidle" }), other.reload({ waitUntil: "networkidle" })]);
+    await Promise.all([typingInput(page).fill(text), typingInput(other).fill(text)]);
+    for (const tab of [page, other]) {
+      await tab.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
+    }
+    rows = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:article-progress:v1")));
+    assert.equal(rows.find((row) => row.articleVersion === 6).attempts, 3);
+    assert.equal(rows.find((row) => row.articleVersion === 5).attempts, 1);
+    await open(page, "/history/");
+    await page.getByText("正文版本 5", { exact: true }).waitFor();
+    const completion = page.getByRole("progressbar", { name: "当前版本文章完成度" });
+    await page.waitForFunction(() => document.querySelector('[aria-label="当前版本文章完成度"]')?.getAttribute("aria-valuenow") === "1");
+    assert.equal(await completion.getAttribute("aria-valuemax"), "1");
+  } finally { await other.close(); }
+}
