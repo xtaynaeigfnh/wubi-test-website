@@ -254,11 +254,15 @@ npm run dev
 
 ### 依赖安全维护
 
-当前 Next.js 与配套 ESLint 配置为 16.4.2，Cloudflare Vite 插件为 1.64.0，Wrangler 为 4.151.1。更新后需重新运行两种构建与浏览器回归，不使用会降级框架的 `npm audit fix --force`。
+当前工具链使用 Vite 8.3.5、Vinext 1.4.0、React / React DOM / React Server DOM Webpack 19.3.1、Cloudflare Vite 插件 1.66.0 和 Wrangler 4.155.0。Vinext 的 React 与 RSC peer 依赖需要一起升级。开发与构建通过 `vite dev` / `vite build` 运行 Vinext 插件；测试服务器使用 Vite 的 `--host` 参数，本地生产预览使用 `vite preview`，在 Workers 运行时加载构建产物；渲染测试通过真实预览 HTTP 响应验证页面，不再把 Workers bundle 直接导入 Node。更新后需重新运行两种构建与浏览器回归，不使用会降级框架的 `npm audit fix --force`。
 
 `braces@3.0.3` 的 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) 尚无上游修复版。项目通过 `postinstall` 执行 `scripts/patch-braces.mjs`：核对版本及原始 SHA-256 后，为解析器和 compile、expand、stringify 的递归路径添加 64 层深度保护。干净安装与重复执行均支持；版本或源码不匹配会明确失败，要求重新评估补丁。`npm test` 用超深花括号、括号、直接 AST 和正常 glob 覆盖这项保护。不要使用 `--ignore-scripts` 跳过安装补丁后运行开发或构建工具。
 
-全量 `npm audit` 仍会显示 `braces` 及其开发工具依赖链的 8 项高危标记，因为注册表只识别版本、不识别本地补丁；这不表示上游已修复。`npm audit --omit=dev` 当前为零告警并纳入 CI。上游发布修复版或调用方移除该依赖后，应升级并删除本地补丁及对应测试，重新检查全量审计结果。
+Satori 0.33.5 及其字体解析依赖固定了 `fflate@0.7.3`，仍受 GHSA-px8p-9vwx-vf98 影响；`package.json` 仅在 Satori 依赖树中覆盖为同一 minor 的修复版 `0.7.5`。上游解除旧版本固定后，评估并移除该覆盖。不要为了审计通过而降级 Vinext。
+
+PR 和 main 的质量检查执行 `npm audit --include=dev`，同时检查生产和开发依赖。独立的 `dependency-audit.yml` 每周一北京时间 14:00 重新审计锁文件，也支持手动运行；即使没有代码变更，也能发现新公布的漏洞。Dependabot 每周检查 npm 更新，React、Next 和 Vite 工具链分别分组，更新仍须经过现有质量检查，不自动合并。
+
+审计只识别依赖版本，不识别本地 braces 补丁。即使审计暂时没有报告该漏洞，也不能据此移除保护；只有确认上游修复或依赖移除后，才删除补丁及对应测试。
 
 ### 项目结构
 
@@ -347,7 +351,7 @@ Windows 上应先停止开发服务器，再运行生产构建，避免开发文
 
 多窗口存储回归使用定时轮询等待数据同步，避免依赖后台标签页的动画帧；超时会附带本地存储快照。定向复现命令和诊断方法见 [存储同步等待与超时诊断](tests/browser-coverage.md#存储同步等待与超时诊断)。
 
-报告、失败截图与 trace 存放在 `output/playwright/regression/` 和 `output/playwright/regression-pages/`。PR 和 `main` 推送都会执行质量检查、生产依赖安全审计、双引擎操作回归、手机与桌面无障碍检查以及生产子路径离线回归。只有 `main` 的推送或手动运行会进入发布步骤，PR 只检查、不部署。
+报告、失败截图与 trace 存放在 `output/playwright/regression/` 和 `output/playwright/regression-pages/`。PR 和 `main` 推送都会执行质量检查、全量依赖安全审计、双引擎操作回归、手机与桌面无障碍检查以及生产子路径离线回归。只有 `main` 的推送或手动运行会进入发布步骤，PR 只检查、不部署。
 
 开发服务器运行在 `http://127.0.0.1:4175` 时，可运行 `node scripts/check-skins.mjs` 验证皮肤保存与恢复、失败回滚、配色独立选择、音乐连续播放、组合输入、暂停和结算，并保存四种尺寸的页面截图到 `output/playwright/skins/`。其他地址可通过 `SKIN_BASE_URL` 指定。
 

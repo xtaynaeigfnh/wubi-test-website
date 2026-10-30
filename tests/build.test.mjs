@@ -128,11 +128,11 @@ test("build lifecycle stays cross-platform and project-rooted", async () => {
   ]);
   const packageJson = JSON.parse(packageText);
 
-  assert.equal(packageJson.scripts.dev, "vinext dev");
-  assert.equal(packageJson.scripts.build, "vinext build");
+  assert.equal(packageJson.scripts.dev, "vite dev");
+  assert.equal(packageJson.scripts.build, "vite build");
   assert.equal(packageJson.scripts.postbuild, "node scripts/generate-offline-assets.mjs dist/client");
   assert.equal(packageJson.scripts["postbuild:pages"], "node scripts/generate-offline-assets.mjs out");
-  assert.equal(packageJson.scripts.start, "vinext start");
+  assert.equal(packageJson.scripts.start, "vite preview");
   assert.equal(packageJson.scripts.typecheck, "next typegen && tsc --noEmit");
   assert.ok(
     viteConfig.indexOf("process.env.WRANGLER_LOG_PATH ??=") <

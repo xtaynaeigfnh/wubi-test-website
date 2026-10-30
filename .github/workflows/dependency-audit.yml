@@ -1,0 +1,25 @@
+name: Dependency security audit
+
+on:
+  schedule:
+    # Monday 14:00 Asia/Shanghai.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Audit all dependencies including build tools
+        run: npm audit --include=dev
+      - name: Verify temporary dependency protection
+        run: node --test tests/dependency-security.test.mjs

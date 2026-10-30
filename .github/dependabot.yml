@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "14:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "维护依赖"
+    groups:
+      react-runtime:
+        patterns:
+          - react
+          - react-dom
+          - react-server-dom-webpack
+      next:
+        patterns:
+          - next
+          - eslint-config-next
+      vite-runtime:
+        patterns:
+          - vite
+          - vinext
+          - "@vitejs/*"
+          - "@cloudflare/vite-plugin"
+          - wrangler
