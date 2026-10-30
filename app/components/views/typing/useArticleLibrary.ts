@@ -26,7 +26,8 @@ import {
 } from "../../../storage";
 import { loadArticles, loadCommonCharacters } from "../../../content-loader";
 import { selectLibraryArticles, type ArticleSort } from "../../../article-library";
-import { readFavoriteArticleIds, toggleFavoriteArticle } from "../../../article-preferences";
+import { readFavoriteArticleIds } from "../../../article-preferences";
+import { toggleFavoriteArticle } from "../../../practice-transactions";
 import { buildArticleProgressMap } from "../../../article-progress";
 import type {
   ArticleFilter,
@@ -86,6 +87,8 @@ export function useArticleLibrary(
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [articleSort, setArticleSort] = useState<ArticleSort>("default");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const favoriteSavingRef = useRef(false);
+  const [favoriteSaving, setFavoriteSaving] = useState(false);
   const [favoriteError, setFavoriteError] = useState("");
   const customSaveLock = useRef(false);
 
@@ -173,10 +176,19 @@ export function useArticleLibrary(
     }),
     [availableArticles, filter, progressMap, query, favoriteSet, favoritesOnly, articleSort],
   );
-  const toggleFavorite = (id: string) => {
-    const result = toggleFavoriteArticle(id);
-    if (result.ok) setFavoriteIds(result.ids);
-    setFavoriteError(result.message);
+  const toggleFavorite = async (id: string) => {
+    if (favoriteSavingRef.current) return;
+    favoriteSavingRef.current = true;
+    setFavoriteSaving(true);
+    setFavoriteError("");
+    try {
+      const result = await toggleFavoriteArticle(id);
+      if (result.ok) setFavoriteIds(result.ids);
+      setFavoriteError(result.message);
+    } finally {
+      favoriteSavingRef.current = false;
+      setFavoriteSaving(false);
+    }
   };
 
   const chooseArticle = useCallback(
@@ -409,6 +421,7 @@ export function useArticleLibrary(
     setArticleSort,
     favoriteSet,
     favoriteError,
+    favoriteSaving,
     toggleFavorite,
     chooseArticle,
     randomArticle,

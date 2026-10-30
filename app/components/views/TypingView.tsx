@@ -66,6 +66,7 @@ export function TypingView({
     setArticleSort,
     favoriteSet,
     favoriteError,
+    favoriteSaving,
     toggleFavorite,
     chooseArticle,
     randomArticle,
@@ -659,6 +660,7 @@ export function TypingView({
           favoriteIds={favoriteSet}
           onToggleFavorite={toggleFavorite}
           favoriteError={favoriteError}
+          favoriteSaving={favoriteSaving}
           onClose={() => setPickerOpen(false)}
           onChoose={chooseArticle}
           filters={

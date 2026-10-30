@@ -365,7 +365,14 @@ export function startTrainingTask(
     task.status = "in-progress";
     task.startedAt = now.toISOString();
   }
-  return writeTrainingPlan(plan) ? plan : null;
+  // Select the article and start its task as one rollback-safe operation.
+  const writes = new Map<string, unknown>();
+  if (task.type === "article" && task.articleId) {
+    writes.set(STORAGE.current, task.articleId);
+    writes.set(STORAGE.currentGenerated, null);
+  }
+  writes.set(STORAGE.trainingPlan, plan);
+  return isDailyTrainingPlan(plan) && commitLocalWrites(writes) ? plan : null;
 }
 
 function emptyHesitationQueue(now: Date): HesitationPracticeQueue {

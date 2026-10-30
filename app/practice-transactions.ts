@@ -1,5 +1,7 @@
 "use client";
 
+import { saveSettingsChanges as saveSettings } from "./settings-sync.ts";
+import { toggleFavoriteArticle as toggleFavorite, readFavoriteArticleIds } from "./article-preferences.ts";
 import * as store from "./practice-store.ts";
 import * as seasons from "./advanced-season-storage.ts";
 import * as maintenance from "./maintenance-store.ts";
@@ -34,3 +36,13 @@ export const addHesitationQueueItem = (...args: Parameters<typeof store.addHesit
   }));
 export const deferSpacedReviewTarget = (...args: Parameters<typeof store.deferSpacedReviewTarget>) =>
   withStorageWriteLock(() => store.deferSpacedReviewTarget(...args)).catch(() => null);
+
+export const saveSettingsChanges = (...args: Parameters<typeof saveSettings>) =>
+  withStorageWriteLock(() => saveSettings(...args)).catch(() => null);
+export const toggleFavoriteArticle = (...args: Parameters<typeof toggleFavorite>) =>
+  withStorageWriteLock(() => toggleFavorite(...args)).catch(() => ({
+    ok: false, ids: readFavoriteArticleIds(), message: "收藏暂时无法安全保存，请重试。",
+  }));
+
+export const startTrainingTask = (...args: Parameters<typeof store.startTrainingTask>) =>
+  withStorageWriteLock(() => store.startTrainingTask(...args)).catch(() => null);

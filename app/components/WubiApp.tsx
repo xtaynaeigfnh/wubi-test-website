@@ -10,12 +10,12 @@ import {
   getSessions,
   readHesitationQueue,
   saveHesitationPracticeOutcome,
+  saveSettingsChanges,
   startHesitationQueueItem,
 } from "../practice-transactions";
 import { defaultCustomTheme, defaultSettings } from "../practice-schema";
 import { readSettings } from "../settings-store";
 import { STORAGE } from "../storage";
-import { saveSettingsChanges } from "../settings-sync";
 import type {
   AppView,
   HesitationPracticeAttempt,
@@ -157,6 +157,8 @@ function useKeySound(enabled: boolean): KeySoundPlayer {
 export function WubiApp({ view }: { view: AppView }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const settingsSavingRef = useRef(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaveError, setSettingsSaveError] = useState("");
   const [hesitationQueue, setHesitationQueue] =
     useState<HesitationPracticeQueue | null>(null);
@@ -323,26 +325,27 @@ export function WubiApp({ view }: { view: AppView }) {
 
   const currentThemeName = themeLabels[settings.theme];
   const quickTheme = getNextQuickTheme(settings.theme);
-  const updateSettings = (next: UserSettings) => {
-    const saved = saveSettingsChanges(settings, next);
-    if (!saved) {
-      setSettingsSaveError("设置未能保存，原设置保持不变。请检查浏览器存储空间后重试。");
-      return false;
-    }
-    setSettings(saved);
+  const updateSettings = async (next: UserSettings, previous = settings) => {
+    if (settingsSavingRef.current) return false;
+    settingsSavingRef.current = true;
+    setSettingsSaving(true);
     setSettingsSaveError("");
-    return true;
+    try {
+      const saved = await saveSettingsChanges(previous, next);
+      if (!saved) {
+        setSettingsSaveError("设置未能保存，原设置保持不变。请检查浏览器存储空间后重试。");
+        return false;
+      }
+      setSettings(saved);
+      return true;
+    } finally {
+      settingsSavingRef.current = false;
+      setSettingsSaving(false);
+    }
   };
   const cycleTheme = () => {
     const latest = readSettings();
-    const next = { ...latest, theme: getNextQuickTheme(latest.theme) };
-    const saved = saveSettingsChanges(latest, next);
-    if (!saved) {
-      setSettingsSaveError("设置未能保存，原设置保持不变。请检查浏览器存储空间后重试。");
-      return;
-    }
-    setSettings(saved);
-    setSettingsSaveError("");
+    return updateSettings({ ...latest, theme: getNextQuickTheme(latest.theme) }, latest);
   };
 
   return (
@@ -385,6 +388,7 @@ export function WubiApp({ view }: { view: AppView }) {
                 className="theme-switch"
                 type="button"
                 onClick={cycleTheme}
+                disabled={settingsSaving}
                 aria-label={`当前${currentThemeName}主题，点击切换为${themeLabels[quickTheme]}主题`}
                 title={`主题：${currentThemeName}`}
               >
@@ -402,6 +406,7 @@ export function WubiApp({ view }: { view: AppView }) {
 
         <main className="page-wrap" id="main-content">
           {settings.skin !== "focus" && <FirstUseGuide enabled={settingsReady} view={view} />}
+          {settingsSaving && <p className="plan-message" role="status">正在保存设置…</p>}
           {settingsSaveError && (
             <p className="plan-message" role="alert">{settingsSaveError}</p>
           )}
@@ -448,6 +453,7 @@ export function WubiApp({ view }: { view: AppView }) {
             <SettingsView
               settings={settings}
               onChange={updateSettings}
+              saving={settingsSaving}
               playKeySound={playKeySound}
             />
           )}

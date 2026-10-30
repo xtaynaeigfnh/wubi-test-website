@@ -50,9 +50,11 @@ export function SettingsView({
   settings,
   onChange,
   playKeySound,
+  saving,
 }: {
   settings: UserSettings;
-  onChange: (settings: UserSettings) => boolean;
+  onChange: (settings: UserSettings) => Promise<boolean>;
+  saving: boolean;
   playKeySound: KeySoundPlayer;
 }) {
   const update = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) =>
@@ -151,7 +153,7 @@ export function SettingsView({
                 <div className="skin-options">
                   {skinOptions.map((option) => (
                     <label key={option.id} className="skin-option" data-skin-option={option.id}>
-                      <input type="radio" name="skin" value={option.id} checked={settings.skin === option.id} onChange={() => update("skin", option.id)} />
+                      <input disabled={saving} type="radio" name="skin" value={option.id} checked={settings.skin === option.id} onChange={() => update("skin", option.id)} />
                       <span className="skin-thumbnail" aria-hidden="true">
                         <span className="skin-thumbnail-nav"><i /><i /><i /></span>
                         <span className="skin-thumbnail-page"><b>五笔 · 86</b><i /><span><i /><i /><i /></span><em>稳中求快</em></span>
@@ -165,7 +167,7 @@ export function SettingsView({
                 <div className="theme-settings-controls">
                   <label className="range-row">
                     <span><strong>正文字号</strong><small>{settings.fontSize}px</small></span>
-                    <input type="range" min={22} max={42} value={settings.fontSize} onChange={(event) => update("fontSize", Number(event.target.value))} />
+                    <input disabled={saving} type="range" min={22} max={42} value={settings.fontSize} onChange={(event) => update("fontSize", Number(event.target.value))} />
                   </label>
                   <fieldset className="theme-preset-fieldset">
                     <legend>主题预设</legend>
@@ -192,6 +194,7 @@ export function SettingsView({
                             } as CSSProperties}
                           >
                             <input
+                              disabled={saving}
                               type="radio"
                               name="theme"
                               value={option.id}
@@ -211,6 +214,7 @@ export function SettingsView({
                       <div className="custom-theme-heading">
                         <div><strong>自定义配色</strong><small>语义状态色保持固定，不随这里改变。</small></div>
                         <button
+                          disabled={saving}
                           className="theme-reset-button"
                           type="button"
                           onClick={() => update("customTheme", { ...defaultCustomTheme })}
@@ -222,6 +226,7 @@ export function SettingsView({
                         <label className="color-control" htmlFor="custom-theme-accent">
                           <span><strong>强调色</strong><small>{customTheme.accent}</small></span>
                           <input
+                            disabled={saving}
                             id="custom-theme-accent"
                             type="color"
                             value={customTheme.accent}
@@ -232,6 +237,7 @@ export function SettingsView({
                         <label className="color-control" htmlFor="custom-theme-canvas">
                           <span><strong>页面背景色</strong><small>{customTheme.canvas}</small></span>
                           <input
+                            disabled={saving}
                             id="custom-theme-canvas"
                             type="color"
                             value={customTheme.canvas}
@@ -274,29 +280,30 @@ export function SettingsView({
                 <div className="settings-card-title"><span>S</span><div><h2>练习偏好</h2><p>控制默认训练方式</p></div></div>
                 <label>
                   默认文章长度
-                  <select value={settings.preferredLength} onChange={(event) => update("preferredLength", event.target.value as UserSettings["preferredLength"])}>
+                  <select disabled={saving} value={settings.preferredLength} onChange={(event) => update("preferredLength", event.target.value as UserSettings["preferredLength"])}>
                     {Object.entries(lengthLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                 </label>
-                <Toggle label="完成后自动下一篇" note="结算后按钮直接抽取新文章" checked={settings.autoNext} onChange={(value) => update("autoNext", value)} />
+                <Toggle disabled={saving} label="完成后自动下一篇" note="结算后按钮直接抽取新文章" checked={settings.autoNext} onChange={(value) => update("autoNext", value)} />
               </section>
               <section className="settings-card" id="settings-feedback">
                 <div className="settings-card-title"><span>D</span><div><h2>辅助反馈</h2><p>保持专注或获得更多提示</p></div></div>
-                <Toggle label="宠物陪伴" note="开启后一直陪伴，可拖动调整位置" checked={settings.petEnabled} onChange={(value) => update("petEnabled", value)} />
+                <Toggle disabled={saving} label="宠物陪伴" note="开启后一直陪伴，可拖动调整位置" checked={settings.petEnabled} onChange={(value) => update("petEnabled", value)} />
                 <div className="pet-choices" role="group" aria-label="选择陪伴宠物">
                   {(Object.keys(petLabels) as PetSpecies[]).map((species) => (
-                    <button key={species} type="button" aria-pressed={settings.petSpecies === species} onClick={() => update("petSpecies", species)}>
+                    <button disabled={saving} key={species} type="button" aria-pressed={settings.petSpecies === species} onClick={() => update("petSpecies", species)}>
                       <PetArt species={species} /><span>{petLabels[species]}</span>
                     </button>
                   ))}
                 </div>
-                <Toggle label="显示编码提示" note="文章旁显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
+                <Toggle disabled={saving} label="显示编码提示" note="文章旁显示当前汉字的最短编码" checked={settings.showCodeHints} onChange={(value) => update("showCodeHints", value)} />
                 <Toggle
+                  disabled={saving}
                   label="按键声音"
                   note="文章测速和字码挑战输入时播放轻提示音"
                   checked={settings.sound}
-                  onChange={(value) => {
-                    if (update("sound", value) && value) playKeySound({ force: true });
+                  onChange={async (value) => {
+                    if (await update("sound", value) && value) playKeySound({ force: true });
                   }}
                 />
               </section>

@@ -22,6 +22,7 @@ import {
   savePracticeOutcome,
   saveSession,
   startHesitationQueueItem,
+  startTrainingTask,
   syncSpacedReviewState,
   updateErrorMastery,
 } from "../app/practice-store.ts";
@@ -40,6 +41,55 @@ import {
 
 // Article selection rollback and common-practice restoration are exercised by
 // scripts/browser/articles.mjs with real React and browser storage.
+
+test("开始文章计划时选择与任务状态一起保存，任一步失败完整恢复原始键", () => {
+  const now = new Date("2026-10-30T00:00:00Z");
+  const plan = generateDailyTrainingPlan({
+    date: "2026-10-30", now, articles: trainingArticles, progress: [],
+    sessions: [], weakItems: [], entries: trainingEntries, preferredLength: "all",
+  });
+  const task = plan.tasks.find((item) => item.type === "article");
+  assert(task);
+  for (const original of [undefined, "null", '"old-selection"']) {
+    for (const failure of ["none", "read", "write"]) {
+      for (const faultKey of [STORAGE.current, STORAGE.currentGenerated, STORAGE.trainingPlan]) {
+        const values = new Map([[STORAGE.trainingPlan, JSON.stringify(plan)]]);
+        if (original !== undefined) {
+          values.set(STORAGE.current, original);
+          values.set(STORAGE.currentGenerated, original);
+        }
+        const before = new Map(values);
+        let writeFailed = false;
+        globalThis.window = { localStorage: {
+          getItem: (key) => {
+            if (failure === "read" && key === faultKey) throw new Error("denied");
+            return values.get(key) ?? null;
+          },
+          setItem: (key, value) => {
+            if (failure === "write" && key === faultKey && !writeFailed) {
+              writeFailed = true;
+              throw new Error("quota");
+            }
+            values.set(key, value);
+          },
+          removeItem: (key) => values.delete(key),
+        } };
+        try {
+          const result = startTrainingTask(task.id, now);
+          if (failure === "none") {
+            assert.equal(result.tasks.find((item) => item.id === task.id).status, "in-progress");
+            assert.equal(JSON.parse(values.get(STORAGE.current)), task.articleId);
+            assert.equal(values.get(STORAGE.currentGenerated), "null");
+            assert.deepEqual(JSON.parse(values.get(STORAGE.trainingPlan)), result);
+          } else {
+            assert.equal(result, null);
+            assert.deepEqual(values, before, `${failure} ${faultKey} must restore exact original storage`);
+          }
+        } finally { delete globalThis.window; }
+      }
+    }
+  }
+});
 
 test("custom article reader removes malformed, duplicate, and overflowing local data", () => {
   const valid = Array.from({ length: 22 }, (_, index) =>
