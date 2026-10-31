@@ -108,6 +108,7 @@ export function HistoryView({
     setProgress(getProgress());
     setErrors(getErrors());
     setPhraseOpportunities(getPhraseOpportunities());
+    setReportNow(new Date());
   }, []);
   useEffect(refresh, [hesitationSaveRevision, refresh]);
   useLocalDataSync(refresh, { keys: historySyncKeys, immediate: false });
