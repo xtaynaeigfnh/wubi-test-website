@@ -37,7 +37,7 @@
     "@vitejs/plugin-rsc": "0.5.38",
     "axe-core": "^4.13.0",
     "drizzle-kit": "0.31.10",
-    "eslint": "9.39.4",
+    "eslint": "10.13.0",
     "eslint-config-next": "16.4.3",
     "opencc-js": "1.4.1",
     "playwright": "^1.63.0",
