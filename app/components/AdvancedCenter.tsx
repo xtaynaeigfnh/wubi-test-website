@@ -9,7 +9,6 @@ import { useSkin } from "./SkinContext";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import type { KeySoundPlayer } from "./views/TypingView";
 import { createLocalId, getSessions } from "../practice-transactions";
 import { readLocal, STORAGE, takeSessionValue } from "../storage";
 import {
@@ -40,11 +39,15 @@ import type {
   AdvancedGoalMetric,
   AdvancedSeason,
   AdvancedSeasonArchive,
+  KeySoundPlayer,
   RhythmWeakSegment,
   ScenarioCategory,
   SessionResult,
 } from "../types";
 import { ErrorState } from "./Ui";
+import { useLocalDataSync } from "./hooks/useLocalDataSync";
+
+const seasonSyncKeys = [STORAGE.advancedSeason];
 
 const ChallengeView = dynamic(
   () => import("./views/ChallengeView").then((m) => m.ChallengeView),
@@ -311,22 +314,11 @@ export function AdvancedCenter({ playKeySound, initialTab = "rhythm" }: {
     }
   }, []);
 
-  useEffect(() => {
-    const refreshArchive = () => {
-      const current = readAdvancedSeasonArchive();
-      if (current) setArchive(current);
-      setSeasonClock(Date.now());
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE.advancedSeason || event.key === null) refreshArchive();
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refreshArchive);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refreshArchive);
-    };
-  }, []);
+  useLocalDataSync(() => {
+    const current = readAdvancedSeasonArchive();
+    if (current) setArchive(current);
+    setSeasonClock(Date.now());
+  }, { keys: seasonSyncKeys, immediate: false });
 
   useEffect(() => {
     const baselineScenario = scenarios.find((item) => item.id === "quiet-office-one");

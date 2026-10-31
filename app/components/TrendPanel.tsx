@@ -1,37 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { buildTrendSeries } from "../practice-statistics";
-import { localDateKey } from "../practice-transactions";
 import type { SessionResult } from "../types";
+import { useLocalDateKey } from "./hooks/useLocalDateKey";
 
 export function TrendPanel({ sessions }: { sessions: SessionResult[] }) {
   const [range, setRange] = useState<7 | 30 | "all">(7);
-  const [today, setToday] = useState("");
-  useEffect(() => {
-    let rolloverTimer: number | null = null;
-    const syncToday = () => {
-      const now = new Date();
-      setToday(localDateKey(now));
-      if (rolloverTimer !== null) window.clearTimeout(rolloverTimer);
-      const nextMidnight = new Date(now);
-      nextMidnight.setDate(nextMidnight.getDate() + 1);
-      nextMidnight.setHours(0, 0, 0, 50);
-      rolloverTimer = window.setTimeout(
-        syncToday,
-        Math.max(1000, nextMidnight.getTime() - now.getTime()),
-      );
-    };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") syncToday();
-    };
-    syncToday();
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      if (rolloverTimer !== null) window.clearTimeout(rolloverTimer);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, []);
+  // 空字符串表示尚未挂载：服务端与首帧不画图，避免日期相关的水合差异。
+  const today = useLocalDateKey();
   const points = useMemo(
     () =>
       today

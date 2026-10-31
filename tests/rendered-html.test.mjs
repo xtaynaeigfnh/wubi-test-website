@@ -34,7 +34,7 @@ test("server-renders the finished Chinese product shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<html lang="zh-CN" data-skin="letterpress"/);
+  assert.match(html, /<html lang="zh-CN" data-skin="roots"/);
   assert.match(html, /<title>五笔测试网站<\/title>/);
   assert.match(html, /文章测速/);
   assert.match(html, /进阶训练/);

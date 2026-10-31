@@ -10,7 +10,7 @@ import { STORAGE, readLocal } from "./storage.ts";
 import type { DailyGoal, UserSettings } from "./types";
 
 export function readSettings(): UserSettings {
-  const value = readLocal<unknown>(STORAGE.settings, {});
+  const value = readLocal<unknown>(STORAGE.settings, null);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return defaultSettings;
   }

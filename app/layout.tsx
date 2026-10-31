@@ -46,7 +46,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" data-skin="letterpress" suppressHydrationWarning>
+    <html lang="zh-CN" data-skin="roots" suppressHydrationWarning>
       <body>
         <HydrationBoundary>
           <PwaProvider>

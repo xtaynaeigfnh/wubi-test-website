@@ -34,7 +34,7 @@ import { HesitationPracticeModal } from "./HesitationPracticeModal";
 import { SkinContext } from "./SkinContext";
 import { FirstUseGuide } from "./FirstUseGuide";
 import { useNavigationLens } from "./useNavigationLens";
-import type { KeySoundPlayer } from "./views/TypingView";
+import type { KeySoundPlayer } from "../types";
 
 const TrainingCenter = dynamic(
   () =>
@@ -361,7 +361,7 @@ export function WubiApp({ view }: { view: AppView }) {
                 <i>五</i>
               </span>
               <span>
-                <strong>{settings.skin === "focus" ? "五笔练习" : settings.skin === "neon" ? "五笔夜行场" : "五笔测试网站"}</strong>
+                <strong>{settings.skin === "focus" ? "五笔练习" : settings.skin === "neon" ? "五笔夜行场" : settings.skin === "roots" ? "拆字版" : "五笔测试网站"}</strong>
                 <small>86 版五笔</small>
               </span>
             </Link>
@@ -405,7 +405,7 @@ export function WubiApp({ view }: { view: AppView }) {
         </header>
 
         <main className="page-wrap" id="main-content">
-          {settings.skin !== "focus" && <FirstUseGuide enabled={settingsReady} view={view} />}
+          {settings.skin !== "focus" && settings.skin !== "roots" && <FirstUseGuide enabled={settingsReady} view={view} />}
           {settingsSaving && <p className="plan-message" role="status">正在保存设置…</p>}
           {settingsSaveError && (
             <p className="plan-message" role="alert">{settingsSaveError}</p>
@@ -457,7 +457,7 @@ export function WubiApp({ view }: { view: AppView }) {
               playKeySound={playKeySound}
             />
           )}
-          {settings.skin === "focus" && <FirstUseGuide enabled={settingsReady} view={view} />}
+          {(settings.skin === "focus" || settings.skin === "roots") && <FirstUseGuide enabled={settingsReady} view={view} />}
         </main>
 
         {activeHesitationPractice && (
