@@ -320,6 +320,7 @@ export function TrainingCenter({
       (currentIndex + direction + TRAINING_TABS.length) % TRAINING_TABS.length;
     const next = TRAINING_TABS[nextIndex][0];
     if (!selectTrainingTab(next)) return;
+    setActiveDueReview(null);
     window.requestAnimationFrame(() => {
       document.getElementById(`training-tab-${next}`)?.focus();
     });
