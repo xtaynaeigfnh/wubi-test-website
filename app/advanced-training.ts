@@ -544,11 +544,10 @@ export function canCompleteAdvancedSeasonToday(
   if (season.status !== "active" || now.getTime() >= new Date(season.expiresAt).getTime()) {
     return false;
   }
-  const lastCompleted = [...season.days].reverse().find((day) => day.completedAt);
-  const lastLocalDate = lastCompleted?.completedLocalDate ?? (
-    lastCompleted ? localCalendarDay(new Date(lastCompleted.completedAt!)) : null
-  );
-  return !lastLocalDate || lastLocalDate !== localCalendarDay(now);
+  const today = localCalendarDay(now);
+  return !season.days.some((day) => day.completedAt && (
+    day.completedLocalDate ?? localCalendarDay(new Date(day.completedAt))
+  ) === today);
 }
 
 export function isLegacyAdvancedSeason(season: AdvancedSeason): boolean {
