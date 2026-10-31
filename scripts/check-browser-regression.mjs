@@ -12,7 +12,7 @@ import { articleLibrary, articleProgressRefresh, articleSelectionFailure, articl
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
-import { concurrentPracticeSaves, corruptHistoryRecovery, articleVersionProgress } from "./browser/concurrent-storage.mjs";
+import { concurrentPracticeSaves, corruptHistoryRecovery, articleVersionProgress, weeklyReportRefresh } from "./browser/concurrent-storage.mjs";
 import { localMusic } from "./browser/local-music.mjs";
 import { concurrentPreferences, trainingSelectionRollback } from "./browser/preferences.mjs";
 
@@ -437,6 +437,7 @@ const interactionScenarios = [
   ["backup-invalid-stale-file", backupInvalidAndStaleFile],
   ["article-library", articleLibrary],
   ["article-progress-refresh", articleProgressRefresh],
+  ["weekly-report-refresh", weeklyReportRefresh],
   ...["generated", "recent", "quota", "read"].map((failure) =>
     [`article-selection-${failure}`, (context) => articleSelectionFailure(context, failure)]),
   ["article-restart-failure", articleRestartFailure],

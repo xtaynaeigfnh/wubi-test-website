@@ -120,3 +120,22 @@ export async function articleVersionProgress({ page, context }) {
     assert.equal(await completion.getAttribute("aria-valuemax"), "1");
   } finally { await other.close(); }
 }
+
+export async function weeklyReportRefresh({ page, context }) {
+  const initial = new Date(2026, 9, 28, 12).getTime();
+  await page.clock.setFixedTime(initial);
+  await open(page, "/history/");
+  await page.getByRole("button", { name: "能力周报", exact: true }).click();
+  const count = page.locator('.weekly-volume > div').filter({ has: page.getByText("练习次数", { exact: true }) }).locator("dd").first();
+  assert.equal(await count.textContent(), "0次");
+  const other = await context.newPage();
+  await open(other, "/");
+  await other.clock.setFixedTime(initial + 60_000);
+  await typingInput(other).fill(text);
+  await other.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
+  await page.clock.setFixedTime(initial + 120_000);
+  await page.bringToFront();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.waitForFunction(() => document.querySelector('.weekly-volume dd')?.textContent === "1次");
+  assert.equal(await count.textContent(), "1次");
+}
