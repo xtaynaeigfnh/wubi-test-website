@@ -60,3 +60,6 @@ Thumbs.db
 
 # Local certificates
 *.pem
+
+# One-off review artifacts
+docs/article-review-round*.json
