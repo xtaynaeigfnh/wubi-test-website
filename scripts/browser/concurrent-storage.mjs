@@ -5,6 +5,10 @@ import { open, text, typingInput, savedSessions, localSnapshot } from "./helpers
 // stop animation frames, so never use waitForFunction's default RAF polling here.
 async function waitForStorageState(page, predicate) {
   try {
+    // WebKit may retain a background document's localStorage view after another
+    // process releases its Web Lock. Inspect it as a user would: activate the
+    // window, then require the exact records (and the existing reload checks).
+    await page.bringToFront();
     await page.waitForFunction(predicate, undefined, { polling: 100 });
   } catch (error) {
     const snapshot = await localSnapshot(page).catch(() => null);

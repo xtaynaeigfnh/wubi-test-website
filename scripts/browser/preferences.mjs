@@ -52,6 +52,7 @@ export async function concurrentPreferences({ page, context }, fallback = false)
     assert.deepEqual(await localSnapshot(page), before);
     await page.evaluate(() => window.__releasePreferenceLock());
     for (const tab of [page, other]) {
+      await tab.bringToFront();
       await tab.waitForFunction(() => {
         const value = JSON.parse(localStorage.getItem("wubi-test:settings:v1"));
         return value.showCodeHints === true && value.theme === "dark";
@@ -78,6 +79,7 @@ export async function concurrentPreferences({ page, context }, fallback = false)
     assert.equal(await page.evaluate(() => localStorage.getItem("wubi-test:favorite-articles:v1")), null);
     await page.evaluate(() => window.__releasePreferenceLock());
     for (const tab of [page, other]) {
+      await tab.bringToFront();
       await tab.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:favorite-articles:v1") ?? "[]").length === 2,
         undefined, { polling: 100 });
       await tab.reload({ waitUntil: "networkidle" });
