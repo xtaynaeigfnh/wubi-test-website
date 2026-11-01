@@ -9,6 +9,19 @@ export const themeLabels: Record<ThemeId, string> = {
   custom: "自定义",
 };
 
+const basicThemeCycle: Record<"system" | "light" | "dark", ThemeId> = {
+  system: "light",
+  light: "dark",
+  dark: "system",
+};
+
+/** 页头快捷键只在系统、浅色、深色之间轮换；预设与自定义主题一键回到系统。 */
+export function getNextQuickTheme(theme: ThemeId): ThemeId {
+  return theme === "system" || theme === "light" || theme === "dark"
+    ? basicThemeCycle[theme]
+    : "system";
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   return [
     Number.parseInt(hex.slice(1, 3), 16),
