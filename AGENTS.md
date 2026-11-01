@@ -15,7 +15,7 @@
 
 ## 构建、测试与开发命令
 
-使用 Node.js 22.13 或更高版本，并通过 `npm ci` 按锁文件精确安装依赖。
+使用 Node.js 26.13 或更高的 26.x 版本，并通过 `npm ci` 按锁文件精确安装依赖。
 
 - `npm run dev`：启动支持热更新的 Vinext 开发服务器。
 - `npm run build`：生成 Vinext 生产构建，默认输出到 `dist/`。
