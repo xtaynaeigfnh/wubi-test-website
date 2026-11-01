@@ -1,25 +1,31 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { before, after } from "node:test";
+import { startPreviewServer, assertServerRunning, stopDevServer } from "../scripts/browser-test-server.mjs";
+
+// Exercise the built Worker in its real runtime, including asset bindings.
+// Importing a Workers bundle directly into Node cannot resolve cloudflare:workers.
+let server;
+const base = "http://127.0.0.1:4177";
+before(async () => {
+  server = startPreviewServer(4177);
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    assertServerRunning(server);
+    try {
+      const response = await fetch(base, { signal: AbortSignal.timeout(3000) });
+      await response.arrayBuffer();
+      if (response.ok) return;
+    } catch { /* The preview process may still be starting. */ }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error("生产预览服务器未启动");
+});
+after(async () => { await stopDevServer(server); });
 
 async function render(pathname = "/") {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${pathname}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request(`http://localhost${pathname}`, {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
+  return fetch(`${base}${pathname}`, {
+    headers: { accept: "text/html" },
+    signal: AbortSignal.timeout(15000),
+  });
 }
 
 test("server-renders the finished Chinese product shell", async () => {

@@ -3,9 +3,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function startDevServer(port) {
+  return startViteServer("dev", port);
+}
+
+export function startPreviewServer(port) {
+  return startViteServer("preview", port);
+}
+
+function startViteServer(command, port) {
   const server = spawn(process.execPath, [
-    fileURLToPath(new URL("../node_modules/vinext/dist/cli.js", import.meta.url)),
-    "dev", "--hostname", "127.0.0.1", "--port", String(port),
+    fileURLToPath(new URL("../node_modules/vite/bin/vite.js", import.meta.url)),
+    command, "--host", "127.0.0.1", "--port", String(port), "--strictPort",
   ], { stdio: ["ignore", "ignore", "inherit"], detached: process.platform !== "win32", windowsHide: true });
   // Preserve launch errors for the readiness loop instead of emitting an
   // unhandled error or waiting for the full startup timeout.
