@@ -29,6 +29,11 @@ async function exportRecordedPractice(page) {
   await page.getByRole("button", { name: "导出完整备份", exact: true }).click();
   const download = await downloaded;
   const payload = JSON.parse(await readFile(await download.path(), "utf8"));
+  // The download event precedes the asynchronous backup-reminder transaction.
+  // Wait for its completion before callers snapshot or inject storage failures.
+  await backupRegion(page).getByText("备份已通过恢复校验，浏览器已发起下载；请确认文件已保存。", { exact: true }).waitFor();
+  const reminder = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:backup-reminder:v1") ?? "null"));
+  assert(reminder?.lastDownloadAt, "导出成功后应完成备份提醒记录写入");
   assert.equal(payload.data["wubi-test:settings:v1"].showCodeHints, true);
   assert.equal(payload.data["wubi-test:sessions:v1"].length, 1);
   assert(payload.data["wubi-test:errors:v1"].length > 0, "真实回改应进入导出的错字记录");
