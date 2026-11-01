@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from "react";
 import { isCommonPracticeArticle, lengthLabels } from "../../../article-practice";
+import { buildRootSteps } from "../../../root-plate";
 import type { PracticeArticle, UserSettings } from "../../../types";
 import { TypingInput } from "./TypingInput";
 import type { useArticleLibrary } from "./useArticleLibrary";
@@ -27,19 +28,21 @@ type TypingPracticeAreaProps = {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   setInputHeight: (height: number) => void;
   commandBar: ReactNode;
+  roots: { speed: number; accuracy: number; codeGap: number | null } | null;
   result: ReactNode;
 };
 
 export function TypingPracticeArea({ article, settings, session, library, diagnostics,
-  ghost, articleTextRef, inputRef, setInputHeight, commandBar, result,
+  ghost, articleTextRef, inputRef, setInputHeight, commandBar, roots, result,
 }: TypingPracticeAreaProps) {
-  const { typedCharacters, targetCharacters, startedAt, completed } = session;
+  const { typedCharacters, targetCharacters, startedAt, completed, inputValue } = session;
   const { openCommonPractice, commonLoading, shuffleCurrentCommonPractice, setPickerOpen, randomArticle } = library;
   const { codeHints, codeHintsError } = diagnostics;
   const { activeGhostTimeline, ghostProgressPercent, showGhostGap, ghostGapLabel } = ghost;
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const visibleText = article.text;
   const isFocusSkin = settings.skin === "focus";
+  const isRootsSkin = roots !== null;
   const practiceInProgress = startedAt !== null && !completed;
   const progressRatio = Math.min(1, typedCharacters.length / Math.max(1, targetCharacters.length));
   const progressPercent = Math.round(progressRatio * 100);
@@ -121,8 +124,34 @@ export function TypingPracticeArea({ article, settings, session, library, diagno
     viewport.scrollTo({ top: nextTop, behavior: "smooth" });
   }, [article.id, typedCharacters.length, articleTextRef]);
 
+  const currentCharacter = typedCharacters.length >= targetCharacters.length
+    ? ""
+    : targetCharacters[typedCharacters.length] ?? "";
+  const currentCode = codeHintsError ? "" : codeHints.get(currentCharacter) ?? "";
+  const compositionSuffix = inputValue.slice(typedCharacters.join("").length);
+  const typedCode = /^[a-z]+$/i.test(compositionSuffix) ? compositionSuffix : "";
+  const rootSteps = isRootsSkin ? buildRootSteps(currentCode, typedCode) : [];
+  const gapLabel = roots?.codeGap == null
+    ? "—"
+    : `${roots.codeGap > 0 ? "+" : ""}${roots.codeGap.toFixed(2)}`;
+  const articleSurface = (
+    <div
+      key={article.id}
+      ref={articleTextRef}
+      tabIndex={0}
+      role="region"
+      aria-label="练习文章，可使用方向键滚动"
+      className={`article-text article-swap ${isCommonPracticeArticle(article) ? "common-character-text" : ""}`}
+      style={{ "--practice-font-size": `${settings.fontSize}px` } as CSSProperties}
+      onClick={() => inputRef.current?.focus()}
+      aria-live="off"
+    >
+      {renderedCharacters}
+    </div>
+  );
+
   return (
-    <article className="typing-card">
+    <article className={isRootsSkin ? "typing-card roots-sheet" : "typing-card"}>
       {!isFocusSkin && commandBar}
       <div className="typing-toolbar">
         <div className="article-heading">
@@ -130,8 +159,15 @@ export function TypingPracticeArea({ article, settings, session, library, diagno
             <span>{lengthLabels[article.length]}</span>
             <span>{article.topic}</span>
             <span>{article.wordCount} 字</span>
+            {isRootsSkin && roots && (
+              <>
+                <span>{roots.speed} 字/分</span>
+                <span>字准 {roots.accuracy.toFixed(1)}%</span>
+                <span>码长差 {gapLabel}</span>
+              </>
+            )}
           </div>
-          <h2>{article.title}</h2>
+          {isRootsSkin ? <h1>{article.title}</h1> : <h2>{article.title}</h2>}
         </div>
         <div className="article-toolbar-actions">
           {settings.showCodeHints && (
@@ -198,66 +234,82 @@ export function TypingPracticeArea({ article, settings, session, library, diagno
           </div>
         </div>
       </div>
-      <div
-        className="root-rail"
-        role="progressbar"
-        aria-label="文章输入进度"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progressPercent}
-        aria-valuetext={`已完成 ${progressPercent}%${activeGhostTimeline
-            ? `，幽灵 ${Math.round(ghostProgressPercent)}%${showGhostGap ? `，${ghostGapLabel}` : ""
-            }`
-            : ""
-          }，五格依次对应撇、捺、横、竖、折区`}
-      >
-        {[
-          ["QWERT", "撇区"],
-          ["YUIOP", "捺区"],
-          ["ASDFG", "横区"],
-          ["HJKLM", "竖区"],
-          ["XCVBN", "折区"],
-        ].map(([keys, label], index) => {
-          const segmentProgress = Math.min(
-            1,
-            Math.max(0, progressRatio * 5 - index),
-          );
-          return (
-            <span
-              key={keys}
-              style={{
-                "--segment-progress": `${segmentProgress * 100}%`,
-              } as CSSProperties}
-            >
-              <b>{keys}</b>
-              <small>{label}</small>
-            </span>
-          );
-        })}
-        {activeGhostTimeline && (
-          <i
-            className="ghost-progress-marker"
-            style={{
-              "--ghost-progress": `${ghostProgressPercent}%`,
-            } as CSSProperties}
-            aria-hidden="true"
-          />
-        )}
-      </div>
-      <div
-        key={article.id}
-        ref={articleTextRef}
-        tabIndex={0}
-        role="region"
-        aria-label="练习文章，可使用方向键滚动"
-        className={`article-text article-swap ${isCommonPracticeArticle(article) ? "common-character-text" : ""
-          }`}
-        style={{ "--practice-font-size": `${settings.fontSize}px` } as CSSProperties}
-        onClick={() => inputRef.current?.focus()}
-        aria-live="off"
-      >
-        {renderedCharacters}
-      </div>
+      {isRootsSkin ? (
+        <div className="roots-bench">
+          <aside className="roots-plate" aria-label={currentCharacter ? `当前字 ${currentCharacter}` : "本篇已完成"}>
+            <small>{currentCharacter ? "当前字 · 编码键位" : "本篇已完成"}</small>
+            <div className="roots-glyph" aria-hidden="true">{currentCharacter || "完"}</div>
+            {rootSteps.length > 0 && (
+              <div className="roots-keys">
+                {rootSteps.map((step, index) => (
+                  <div
+                    key={`${currentCharacter}-${step.letter}-${index}`}
+                    className={step.stamped ? "is-stamped" : undefined}
+                    data-zone={step.zone}
+                  >
+                    <b>{step.name}</b>
+                    <span>{step.letter.toUpperCase()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="roots-code">{currentCode ? currentCode.toUpperCase() : codeHintsError ? "编码未载入" : currentCharacter ? "直接输入" : "已完成"}</div>
+            <progress className="roots-progress" aria-label="文章输入进度" value={progressPercent} max={100} />
+            {activeGhostTimeline && <small>幽灵 {Math.round(ghostProgressPercent)}%{showGhostGap ? ` · ${ghostGapLabel}` : ""}</small>}
+          </aside>
+          {articleSurface}
+        </div>
+      ) : (
+        <>
+          <div
+            className="root-rail"
+            role="progressbar"
+            aria-label="文章输入进度"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            aria-valuetext={`已完成 ${progressPercent}%${activeGhostTimeline
+                ? `，幽灵 ${Math.round(ghostProgressPercent)}%${showGhostGap ? `，${ghostGapLabel}` : ""
+                }`
+                : ""
+              }，五格依次对应撇、捺、横、竖、折区`}
+          >
+            {[
+              ["QWERT", "撇区"],
+              ["YUIOP", "捺区"],
+              ["ASDFG", "横区"],
+              ["HJKLM", "竖区"],
+              ["XCVBN", "折区"],
+            ].map(([keys, label], index) => {
+              const segmentProgress = Math.min(
+                1,
+                Math.max(0, progressRatio * 5 - index),
+              );
+              return (
+                <span
+                  key={keys}
+                  style={{
+                    "--segment-progress": `${segmentProgress * 100}%`,
+                  } as CSSProperties}
+                >
+                  <b>{keys}</b>
+                  <small>{label}</small>
+                </span>
+              );
+            })}
+            {activeGhostTimeline && (
+              <i
+                className="ghost-progress-marker"
+                style={{
+                  "--ghost-progress": `${ghostProgressPercent}%`,
+                } as CSSProperties}
+                aria-hidden="true"
+              />
+            )}
+          </div>
+          {articleSurface}
+        </>
+      )}
       {completed ? result : (
         <>
           <TypingInput session={session} inputRef={inputRef} onHeightChange={setInputHeight} />

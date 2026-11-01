@@ -1,41 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   BACKUP_REMINDER_KEY,
   deferBackupReminder,
   readBackupReminderStatus,
   type BackupReminderStatus,
 } from "../backup-reminder";
+import { PRACTICE_SAVED_EVENT } from "../pet-events";
 import { STORAGE } from "../storage";
+import { useLocalDataSync } from "./hooks/useLocalDataSync";
+
+const reminderSyncKeys = [STORAGE.sessions, BACKUP_REMINDER_KEY];
+const reminderSyncEvents = [PRACTICE_SAVED_EVENT];
 
 export function BackupReminderNotice() {
   const [reminder, setReminder] = useState<BackupReminderStatus | null>(null);
   const [error, setError] = useState("");
-  useEffect(() => {
-    const refresh = () => {
-      try { setReminder(readBackupReminderStatus()); }
-      catch { setReminder(null); }
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === STORAGE.sessions || event.key === BACKUP_REMINDER_KEY) refresh();
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    refresh();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
-    window.addEventListener("wubi:practice-saved", refresh);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("wubi:practice-saved", refresh);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
+  useLocalDataSync(() => {
+    try { setReminder(readBackupReminderStatus()); }
+    catch { setReminder(null); }
+  }, { keys: reminderSyncKeys, events: reminderSyncEvents });
 
   if (!reminder?.shouldRemind) return null;
   return (

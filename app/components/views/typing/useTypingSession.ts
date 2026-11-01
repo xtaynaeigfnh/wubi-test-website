@@ -25,10 +25,8 @@ import {
 } from "../../../typing-session";
 import { buildTypingOutcome } from "../../../typing-outcome";
 import type { CodeLengthCoachAnalysis } from "../../../code-length-coach";
-import type { PracticeArticle } from "../../../types";
+import type { KeySoundPlayer, PracticeArticle } from "../../../types";
 import type { GhostRaceApi } from "./useGhostRace";
-
-export type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
 export function useTypingSession({
   article,

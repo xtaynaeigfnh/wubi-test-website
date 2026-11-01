@@ -20,7 +20,8 @@ import type {
   HesitationPracticeAttempt,
   HesitationPracticeTarget,
 } from "../types";
-import { Modal, usePendingSaveGuard } from "./Ui";
+import { usePendingSaveGuard } from "./hooks/useLeaveGuards";
+import { Modal } from "./Ui";
 
 type PracticeAttempts = [
   HesitationPracticeAttempt,

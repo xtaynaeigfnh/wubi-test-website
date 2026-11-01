@@ -37,7 +37,10 @@ import type {
   PracticeArticle,
   UserSettings,
 } from "../../../types";
+import { useLocalDataSync } from "../../hooks/useLocalDataSync";
 import type { GhostMode } from "./useGhostRace";
+
+const librarySyncKeys = [STORAGE.favoriteArticles, STORAGE.customTexts, STORAGE.progress];
 
 export interface PracticeControls {
   hasPendingSave: () => boolean;
@@ -115,29 +118,11 @@ export function useArticleLibrary(
     };
   }, [loadAttempt]);
 
-  useEffect(() => {
+  useLocalDataSync(() => {
+    setFavoriteIds(readFavoriteArticleIds());
     setCustomTexts(getCustomArticles());
-  }, []);
-
-  useEffect(() => {
-    const refreshLibrary = () => {
-      setFavoriteIds(readFavoriteArticleIds());
-      setCustomTexts(getCustomArticles());
-      setProgress(getProgress());
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === null || [STORAGE.favoriteArticles, STORAGE.customTexts, STORAGE.progress].some((key) => key === event.key)) {
-        refreshLibrary();
-      }
-    };
-    refreshLibrary();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refreshLibrary);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refreshLibrary);
-    };
-  }, []);
+    setProgress(getProgress());
+  }, { keys: librarySyncKeys });
 
   useEffect(() => {
     setFilter((value) => ({

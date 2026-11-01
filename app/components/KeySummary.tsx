@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { clearKeyUsage, readKeyUsage } from "../practice-transactions";
 import { KEYBOARD_KEYS, summarizeKeyUsage, type KeyUsageMap } from "../key-usage";
 import { KeyboardHeatmap } from "./summary/KeyboardHeatmap";
 import { UsageCharts } from "./summary/UsageCharts";
 import { STORAGE } from "../storage";
+import { useLocalDataSync } from "./hooks/useLocalDataSync";
+
+const keyUsageSyncKeys = [STORAGE.keyUsage];
 
 export function KeySummary({ embedded = false }: { embedded?: boolean }) {
   const [usage, setUsage] = useState<KeyUsageMap>({});
@@ -14,24 +17,10 @@ export function KeySummary({ embedded = false }: { embedded?: boolean }) {
   const [resetError, setResetError] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    const refresh = () => { setUsage(readKeyUsage()); setReady(true); };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE.keyUsage || event.key === null) refresh();
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    refresh();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
+  useLocalDataSync(() => {
+    setUsage(readKeyUsage());
+    setReady(true);
+  }, { keys: keyUsageSyncKeys });
   const summary = useMemo(() => summarizeKeyUsage(usage), [usage]);
   const dominantRow = [...summary.rows].sort((a, b) => b.count - a.count)[0];
   const reset = async () => {

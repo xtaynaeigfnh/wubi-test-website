@@ -527,6 +527,19 @@ function MusicDock() {
     setCollapsed(true);
   }, [clearCollapseTimer]);
 
+  useEffect(() => {
+    let previousSkin: string | undefined;
+    const syncSkin = () => {
+      const skin = document.documentElement.dataset.skin;
+      if (skin === "roots" && previousSkin !== "roots") collapseDock();
+      previousSkin = skin;
+    };
+    syncSkin();
+    const observer = new MutationObserver(syncSkin);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-skin"] });
+    return () => observer.disconnect();
+  }, [collapseDock]);
+
   const handlePointerEnter = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === "touch") return;
     pointerInsideRef.current = true;

@@ -6,6 +6,7 @@ const base = process.env.SKIN_BASE_URL ?? "http://127.0.0.1:4175";
 const output = "output/playwright/skins";
 const engines = { chromium, firefox, webkit };
 const results = [];
+const skins = (process.env.SKIN_SKINS ?? "letterpress,focus,neon,roots").split(",");
 await mkdir(output, { recursive: true });
 
 for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").split(",")) {
@@ -23,13 +24,14 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
     const chooseSkin = async (skin) => {
       await page.locator(`input[name="skin"][value="${skin}"]`).click();
       await waitSkin(skin);
+      await page.locator(".music-dock-morph").waitFor({ state: "detached" });
     };
     await page.goto(`${base}/settings`);
     await ready();
-    await waitSkin("letterpress");
-    assert(await page.locator('input[name="skin"][value="letterpress"]').isChecked());
+    await waitSkin("roots");
+    assert(await page.locator('input[name="skin"][value="roots"]').isChecked());
 
-    for (const skin of ["letterpress", "focus"]) {
+    for (const skin of skins) {
       console.log(`${engine} ${skin}: 检查选择、配色和保存`);
       await chooseSkin(skin);
       for (const theme of ["light", "dark", "bamboo", "qingdai", "custom", "system"]) {
@@ -45,17 +47,19 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
         }
       }
       // The root player stays mounted while changing the page presentation.
-      if (await page.locator(".music-dock").getAttribute("aria-hidden") === "true") {
+      if (await page.locator(".music-dock:not(.music-dock-morph *)").getAttribute("aria-hidden") === "true") {
         await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
       }
       await page.getByRole("button", { name: "播放背景音乐", exact: true }).click();
-      await page.locator(".music-dock.is-playing").waitFor({ state: "attached" });
+      await page.locator(".music-dock.is-playing:not(.music-dock-morph *)").waitFor({ state: "attached" });
       await chooseSkin(skin === "focus" ? "letterpress" : "focus");
-      assert.equal(await page.locator(".music-dock.is-playing").count(), 1);
+      assert.equal(await page.locator(".music-dock.is-playing:not(.music-dock-morph *)").count(), 1);
+      assert.equal(await page.locator("audio").count(), 1);
       assert.equal(await page.locator("html").getAttribute("data-theme"), "system");
       await chooseSkin(skin);
-      assert.equal(await page.locator(".music-dock.is-playing").count(), 1);
-      if (await page.locator(".music-dock").getAttribute("aria-hidden") === "true") {
+      assert.equal(await page.locator(".music-dock.is-playing:not(.music-dock-morph *)").count(), 1);
+      assert.equal(await page.locator("audio").count(), 1);
+      if (await page.locator(".music-dock:not(.music-dock-morph *)").getAttribute("aria-hidden") === "true") {
         await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
       }
       await page.getByRole("button", { name: "暂停背景音乐", exact: true }).press("Enter");
@@ -96,11 +100,11 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
       const input = page.getByRole("textbox", { name: "跟打输入区" });
       await input.waitFor();
       assert.equal(await page.locator("textarea.typing-input").count(), 1);
-      assert.equal(await page.locator('.metric-strip[aria-label="实时成绩"] > div').count(), skin === "focus" ? 3 : 6);
-      assert.equal(await page.locator(".side-panel").count(), skin === "focus" ? 0 : 1);
-      assert.equal(await page.locator("details.practice-diagnostics").count(), skin === "focus" ? 1 : 0);
+      assert.equal(await page.locator('.metric-strip[aria-label="实时成绩"] > div').count(), skin === "roots" ? 0 : skin === "focus" ? 3 : 6);
+      assert.equal(await page.locator(".side-panel").count(), skin === "focus" || skin === "roots" ? 0 : 1);
+      assert.equal(await page.locator("details.practice-diagnostics").count(), skin === "focus" || skin === "roots" ? 1 : 0);
 
-      if (skin === "focus") {
+      if (skin === "focus" || skin === "roots") {
         await page.getByRole("button", { name: "选文章", exact: true }).click();
         await page.getByRole("dialog").getByLabel("题材", { exact: true }).selectOption({ index: 1 });
         await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
@@ -108,6 +112,10 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
         await page.locator(".side-panel").getByLabel("题材", { exact: true }).selectOption({ index: 1 });
       }
 
+      if (skin === "roots") {
+        assert.equal(await page.locator(".roots-plate").count(), 1);
+        await page.locator(".roots-code").filter({ hasText: /[A-Z]|直接输入/ }).waitFor();
+      }
       const text = await page.locator(".article-text").textContent();
       const target = text.replace(/[\r\n]/g, "");
       await input.focus();
@@ -159,4 +167,4 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
     await writeFile(`${output}/report.json`, JSON.stringify(results, null, 2));
   }
 }
-console.log(`两套皮肤在 ${results.length / 2} 个浏览器通过保存、恢复、配色、跟打和响应式验证。`);
+console.log(`${skins.length} 套皮肤在 ${results.length / skins.length} 个浏览器通过保存、恢复、配色、跟打和响应式验证。`);

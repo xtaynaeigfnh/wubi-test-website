@@ -3,8 +3,9 @@
 import { clearAllMaintenanceData, clearMaintenanceTarget, restoreBackupPayload } from "../practice-transactions";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { addCustomArticlesWithinLimit } from "../article-practice";
+import { useLocalDataSync } from "./hooks/useLocalDataSync";
 import {
   buildLightweightStatisticsSummary,
   inspectAllCleanup,
@@ -46,6 +47,8 @@ import {
 import type { BackupPayload, PracticeArticle } from "../types";
 
 const MAX_CUSTOM_TEXT_FILE_BYTES = MAX_CUSTOM_TEXT_LENGTH * 4 + 1024;
+const backupReminderSyncKeys = [STORAGE.sessions, BACKUP_REMINDER_KEY];
+const customArticleSyncKeys = [STORAGE.customTexts, STORAGE.favoriteArticles];
 
 export function DataManagement() {
   const [revision, setRevision] = useState(0);
@@ -236,25 +239,15 @@ function BackupManager({ revision }: { revision: number }) {
   const [message, setMessage] = useState("");
   const [reminder, setReminder] = useState<BackupReminderStatus | null>(null);
 
-  useEffect(() => {
-    const refresh = () => {
-      try {
-        setReminder(readBackupReminderStatus());
-      } catch {
-        setReminder(null);
-      }
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE.sessions || event.key === BACKUP_REMINDER_KEY || event.key === null) refresh();
-    };
-    refresh();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
-    };
-  }, [revision]);
+  const refreshReminder = useCallback(() => {
+    try {
+      setReminder(readBackupReminderStatus());
+    } catch {
+      setReminder(null);
+    }
+  }, []);
+  useEffect(refreshReminder, [revision, refreshReminder]);
+  useLocalDataSync(refreshReminder, { keys: backupReminderSyncKeys, immediate: false });
 
   const snoozeReminder = () => {
     try {
@@ -443,22 +436,10 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
   const [message, setMessage] = useState("");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    const refresh = () => {
-      setItems(getCustomArticles());
-      setFavoriteIds(readFavoriteArticleIds());
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === STORAGE.customTexts || event.key === STORAGE.favoriteArticles) refresh();
-    };
-    refresh();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
-    };
-  }, []);
+  useLocalDataSync(() => {
+    setItems(getCustomArticles());
+    setFavoriteIds(readFavoriteArticleIds());
+  }, { keys: customArticleSyncKeys });
   const persist = (next: PracticeArticle[]) => {
     if (!writeLocal(STORAGE.customTexts, next)) {
       setMessage("自定义文章未能保存，请检查浏览器存储空间。");
