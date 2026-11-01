@@ -21,10 +21,19 @@ function execute<T>(operation: () => T): T {
 export async function withStorageWriteLock<T>(operation: () => T): Promise<T> {
   if (hasStorageWriteLock()) return operation();
   if (typeof navigator !== "undefined" && navigator.locks) {
-    return navigator.locks.request(LOCK_NAME, () => execute(operation));
+    return navigator.locks.request(LOCK_NAME, () =>
+      typeof indexedDB === "undefined" ? execute(operation) : withIndexedDbWriteLock(operation),
+    );
   }
-  // IndexedDB readwrite transactions serialize across tabs too. This fallback
-  // stores no user data; the transaction is solely the lock's lifetime.
+  return withIndexedDbWriteLock(operation);
+}
+
+// Keep the IndexedDB request/commit boundary even when Web Locks are available.
+// WebKit can grant the next Web Lock before the previous renderer's localStorage
+// changes reach this renderer. The database transaction gives storage IPC a
+// task boundary before reading and holds the writer until its commit completes.
+// No user data is stored here; the transaction only coordinates writes.
+function withIndexedDbWriteLock<T>(operation: () => T): Promise<T> {
   if (typeof indexedDB === "undefined") {
     throw new Error("当前浏览器无法安全协调本机数据写入，请使用支持 Web Locks 或 IndexedDB 的浏览器。");
   }

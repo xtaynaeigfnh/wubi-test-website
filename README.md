@@ -285,7 +285,7 @@ PR 和 main 的质量检查执行 `npm audit --include=dev`，同时检查生产
 
 ### 多窗口写入一致性
 
-浏览器练习保存、阶段目标、训练计划、数据清理和备份恢复通过 `storage-lock.ts` 串行执行完整的读取、计算与写入过程。优先使用同源 Web Locks；不可用时用 IndexedDB 的 readwrite 事务协调，IndexedDB 只用于互斥、不迁移练习数据。`practice-transactions.ts` 提供异步浏览器写入口，界面等待结果后才显示保存成功。读取时的修复也会获取写锁并核对旧值，避免覆盖其它标签页的新成绩；纯同步核心保留供事务内部和测试使用。
+浏览器练习保存、阶段目标、训练计划、数据清理和备份恢复通过 `storage-lock.ts` 串行执行完整的读取、计算与写入过程。使用同源 Web Locks，并在浏览器支持 IndexedDB 时保留 readwrite 事务的请求与提交边界，避免 WebKit 在锁交接时仍读到另一进程写入前的 localStorage 快照；Web Locks 不可用时也由相同事务协调。IndexedDB 只用于互斥、不迁移练习数据。`practice-transactions.ts` 提供异步浏览器写入口，界面等待结果后才显示保存成功。读取时的修复也会获取写锁并核对旧值，避免覆盖其它标签页的新成绩；纯同步核心保留供事务内部和测试使用。
 
 ### 模块职责
 
