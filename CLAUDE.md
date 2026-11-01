@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Key Commands
 
+要求 Node.js 26.13 或更高的 26.x 版本（`.nvmrc` 锁定为 `26.13.0`），通过 `npm ci` 精确安装依赖。
+
 - `npm run dev` — 启动 Vinext 开发服务器（热更新）
 - `npm run build` — 生成生产构建
 - `npm run build:pages` — 生成 GitHub Pages 静态导出（Next.js）
@@ -55,21 +57,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/hesitation-practice.ts` — 从卡顿热力图中提取片段、三连练结果判定与观察项生成
 - `app/share-card.ts` — 本地成绩卡 PNG 生成
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
-- `app/music.ts` — 音乐目录解析、偏好校验、曲目索引和路径辅助逻辑；实际音频播放由 `MusicPlayer.tsx` 管理
-- `app/components/WubiApp.tsx` — 应用外壳，用 `next/dynamic` 按当前路由按需加载页面视图，管理共享设置、主题、音效与卡顿加练状态
+- `app/music.ts` — 音乐目录解析、偏好校验、曲目索引和路径辅助逻辑；实际音频播放由 `MusicPlayer.tsx` 管理，本地音频导入由 `local-music.ts` 管理
+- `app/backup-reminder.ts` — 备份提醒规则与触发判断
+- `app/article-preferences.ts` / `app/article-progress.ts` — 文章偏好与版本化进度联合唯一标识
+- `app/root-plate.ts` — 字根盘与拆字版逻辑
+- `app/input-review.ts` — 练习中词组复盘与诊断
+- `app/skin.ts` / `app/theme.ts` — 皮肤偏好、调色板与主题切换
+- `app/pet-events.ts` — 桌面宠物互动事件
+- `app/components/WubiApp.tsx` — 应用外壳，用 `next/dynamic` 按当前路由按需加载页面视图，管理共享设置、主题、音效与卡顿加练状态；顶栏、页脚与外壳 Hook 位于 `app/components/shell/`（`AppHeader`、`AppFooter`、`useAppSettings`、`useHesitationPractice`、`useKeySound`），离开保护等共享 Hook 位于 `app/components/hooks/`
 - `app/components/FirstUseGuide.tsx` — 可跳过的首次引导、短测建议、七日目标与推荐复练入口
 - `app/components/lookup/` — 查码搜索、结果、按键顺序提示及工作区样式
-- `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的文章库、练习会话、幽灵赛与码长诊断 Hook 位于 `typing/` 下的 `useArticleLibrary.ts`、`useTypingSession.ts`、`useGhostRace.ts` 和 `useTypingDiagnostics.ts`。`TypingInput.tsx` 适配输入法事件，`TypingPracticeArea.tsx` 与 `TypingResult.tsx` 分别展示练习区和结算区；`TypingView.tsx` 保留页面组装、实时指标计算与会话协调
+- `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的文章库、练习会话、幽灵赛与码长诊断 Hook 位于 `typing/` 下的 `useArticleLibrary.ts`、`useTypingSession.ts`、`useGhostRace.ts` 和 `useTypingDiagnostics.ts`。`TypingInput.tsx` 适配输入法事件，`TypingPracticeArea.tsx` 与 `TypingResult.tsx` 分别展示练习区和结算区，弹窗与选择器分别位于 `ArticlePicker.tsx`、`CommonCharacterPicker.tsx`、`CustomTextModal.tsx` 和 `InputReview.tsx`；`TypingView.tsx` 保留页面组装、实时指标计算与会话协调
 - `app/components/TrainingCenter.tsx` — 今日训练中心页面组装：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护。计划与到期复习操作在 `training/useTrainingPlan.ts`、`training/useDueReviews.ts`；计划、到期队列、每日目标和卡顿队列在同目录的 `DailyTrainingPlanCard.tsx`、`DueReviewQueue.tsx`、`DailyGoalCard.tsx`、`HesitationQueueCard.tsx`；错题、词组和字根专项在 `ReviewPractice.tsx`、`PhrasePractice.tsx`、`RootPractice.tsx`，共享编码专项会话在 `training/CodeDrill.tsx`
 - `app/components/AdvancedCenter.tsx` — 节奏、实战、阶段目标与字码挑战的进阶训练页。练习会话与节奏展示在 `advanced/AdvancedPractice.tsx`、`advanced/RhythmSummaryView.tsx`
 - `app/components/WeeklyReportPanel.tsx` — 周报、能力雷达、改善解释与下一步建议
 - `app/components/HesitationHeatmap.tsx` — 卡顿热力图与片段识别
 - `app/components/HesitationPracticeModal.tsx` — 卡顿片段三连练弹窗
-- `app/components/KeySummary.tsx` — 击键统计（左右手、指法、键区）
+- `app/components/KeySummary.tsx` — 击键统计（左右手、指法、键区），图表细拆分位于 `app/components/summary/`（`KeyboardHeatmap`、`UsageCharts`）
+- `app/components/PetCompanion.tsx` / `app/components/PetArt.tsx` — 桌面宠物陪伴与像素渲染
 - `app/components/DataManagement.tsx` — 数据用量与清理、轻量摘要、完整备份、自定义文章和 TXT 批量导入
 - `app/components/TrendPanel.tsx` — 成绩趋势序列
 - `app/components/PwaControl.tsx` — Service Worker 状态和安装提示
-- `app/components/MusicPlayer.tsx` — 跨路由保持状态、兼顾指针悬停和键盘焦点的根级离线播放器
+- `app/components/MusicPlayer.tsx` — 跨路由保持状态、兼顾指针悬停和键盘焦点的根级离线播放器，本地音乐导入弹窗为 `LocalMusicImport.tsx`
 - `app/components/Ui.tsx` — 打字练习核心 UI 组件，以及成绩待保存和未完成练习的共享离开保护
 
 **数据**:
@@ -94,8 +103,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 统计、Unicode 字符计数、输入法按键和音乐逻辑优先补充 `tests/core-logic.test.mjs`
 - 卡顿片段复练逻辑补充 `tests/hesitation-practice.test.mjs`
 - 词组专项、间隔复习、周报、进阶训练和数据维护分别补充 `tests/phrase-training.test.mjs`、`tests/spaced-review.test.mjs`、`tests/weekly-report.test.mjs`、`tests/advanced-training.test.mjs` 和 `tests/data-maintenance.test.mjs`
+- 文章库筛选与排序、备份提醒分别补充 `tests/article-library.test.mjs` 和 `tests/backup-reminder.test.mjs`
 - 界面结构、文案或响应式布局改动同步更新 `tests/ui-interaction-contract.test.mjs`
-- 本地存储、备份恢复、练习状态、设置、PWA 和输入复盘改动分别补充 `tests/storage.test.mjs`、`tests/backup.test.mjs`、`tests/practice-store.test.mjs`、`tests/settings.test.mjs`、`tests/pwa.test.mjs` 和 `tests/input-review.test.mjs`
+- 本地存储、备份恢复、练习状态、模式校验、设置、PWA 和输入复盘改动分别补充 `tests/storage.test.mjs`、`tests/backup.test.mjs`、`tests/practice-store.test.mjs`、`tests/practice-schema.test.mjs`、`tests/settings.test.mjs`、`tests/pwa.test.mjs` 和 `tests/input-review.test.mjs`
+- 依赖安全性、补丁有效性及数据/构建加载分别由 `tests/dependency-security.test.mjs`、`tests/content-loader.test.mjs` 和 `tests/build.test.mjs` 覆盖
 - 跨浏览器键盘、响应式和无障碍检查可运行 `npm run test:a11y`；脚本默认启动开发服务器，结果写入 `output/playwright/accessibility/`，不包含在 `npm test` 中
 - 练习会话事件序列使用 `tests/typing-session.test.mjs`；输入法、存储失败恢复、切歌等关键行为使用 `npm run test:browser`，覆盖范围见 `tests/browser-coverage.md`。浏览器与无障碍脚本共用 `scripts/browser-test-server.mjs`；Windows 上先停止开发服务器再构建，避免文件监听冲突
 - 文章正文改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，以及 `tests/article-style.test.mjs` 的具体场景、直接引语、句段节奏和禁用模板句检查，并提交全部重新生成的 JSON；正文写在 `scripts/article-corpus/` 下的人工语料里，`scripts/generate-articles.mjs` 只做规范化与校验
