@@ -9,7 +9,7 @@
 
 ## 当前版本与维护
 
-当前源码版本为 `1.1.1`。Next.js、React 与 Vinext/Vite/Cloudflare 构建链已更新安全补丁，保持 React 19.2 系列。当前离线缓存版本为 `wubi-test-v21`，缓存名包含部署 scope，更新只清理该 scope 的旧版本；联网更新后会重新准备页面和数据缓存，本地成绩、设置及备份结构保持兼容。
+当前源码版本为 `1.1.1`。Next.js、React 与 Vinext/Vite/Cloudflare 构建链已更新安全补丁，保持 React 19.3 系列。当前离线缓存版本为 `wubi-test-v21`，缓存名包含部署 scope，更新只清理该 scope 的旧版本；联网更新后会重新准备页面和数据缓存，本地成绩、设置及备份结构保持兼容。
 
 `package.json` 的 `overrides` 将 `@esbuild-kit/core-utils` 内的 esbuild 固定到 `0.25.12`，用于修补 Drizzle Kit 旧加载器携带的开发服务器漏洞，避免自动修复将 Drizzle Kit 降级。后续 Drizzle Kit 移除旧加载器后，应重新评估并移除这项覆盖。升级依赖后需运行 `npm audit`、lint、类型检查、完整测试及 Pages 子路径构建。
 
