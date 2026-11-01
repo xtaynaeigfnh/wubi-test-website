@@ -36,10 +36,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `settings/page.tsx` → 设置、自定义文章与数据管理
 
 **核心逻辑**:
-- `app/storage.ts` — 存储键、基础 localStorage/sessionStorage 读写和多键写入失败回滚，无业务模块依赖。
+- `app/storage.ts` — 存储键、基础 localStorage/sessionStorage 读写和多键写入失败回滚，无业务模块依赖。读取修复使用带旧值比较的 `repairLocalValue`，不能在读取路径无锁覆盖整份数据。
+- `app/storage-lock.ts` — 复合读改写用 `withStorageWriteLock` 包裹完整操作；回调必须同步，不在锁内等待网络或其它异步任务。同步存储核心仅供锁内组合和单元测试使用。
+- `app/practice-transactions.ts` — 浏览器练习持久化的异步入口。等待保存结果后再更新成功状态。
 - `app/content-loader.ts` / `app/typing-metrics.ts` — 内容加载与打字指标纯计算。
 - `app/practice-schema.ts` — 业务读取与备份共用的纯校验、文章进度与目标规范化，以及配套默认值和自定义文章构造；不执行存储 I/O。
-- `app/lib.ts` — 只保留旧公开 API 的兼容导出，新代码直接引用职责模块。设置读取、文章构造与初选、训练题池、成绩聚合、数据清理 I/O 和时长格式化分别位于 `settings-store.ts`、`article-practice.ts`、`training-pools.ts`、`practice-statistics.ts`、`maintenance-store.ts` 和 `format.ts`。主要练习数据读写与成绩管理位于 `app/practice-store.ts`，版本化备份校验和恢复位于 `app/backup.ts`。文章进度按 `articleId` 唯一；恢复失败按逆序还原已修改项，不能删除未修改项来腾空间，回滚失败需明确报错。
+- `app/lib.ts` — 只保留旧公开 API 的兼容导出，新代码直接引用职责模块。设置读取、文章构造与初选、训练题池、成绩聚合、数据清理 I/O 和时长格式化分别位于 `settings-store.ts`、`article-practice.ts`、`training-pools.ts`、`practice-statistics.ts`、`maintenance-store.ts` 和 `format.ts`。主要练习数据读写与成绩管理位于 `app/practice-store.ts`，版本化备份校验和恢复位于 `app/backup.ts`。文章进度按 `articleId` 与 `articleVersion` 联合唯一，身份键在 `app/article-progress.ts`；同版本旧重复记录读取时按有界规则合并，未记录版本的旧进度保留，但不计入当前正文的完成度与训练推荐。恢复失败按逆序还原已修改项，不能删除未修改项来腾空间，回滚失败需明确报错。
 - `app/typing-session.ts` / `app/typing-outcome.ts` — 纯事件状态转换与完成快照结算。完成后冻结统计，保存失败保留结果供重试；重置清空统计但保留后台状态，Hook 在初始化和重置时同步实际可见性。
 - `app/onboarding.ts` / `app/onboarding-baseline.ts` — 首次引导进度、三段短测的初步建议和状态校验。
 - `app/training-plan.ts` — 弱项评分（`scoreWeakItem`）、自适应每日训练处方（`generateDailyTrainingPlan`）与错字观察累积（`applyWeakObservations`）
@@ -54,12 +56,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/share-card.ts` — 本地成绩卡 PNG 生成
 - `app/types.ts` — 全部 TypeScript 类型定义（文章、成绩、设置、音乐、卡顿复练等）
 - `app/music.ts` — 音乐目录解析、偏好校验、曲目索引和路径辅助逻辑；实际音频播放由 `MusicPlayer.tsx` 管理
-- `app/components/WubiApp.tsx` — 应用外壳，根据 `view` prop 分发页面，管理共享设置、主题、音效与卡顿加练状态
+- `app/components/WubiApp.tsx` — 应用外壳，用 `next/dynamic` 按当前路由按需加载页面视图，管理共享设置、主题、音效与卡顿加练状态
 - `app/components/FirstUseGuide.tsx` — 可跳过的首次引导、短测建议、七日目标与推荐复练入口
 - `app/components/lookup/` — 查码搜索、结果、按键顺序提示及工作区样式
 - `app/components/views/` — `TypingView`、`ChallengeView`、`LookupView`、`HistoryView`、`SettingsView` 页面组件；文章测速的文章库、练习会话、幽灵赛与码长诊断 Hook 位于 `typing/` 下的 `useArticleLibrary.ts`、`useTypingSession.ts`、`useGhostRace.ts` 和 `useTypingDiagnostics.ts`。`TypingInput.tsx` 适配输入法事件，`TypingPracticeArea.tsx` 与 `TypingResult.tsx` 分别展示练习区和结算区；`TypingView.tsx` 保留页面组装、实时指标计算与会话协调
-- `app/components/TrainingCenter.tsx` — 今日训练中心：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护
-- `app/components/AdvancedCenter.tsx` — 节奏、实战、阶段目标与字码挑战的进阶训练页
+- `app/components/TrainingCenter.tsx` — 今日训练中心页面组装：自适应处方、错题复练、五码根专项、卡顿片段加练与未完成练习切换保护。计划与到期复习操作在 `training/useTrainingPlan.ts`、`training/useDueReviews.ts`；计划、到期队列、每日目标和卡顿队列在同目录的 `DailyTrainingPlanCard.tsx`、`DueReviewQueue.tsx`、`DailyGoalCard.tsx`、`HesitationQueueCard.tsx`；错题、词组和字根专项在 `ReviewPractice.tsx`、`PhrasePractice.tsx`、`RootPractice.tsx`，共享编码专项会话在 `training/CodeDrill.tsx`
+- `app/components/AdvancedCenter.tsx` — 节奏、实战、阶段目标与字码挑战的进阶训练页。练习会话与节奏展示在 `advanced/AdvancedPractice.tsx`、`advanced/RhythmSummaryView.tsx`
 - `app/components/WeeklyReportPanel.tsx` — 周报、能力雷达、改善解释与下一步建议
 - `app/components/HesitationHeatmap.tsx` — 卡顿热力图与片段识别
 - `app/components/HesitationPracticeModal.tsx` — 卡顿片段三连练弹窗
