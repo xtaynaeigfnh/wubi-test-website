@@ -18,6 +18,7 @@ import { animateMusicDock, captureMusicDock, type MusicDockMotion, type MusicDoc
 import { LocalMusicImport } from "./LocalMusicImport";
 import { readLocalMusic, releaseLocalMusic } from "../local-music";
 import { readLocal, STORAGE, writeLocal } from "../storage";
+import { readSettings } from "../settings-store";
 import {
   DEFAULT_MUSIC_PREFERENCES,
   formatAudioTime,
@@ -531,7 +532,7 @@ function MusicDock() {
     let previousSkin: string | undefined;
     const syncSkin = () => {
       const skin = document.documentElement.dataset.skin;
-      if (skin === "roots" && previousSkin !== "roots") collapseDock();
+      if (skin === "roots" && previousSkin !== "roots" && readSettings().skin === "roots") collapseDock();
       previousSkin = skin;
     };
     syncSkin();
