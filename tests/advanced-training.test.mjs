@@ -511,6 +511,32 @@ test("each season day requires a different local calendar day", () => {
   assert.match(dayOne.days[0].completedLocalDate, /^\d{4}-\d{2}-\d{2}$/);
 });
 
+test("season blocks a previously completed local date after moving across time zones", () => {
+  const originalTimezone = process.env.TZ;
+  try {
+    process.env.TZ = "Asia/Shanghai";
+    let season = createAdvancedSeason("timezone-return", new Date("2026-10-29T00:00:00Z"));
+    for (let day = 1; day <= 3; day++) {
+      const now = new Date(`2026-10-${28 + day}T01:00:00Z`);
+      season = completeAdvancedSeasonDay(season,
+        assessmentSession(season, day, { id: `timezone-${day}`, date: now.toISOString() }), now);
+    }
+    assert.equal(isAdvancedSeason(season), true);
+    assert.equal(season.currentDay, 4);
+    process.env.TZ = "America/Los_Angeles";
+    const now = new Date("2026-10-31T02:00:00Z"); // October 30 locally, already completed on day 2.
+    assert.equal(canCompleteAdvancedSeasonToday(season, now), false);
+    const unchanged = completeAdvancedSeasonDay(season,
+      assessmentSession(season, 4, { id: "timezone-4", date: now.toISOString() }), now);
+    assert.equal(unchanged, season);
+    assert.equal(isAdvancedSeason(unchanged), true);
+    assert.equal(canCompleteAdvancedSeasonToday(season, new Date("2026-11-01T08:00:00Z")), true);
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
+
 test("season completion canonicalizes equivalent timestamps and keeps local dates portable", () => {
   const season = createAdvancedSeason("canonical-time", new Date("2026-08-01T08:00:00.000Z"));
   const completed = completeAdvancedSeasonDay(

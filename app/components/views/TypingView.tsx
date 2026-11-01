@@ -200,7 +200,7 @@ export function TypingView({
 
   useEffect(() => {
     refreshProgress();
-  }, [completed, refreshProgress]);
+  }, [completed, sessionSaved, refreshProgress]);
 
   const seconds = completed ? elapsed : elapsed || 0;
   const ghost = useGhostRace({
@@ -223,7 +223,6 @@ export function TypingView({
     displayGhostMode,
     activeGhostMode,
     ghostGapLabel,
-    refreshSessions,
   } = ghost;
   useEffect(() => {
     ghostApiRef.current = ghost;
@@ -277,11 +276,6 @@ export function TypingView({
       return;
     }
     router.push("/training?tab=phrase");
-  };
-  const retryPracticeSave = async () => {
-    if (!await retrySave()) return;
-    refreshProgress();
-    refreshSessions();
   };
 
   if (articleSaveError && !article) {
@@ -618,7 +612,7 @@ export function TypingView({
             recommendedPhrases={recommendedPhrases}
             inputHeight={inputHeight}
             activeGhostMode={activeGhostMode}
-            retryPracticeSave={retryPracticeSave}
+            retryPracticeSave={retrySave}
             startRecommendedPhrasePractice={startRecommendedPhrasePractice}
             repeatArticle={() => chooseArticle(article, true, retryCount + 1, activeGhostMode)}
             randomArticle={randomArticle}

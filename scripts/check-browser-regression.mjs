@@ -8,11 +8,11 @@ import { chromium, firefox, webkit } from "playwright";
 import { basePath, base, origin, output, fixture, text, open } from "./browser/helpers.mjs";
 import { typingRecovery, typingSessionLifecycle, typingIme, typingUnicodeAndCorrection, typingPasteAndDrop } from "./browser/typing.mjs";
 import { backupRoundtrip, backupUnreadable, backupRollback, backupInvalidAndStaleFile } from "./browser/backup.mjs";
-import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback } from "./browser/articles.mjs";
+import { articleLibrary, articleProgressRefresh, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback } from "./browser/articles.mjs";
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
-import { concurrentPracticeSaves, corruptHistoryRecovery, articleVersionProgress } from "./browser/concurrent-storage.mjs";
+import { concurrentPracticeSaves, corruptHistoryRecovery, articleVersionProgress, weeklyReportRefresh } from "./browser/concurrent-storage.mjs";
 import { localMusic } from "./browser/local-music.mjs";
 import { concurrentPreferences, trainingSelectionRollback } from "./browser/preferences.mjs";
 
@@ -436,6 +436,8 @@ const interactionScenarios = [
   ["backup-rollback", backupRollback],
   ["backup-invalid-stale-file", backupInvalidAndStaleFile],
   ["article-library", articleLibrary],
+  ["article-progress-refresh", articleProgressRefresh],
+  ["weekly-report-refresh", weeklyReportRefresh],
   ...["generated", "recent", "quota", "read"].map((failure) =>
     [`article-selection-${failure}`, (context) => articleSelectionFailure(context, failure)]),
   ["article-restart-failure", articleRestartFailure],

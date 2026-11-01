@@ -35,6 +35,26 @@ export async function articleLibrary({ page }) {
 }
 
 
+export async function articleProgressRefresh({ page, context }) {
+  const article = { id: "short-progress-refresh", title: "完成后刷新进度练习", text, length: "short", topic: "日常", wordCount: Array.from(text).length, version: 1 };
+  await context.route("**/data/articles-*.json", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const rows = path.endsWith("articles-index.json") ? [article]
+      : path.endsWith("articles-short.json") ? [{ id: article.id, text }] : [];
+    await route.fulfill({ json: rows });
+  });
+  await context.addInitScript((id) => {
+    localStorage.setItem("wubi-test:current-article:v1", JSON.stringify(id));
+  }, article.id);
+  await open(page, "/");
+  await typingInput(page).fill(text);
+  await page.getByText("本次成绩已存入本机 · 可在成绩统计查看", { exact: true }).waitFor();
+  // The first save resolves after the completion render; the library must still pick it up.
+  const choice = await chooseArticle(page, article.title);
+  await choice.getByText("1 次记录", { exact: true }).waitFor();
+  assert.equal(await choice.getByText("未练习", { exact: true }).count(), 0);
+}
+
 export async function articleSelectionFailure({ page }, failure) {
   await open(page, "/");
   const secondTitle = "切换后的第二篇练习";
