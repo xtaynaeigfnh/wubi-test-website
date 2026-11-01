@@ -55,6 +55,15 @@ export async function trainingPlanAndReviews({ page }) {
   await due.filter({ hasText: "“笔”" }).getByRole("button", { name: "开始复习", exact: true }).click();
   assert.equal(new URL(page.url()).searchParams.get("tab"), "review");
   await page.getByRole("heading", { name: "到期单字 · 笔", exact: true }).waitFor();
+  const reviewTab = page.locator("#training-tab-review");
+  await reviewTab.focus();
+  await reviewTab.press("ArrowRight");
+  await page.locator('[role="tab"][aria-selected="true"]').press("ArrowLeft");
+  assert.equal(await page.getByRole("heading", { name: "到期单字 · 笔", exact: true }).count(), 0,
+    "键盘切换栏目与点击一样清除上次到期复习目标");
+  await page.getByRole("tab", { name: "今日计划", exact: true }).click();
+  await due.filter({ hasText: "“笔”" }).getByRole("button", { name: "开始复习", exact: true }).click();
+  await page.getByRole("heading", { name: "到期单字 · 笔", exact: true }).waitFor();
   await page.getByRole("button", { name: "开始专项", exact: true }).click();
   const characterInput = page.getByRole("textbox", { name: "笔的五笔编码", exact: true });
   await characterInput.fill("ttfn");
