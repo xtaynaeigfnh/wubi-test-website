@@ -103,6 +103,7 @@ export function buildTypingOutcome({
     id,
     type: "article",
     articleId,
+    ...(articleId ? { articleVersion: article.version } : {}),
     title: article.title,
     date: completedAt,
     durationSeconds: finalSeconds,

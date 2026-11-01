@@ -1,5 +1,6 @@
 import { normalizeSkin } from "./skin.ts";
 // Pure shared rules: local reads normalize recoverable values; backups validate strictly.
+import { articleProgressKey } from "./article-progress.ts";
 import type {
   ArticleProgress,
   CustomTheme,
@@ -382,6 +383,8 @@ export function isSessionResult(value: unknown): value is SessionResult {
       String(value.type),
     ) &&
     (value.articleId === undefined || isBoundedString(value.articleId, 160)) &&
+    (value.articleVersion === undefined ||
+      (Number.isInteger(value.articleVersion) && isFiniteRange(value.articleVersion, 1, 1_000_000))) &&
     (value.trainingTaskId === undefined ||
       isBoundedString(value.trainingTaskId, 200)) &&
     (value.scenarioId === undefined || isBoundedString(value.scenarioId, 160)) &&
@@ -704,6 +707,8 @@ export function isDailyTrainingPlan(value: unknown): value is DailyTrainingPlan 
 function isArticleProgress(value: unknown): value is ArticleProgress {
   return (
     isRecord(value) &&
+    (value.articleVersion === undefined ||
+      (Number.isInteger(value.articleVersion) && isFiniteRange(value.articleVersion, 1, 1_000_000))) &&
     isBoundedString(value.articleId, 160) &&
     value.articleId.length > 0 &&
     isFiniteRange(value.attempts, 0, 1_000_000) &&
@@ -721,9 +726,10 @@ export function normalizeArticleProgress(value: unknown): ArticleProgress[] {
   const merged = new Map<string, ArticleProgress>();
   for (const item of value) {
     if (!isArticleProgress(item)) continue;
-    const existing = merged.get(item.articleId);
+    const key = articleProgressKey(item);
+    const existing = merged.get(key);
     if (!existing) {
-      merged.set(item.articleId, { ...item });
+      merged.set(key, { ...item });
       continue;
     }
     existing.attempts = Math.min(
@@ -748,7 +754,7 @@ export function isValidArticleProgressCollection(
 ): value is ArticleProgress[] {
   return (
     validateArray(value, MAX_ARTICLE_PROGRESS_ITEMS, isArticleProgress) &&
-    new Set((value as ArticleProgress[]).map((item) => item.articleId)).size ===
+    new Set((value as ArticleProgress[]).map(articleProgressKey)).size ===
       (value as ArticleProgress[]).length
   );
 }

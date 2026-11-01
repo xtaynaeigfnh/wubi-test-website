@@ -442,3 +442,19 @@ test("弱项所有累加字段在上限饱和，仍能经过保存校验", async
     for (const field of ["count", "codingErrors", "hesitationPoints", "correctionCount", "seenCount"]) assert.equal(next[field], max);
   }
 });
+
+test("训练推荐不让旧正文的错题和最近练习影响新版选文", () => {
+  const articles = [
+    { id: "version-a", title: "甲", text: "甲", version: 5, length: "short", topic: "日常", wordCount: 1 },
+    { id: "version-b", title: "乙", text: "乙", version: 5, length: "short", topic: "日常", wordCount: 1 },
+  ];
+  const base = { date: "2026-10-29", now: new Date("2026-10-29T00:00:00Z"), articles, progress: [], sessions: [], weakItems: [], entries: [], preferredLength: "all" };
+  const pick = (input) => generateDailyTrainingPlan(input).tasks.find((task) => task.type === "article").articleId;
+  const original = pick(base);
+  const other = articles.find((article) => article.id !== original).id;
+  for (const articleVersion of [undefined, 4]) {
+    assert.equal(pick({ ...base, progress: [{ articleId: other, articleVersion, errors: 9999 }], sessions: [{ type: "article", articleId: original, articleVersion, speed: 80 }] }), original);
+  }
+  assert.equal(pick({ ...base, progress: [{ articleId: other, articleVersion: 5, errors: 9999 }] }), other);
+  assert.equal(pick({ ...base, sessions: [{ type: "article", articleId: original, articleVersion: 5, speed: 80 }] }), other);
+});

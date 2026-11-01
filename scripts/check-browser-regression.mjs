@@ -12,7 +12,7 @@ import { articleLibrary, articleSelectionFailure, articleRestartFailure, commonA
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
-import { concurrentPracticeSaves, corruptHistoryRecovery } from "./browser/concurrent-storage.mjs";
+import { concurrentPracticeSaves, corruptHistoryRecovery, articleVersionProgress } from "./browser/concurrent-storage.mjs";
 import { localMusic } from "./browser/local-music.mjs";
 
 const pagesMode = process.argv.includes("--pages");
@@ -441,6 +441,7 @@ const interactionScenarios = [
   ["music-volume-unavailable", musicVolumeUnavailable],
   ["typing-background-reset", typingBackgroundReset],
   ["corrupt-history-recovery", corruptHistoryRecovery],
+  ["article-version-progress", articleVersionProgress],
   ["concurrent-practice-saves", concurrentPracticeSaves],
   ["concurrent-practice-idb", (context) => concurrentPracticeSaves(context, true)],
 ];

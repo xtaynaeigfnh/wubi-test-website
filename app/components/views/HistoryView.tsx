@@ -14,7 +14,9 @@ import {
 } from "../../practice-transactions";
 import { formatDuration } from "../../format";
 import { FALLBACK_ARTICLE_COUNT, loadArticleMetadata } from "../../content-loader";
+import { buildArticleProgressMap } from "../../article-progress";
 import type {
+  ArticleMetadata,
   ArticleProgress,
   ErrorStat,
   HesitationPracticeTarget,
@@ -83,7 +85,8 @@ export function HistoryView({
   const [errors, setErrors] = useState<ErrorStat[]>([]);
   const [phraseOpportunities, setPhraseOpportunities] = useState<PhraseOpportunityStat[]>([]);
   const [reportNow, setReportNow] = useState<Date | null>(null);
-  const [articleTotal, setArticleTotal] = useState(FALLBACK_ARTICLE_COUNT);
+  const [articles, setArticles] = useState<ArticleMetadata[]>([]);
+  const articleTotal = articles.length || FALLBACK_ARTICLE_COUNT;
   const [type, setType] = useState<
     "all" | "article" | "challenge" | "training" | "advanced"
   >("all");
@@ -140,7 +143,7 @@ export function HistoryView({
     let active = true;
     loadArticleMetadata()
       .then((rows) => {
-        if (active) setArticleTotal(rows.length);
+        if (active) setArticles(rows);
       })
       .catch(() => undefined);
     return () => {
@@ -165,7 +168,7 @@ export function HistoryView({
   const averageAccuracy = articleSessions.length
     ? articleSessions.reduce((sum, session) => sum + session.accuracy, 0) / articleSessions.length
     : 0;
-  const completedArticleCount = progress.filter(
+  const completedArticleCount = [...buildArticleProgressMap(articles, progress).values()].filter(
     (item) => item.completed,
   ).length;
   const weeklyReport = useMemo(
@@ -259,6 +262,9 @@ export function HistoryView({
               <div className="table-row" key={session.id}>
                 <span className="session-practice">
                   <strong>{session.title}</strong>
+                  {session.type === "article" && session.articleId && (
+                    <small>{session.articleVersion === undefined ? "正文版本未记录" : `正文版本 ${session.articleVersion}`}</small>
+                  )}
                   <small>{new Date(session.date).toLocaleString("zh-CN")}</small>
                 </span>
                 <span className="session-speed">
@@ -429,11 +435,11 @@ export function HistoryView({
             {!errors.length && <div className="empty-state">还没有需要巩固的错字。继续保持，稳稳地打好每一个字。</div>}
           </div>
           <div className="completion-stat">
-            <span>文章完成度</span>
+            <span>当前版本文章完成度</span>
             <strong>{completedArticleCount} / {articleTotal}</strong>
             <i
               role="progressbar"
-              aria-label="文章完成度"
+              aria-label="当前版本文章完成度"
               aria-valuemin={0}
               aria-valuemax={articleTotal}
               aria-valuenow={completedArticleCount}
@@ -449,7 +455,7 @@ export function HistoryView({
       </div>
       </div>
       <footer className="history-footer" hidden={section === "keys"}>
-        <p>练习记录只属于你。换设备前，记得<Link href="/settings#settings-backup">备份数据</Link>。</p>
+        <p>文章完成度只统计当前正文版本，旧版及未记录版本的成绩仍保留。练习记录只属于你。换设备前，记得<Link href="/settings#settings-backup">备份数据</Link>。</p>
         <button className="history-clear" onClick={clearResults}>清除练习数据与计划</button>
       </footer>
     </section>

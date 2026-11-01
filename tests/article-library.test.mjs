@@ -4,6 +4,7 @@ import { isFavoriteArticleIds, normalizeFavoriteArticleIds, selectLibraryArticle
 import { readFavoriteArticleIds, toggleFavoriteArticle } from "../app/article-preferences.ts";
 import { createBackupPayload, parseBackupPayload, restoreBackupPayload } from "../app/backup.ts";
 import { STORAGE } from "../app/storage.ts";
+import { session } from "./v02-fixtures.mjs";
 
 const articles = [
   { id: "short-1", title: "白板上的空位", length: "short", topic: "办公" },
@@ -111,5 +112,35 @@ test("收藏读取被拒绝时不能用空状态覆盖已有收藏", () => {
     assert.equal(result.ok, false);
     assert.match(result.message, /无法读取/);
     assert.equal(values.get(STORAGE.favoriteArticles), original);
+  });
+});
+
+test("文章列表仅用当前正文版本筛选完成状态与最近练习", async () => {
+  const { buildArticleProgressMap } = await import("../app/article-progress.ts");
+  const current = articles.map((article) => ({ ...article, version: 5 }));
+  const rows = [
+    { articleId: "short-1", articleVersion: 4, completed: true, lastPracticed: "2026-10-29T00:00:00Z" },
+    { articleId: "short-2", completed: true, lastPracticed: "2026-10-29T00:00:00Z" },
+    { articleId: "short-3", articleVersion: 5, completed: true, lastPracticed: "2026-10-28T00:00:00Z" },
+    { articleId: "short-3", articleVersion: 6, completed: true, lastPracticed: "2026-10-29T00:00:00Z" },
+  ];
+  const progressMap = buildArticleProgressMap(current, rows);
+  assert.deepEqual([...progressMap.keys()], ["short-3"]);
+  assert.equal(progressMap.get("short-3").articleVersion, 5);
+  assert.deepEqual(select({ articles: current, progressMap, filter: { length: "all", topic: "all", status: "practiced" } }), ["short-3"]);
+  assert.equal(select({ articles: current, progressMap, sort: "recent" })[0], "short-3");
+});
+
+test("备份恢复保留多个正文版本和未知版本，拒绝同版本重复记录", () => {
+  withStorage((values) => {
+    const row = { articleId: "short-1", attempts: 1, bestSpeed: 80, completed: true, lastPracticed: "2026-10-29T00:00:00Z", errors: 0 };
+    const rows = [row, { ...row, articleVersion: 4 }, { ...row, articleVersion: 5 }];
+    const sessions = [session({ articleId: row.articleId }), session({ articleId: row.articleId, articleVersion: 4 }), session({ articleId: row.articleId, articleVersion: 5 })];
+    const payload = createBackupPayload({ [STORAGE.progress]: rows, [STORAGE.sessions]: sessions });
+    restoreBackupPayload(parseBackupPayload(payload));
+    assert.deepEqual(JSON.parse(values.get(STORAGE.progress)), rows);
+    assert.deepEqual(JSON.parse(values.get(STORAGE.sessions)), sessions);
+    assert.throws(() => parseBackupPayload(createBackupPayload({ [STORAGE.progress]: [...rows, rows[2]] })), /格式不正确/);
+    assert.throws(() => parseBackupPayload(createBackupPayload({ [STORAGE.progress]: [{ ...row, articleVersion: 0 }] })), /格式不正确/);
   });
 });
