@@ -58,6 +58,7 @@
       "@shuding/opentype.js": {
         "fflate": "0.7.5"
       }
-    }
+    },
+    "minimatch": "11.0.3"
   }
 }

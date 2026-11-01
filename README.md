@@ -11,7 +11,7 @@
 
 当前源码版本为 `1.1.1`。Next.js、React 与 Vinext/Vite/Cloudflare 构建链已更新安全补丁，保持 React 19.2 系列。当前离线缓存版本为 `wubi-test-v21`，缓存名包含部署 scope，更新只清理该 scope 的旧版本；联网更新后会重新准备页面和数据缓存，本地成绩、设置及备份结构保持兼容。
 
-`package.json` 的 `overrides` 仅将 `@esbuild-kit/core-utils` 内的 esbuild 固定到 `0.25.12`，用于修补 Drizzle Kit 旧加载器携带的开发服务器漏洞，避免自动修复将 Drizzle Kit 降级。后续 Drizzle Kit 移除旧加载器后，应重新评估并移除这项覆盖。升级依赖后需运行 `npm audit`、lint、类型检查、完整测试及 Pages 子路径构建。
+`package.json` 的 `overrides` 将 `@esbuild-kit/core-utils` 内的 esbuild 固定到 `0.25.12`，用于修补 Drizzle Kit 旧加载器携带的开发服务器漏洞，避免自动修复将 Drizzle Kit 降级。后续 Drizzle Kit 移除旧加载器后，应重新评估并移除这项覆盖。升级依赖后需运行 `npm audit`、lint、类型检查、完整测试及 Pages 子路径构建。
 
 ## 快速开始
 
@@ -253,6 +253,8 @@ npm run dev
 ## 项目维护与验证
 
 ### 依赖安全维护
+
+`minimatch` 通过 `overrides` 固定为 `11.0.3`，修复 [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) 的模式预处理放大问题。此覆盖同时作用于 ESLint 与 TypeScript ESLint 的传递依赖；上游依赖范围更新后应重新评估是否移除。升级时必须验证 lint、类型检查、完整测试和 Pages 子路径构建，不使用 `npm audit fix --force` 自动降级 ESLint，也不跳过开发依赖审计。
 
 当前工具链使用 Vite 8.3.5、Vinext 1.4.0、React / React DOM / React Server DOM Webpack 19.3.1、Cloudflare Vite 插件 1.66.0 和 Wrangler 4.155.0。Vinext 的 React 与 RSC peer 依赖需要一起升级。开发与构建通过 `vite dev` / `vite build` 运行 Vinext 插件；测试服务器使用 Vite 的 `--host` 参数，本地生产预览使用 `vite preview`，在 Workers 运行时加载构建产物；渲染测试通过真实预览 HTTP 响应验证页面，不再把 Workers bundle 直接导入 Node。更新后需重新运行两种构建与浏览器回归，不使用会降级框架的 `npm audit fix --force`。
 
