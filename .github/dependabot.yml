@@ -10,7 +10,19 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "维护依赖"
+    # 当前 typescript-eslint 的 peer 范围为 <6.1；支持 7.x 后再移除此限制。
+    ignore:
+      - dependency-name: typescript
+        versions: [">=7.0.0 <8.0.0"]
     groups:
+      react-types:
+        patterns:
+          - "@types/react"
+          - "@types/react-dom"
+      tailwind:
+        patterns:
+          - tailwindcss
+          - "@tailwindcss/*"
       react-runtime:
         patterns:
           - react
