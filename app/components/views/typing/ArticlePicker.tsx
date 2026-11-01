@@ -21,6 +21,7 @@ export function ArticlePicker({
   favoriteIds,
   onToggleFavorite,
   favoriteError,
+  favoriteSaving,
 }: {
   filters: ReactNode;
   filtered: PracticeArticle[];
@@ -36,6 +37,7 @@ export function ArticlePicker({
   favoriteIds: ReadonlySet<string>;
   onToggleFavorite: (id: string) => void;
   favoriteError: string;
+  favoriteSaving: boolean;
 }) {
   return (
     <Modal title="选择练习文章" onClose={onClose}>
@@ -63,6 +65,7 @@ export function ArticlePicker({
           只看收藏
         </button>
       </div>
+      {favoriteSaving && <p role="status">正在保存收藏…</p>}
       {favoriteError && <p className="article-favorite-error" role="alert">{favoriteError}</p>}
       <div className="article-list">
         <div className="article-list-summary" role="status">
@@ -87,6 +90,7 @@ export function ArticlePicker({
               </button>
               <button
                 className="article-favorite-toggle"
+                disabled={favoriteSaving}
                 aria-label={`${favorite ? "取消收藏" : "收藏"}文章：${item.title}`}
                 aria-pressed={favorite}
                 onClick={() => onToggleFavorite(item.id)}

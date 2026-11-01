@@ -21,7 +21,7 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
     const ready = () => page.locator('.hydration-boundary[aria-busy="false"]').waitFor();
     const waitSkin = (skin) => page.waitForFunction((value) => document.documentElement.dataset.skin === value, skin);
     const chooseSkin = async (skin) => {
-      await page.locator(`input[name="skin"][value="${skin}"]`).check();
+      await page.locator(`input[name="skin"][value="${skin}"]`).click();
       await waitSkin(skin);
     };
     await page.goto(`${base}/settings`);
@@ -38,7 +38,9 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
         assert.equal(await page.locator(".theme-preview").getAttribute("data-preview-skin"), skin);
         if (theme === "custom") {
           await page.locator("#custom-theme-accent").fill("#245B70");
+          await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:settings:v1")).customTheme.accent === "#245B70");
           await page.locator("#custom-theme-canvas").fill("#EEF3F4");
+          await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:settings:v1")).customTheme.canvas === "#EEF3F4");
           assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(238, 243, 244)");
         }
       }

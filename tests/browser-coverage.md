@@ -44,7 +44,7 @@ npm run test:browser
 Remove-Item Env:BROWSER_ENGINES, Env:BROWSER_SCENARIOS
 ```
 
-默认报告目录已被 Git 忽略；自定义 `BROWSER_OUTPUT` 时建议放在 `output/playwright/acceptance/` 下，避免将截图、trace 和临时报告提交到仓库。Windows 上不要同时运行开发服务器和生产构建。
+默认报告目录已被 Git 忽略；自定义 `BROWSER_OUTPUT` 时建议放在 `output/playwright/acceptance/` 下，避免将截图、trace 和临时报告提交到仓库。新版 Vinext 在同一目录只允许一个开发服务器；操作回归和无障碍检查应依次运行，或通过各自的 BASE_URL 参数显式复用同一个服务。`npm test` 的生产预览与开发服务器还会使用同一份本地 Workers 状态，也应依次运行，避免 SQLite 文件锁冲突。Windows 上不要同时运行开发服务器和生产构建。
 
 覆盖列表说明用例的验证范围，不代表某次运行全部通过。报告中的页面导航超时表示尚未完成相应验证，应结合 trace 判断原因；重试或跨平台验证通过前，不应记录为成功。
 
@@ -89,3 +89,9 @@ BROWSER_SCENARIOS=article-version-progress,concurrent-practice-saves,concurrent-
 无障碍默认覆盖 letterpress、focus、neon 三套皮肤；霓虹选中态标题需在手机浅色和桌面深色下同时通过。样式契约检查不能替代实际对比度测量。
 
 - `article-version-progress`：内置文章跨正文版本并发保存、同版本并发累计、保留未知版本和旧版进度、历史成绩版本标识及当前版本完成度（Chromium / WebKit）。
+
+### 设置、收藏与计划选择事务
+
+- `concurrent-preferences` 和 `concurrent-preferences-idb`：分别占用真实 Web Lock 和 IndexedDB 写事务，在两个页面修改不同设置、收藏不同文章；检查等待状态、重复操作禁用、保存前原值不变、两窗口最终收敛及刷新保留。
+- `settings-windows` 和 `article-library`：覆盖设置和收藏写入失败、原状态保留及重试。设置改为异步保存后，点击控件并等待真实存储结果，不使用要求立即翻转状态的 `check()`。
+- `training-selection-rollback`：开始计划文章时，模拟读取拒绝、文章选择部分写入失败、计划写入失败；对比完整存储快照，确认原本不存在的键仍不存在，失败不导航，重试后任务与文章选择一起保存并经刷新保留。

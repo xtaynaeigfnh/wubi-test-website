@@ -14,6 +14,7 @@ import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
 import { concurrentPracticeSaves, corruptHistoryRecovery, articleVersionProgress } from "./browser/concurrent-storage.mjs";
 import { localMusic } from "./browser/local-music.mjs";
+import { concurrentPreferences, trainingSelectionRollback } from "./browser/preferences.mjs";
 
 const pagesMode = process.argv.includes("--pages");
 const engines = { chromium, firefox, webkit };
@@ -109,7 +110,7 @@ async function settingsWindows({ page, context }) {
   const other = await context.newPage();
   await open(other, "/");
   const hint = page.getByRole("checkbox", { name: "显示编码提示" });
-  await hint.check();
+  await hint.click();
   await other.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:settings:v1")).showCodeHints === true);
   await other.locator(".theme-switch").click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
@@ -127,6 +128,9 @@ async function settingsWindows({ page, context }) {
   await page.getByRole("alert").filter({ hasText: "设置未能保存" }).waitFor();
   assert(await hint.isChecked(), "保存失败应保留原设置界面");
   await page.evaluate(() => { Storage.prototype.setItem = window.__regressionWrite; });
+  await hint.click();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("wubi-test:settings:v1")).showCodeHints === false);
+  assert.equal(await hint.isChecked(), false, "重试成功后才更新设置界面");
   await other.evaluate(() => localStorage.removeItem("wubi-test:settings:v1"));
   await page.waitForFunction(() => document.documentElement.dataset.theme === "system");
   assert.equal(await hint.isChecked(), false, "其他窗口删除设置应恢复默认状态");
@@ -320,7 +324,7 @@ async function musicShortcuts({ page }) {
   // Keep the redesigned list: every track fits without horizontal scrolling,
   // including when keyboard navigation scrolls the list vertically.
   for (const skin of ["letterpress", "focus"]) {
-    await page.locator(`input[name="skin"][value="${skin}"]`).check();
+    await page.locator(`input[name="skin"][value="${skin}"]`).click();
     await page.waitForFunction((value) => document.documentElement.dataset.skin === value, skin);
     if (!await dock.isVisible()) await page.getByRole("button", { name: "展开专注电台控制栏" }).click();
     await dock.getByRole("button", { name: "展开曲目列表" }).click();
@@ -417,6 +421,9 @@ const interactionScenarios = [
   ["local-music", localMusic],
   ["navigation-lens", navigationLens],
   ["settings-windows", settingsWindows],
+  ["concurrent-preferences", concurrentPreferences],
+  ["concurrent-preferences-idb", (context) => concurrentPreferences(context, true)],
+  ["training-selection-rollback", trainingSelectionRollback],
   ["typing-recovery", typingRecovery],
   ["typing-session-lifecycle", typingSessionLifecycle],
   ...["commit-before-end", "end-before-commit"].map((order) =>

@@ -5,6 +5,14 @@ import {
   storageFault, restoreStorage, uploadBackup,
 } from "./helpers.mjs";
 
+async function setCodeHints(page, enabled) {
+  const checkbox = page.getByRole("checkbox", { name: "显示编码提示" });
+  if (await checkbox.isChecked() !== enabled) await checkbox.click();
+  await page.waitForFunction((enabled) => JSON.parse(localStorage.getItem("wubi-test:settings:v1")).showCodeHints === enabled,
+    enabled, { polling: 100 });
+  assert.equal(await checkbox.isChecked(), enabled);
+}
+
 const backupRegion = (page) => page.getByRole("region", { name: "备份与恢复", exact: true });
 const confirmRestore = (page) => page.getByRole("button", { name: "确认覆盖本机数据", exact: true });
 
@@ -16,7 +24,7 @@ async function exportRecordedPractice(page) {
   await page.getByText("本次成绩已存入本机 · 可在成绩统计查看").waitFor();
   assert.equal((await savedSessions(page)).length, 1);
   await page.getByRole("link", { name: "设置", exact: true }).click();
-  await page.getByRole("checkbox", { name: "显示编码提示" }).check();
+  await setCodeHints(page, true);
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "导出完整备份", exact: true }).click();
   const download = await downloaded;
@@ -38,7 +46,7 @@ async function restoreAndWait(page) {
 
 export async function backupRoundtrip({ page }) {
   const payload = await exportRecordedPractice(page);
-  await page.getByRole("checkbox", { name: "显示编码提示" }).uncheck();
+  await setCodeHints(page, false);
   const before = await localSnapshot(page);
   await uploadBackup(page, payload);
   await backupRegion(page).getByText("恢复前预览", { exact: true }).waitFor();
@@ -78,7 +86,7 @@ export async function backupUnreadable({ page }, failure) {
 
 export async function backupRollback({ page }) {
   const payload = await exportRecordedPractice(page);
-  await page.getByRole("checkbox", { name: "显示编码提示" }).uncheck();
+  await setCodeHints(page, false);
   const before = await localSnapshot(page);
   payload.data["wubi-test:sessions:v1"] = [];
   await uploadBackup(page, payload);

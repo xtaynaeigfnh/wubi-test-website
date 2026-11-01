@@ -260,7 +260,7 @@ test("training drills lock repeated submit and advance actions", async () => {
   assert.match(training, /submitLock\.current = true;/);
   assert.match(
     training,
-    /文章选择未能保存，请检查浏览器存储空间后重试/,
+    /任务状态未能保存，本次练习不会计入今日处方/,
   );
 });
 
@@ -634,7 +634,7 @@ test("settings and other training surfaces expose storage failures", async () =>
     readFile(dataManagementPath, "utf8"),
   ]);
 
-  assert.match(component, /const saved = saveSettingsChanges\(settings, next\);\s*if \(!saved\)/);
+  assert.match(component, /role="status">正在保存设置…/);
   assert.match(component, /设置未能保存，原设置保持不变/);
   assert.match(training, /const \[pendingDrillSave, setPendingDrillSave\]/);
   assert.match(training, /if \(pendingDrillSaveRef\.current\) \{/);
@@ -858,7 +858,7 @@ test("key sound is shared by typing, challenge, and the settings preview", async
   assert.match(component, /<AdvancedCenter playKeySound=\{playKeySound\}/);
   const advanced = await readFile(new URL("../app/components/AdvancedCenter.tsx", import.meta.url), "utf8");
   assert.match(advanced, /<ChallengeView playKeySound=\{playKeySound\}/);
-  assert.match(settings, /if \(update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
+  assert.match(settings, /if \(await update\("sound", value\) && value\) playKeySound\(\{ force: true \}\)/);
   assert.match(
     settings,
     /文章测速和字码挑战输入时播放轻提示音/,

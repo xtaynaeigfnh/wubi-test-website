@@ -14,7 +14,6 @@ import {
 } from "../../practice-transactions";
 import { readSettings } from "../../settings-store";
 import { buildDueReviewQueue, type SpacedReviewState } from "../../spaced-review";
-import { readLocal, STORAGE, writeLocal } from "../../storage";
 import {
   buildTrainingSummary,
   generateDailyTrainingPlan,
@@ -120,43 +119,21 @@ export function useTrainingPlan({
   );
   const startPlanTask = async (task: TrainingTask) => {
     if (!confirmDrillDeparture()) return false;
-    return withStorageWriteLock(() => {
-      const previousCurrent = readLocal<string | null>(STORAGE.current, null);
-      const previousGenerated = readLocal<PracticeArticle | null>(
-        STORAGE.currentGenerated,
-        null,
-      );
-      if (
-        task.type === "article" &&
-        task.articleId &&
-        (!writeLocal(STORAGE.current, task.articleId) ||
-          !writeLocal(STORAGE.currentGenerated, null))
-      ) {
-        writeLocal(STORAGE.current, previousCurrent);
-        writeLocal(STORAGE.currentGenerated, previousGenerated);
-        setPlanMessage("文章选择未能保存，请检查浏览器存储空间后重试。");
-        return false;
-      }
-      const next = startTrainingTask(task.id);
-      if (!next) {
-        if (task.type === "article" && task.articleId) {
-          writeLocal(STORAGE.current, previousCurrent);
-          writeLocal(STORAGE.currentGenerated, previousGenerated);
-        }
-        setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
-        return false;
-      }
-      setPlan(next);
-      setPlanMessage("");
-      if (task.type === "review") {
-        selectTrainingTab("review", true);
-      } else if (task.type === "roots") {
-        const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
-        if (nextZone) setZone(nextZone);
-        selectTrainingTab("roots", true);
-      }
-      return true;
-    }).catch(() => { setPlanMessage("任务暂时无法安全保存，请重试。"); return false; });
+    const next = await startTrainingTask(task.id);
+    if (!next) {
+      setPlanMessage("任务状态未能保存，本次练习不会计入今日处方。");
+      return false;
+    }
+    setPlan(next);
+    setPlanMessage("");
+    if (task.type === "review") {
+      selectTrainingTab("review", true);
+    } else if (task.type === "roots") {
+      const nextZone = ROOT_ZONES.find((item) => item.id === task.zoneId);
+      if (nextZone) setZone(nextZone);
+      selectTrainingTab("roots", true);
+    }
+    return true;
   };
 
   const changePlanGroup = async () => withStorageWriteLock(() => {
