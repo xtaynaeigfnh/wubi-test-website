@@ -22,7 +22,7 @@
     "postinstall": "node scripts/patch-braces.mjs"
   },
   "dependencies": {
-    "drizzle-orm": "0.45.2",
+    "drizzle-orm": "0.45.4",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1"
