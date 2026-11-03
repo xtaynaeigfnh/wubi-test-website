@@ -13,6 +13,13 @@ test("铅字皮肤速度卡片在输入中保留强调色背景", async () => {
 // Article input, selection and backup interactions run against the real app in
 // scripts/browser/*.mjs. Keep layout/accessibility contracts here.
 const componentPath = new URL("../app/components/WubiApp.tsx", import.meta.url);
+test("首页品牌链接使用各皮肤的可见站名作为无障碍名称", async () => {
+  const shell = await readFile(componentPath, "utf8");
+  const brand = shell.match(/<Link\b[^>]*className="brand"[^>]*>/)?.[0];
+  assert(brand);
+  assert.doesNotMatch(brand, /aria-label(?:ledby)?=/);
+});
+
 const musicPath = new URL("../app/components/MusicPlayer.tsx", import.meta.url);
 const layoutPath = new URL("../app/layout.tsx", import.meta.url);
 const stylesDirPath = new URL("../app/styles/", import.meta.url);

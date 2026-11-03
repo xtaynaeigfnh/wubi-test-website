@@ -356,7 +356,7 @@ export function WubiApp({ view }: { view: AppView }) {
         </a>
         <header className="site-header">
           <div className="header-inner">
-            <Link href="/" className="brand" aria-label="五笔测试网站首页">
+            <Link href="/" className="brand">
               <span className="brand-mark" aria-hidden="true">
                 <i>五</i>
               </span>
