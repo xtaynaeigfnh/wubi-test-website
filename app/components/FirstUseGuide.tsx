@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAdvancedSeason } from "../advanced-training";
 import { readAdvancedSeasonArchive } from "../advanced-season-storage";
+import { PRACTICE_SAVED_EVENT } from "../pet-events";
 import { createLocalId, getErrors, getSessions } from "../practice-transactions";
 import { withStorageWriteLock } from "../storage-lock";
 import { commitLocalWrites, readLocal, STORAGE, writeLocal } from "../storage";
 import type { SessionResult } from "../types";
 
 import { isOnboardingProgress, reconcileOnboarding, type OnboardingProgress } from "../onboarding";
+import { useLocalDataSync } from "./hooks/useLocalDataSync";
 import { Modal } from "./Ui";
 
 import {
@@ -19,6 +21,7 @@ import {
   metricLabel,
 } from "../onboarding-baseline";
 const EMPTY_PROGRESS: OnboardingProgress = { version: 1, status: "active", sessionIds: [] };
+const guideSyncEvents = [PRACTICE_SAVED_EVENT];
 function readProgress(): OnboardingProgress | null {
   const value = readLocal<unknown>(STORAGE.onboarding, null);
   return isOnboardingProgress(value) ? value : null;
@@ -35,42 +38,38 @@ export function FirstUseGuide({ enabled, view }: { enabled: boolean; view: strin
   const [dismissedForPractice, setDismissedForPractice] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
+  // 锁内回调是异步到达的；组件停用或卸载后不再回写进度或状态。
+  const syncActiveRef = useRef(false);
   useEffect(() => {
     if (!enabled) return;
-    let active = true;
-    const refresh = () => {
-      void withStorageWriteLock(() => {
-        if (!active) return;
-        const storedProgress = readProgress();
-        const nextSessions = getSessions();
-        const result = reconcileOnboarding(storedProgress, nextSessions);
-        const changed = result.progress !== storedProgress;
-        const saved = !changed || (result.progress && writeProgress(result.progress));
-        setProgress(saved ? result.progress : storedProgress);
-        if (result.open) {
-          setDismissedForPractice(false);
-          setOpened(true);
-        }
-        if (!saved) {
-          setSaveError("成绩已保存，但引导进度未能保存，请检查浏览器存储空间后刷新重试。");
-        }
-        setSessions(nextSessions);
-        setHydrated(true);
-      }).catch(() => {
-        if (active) { setHydrated(true); setSaveError("引导进度暂时无法安全同步，请重试。"); }
-      });
-    };
-    refresh();
-    window.addEventListener("wubi:practice-saved", refresh);
-    window.addEventListener("focus", refresh);
-    window.addEventListener("storage", refresh);
+    syncActiveRef.current = true;
     return () => {
-      active = false;
-      window.removeEventListener("wubi:practice-saved", refresh);
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("storage", refresh);
+      syncActiveRef.current = false;
     };
   }, [enabled]);
+  const refresh = useCallback(() => {
+    void withStorageWriteLock(() => {
+      if (!syncActiveRef.current) return;
+      const storedProgress = readProgress();
+      const nextSessions = getSessions();
+      const result = reconcileOnboarding(storedProgress, nextSessions);
+      const changed = result.progress !== storedProgress;
+      const saved = !changed || (result.progress && writeProgress(result.progress));
+      setProgress(saved ? result.progress : storedProgress);
+      if (result.open) {
+        setDismissedForPractice(false);
+        setOpened(true);
+      }
+      if (!saved) {
+        setSaveError("成绩已保存，但引导进度未能保存，请检查浏览器存储空间后刷新重试。");
+      }
+      setSessions(nextSessions);
+      setHydrated(true);
+    }).catch(() => {
+      if (syncActiveRef.current) { setHydrated(true); setSaveError("引导进度暂时无法安全同步，请重试。"); }
+    });
+  }, []);
+  useLocalDataSync(refresh, { events: guideSyncEvents, enabled });
 
   const hasExistingHistory = sessions.length > 0 && !progress;
   const baseline = useMemo(

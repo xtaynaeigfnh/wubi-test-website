@@ -419,7 +419,7 @@ export interface ArticleProgress {
   errors: number;
 }
 
-export type SkinId = "letterpress" | "focus" | "neon";
+export type SkinId = "letterpress" | "focus" | "neon" | "roots";
 
 export type ThemeId =
   | "system"
@@ -449,6 +449,9 @@ export interface UserSettings {
   customTheme?: CustomTheme;
   autoNext: boolean;
 }
+
+/** 播放按键提示音；`force` 用于设置页试听，忽略“按键声音”开关。 */
+export type KeySoundPlayer = (options?: { force?: boolean }) => void;
 
 export interface DailyGoal {
   targetChars: number;

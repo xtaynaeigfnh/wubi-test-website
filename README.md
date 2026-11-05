@@ -318,7 +318,7 @@ npx playwright install chromium firefox webkit
 npm run test:a11y
 ```
 
-无障碍脚本默认会启动本地开发服务器，在 Chromium、Firefox 和 WebKit 中检查 letterpress、focus、neon 三套皮肤和多个视口，并把结果写入 `output/playwright/accessibility/`。也可通过 `A11Y_BASE_URL` 指向已启动的网站，或通过 `A11Y_SKINS=letterpress` / `A11Y_SKINS=focus` / `A11Y_SKINS=neon` 指定单套皮肤。它不包含在 `npm test` 中；CI 会运行 Chromium、WebKit 的手机浅色与桌面深色组合，并覆盖三套皮肤。完整三浏览器、多视口检查仍可在本地单独运行。
+无障碍脚本默认会启动本地开发服务器，在 Chromium、Firefox 和 WebKit 中检查 letterpress、focus、neon、roots 四套皮肤和多个视口，并把结果写入 `output/playwright/accessibility/`。也可通过 `A11Y_BASE_URL` 指向已启动的网站，或通过 `A11Y_SKINS=letterpress` / `A11Y_SKINS=focus` / `A11Y_SKINS=neon` / `A11Y_SKINS=roots` 指定单套皮肤。它不包含在 `npm test` 中；CI 会运行 Chromium、WebKit 的手机浅色与桌面深色组合，并覆盖四套皮肤。完整三浏览器、多视口检查仍可在本地单独运行。
 
 关键操作浏览器回归默认启动开发服务器，使用 Chromium 和 WebKit 检查多窗口设置、输入法组合事件、成绩保存失败后的重试与离开保护、备份恢复，以及文章搜索和收藏、字根专项、进阶练习的失败重试和播放器快捷切歌：
 

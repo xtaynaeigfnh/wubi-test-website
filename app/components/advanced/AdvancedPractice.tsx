@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { KeySoundPlayer } from "../views/typing/useTypingSession";
+import type { KeySoundPlayer } from "../../types";
 import { createLocalId, recordKeyUsage } from "../../practice-transactions";
 import {
   applyTypingDelaySample,
@@ -26,7 +26,7 @@ import type {
   ScenarioCategory,
   SessionResult,
 } from "../../types";
-import { usePendingSaveGuard } from "../Ui";
+import { usePendingSaveGuard } from "../hooks/useLeaveGuards";
 
 export interface PracticeTarget {
   id: string;

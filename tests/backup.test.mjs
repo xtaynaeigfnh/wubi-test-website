@@ -563,13 +563,13 @@ test("皮肤与配色可随备份往返，旧备份与无效皮肤回退到铅�
     },
   };
   try {
-    for (const skin of [undefined, "letterpress", "focus", "unsupported", null]) {
+    for (const skin of [undefined, "letterpress", "focus", "roots", "unsupported", null]) {
       const payload = createBackupPayload({
         [STORAGE.settings]: { skin, theme: "qingdai", fontSize: 36, sound: true },
       });
       const parsed = parseBackupPayload(payload);
       assert.equal(parsed.version, 2);
-      assert.equal(parsed.data[STORAGE.settings].skin, skin === "focus" ? "focus" : "letterpress");
+      assert.equal(parsed.data[STORAGE.settings].skin, skin === "focus" || skin === "roots" ? skin : "letterpress");
       restoreBackupPayload(payload);
       const restored = JSON.parse(values.get(STORAGE.settings));
       assert.equal(restored.skin, parsed.data[STORAGE.settings].skin);

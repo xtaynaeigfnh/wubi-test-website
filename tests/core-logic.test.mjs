@@ -1223,6 +1223,18 @@ test("code length coach prefers fewer segments when coverage and key cost tie", 
     [{ text: "中国", start: 0 }, { text: "中国", start: 2 }]);
 });
 
+test("拆字版只给从第一键连续打对的字根盖章", async () => {
+  const { buildRootSteps } = await import("../app/root-plate.ts");
+  const steps = buildRootSteps("RQ", "r");
+  assert.deepEqual(steps.map(({ letter, name, zone, stamped }) => ({ letter, name, zone, stamped })), [
+    { letter: "r", name: "白", zone: "pie", stamped: true },
+    { letter: "q", name: "金", zone: "pie", stamped: false },
+  ]);
+  assert.equal(buildRootSteps("rq", "rx").filter((step) => step.stamped).length, 1);
+  assert.equal(buildRootSteps("rq", "rq").every((step) => step.stamped), true);
+  assert.equal(buildRootSteps("rq", "的").every((step) => step.stamped), false);
+});
+
 test("兼容入口与职责模块提供相同的公共实现", async () => {
   const legacy = await import("../app/lib.ts");
   for (const name of ["article-practice", "training-pools", "practice-statistics", "settings-store", "maintenance-store", "format"]) {

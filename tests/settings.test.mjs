@@ -104,14 +104,24 @@ test("settings read old and new themes while normalizing custom colors", () => {
   }
 });
 
+test("首次访问默认拆字版，旧设置缺少皮肤时保留原外观", () => {
+  let stored = null;
+  globalThis.window = { localStorage: { getItem: () => stored } };
+  try {
+    assert.equal(readSettings().skin, "roots");
+    stored = JSON.stringify({ theme: "dark" });
+    assert.equal(readSettings().skin, "letterpress");
+  } finally { delete globalThis.window; }
+});
+
 test("皮肤选择兼容旧设置和无效值，保留独立配色与练习偏好", () => {
   let stored = {};
   globalThis.window = { localStorage: { getItem: () => JSON.stringify(stored) } };
   try {
-    for (const skin of [undefined, null, "unknown", {}, "letterpress", "focus"]) {
+    for (const skin of [undefined, null, "unknown", {}, "letterpress", "focus", "roots"]) {
       stored = { skin, theme: "dark", fontSize: 34, sound: true };
       const settings = readSettings();
-      assert.equal(settings.skin, skin === "focus" ? "focus" : "letterpress");
+      assert.equal(settings.skin, skin === "focus" || skin === "roots" ? skin : "letterpress");
       assert.equal(settings.theme, "dark");
       assert.equal(settings.fontSize, 34);
       assert.equal(settings.sound, true);

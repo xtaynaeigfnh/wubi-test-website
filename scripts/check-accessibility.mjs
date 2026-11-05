@@ -98,7 +98,7 @@ try {
   for (const engine of (process.env.A11Y_BROWSERS ?? "chromium,firefox,webkit").split(",")) {
     const browser = await engines[engine].launch();
     try {
-      for (const skin of (process.env.A11Y_SKINS ?? "letterpress,focus,neon").split(",")) {
+      for (const skin of (process.env.A11Y_SKINS ?? "letterpress,focus,neon,roots").split(",")) {
         for (const profile of profiles.filter((item) => !process.env.A11Y_PROFILES || process.env.A11Y_PROFILES.split(",").includes(item.name))) {
           const context = await browser.newContext({ viewport: { width: profile.width, height: profile.height }, colorScheme: profile.theme, reducedMotion: profile.reduced ? "reduce" : "no-preference", serviceWorkers: "block" });
           await context.addInitScript(({ theme, skin }) => {

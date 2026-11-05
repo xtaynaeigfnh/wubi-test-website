@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { lengthLabels } from "../../article-practice";
 import { formatDuration } from "../../format";
 import { selectInputReviewOpportunities } from "../../input-review";
-import type { ArticleFilter, UserSettings } from "../../types";
+import type { ArticleFilter, KeySoundPlayer, UserSettings } from "../../types";
 import {
   calculateKeyAccuracy,
   calculatePhraseRate,
   calculateTypingMetrics,
 } from "../../typing-metrics";
-import { DiagnosticMetric, ErrorState, usePendingSaveGuard } from "../Ui";
+import { usePendingSaveGuard } from "../hooks/useLeaveGuards";
+import { DiagnosticMetric, ErrorState } from "../Ui";
 import { ArticlePicker } from "./typing/ArticlePicker";
 import { CommonCharacterPicker } from "./typing/CommonCharacterPicker";
 import { CustomTextModal } from "./typing/CustomTextModal";
@@ -21,9 +22,7 @@ import { TypingResult } from "./typing/TypingResult";
 import { useArticleLibrary, type PracticeControls } from "./typing/useArticleLibrary";
 import { useGhostRace, type GhostMode, type GhostRaceApi } from "./typing/useGhostRace";
 import { useTypingDiagnostics } from "./typing/useTypingDiagnostics";
-import { useTypingSession, type KeySoundPlayer } from "./typing/useTypingSession";
-
-export type { KeySoundPlayer };
+import { useTypingSession } from "./typing/useTypingSession";
 
 export function TypingView({
   settings,
@@ -113,7 +112,7 @@ export function TypingView({
     codeLengthAnalysis,
     wubiCodesRef,
     retryCodeLengthLoad,
-  } = useTypingDiagnostics(targetText, settings.showCodeHints);
+  } = useTypingDiagnostics(targetText, settings.showCodeHints || settings.skin === "roots");
   const session = useTypingSession({
     article,
     visibleText,
@@ -327,6 +326,8 @@ export function TypingView({
   }
 
   const isFocusSkin = settings.skin === "focus";
+  const isRootsSkin = settings.skin === "roots";
+  const showsSideLibrary = !isFocusSkin && !isRootsSkin;
   const commandBar = (
     <div className="practice-commandbar" aria-label="练习控制">
       <div className="practice-mode">
@@ -440,7 +441,7 @@ export function TypingView({
     </section>
   );
   const articleFilters = (
-    <div className={isFocusSkin ? "article-picker-filters" : "article-side-filters"}>
+    <div className={showsSideLibrary ? "article-side-filters" : "article-picker-filters"}>
       <label>
         长度
         <select
@@ -512,7 +513,7 @@ export function TypingView({
           {articleSaveError}
         </p>
       )}
-      {isFocusSkin ? (
+      {isRootsSkin ? null : isFocusSkin ? (
         <section className="practice-heading">
           <div className="practice-heading-copy">
             <span className="eyebrow">WUBI · 86</span>
@@ -577,7 +578,7 @@ export function TypingView({
           </section>
         </>
       )}
-      {!isFocusSkin && diagnostics}
+      {showsSideLibrary && diagnostics}
 
       {activeGhostTimeline && (
         <section className="ghost-live-card" aria-label="幽灵赛实时状态">
@@ -609,6 +610,7 @@ export function TypingView({
           articleTextRef={articleTextRef}
           setInputHeight={setInputHeight}
           commandBar={commandBar}
+          roots={isRootsSkin ? { speed, accuracy, codeGap: theoreticalGap } : null}
           result={<TypingResult
             session={session}
             diagnostics={{ codeLengthAnalysis, minimumCodeError, retryCodeLengthLoad }}
@@ -622,7 +624,7 @@ export function TypingView({
             randomArticle={randomArticle}
           />}
         />
-        {!isFocusSkin && (
+        {showsSideLibrary && (
           <aside className="side-panel">
             <div className="side-heading"><div><span className="eyebrow">文章库</span><h3>{availableArticles.length} 篇离线练习</h3></div><span className="count-badge">{availableArticles.length}</span></div>
             {articleFilters}
@@ -631,7 +633,7 @@ export function TypingView({
         )}
       </section>
 
-      {isFocusSkin && <details className="practice-diagnostics">
+      {(isFocusSkin || isRootsSkin) && <details className="practice-diagnostics">
         <summary>输入诊断 <span>击键、码长与输入习惯</span></summary>
         <div className="secondary-metrics">
           <Metric label="击键" value={kps.toFixed(2)} unit="键/秒" />
@@ -664,7 +666,7 @@ export function TypingView({
           onClose={() => setPickerOpen(false)}
           onChoose={chooseArticle}
           filters={
-            isFocusSkin ? articleFilters : null
+            showsSideLibrary ? null : articleFilters
           }
         />
       )}

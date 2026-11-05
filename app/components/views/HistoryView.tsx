@@ -34,6 +34,16 @@ import { HesitationHeatmap } from "../HesitationHeatmap";
 import { KeySummary } from "../KeySummary";
 import { STORAGE } from "../../storage";
 import { BackupReminderNotice } from "../BackupReminderNotice";
+import { useLocalDataSync } from "../hooks/useLocalDataSync";
+import { useLocalDateKey } from "../hooks/useLocalDateKey";
+
+const historySyncKeys = [
+  STORAGE.sessions,
+  STORAGE.progress,
+  STORAGE.errors,
+  STORAGE.phraseOpportunities,
+  STORAGE.keyUsage,
+];
 
 function sessionRecommendationEvidence(session: SessionResult): string[] {
   const evidence: string[] = [];
@@ -100,45 +110,12 @@ export function HistoryView({
     setPhraseOpportunities(getPhraseOpportunities());
   }, []);
   useEffect(refresh, [hesitationSaveRevision, refresh]);
+  useLocalDataSync(refresh, { keys: historySyncKeys, immediate: false });
+  // 周报以打开页面的时刻为基准，跨过午夜后重新取当前时刻。
+  const today = useLocalDateKey();
   useEffect(() => {
-    const keys = new Set<string>([
-      STORAGE.sessions,
-      STORAGE.progress,
-      STORAGE.errors,
-      STORAGE.phraseOpportunities,
-      STORAGE.keyUsage,
-    ]);
-    const onStorage = (event: StorageEvent) => {
-      if (event.storageArea === window.localStorage && (event.key === null || keys.has(event.key))) refresh();
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [refresh]);
-  useEffect(() => {
-    let timer = 0;
-    const refreshReportClock = () => {
-      const now = new Date();
-      setReportNow(now);
-      const nextDay = new Date(now);
-      nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setHours(0, 0, 0, 50);
-      timer = window.setTimeout(
-        refreshReportClock,
-        Math.max(1000, nextDay.getTime() - now.getTime()),
-      );
-    };
-    refreshReportClock();
-    return () => window.clearTimeout(timer);
-  }, []);
+    if (today) setReportNow(new Date());
+  }, [today]);
   useEffect(() => {
     let active = true;
     loadArticleMetadata()

@@ -41,7 +41,10 @@ import { PhrasePractice } from "./training/PhrasePractice";
 import { ReviewPractice } from "./training/ReviewPractice";
 import { RootPractice } from "./training/RootPractice";
 import { TrainingBrief } from "./TrainingBrief";
-import { ErrorState, useInProgressLeaveGuard, usePendingSaveGuard } from "./Ui";
+import { ErrorState } from "./Ui";
+import { useInProgressLeaveGuard, usePendingSaveGuard } from "./hooks/useLeaveGuards";
+import { useLocalDataSync } from "./hooks/useLocalDataSync";
+import { useLocalDateKey } from "./hooks/useLocalDateKey";
 
 import { useDueReviews } from "./training/useDueReviews";
 import { useTrainingPlan } from "./training/useTrainingPlan";
@@ -53,6 +56,15 @@ const TRAINING_TABS = [
   ["roots", "五码根专项"],
 ] as const;
 type TrainingTab = (typeof TRAINING_TABS)[number][0];
+const trainingSyncKeys = [
+  STORAGE.sessions,
+  STORAGE.errors,
+  STORAGE.phraseOpportunities,
+  STORAGE.dailyGoal,
+  STORAGE.hesitationQueue,
+  STORAGE.reviewState,
+  STORAGE.trainingPlan,
+];
 
 export function TrainingCenter({
   playKeySound,
@@ -142,9 +154,12 @@ export function TrainingCenter({
     );
   }, []);
 
+  // 跨过午夜、保存完成或放弃练习后重新读取；refreshLocal 自身会跳过进行中或待保存的练习。
+  const localDate = useLocalDateKey();
   useEffect(() => {
     if (!pendingDrillSave) refreshLocal();
-  }, [hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal]);
+  }, [hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal, localDate]);
+  useLocalDataSync(refreshLocal, { keys: trainingSyncKeys, immediate: false });
 
   useEffect(() => {
     if (
@@ -154,34 +169,6 @@ export function TrainingCenter({
       setCurrentHesitationQueue(hesitationQueue);
     }
   }, [hesitationQueue, pendingDrillSave]);
-
-  useEffect(() => {
-    let midnightTimer: number | null = null;
-    const refreshWhenAvailable = () => {
-      if (!pendingDrillSave) refreshLocal();
-    };
-    const scheduleMidnightRefresh = () => {
-      const now = new Date();
-      const nextMidnight = new Date(now);
-      nextMidnight.setDate(nextMidnight.getDate() + 1);
-      nextMidnight.setHours(0, 0, 0, 50);
-      midnightTimer = window.setTimeout(() => {
-        refreshWhenAvailable();
-        scheduleMidnightRefresh();
-      }, Math.max(1_000, nextMidnight.getTime() - now.getTime()));
-    };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") refreshWhenAvailable();
-    };
-    window.addEventListener("focus", refreshWhenAvailable);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    scheduleMidnightRefresh();
-    return () => {
-      if (midnightTimer !== null) window.clearTimeout(midnightTimer);
-      window.removeEventListener("focus", refreshWhenAvailable);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [pendingDrillSave, refreshLocal]);
 
   useEffect(() => {
     const syncTabFromLocation = () => {

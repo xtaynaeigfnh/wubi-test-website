@@ -49,7 +49,10 @@ async function readComponentFamily(path, directory) {
   const files = (await readdir(directory)).filter((name) => /\.tsx?$/.test(name)).sort();
   return [await readFile(path, "utf8"), ...await Promise.all(files.map((name) => readFile(new URL(name, directory), "utf8")))].join("\n");
 }
-const readTrainingSource = () => readComponentFamily(trainingCenterPath, new URL("../app/components/training/", import.meta.url));
+const sharedHooksDir = new URL("../app/components/hooks/", import.meta.url);
+const leaveGuardsPath = new URL("useLeaveGuards.ts", sharedHooksDir);
+const readUiSource = () => readComponentFamily(uiPath, sharedHooksDir);
+const readTrainingSource = async () => [await readComponentFamily(trainingCenterPath, new URL("../app/components/training/", import.meta.url)), ...(await Promise.all((await readdir(sharedHooksDir)).filter((name) => name.endsWith(".ts")).map((name) => readFile(new URL(name, sharedHooksDir), "utf8"))))].join("\n");
 const readAdvancedSource = () => readComponentFamily(advancedCenterPath, new URL("../app/components/advanced/", import.meta.url));
 
 async function readTypingSource() {
@@ -81,7 +84,7 @@ test("both skins share readable controls and reflow training and charts on narro
   const [styles, globals, trend] = await Promise.all([
     readFile(new URL("../app/styles/ui-refinements.css", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(trendPanelPath, "utf8"),
+    readComponentFamily(trendPanelPath, sharedHooksDir),
   ]);
   assert(globals.indexOf('"./styles/ui-refinements.css"') > globals.indexOf('"./styles/skins.css"'));
   assert(globals.indexOf('"./styles/ui-refinements.css"') < globals.indexOf('"./styles/accessibility.css"'));
@@ -203,7 +206,7 @@ test("live metrics animate while recorded history remains static", async () => {
   const [typing, history, trendPanel, styles] = await Promise.all([
     readTypingSource(),
     readFile(historyViewPath, "utf8"),
-    readFile(trendPanelPath, "utf8"),
+    readComponentFamily(trendPanelPath, sharedHooksDir),
     readStyles(),
   ]);
 
@@ -215,8 +218,8 @@ test("live metrics animate while recorded history remains static", async () => {
     /metric-tick|goal-ring-fill|usage-bar-fill|chart-line-draw/,
   );
   assert.match(trendPanel, /const \[today, setToday\] = useState\(""\)/);
-  assert.match(trendPanel, /const syncToday = \(\) => \{/);
-  assert.match(trendPanel, /nextMidnight\.setHours\(0, 0, 0, 50\)/);
+  assert.match(trendPanel, /const sync = \(\) => \{/);
+  assert.match(trendPanel, /nextMidnight\.setHours\(0, 0, 0, MIDNIGHT_GRACE_MS\)/);
   assert.match(trendPanel, /addEventListener\("visibilitychange", onVisibilityChange\)/);
   assert.match(trendPanel, /today\s*\? buildTrendSeries/);
 });
@@ -597,7 +600,7 @@ test("cross-browser input, storage, download, and pending-save guards are wired"
       readTrainingSource(),
       readAdvancedSource(),
       readFile(hesitationPracticePath, "utf8"),
-      readFile(uiPath, "utf8"),
+      readUiSource(),
       readFile(pwaControlPath, "utf8"),
       readFile(musicPath, "utf8"),
       readFile(rhythmNavigationPath, "utf8"),
@@ -675,8 +678,8 @@ test("training tabs keep their URL state in sync", async () => {
     /onClick=\{\(\) => \{[\s\S]*if \(!selectTrainingTab\(value\)\) return;[\s\S]*setActiveDueReview\(null\);[\s\S]*\}\}/,
   );
   assert.match(training, /if \(!force && !confirmDrillDeparture\(\)\) return false;/);
-  assert.match(training, /nextMidnight\.setHours\(0, 0, 0, 50\)/);
-  assert.match(training, /window\.addEventListener\("focus", refreshWhenAvailable\)/);
+  assert.match(training, /nextMidnight\.setHours\(0, 0, 0, MIDNIGHT_GRACE_MS\)/);
+  assert.match(training, /window\.addEventListener\("focus", run\)/);
   assert.match(training, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
   assert.match(training, /setCurrentHesitationQueue\(readHesitationQueue\(\)\)/);
   assert.match(training, /loading \|\|[\s\S]*!reviewState \|\|[\s\S]*!entries\.length \|\|[\s\S]*!articles\.length/);
@@ -684,7 +687,7 @@ test("training tabs keep their URL state in sync", async () => {
 
 test("unfinished drills require one discard decision while failed saves stay blocked", async () => {
   const [ui, training, challenge] = await Promise.all([
-    readFile(uiPath, "utf8"),
+    readUiSource(),
     readTrainingSource(),
     readFile(challengeViewPath, "utf8"),
   ]);
@@ -1285,7 +1288,7 @@ test("music dock waits for both pointer and focus to leave before collapsing", a
 
 test("leave guards allow same-page anchors and hash history while protecting other routes", async () => {
   const { transpileModule, ModuleKind } = await import("typescript");
-  const source = (await readFile(uiPath, "utf8")).split("export function SummaryCard")[0];
+  const source = await readFile(leaveGuardsPath, "utf8");
   const compiled = transpileModule(source, {
     compilerOptions: { module: ModuleKind.CommonJS },
   }).outputText;
@@ -1429,7 +1432,7 @@ test("training refresh preserves an active drill across midnight and resumes whe
   assert.equal(activeLocalDate.current, "2026-09-07");
   assert.equal(activeDueReview, null);
   assert.equal(localReads, 1);
-  assert.match(source, /useEffect\(\(\) => \{\s*if \(!pendingDrillSave\) refreshLocal\(\);\s*\}, \[hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal\]\)/,
+  assert.match(source, /useEffect\(\(\) => \{\s*if \(!pendingDrillSave\) refreshLocal\(\);\s*\}, \[hesitationSaveRevision, pendingDrillSave, drillInProgress, refreshLocal, localDate\]\)/,
     "finishing or discarding a drill must retry the deferred refresh without another focus event");
 });
 
@@ -1503,7 +1506,7 @@ test("pet settings expose three accessible choices and companion stays visible w
 
 test("short viewports keep dialog bodies scrollable and music outside content", async () => {
   const [ui, music, shell, styles] = await Promise.all([
-    readFile(uiPath, "utf8"), readFile(musicPath, "utf8"),
+    readUiSource(), readFile(musicPath, "utf8"),
     readFile(componentPath, "utf8"), readStyles(),
   ]);
   assert.match(styles, /\.modal\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column/s);
@@ -1599,9 +1602,9 @@ test("focus practice keeps three core metrics above input and moves article filt
   const coreMetrics = typing.split('aria-label="实时成绩"')[1].split("</section>")[0];
   assert.equal((coreMetrics.match(/<Metric /g) ?? []).length, 3);
   for (const label of ["速度", "准确率", "用时"]) assert.match(coreMetrics, new RegExp(`label="${label}"`));
-  assert.match(typing, /!isFocusSkin && \(\s*<aside className="side-panel"/);
+  assert.match(typing, /showsSideLibrary && \(\s*<aside className="side-panel"/);
   assert.match(typing, /<details className="practice-diagnostics">/);
-  assert.match(typing, /isFocusSkin \? "article-picker-filters" : "article-side-filters"/);
+  assert.match(typing, /showsSideLibrary \? "article-side-filters" : "article-picker-filters"/);
   assert.match(picker, /\{filters\}/);
   const area = await readFile(new URL("TypingPracticeArea.tsx", typingHooksDir), "utf8");
   assert(area.indexOf('<TypingInput ') < area.indexOf('{isFocusSkin && commandBar}'));
@@ -1633,7 +1636,9 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   assert.equal((area.match(/<TypingInput\b/g) ?? []).length, 1);
   const input = await readFile(new URL("TypingInput.tsx", typingHooksDir), "utf8");
   assert.equal((input.match(/<textarea\b/g) ?? []).length, 1);
-  assert.match(typing, /!isFocusSkin && diagnostics/);
+  assert.match(typing, /showsSideLibrary && diagnostics/);
+  assert.match(typing, /settings.skin === "roots"/);
+  assert.match(area, /className="roots-plate"/);
   assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
 });
 
@@ -1641,7 +1646,7 @@ test("霓虹字根选中标题保持高对比颜色，默认无障碍覆盖所�
   const css = await readFile(new URL("../app/styles/neon-noir.css", import.meta.url), "utf8");
   assert.match(css, /\.root-zone-rail button\.active strong\s*\{\s*color: var\(--text-on-accent\)/);
   const script = await readFile(new URL("../scripts/check-accessibility.mjs", import.meta.url), "utf8");
-  assert.match(script, /A11Y_SKINS \?\? "letterpress,focus,neon"/);
+  assert.match(script, /A11Y_SKINS \?\? "letterpress,focus,neon,roots"/);
 });
 
 
