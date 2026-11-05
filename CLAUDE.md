@@ -110,7 +110,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 练习会话事件序列使用 `tests/typing-session.test.mjs`；输入法、存储失败恢复、切歌等关键行为使用 `npm run test:browser`，覆盖范围见 `tests/browser-coverage.md`。浏览器与无障碍脚本共用 `scripts/browser-test-server.mjs`；Windows 上先停止开发服务器再构建，避免文件监听冲突
 - 文章正文改动必须保持 120 篇短文、105 篇中篇、45 篇长文和 30 篇水文的分布，通过 `tests/content-data.test.mjs` 的长度、标点、唯一性、内部重复和跨文章重复度检查，以及 `tests/article-style.test.mjs` 的具体场景、直接引语、句段节奏和禁用模板句检查，并提交全部重新生成的 JSON；正文写在 `scripts/article-corpus/` 下的人工语料里，`scripts/generate-articles.mjs` 只做规范化与校验
 - 构建产物与渲染结果在 `tests/rendered-html.test.mjs` 校验（`npm test` 的最后一步）
-- `npm test` 不包含 lint、类型检查和浏览器回归；交付前同时运行 `npm run lint`、`npm run typecheck` 和 `npm test`。GitHub Pages 部署还要求生产依赖审计、双引擎操作回归、手机与桌面无障碍检查及生产子路径离线回归通过；只有 main 推送或 main 手动运行会部署
+- `npm test` 不包含 lint、类型检查和浏览器回归；交付前同时运行 `npm run lint`、`npm run typecheck` 和 `npm test`。GitHub Pages 部署还要求全量依赖审计（含开发与构建工具）、双引擎操作回归、手机与桌面无障碍检查及生产子路径离线回归通过；只有 main 推送或 main 手动运行会部署
 
 ## Commit Style
 

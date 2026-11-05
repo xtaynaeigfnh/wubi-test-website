@@ -55,7 +55,7 @@ npm run start
 - 五笔查码：输入汉字、词组或 1～4 位 A–Y 编码，查看按词频排序的匹配结果、选中编码的按键顺序与键盘位置；无需联网查询。
 - 数据管理：按成绩摘要、卡顿热力图、幽灵时间线、节奏曲线、词组机会和复习队列显示数量、估算体积与自动淘汰顺序；清理前预览影响，只移除所选大对象并保留趋势所需摘要。支持完整 JSON 备份、恢复版本与预计变化预览、无正文的轻量统计摘要，以及自定义 TXT 文章管理。
 - 宠物陪伴：默认关闭，可在设置页“辅助反馈”开启，并选择小猫、小狗或小兔在左下角陪伴。点击可互动，完成练习并保存成绩后短暂庆祝；输入、打开弹窗或展开播放器时自动隐藏。支持减少动态效果，偏好随完整备份保存。
-- 界面皮肤：在“设置 → 外观”选择曜石工坊、竹韵书斋或霓虹夜行。默认使用曜石工坊，皮肤与配色可独立选择，随设置保存和完整备份恢复。
+- 界面皮肤：在“设置 → 外观”选择曜石工坊、竹韵书斋或霓虹夜行。默认使用曜石工坊，皮肤与配色可独立选择，随设置保存和完整备份恢复。旧版拆字皮肤（`roots`）已移除，读取旧设置或恢复备份时会回退到曜石工坊；字根专项训练仍保留。
 - 个性化设置：调整正文字号、默认文章长度、编码提示、按键音、自动下一篇，以及系统、浅色、深色、竹纸、青黛和自定义配色主题。
 - 多窗口同步：其他窗口修改设置、保存或清除成绩后，设置、成绩和按键统计会更新。每次设置保存只合并本次修改的字段，避免旧窗口切换主题覆盖新窗口的练习偏好；保存失败时保留原界面。
 - 备份提醒：在本设备最近一次完整备份之外积累 20 条当前保留的新成绩后，成绩页和设置的备份区会温和提醒，可暂缓 7 天。记录的是浏览器发起下载的时间，仍需确认文件已保存；提醒元信息留在当前设备，不随备份迁移。
@@ -256,7 +256,7 @@ npm run dev
 
 `minimatch` 通过 `overrides` 固定为 `11.0.3`，修复 [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) 的模式预处理放大问题。此覆盖同时作用于 ESLint 与 TypeScript ESLint 的传递依赖；上游依赖范围更新后应重新评估是否移除。升级时必须验证 lint、类型检查、完整测试和 Pages 子路径构建，不使用 `npm audit fix --force` 自动降级 ESLint，也不跳过开发依赖审计。
 
-当前工具链使用 Vite 8.3.5、Vinext 1.4.0、React / React DOM / React Server DOM Webpack 19.3.1、Cloudflare Vite 插件 1.66.0 和 Wrangler 4.155.0。Vinext 的 React 与 RSC peer 依赖需要一起升级。开发与构建通过 `vite dev` / `vite build` 运行 Vinext 插件；测试服务器使用 Vite 的 `--host` 参数，本地生产预览使用 `vite preview`，在 Workers 运行时加载构建产物；渲染测试通过真实预览 HTTP 响应验证页面，不再把 Workers bundle 直接导入 Node。更新后需重新运行两种构建与浏览器回归，不使用会降级框架的 `npm audit fix --force`。
+当前工具链使用 Vite 8.3.5、Vinext 1.4.0、React / React DOM / React Server DOM Webpack 19.3.1、Cloudflare Vite 插件 1.66.0 和 Wrangler 4.156.0。Vinext 的 React 与 RSC peer 依赖需要一起升级。开发与构建通过 `vite dev` / `vite build` 运行 Vinext 插件；测试服务器使用 Vite 的 `--host` 参数，本地生产预览使用 `vite preview`，在 Workers 运行时加载构建产物；渲染测试通过真实预览 HTTP 响应验证页面，不再把 Workers bundle 直接导入 Node。更新后需重新运行两种构建与浏览器回归，不使用会降级框架的 `npm audit fix --force`。
 
 `braces@3.0.3` 的 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) 尚无上游修复版。项目通过 `postinstall` 执行 `scripts/patch-braces.mjs`：核对版本及原始 SHA-256 后，为解析器和 compile、expand、stringify 的递归路径添加 64 层深度保护。干净安装与重复执行均支持；版本或源码不匹配会明确失败，要求重新评估补丁。`npm test` 用超深花括号、括号、直接 AST 和正常 glob 覆盖这项保护。不要使用 `--ignore-scripts` 跳过安装补丁后运行开发或构建工具。
 

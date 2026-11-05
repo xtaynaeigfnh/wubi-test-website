@@ -13,9 +13,10 @@
 正文是虚构的打字练习场景。人物、商店、书刊、现场记录与测量数字用于叙事，不是实际调查、
 科研实验或临床结果；涉及通用科普、技术、历史和医疗知识时，仍须核对可靠原始资料，
 不能用虚构读数证明普遍规律。第一轮逐篇问题、处理依据和核实来源见
-`docs/article-review-round1.md` 与对应 JSON 记录；内容密度和篇幅审读见
-`docs/article-review-round2.md` 与对应 JSON 记录；自然度与整库差异审读见
-`docs/article-review-round3.md` 与对应 JSON 记录。
+[第一轮审读记录](../../docs/article-review-round1.md)；内容密度和篇幅审读见
+[第二轮审读记录](../../docs/article-review-round2.md)；自然度与整库差异审读见
+[第三轮审读记录](../../docs/article-review-round3.md)。审读中间 JSON 已移出 Git 追踪，
+当前检出不包含这些文件；需要追溯时可从移除提交 `1abed24` 的父提交读取。
 
 正文相对当前已发布版本发生变化时，在该篇源对象中显式设置 `version` 为基线版本加一；
 未改正文的篇目保留原版本。基线为 3 的旧对象可省略该字段，生成脚本按 3 读取。
@@ -134,22 +135,18 @@ water（群聊答疑，回应应带来新信息；段数、引语数量和收尾
 
 ## 交付格式
 
-每批的分配表在 `_parts/` 下。写完后把结果写成**一个 JSON 文件**，路径和文件名以分配表为准，
-结构固定为：
-
-```json
-[
-  { "id": "short-001", "title": "没有行动项的会议", "topic": "职场办公", "length": "short", "text": "第一段。\n\n第二段。" }
-]
-```
+直接修改本目录对应的 `short.mjs`、`medium.mjs`、`long.mjs` 或 `water.mjs`，保留篇目 ID、主题和分组，正文版本按上文规则维护。早期批次使用的 `_parts/` 分配表和中间 JSON 不在当前仓库中，不作为维护入口。
 
 - `text` 里段落之间用 `\n\n`，不要有行首缩进，不要用 Markdown 标记。
 - `title` 不超过 14 字，只用汉字，篇目之间不得重复。
-- 写完必须自查长度：
+- 修改后从仓库根目录生成数据并检查内容：
 
 ```bash
-node -e "const a=require('./scripts/article-corpus/_parts/s01.json');for(const x of a)console.log(x.id,x.title,x.text.replace(/\s/g,'').length)"
+npm run data:generate
+node --test tests/content-data.test.mjs tests/article-style.test.mjs
 ```
+
+提交时包含更新后的源模块及全部重新生成的数据文件，交付前仍需执行仓库要求的 lint、类型检查和完整测试。
 
 长度不在区间内或命中黑名单的，当场改掉再交。篇数、ID、主题、长度、中文字符与标点、
 唯一性及篇内跨篇重复度约束仍由生成器和测试检查；形式配额取消不等于取消编辑质量要求。
