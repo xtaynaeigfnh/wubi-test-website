@@ -113,7 +113,7 @@ export function TypingView({
     codeLengthAnalysis,
     wubiCodesRef,
     retryCodeLengthLoad,
-  } = useTypingDiagnostics(targetText, settings.showCodeHints || settings.skin === "roots");
+  } = useTypingDiagnostics(targetText, settings.showCodeHints);
   const session = useTypingSession({
     article,
     visibleText,
@@ -321,8 +321,7 @@ export function TypingView({
   }
 
   const isFocusSkin = settings.skin === "focus";
-  const isRootsSkin = settings.skin === "roots";
-  const showsSideLibrary = !isFocusSkin && !isRootsSkin;
+  const showsSideLibrary = !isFocusSkin;
   const commandBar = (
     <div className="practice-commandbar" aria-label="练习控制">
       <div className="practice-mode">
@@ -508,7 +507,7 @@ export function TypingView({
           {articleSaveError}
         </p>
       )}
-      {isRootsSkin ? null : isFocusSkin ? (
+      {isFocusSkin ? (
         <section className="practice-heading">
           <div className="practice-heading-copy">
             <span className="eyebrow">WUBI · 86</span>
@@ -605,7 +604,6 @@ export function TypingView({
           articleTextRef={articleTextRef}
           setInputHeight={setInputHeight}
           commandBar={commandBar}
-          roots={isRootsSkin ? { speed, accuracy, codeGap: theoreticalGap } : null}
           result={<TypingResult
             session={session}
             diagnostics={{ codeLengthAnalysis, minimumCodeError, retryCodeLengthLoad }}
@@ -628,7 +626,7 @@ export function TypingView({
         )}
       </section>
 
-      {(isFocusSkin || isRootsSkin) && <details className="practice-diagnostics">
+      {isFocusSkin && <details className="practice-diagnostics">
         <summary>输入诊断 <span>击键、码长与输入习惯</span></summary>
         <div className="secondary-metrics">
           <Metric label="击键" value={kps.toFixed(2)} unit="键/秒" />

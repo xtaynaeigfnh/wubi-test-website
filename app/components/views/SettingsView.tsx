@@ -30,7 +30,6 @@ const skinOptions: Array<{ id: SkinId; description: string }> = [
   { id: "letterpress", description: "胶囊顶栏 · 独立仪表卡 · 纯净画布" },
   { id: "focus", description: "书斋侧栏 · 宣纸留白 · 沉浸跟打" },
   { id: "neon", description: "夜色霓虹 · 玻璃面板 · 赛博夜航" },
-  { id: "roots", description: "字根色块 · 当前大字 · 拆分码可见" },
 ];
 
 const settingsSections = [
@@ -154,7 +153,7 @@ export function SettingsView({
                       <input disabled={saving} type="radio" name="skin" value={option.id} checked={settings.skin === option.id} onChange={() => update("skin", option.id)} />
                       <span className="skin-thumbnail" aria-hidden="true">
                         <span className="skin-thumbnail-nav"><i /><i /><i /></span>
-                        <span className="skin-thumbnail-page"><b>{option.id === "roots" ? "五" : "五笔 · 86"}</b><i /><span><i /><i /><i /></span><em>稳中求快</em></span>
+                        <span className="skin-thumbnail-page"><b>五笔 · 86</b><i /><span><i /><i /><i /></span><em>稳中求快</em></span>
                       </span>
                       <span className="skin-option-copy"><strong>{skinLabels[option.id]}</strong><small>{option.description}</small></span>
                     </label>

@@ -18,7 +18,6 @@ import { animateMusicDock, captureMusicDock, type MusicDockMotion, type MusicDoc
 import { LocalMusicImport } from "./LocalMusicImport";
 import { readLocalMusic, releaseLocalMusic } from "../local-music";
 import { readLocal, STORAGE, writeLocal } from "../storage";
-import { readSettings } from "../settings-store";
 import {
   DEFAULT_MUSIC_PREFERENCES,
   formatAudioTime,
@@ -527,19 +526,6 @@ function MusicDock() {
     setExpanded(false);
     setCollapsed(true);
   }, [clearCollapseTimer]);
-
-  useEffect(() => {
-    let previousSkin: string | undefined;
-    const syncSkin = () => {
-      const skin = document.documentElement.dataset.skin;
-      if (skin === "roots" && previousSkin !== "roots" && readSettings().skin === "roots") collapseDock();
-      previousSkin = skin;
-    };
-    syncSkin();
-    const observer = new MutationObserver(syncSkin);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-skin"] });
-    return () => observer.disconnect();
-  }, [collapseDock]);
 
   const handlePointerEnter = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === "touch") return;

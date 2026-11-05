@@ -60,7 +60,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `app/music.ts` — 音乐目录解析、偏好校验、曲目索引和路径辅助逻辑；实际音频播放由 `MusicPlayer.tsx` 管理，本地音频导入由 `local-music.ts` 管理
 - `app/backup-reminder.ts` — 备份提醒规则与触发判断
 - `app/article-preferences.ts` / `app/article-progress.ts` — 文章偏好与版本化进度联合唯一标识
-- `app/root-plate.ts` — 字根盘与拆字版逻辑
 - `app/input-review.ts` — 练习中词组复盘与诊断
 - `app/skin.ts` / `app/theme.ts` — 皮肤偏好、调色板与主题切换
 - `app/pet-events.ts` — 桌面宠物互动事件

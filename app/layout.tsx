@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { HydrationBoundary } from "./components/HydrationBoundary";
 import { MusicProvider } from "./components/MusicPlayer";
 import { PwaProvider } from "./components/PwaControl";
+import { defaultSettings } from "./practice-schema";
 import "./globals.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -46,7 +47,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" data-skin="roots" suppressHydrationWarning>
+    <html lang="zh-CN" data-skin={defaultSettings.skin} suppressHydrationWarning>
       <body>
         <HydrationBoundary>
           <PwaProvider>

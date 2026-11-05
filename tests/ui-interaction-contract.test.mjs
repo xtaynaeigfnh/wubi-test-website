@@ -1624,7 +1624,7 @@ test("focus practice keeps three core metrics above input and moves article filt
 });
 
 
-test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输入区", async () => {
+test("三套皮肤使用独立单选组且共用唯一跟打输入区", async () => {
   const [settings, shell, typing, globals] = await Promise.all([
     readFile(settingsViewPath, "utf8"),
     readFile(componentPath, "utf8"),
@@ -1633,6 +1633,8 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   ]);
   assert.match(settings, /id: "letterpress"/);
   assert.match(settings, /id: "focus"/);
+  assert.match(settings, /id: "neon"/);
+  assert.doesNotMatch(settings, /id: "roots"/);
   assert.match(settings, /name="skin"[\s\S]*checked=\{settings.skin === option.id\}[\s\S]*update\("skin", option.id\)/);
   assert.match(settings, /className="skin-thumbnail" aria-hidden="true"/);
   assert.match(settings, /skinThemeSwatches\[settings.skin\]/);
@@ -1643,8 +1645,6 @@ test("皮肤选择区使用独立单选组且两种布局共用唯一跟打输�
   const input = await readFile(new URL("TypingInput.tsx", typingHooksDir), "utf8");
   assert.equal((input.match(/<textarea\b/g) ?? []).length, 1);
   assert.match(typing, /showsSideLibrary && diagnostics/);
-  assert.match(typing, /settings.skin === "roots"/);
-  assert.match(area, /className="roots-plate"/);
   assert(globals.indexOf('"./styles/accessibility.css"') > globals.indexOf('"./styles/skins.css"'));
 });
 
@@ -1652,7 +1652,7 @@ test("霓虹字根选中标题保持高对比颜色，默认无障碍覆盖所�
   const css = await readFile(new URL("../app/styles/neon-noir.css", import.meta.url), "utf8");
   assert.match(css, /\.root-zone-rail button\.active strong\s*\{\s*color: var\(--text-on-accent\)/);
   const script = await readFile(new URL("../scripts/check-accessibility.mjs", import.meta.url), "utf8");
-  assert.match(script, /A11Y_SKINS \?\? "letterpress,focus,neon,roots"/);
+  assert.match(script, /A11Y_SKINS \?\? "letterpress,focus,neon"/);
 });
 
 

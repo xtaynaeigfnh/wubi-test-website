@@ -6,7 +6,7 @@ const base = process.env.SKIN_BASE_URL ?? "http://127.0.0.1:4175";
 const output = "output/playwright/skins";
 const engines = { chromium, firefox, webkit };
 const results = [];
-const skins = (process.env.SKIN_SKINS ?? "letterpress,focus,neon,roots").split(",");
+const skins = (process.env.SKIN_SKINS ?? "letterpress,focus,neon").split(",");
 await mkdir(output, { recursive: true });
 
 for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").split(",")) {
@@ -28,8 +28,8 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
     };
     await page.goto(`${base}/settings`);
     await ready();
-    await waitSkin("roots");
-    assert(await page.locator('input[name="skin"][value="roots"]').isChecked());
+    await waitSkin("letterpress");
+    assert(await page.locator('input[name="skin"][value="letterpress"]').isChecked());
 
     for (const skin of skins) {
       console.log(`${engine} ${skin}: 检查选择、配色和保存`);
@@ -100,11 +100,11 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
       const input = page.getByRole("textbox", { name: "跟打输入区" });
       await input.waitFor();
       assert.equal(await page.locator("textarea.typing-input").count(), 1);
-      assert.equal(await page.locator('.metric-strip[aria-label="实时成绩"] > div').count(), skin === "roots" ? 0 : skin === "focus" ? 3 : 6);
-      assert.equal(await page.locator(".side-panel").count(), skin === "focus" || skin === "roots" ? 0 : 1);
-      assert.equal(await page.locator("details.practice-diagnostics").count(), skin === "focus" || skin === "roots" ? 1 : 0);
+      assert.equal(await page.locator('.metric-strip[aria-label="实时成绩"] > div').count(), skin === "focus" ? 3 : 6);
+      assert.equal(await page.locator(".side-panel").count(), skin === "focus" ? 0 : 1);
+      assert.equal(await page.locator("details.practice-diagnostics").count(), skin === "focus" ? 1 : 0);
 
-      if (skin === "focus" || skin === "roots") {
+      if (skin === "focus") {
         await page.getByRole("button", { name: "选文章", exact: true }).click();
         await page.getByRole("dialog").getByLabel("题材", { exact: true }).selectOption({ index: 1 });
         await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
@@ -112,10 +112,6 @@ for (const engine of (process.env.SKIN_BROWSERS ?? "chromium,firefox,webkit").sp
         await page.locator(".side-panel").getByLabel("题材", { exact: true }).selectOption({ index: 1 });
       }
 
-      if (skin === "roots") {
-        assert.equal(await page.locator(".roots-plate").count(), 1);
-        await page.locator(".roots-code").filter({ hasText: /[A-Z]|直接输入/ }).waitFor();
-      }
       const text = await page.locator(".article-text").textContent();
       const target = text.replace(/[\r\n]/g, "");
       await input.focus();

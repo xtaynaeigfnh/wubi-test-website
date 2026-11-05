@@ -27,7 +27,6 @@ const brandNames: Record<SkinId, string> = {
   letterpress: "五笔测试网站",
   focus: "五笔练习",
   neon: "五笔夜行场",
-  roots: "拆字版",
 };
 
 const themeGlyphs: Record<"light" | "dark" | "other", string> = {
