@@ -341,3 +341,42 @@ test("写锁串行执行完整读改写，失败释放锁且随后操作继续",
   assert.equal(value, 11);
   assert.equal(new Set(names).size, 1);
 });
+
+test("Web Lock 保持到 IndexedDB 提交完成，读改写等待存储事件边界", async (context) => {
+  const { withStorageWriteLock, hasStorageWriteLock } = await import("../app/storage-lock.ts");
+  const saved = Object.fromEntries(["navigator", "indexedDB"].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  context.after(() => {
+    for (const key of Object.keys(saved)) {
+      if (saved[key]) Object.defineProperty(globalThis, key, saved[key]);
+      else delete globalThis[key];
+    }
+  });
+  let held = false;
+  const events = [];
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: {
+    async request(_name, operation) {
+      held = true;
+      try { return await operation(); } finally { held = false; events.push("released"); }
+    },
+  } } });
+  const read = {};
+  const transaction = { objectStore: () => ({ get: () => read }) };
+  const db = { transaction: () => transaction, close: () => events.push("closed") };
+  const request = { result: db };
+  Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: { open: () => request } });
+  const pending = withStorageWriteLock(() => {
+    assert(held);
+    assert(hasStorageWriteLock());
+    events.push("operation");
+    return 42;
+  });
+  assert.deepEqual(events, [], "取得 Web Lock 后不能立即读取旧快照");
+  request.onsuccess();
+  read.onsuccess();
+  assert.deepEqual(events, ["operation"]);
+  assert(held, "操作结束后仍须等待数据库提交");
+  assert.equal(hasStorageWriteLock(), false, "同步操作退出后不可让其它任务绕过锁");
+  transaction.oncomplete();
+  assert.equal(await pending, 42);
+  assert.deepEqual(events, ["operation", "closed", "released"]);
+});
