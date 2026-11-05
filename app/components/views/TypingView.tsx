@@ -77,6 +77,7 @@ export function TypingView({
     customText,
     setCustomText,
     customError,
+    customSaving,
     setCustomError,
     pickerOpen,
     setPickerOpen,
@@ -681,7 +682,8 @@ export function TypingView({
           title={customTitle}
           text={customText}
           error={customError}
-          onClose={() => setCustomOpen(false)}
+          saving={customSaving}
+          onClose={() => { if (!customSaving) setCustomOpen(false); }}
           onTitleChange={setCustomTitle}
           onTextChange={setCustomText}
           onErrorChange={setCustomError}

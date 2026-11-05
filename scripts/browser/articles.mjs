@@ -142,20 +142,49 @@ export async function commonArticleRestore({ page }) {
 export async function customArticleRollback({ page }) {
   await open(page, "/");
   await typingInput(page).waitFor();
+  await page.evaluate(() => localStorage.removeItem("wubi-test:custom-texts:v1"));
   const before = await localSnapshot(page);
   await page.getByRole("button", { name: /^(粘贴自己的文字|自定义文章)$/ }).click();
   const dialog = page.getByRole("dialog", { name: "粘贴自定义文本" });
   await dialog.getByRole("textbox", { name: "标题", exact: true }).fill("写入失败后重试的自定义文章");
   await dialog.getByRole("textbox", { name: "正文", exact: true }).fill("自定义文章保存成功后才可以替换当前练习。");
-  await storageFault(page, { writeKey: "wubi-test:current-article:v1" });
-  await alertFrom(page, () => dialog.getByRole("button", { name: "开始练习", exact: true }).click(), /文章选择未能保存/);
-  assert(await dialog.isVisible());
-  assert.equal(await articleRegion(page).textContent(), text);
-  await restoreStorage(page);
-  assert.deepEqual(await localSnapshot(page), before, "选择失败必须回滚刚创建的自定义文章");
+  for (const writeKey of ["wubi-test:current-article:v1", "wubi-test:custom-texts:v1"]) {
+    await storageFault(page, { writeKey });
+    await dialog.getByRole("button", { name: "开始练习", exact: true }).click();
+    await dialog.getByRole("status").filter({ hasText: "自定义文章未能保存" }).waitFor();
+    assert(await dialog.isVisible());
+    assert.equal(await articleRegion(page).textContent(), text);
+    await restoreStorage(page);
+    assert.deepEqual(await localSnapshot(page), before, "失败后应原样保留存储，包括原本不存在的键");
+  }
   await dialog.getByRole("button", { name: "开始练习", exact: true }).click();
   await dialog.waitFor({ state: "hidden" });
   assert.equal(await articleRegion(page).textContent(), "自定义文章保存成功后才可以替换当前练习。");
   const custom = await page.evaluate(() => JSON.parse(localStorage.getItem("wubi-test:custom-texts:v1")));
   assert.equal(custom.filter((article) => article.title === "写入失败后重试的自定义文章").length, 1);
+}
+
+export async function customArticleEditConflict({ page, context }) {
+  const other = await context.newPage();
+  try {
+    for (const tab of [page, other]) {
+      await open(tab, "/settings");
+      const manager = tab.locator("#settings-custom");
+      await manager.getByRole("button", { name: "编辑", exact: true }).click();
+    }
+    const manager = page.locator("#settings-custom");
+    const otherManager = other.locator("#settings-custom");
+    await manager.getByRole("textbox", { name: "正文" }).fill("这个旧窗口的草稿应该留在编辑框中。");
+    await otherManager.getByRole("textbox", { name: "正文" }).fill("另一个窗口先保存了这篇自定义文章。");
+    await otherManager.getByRole("button", { name: "保存修改" }).click();
+    await otherManager.getByText("自定义文章已保存。", { exact: true }).waitFor();
+    await manager.getByRole("button", { name: "保存修改" }).click();
+    await manager.getByText("这篇文章已在其他窗口修改或删除，请重新打开后再编辑。", { exact: true }).waitFor();
+    assert.equal(await manager.getByRole("textbox", { name: "正文" }).inputValue(), "这个旧窗口的草稿应该留在编辑框中。");
+    const stored = JSON.parse((await localSnapshot(page))["wubi-test:custom-texts:v1"]);
+    assert.equal(stored[0].text, "另一个窗口先保存了这篇自定义文章。");
+    assert.equal(stored[0].version, fixture.version + 1);
+  } finally {
+    await other.close();
+  }
 }

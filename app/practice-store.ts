@@ -314,19 +314,15 @@ export function isValidSessionCollection(value: unknown): value is SessionResult
   );
 }
 
-export function getCustomArticles(): PracticeArticle[] {
-  const stored = readValidatedLocalArray(
-    STORAGE.customTexts,
-    MAX_CUSTOM_ARTICLES,
-    isCustomPracticeArticle,
-  );
+export function getCustomArticles({ repair = true } = {}): PracticeArticle[] {
+  const stored = readLocal<unknown>(STORAGE.customTexts, []);
   const ids = new Set<string>();
-  const unique = stored.filter((article) => {
-    if (ids.has(article.id)) return false;
+  const unique = (Array.isArray(stored) ? stored.slice(0, MAX_CUSTOM_ARTICLES) : []).filter((article): article is PracticeArticle => {
+    if (!isCustomPracticeArticle(article) || ids.has(article.id)) return false;
     ids.add(article.id);
     return true;
   });
-  if (unique.length !== stored.length) {
+  if (repair && (!Array.isArray(stored) || unique.length !== stored.length)) {
     repairLocalValue(STORAGE.customTexts, stored, unique);
   }
   return unique;

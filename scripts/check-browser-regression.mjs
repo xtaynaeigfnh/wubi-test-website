@@ -8,7 +8,7 @@ import { chromium, firefox, webkit } from "playwright";
 import { basePath, base, origin, output, fixture, text, open } from "./browser/helpers.mjs";
 import { typingRecovery, typingSessionLifecycle, typingIme, typingUnicodeAndCorrection, typingPasteAndDrop } from "./browser/typing.mjs";
 import { backupRoundtrip, backupUnreadable, backupRollback, backupInvalidAndStaleFile } from "./browser/backup.mjs";
-import { articleLibrary, articleProgressRefresh, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback } from "./browser/articles.mjs";
+import { articleLibrary, articleProgressRefresh, articleSelectionFailure, articleRestartFailure, commonArticleRestore, customArticleRollback, customArticleEditConflict } from "./browser/articles.mjs";
 
 import { trainingPlanAndReviews } from "./browser/training.mjs";
 import { navigationLens } from "./browser/navigation.mjs";
@@ -443,6 +443,7 @@ const interactionScenarios = [
   ["article-restart-failure", articleRestartFailure],
   ["common-article-restore", commonArticleRestore],
   ["custom-article-rollback", customArticleRollback],
+  ["custom-article-edit-conflict", customArticleEditConflict],
   ["training-drill", trainingDrill],
   ["training-plan-reviews", trainingPlanAndReviews],
   ["advanced-practice", advancedPractice],

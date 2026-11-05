@@ -18,6 +18,7 @@ import {
   getCustomArticles,
   localDateKey,
   readMaintenanceLog,
+  toggleFavoriteArticle,
   truncateUnicode,
 } from "../practice-transactions";
 import {
@@ -28,8 +29,8 @@ import {
 } from "../backup";
 import { MAX_CUSTOM_TEXT_LENGTH } from "../practice-constraints";
 import { withStorageWriteLock } from "../storage-lock";
-import { STORAGE, writeLocal } from "../storage";
-import { readFavoriteArticleIds, toggleFavoriteArticle } from "../article-preferences";
+import { commitLocalWrites, STORAGE } from "../storage";
+import { readFavoriteArticleIds } from "../article-preferences";
 import {
   buildStorageUsageReport,
   type CleanupTarget,
@@ -430,7 +431,8 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const importingRef = useRef(false);
   const [items, setItems] = useState<PracticeArticle[]>([]);
-  const [editingId, setEditingId] = useState("");
+  const [editingArticle, setEditingArticle] = useState<PracticeArticle | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
@@ -440,45 +442,61 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
     setItems(getCustomArticles());
     setFavoriteIds(readFavoriteArticleIds());
   }, { keys: customArticleSyncKeys });
-  const persist = (next: PracticeArticle[]) => {
-    if (!writeLocal(STORAGE.customTexts, next)) {
+  const persist = async (update: (current: PracticeArticle[]) => {
+    articles?: PracticeArticle[];
+    message: string;
+  }) => {
+    try {
+      const result = await withStorageWriteLock(() => {
+        const current = getCustomArticles({ repair: false });
+        const next = update(current);
+        if (!next.articles) return { ...next, current, saved: false };
+        if (!commitLocalWrites(new Map([[STORAGE.customTexts, next.articles]]))) {
+          return { current, saved: false, message: "自定义文章未能保存，请检查浏览器存储空间。" };
+        }
+        return { current: next.articles, saved: true, message: next.message };
+      });
+      setItems(result.current);
+      setMessage(result.message);
+      if (result.saved) onChanged();
+      return result.saved;
+    } catch {
       setMessage("自定义文章未能保存，请检查浏览器存储空间。");
       return false;
     }
-    setItems(next);
-    onChanged();
-    return true;
   };
 
   const startEdit = (item: PracticeArticle) => {
-    setEditingId(item.id);
+    setEditingArticle(item);
     setTitle(item.title);
     setText(item.text);
     setMessage("");
   };
 
-  const saveEdit = () => {
-    const current = items.find((item) => item.id === editingId);
-    const updated = current
-      ? buildCustomArticle(current.id, title, text, current.version + 1)
-      : null;
-    if (!current || !updated) {
+  const saveEdit = async () => {
+    if (!editingArticle || savingEdit) return;
+    const updated = buildCustomArticle(editingArticle.id, title, text, editingArticle.version + 1);
+    if (!updated) {
       setMessage(`正文长度需要在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`);
       return;
     }
-    const saved = persist(
-      items.map((item) =>
-        item.id === editingId
-          ? {
-              ...updated,
-              favorite: item.favorite,
-            }
-          : item,
-      ),
-    );
-    if (!saved) return;
-    setEditingId("");
-    setMessage("自定义文章已保存。");
+    setSavingEdit(true);
+    try {
+      const saved = await persist((items) => {
+        const current = items.find((item) => item.id === editingArticle.id);
+        if (!current || current.version !== editingArticle.version ||
+          current.text !== editingArticle.text || current.title !== editingArticle.title) {
+          return { message: "这篇文章已在其他窗口修改或删除，请重新打开后再编辑。" };
+        }
+        return {
+          articles: items.map((item) => item.id === current.id ? { ...updated, favorite: current.favorite } : item),
+          message: "自定义文章已保存。",
+        };
+      });
+      if (saved) setEditingArticle(null);
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const importTextFiles = async (files: FileList | null) => {
@@ -507,17 +525,18 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
           `所选 TXT 文件的正文长度都不在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`,
         );
       } else {
-        const currentItems = getCustomArticles();
-        const merged = addCustomArticlesWithinLimit(currentItems, imported);
-        if (!merged.added.length) {
-          setMessage("自定义文章已满 20 篇，请先删除一篇再导入。");
-        } else if (persist(merged.articles)) {
-          setMessage(
-            merged.rejected.length
+        await persist((currentItems) => {
+          const merged = addCustomArticlesWithinLimit(currentItems, imported);
+          if (!merged.added.length) {
+            return { message: "自定义文章已满 20 篇，请先删除一篇再导入。" };
+          }
+          return {
+            articles: merged.articles,
+            message: merged.rejected.length
               ? `已导入 ${merged.added.length} 篇；另有 ${merged.rejected.length} 篇因容量已满未导入。`
               : `已导入 ${merged.added.length} 篇自定义文章。`,
-          );
-        }
+          };
+        });
       }
     } catch {
       setMessage("TXT 文件读取失败，请重新选择后再试。");
@@ -556,7 +575,7 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
       </div>
       <div className="custom-manager-list">
         {[...items].sort((a, b) => Number(favoriteIds.includes(b.id)) - Number(favoriteIds.includes(a.id))).map((item) =>
-          item.id === editingId ? (
+          item.id === editingArticle?.id ? (
             <div className="custom-edit" key={item.id}>
               <label>
                 标题
@@ -580,12 +599,13 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
                 <span>
                   {Array.from(text.trim()).length} / {MAX_CUSTOM_TEXT_LENGTH} 字
                 </span>
-                <button className="button secondary" onClick={() => setEditingId("")}>
+                <button className="button secondary" disabled={savingEdit} onClick={() => setEditingArticle(null)}>
                   取消
                 </button>
                 <button
                   className="button primary"
                   disabled={
+                    savingEdit ||
                     Array.from(text.trim()).length < 10 ||
                     Array.from(text.trim()).length > MAX_CUSTOM_TEXT_LENGTH
                   }
@@ -606,8 +626,8 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
                 <button
                   aria-label={`${favoriteIds.includes(item.id) ? "取消收藏" : "收藏"}文章：${item.title}`}
                   aria-pressed={favoriteIds.includes(item.id)}
-                  onClick={() => {
-                    const result = toggleFavoriteArticle(item.id);
+                  onClick={async () => {
+                    const result = await toggleFavoriteArticle(item.id);
                     if (result.ok) setFavoriteIds(result.ids);
                     setMessage(result.ok ? "文章收藏已更新。" : result.message);
                     if (result.ok) onChanged();
@@ -615,14 +635,15 @@ function CustomTextManager({ onChanged }: { onChanged: () => void }) {
                 >
                   {favoriteIds.includes(item.id) ? "取消收藏" : "收藏"}
                 </button>
-                <button onClick={() => startEdit(item)}>编辑</button>
+                <button disabled={savingEdit} onClick={() => startEdit(item)}>编辑</button>
                 <button
                   className="danger-text"
                   onClick={() => {
                     if (!window.confirm(`确定删除《${item.title}》吗？`)) return;
-                    if (persist(items.filter((row) => row.id !== item.id))) {
-                      setMessage("自定义文章已删除。");
-                    }
+                    void persist((items) => ({
+                      articles: items.filter((row) => row.id !== item.id),
+                      message: "自定义文章已删除。",
+                    }));
                   }}
                 >
                   删除

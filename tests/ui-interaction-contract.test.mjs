@@ -574,18 +574,17 @@ test("planned articles, custom text counts, and local writes keep UI state consi
   assert.match(typing, /const currentId = trainingArticleId \?\? storedCurrentId/);
   assert.match(typing, /Boolean\(trainingArticleId\)/);
   assert.match(typing, /Array\.from\((?:customText|text)\.trim\(\)\)\.length/);
-  assert.match(typing, /if \(!writeLocal\(STORAGE\.customTexts, nextCustomTexts\)\)/);
+  assert.match(typing, /withStorageWriteLock\(\(\) => \{[\s\S]*saveArticleSelection\(custom, merged\.articles\)/);
   assert.match(typing, /if \(customSaveLock\.current\) return;/);
   assert.match(typing, /custom-\$\{createLocalId\(\)\}/);
   assert.match(training, /Math\.round\(value \|\| minimum\)/);
-  assert.match(management, /if \(!writeLocal\(STORAGE\.customTexts, next\)\)/);
-  assert.match(management, /if \(!saved\) return;/);
+  assert.match(management, /withStorageWriteLock\(\(\) => \{[\s\S]*commitLocalWrites\(new Map\(\[\[STORAGE\.customTexts, next\.articles\]\]\)\)/);
   assert.match(management, /addCustomArticlesWithinLimit\(currentItems, imported\)/);
   assert.match(management, /importingRef/);
   assert.match(management, /MAX_CUSTOM_TEXT_FILE_BYTES/);
   assert.match(management, /自定义文章已满 20 篇/);
   assert.match(management, /<CustomTextManager onChanged=\{refreshStorageUsage\} \/>/);
-  assert.match(management, /setItems\(next\);\s*onChanged\(\);\s*return true;/);
+  assert.match(management, /setItems\(result\.current\);\s*setMessage\(result\.message\);\s*if \(result\.saved\) onChanged\(\);/);
 });
 
 test("lookup keeps trimmed empty input idle and waits for deferred results", async () => {

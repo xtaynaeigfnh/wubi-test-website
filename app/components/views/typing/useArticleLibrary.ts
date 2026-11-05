@@ -22,8 +22,8 @@ import {
   readLocal,
   readLocalArray,
   STORAGE,
-  writeLocal,
 } from "../../../storage";
+import { withStorageWriteLock } from "../../../storage-lock";
 import { loadArticles, loadCommonCharacters } from "../../../content-loader";
 import { selectLibraryArticles, type ArticleSort } from "../../../article-library";
 import { readFavoriteArticleIds } from "../../../article-preferences";
@@ -41,6 +41,21 @@ import { useLocalDataSync } from "../../hooks/useLocalDataSync";
 import type { GhostMode } from "./useGhostRace";
 
 const librarySyncKeys = [STORAGE.favoriteArticles, STORAGE.customTexts, STORAGE.progress];
+const selectionSaveError =
+  "文章选择未能保存，原练习保持不变。请检查浏览器存储空间后重试。";
+
+function saveArticleSelection(next: PracticeArticle, customArticles?: PracticeArticle[]) {
+  const writes = new Map<string, unknown>([
+    [STORAGE.current, next.id],
+    [STORAGE.currentGenerated, next.kind === "common" ? next : null],
+  ]);
+  if (next.kind !== "common") {
+    const recent = readLocalArray<string>(STORAGE.recent);
+    writes.set(STORAGE.recent, [next.id, ...recent.filter((id) => id !== next.id)].slice(0, 10));
+  }
+  if (customArticles) writes.set(STORAGE.customTexts, customArticles);
+  return commitLocalWrites(writes);
+}
 
 export interface PracticeControls {
   hasPendingSave: () => boolean;
@@ -85,6 +100,7 @@ export function useArticleLibrary(
   const [customTitle, setCustomTitle] = useState("我的自定义练习");
   const [customText, setCustomText] = useState("");
   const [customError, setCustomError] = useState("");
+  const [customSaving, setCustomSaving] = useState(false);
   const [progress, setProgress] = useState<ArticleProgress[]>([]);
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -176,37 +192,15 @@ export function useArticleLibrary(
     }
   };
 
-  const chooseArticle = useCallback(
+  const applyArticleSelection = useCallback(
+    // 这些 ref 由父级持有，回调执行时读取最新节点和练习控制。
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (
       next: PracticeArticle,
-      focusInput = true,
-      nextRetryCount = 0,
-      nextGhostMode: GhostMode = "off",
+      focusInput: boolean,
+      nextRetryCount: number,
+      nextGhostMode: GhostMode,
     ) => {
-      if (practiceControls.current?.hasPendingSave()) {
-        window.alert("本次成绩尚未保存，请先重试保存。");
-        return false;
-      }
-      const previousRecent = readLocalArray<string>(STORAGE.recent);
-      const nextRecent = [
-        next.id,
-        ...previousRecent.filter((id) => id !== next.id),
-      ].slice(0, 10);
-      const selectionWrites = new Map<string, unknown>([
-        [STORAGE.current, next.id],
-        [STORAGE.currentGenerated, next.kind === "common" ? next : null],
-      ]);
-      if (next.kind !== "common") {
-        selectionWrites.set(STORAGE.recent, nextRecent);
-      }
-      const selectionSaved = commitLocalWrites(selectionWrites);
-      if (!selectionSaved) {
-        const message =
-          "文章选择未能保存，原练习保持不变。请检查浏览器存储空间后重试。";
-        setArticleSaveError(message);
-        window.alert(message);
-        return false;
-      }
       setArticleSaveError("");
       setArticle(next);
       practiceControls.current?.resetForArticle(nextRetryCount, nextGhostMode);
@@ -215,12 +209,27 @@ export function useArticleLibrary(
         articleTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
         if (focusInput) inputRef.current?.focus();
       }, 50);
+    },
+    [articleTextRef, inputRef, practiceControls],
+  );
+
+  const chooseArticle = useCallback(
+    // 选文时检查最新的保存状态，包括尚未渲染出来的结算。
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
+    (next: PracticeArticle, focusInput = true, nextRetryCount = 0, nextGhostMode: GhostMode = "off") => {
+      if (practiceControls.current?.hasPendingSave()) {
+        window.alert("本次成绩尚未保存，请先重试保存。");
+        return false;
+      }
+      if (!saveArticleSelection(next)) {
+        setArticleSaveError(selectionSaveError);
+        window.alert(selectionSaveError);
+        return false;
+      }
+      applyArticleSelection(next, focusInput, nextRetryCount, nextGhostMode);
       return true;
     },
-    // articleTextRef、inputRef、practiceControls 都是父级传入的稳定 ref，
-    // 无需进入依赖；保持 chooseArticle 只创建一次的原始语义。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [applyArticleSelection, practiceControls],
   );
 
   const fetchCommonCharacterData = useCallback(async () => {
@@ -326,9 +335,8 @@ export function useArticleLibrary(
     settingsReady,
   ]);
 
-  const useCustomText = () => {
+  const useCustomText = async () => {
     if (customSaveLock.current) return;
-    customSaveLock.current = true;
     const custom = buildCustomArticle(
       `custom-${createLocalId()}`,
       customTitle,
@@ -336,40 +344,40 @@ export function useArticleLibrary(
     );
     if (!custom) {
       setCustomError(`正文长度需要在 10–${MAX_CUSTOM_TEXT_LENGTH} 个字符之间。`);
-      customSaveLock.current = false;
       return;
     }
-    const saved = getCustomArticles();
-    const merged = addCustomArticlesWithinLimit(saved, [custom]);
-    if (!merged.added.length) {
-      setCustomError("自定义文章已满 20 篇，请先到设置页删除一篇。");
-      customSaveLock.current = false;
-      return;
-    }
-    const nextCustomTexts = merged.articles;
-    if (!writeLocal(STORAGE.customTexts, nextCustomTexts)) {
-      setCustomError("自定义文章未能保存，请检查浏览器存储空间。");
-      customSaveLock.current = false;
-      return;
-    }
-    if (!chooseArticle(custom)) {
-      if (!writeLocal(STORAGE.customTexts, saved)) {
-        setCustomTexts(getCustomArticles());
-        setCustomError("文章选择失败，且自定义文章列表未能回滚，请到设置页检查。");
-      } else {
-        setCustomTexts(saved);
-        setCustomError("文章选择失败，自定义文章未保存，请检查存储空间后重试。");
-      }
-      customSaveLock.current = false;
-      return;
-    }
+    customSaveLock.current = true;
+    setCustomSaving(true);
     setCustomError("");
-    setCustomTexts(nextCustomTexts);
-    setCustomOpen(false);
+    try {
+      const saved = await withStorageWriteLock(() => {
+        if (practiceControls.current?.hasPendingSave()) {
+          return { error: "本次成绩尚未保存，请先重试保存。" };
+        }
+        const merged = addCustomArticlesWithinLimit(getCustomArticles({ repair: false }), [custom]);
+        if (!merged.added.length) {
+          return { error: "自定义文章已满 20 篇，请先到设置页删除一篇。" };
+        }
+        return saveArticleSelection(custom, merged.articles)
+          ? { articles: merged.articles }
+          : { error: "自定义文章未能保存，请检查浏览器存储空间后重试。" };
+      });
+      if (!saved.articles) {
+        setCustomError(saved.error);
+        return;
+      }
+      setCustomTexts(saved.articles);
+      applyArticleSelection(custom, true, 0, "off");
+      setCustomOpen(false);
+    } catch {
+      setCustomError("自定义文章暂时无法安全保存，请重试。");
+    } finally {
+      customSaveLock.current = false;
+      setCustomSaving(false);
+    }
   };
 
   const openCustomPractice = () => {
-    customSaveLock.current = false;
     setCustomError("");
     setCustomOpen(true);
   };
@@ -418,6 +426,7 @@ export function useArticleLibrary(
     customText,
     setCustomText,
     customError,
+    customSaving,
     setCustomError,
     pickerOpen,
     setPickerOpen,

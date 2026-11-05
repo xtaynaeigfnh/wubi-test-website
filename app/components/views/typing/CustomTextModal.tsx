@@ -7,6 +7,7 @@ export function CustomTextModal({
   title,
   text,
   error,
+  saving,
   onClose,
   onTitleChange,
   onTextChange,
@@ -16,6 +17,7 @@ export function CustomTextModal({
   title: string;
   text: string;
   error: string;
+  saving: boolean;
   onClose: () => void;
   onTitleChange: (value: string) => void;
   onTextChange: (value: string) => void;
@@ -30,6 +32,7 @@ export function CustomTextModal({
           <input
             data-modal-autofocus
             value={title}
+            disabled={saving}
             onChange={(event) => onTitleChange(event.target.value)}
           />
         </label>
@@ -37,6 +40,7 @@ export function CustomTextModal({
           正文
           <textarea
             value={text}
+            disabled={saving}
             maxLength={MAX_CUSTOM_TEXT_LENGTH * 2}
             onChange={(event) => {
               onTextChange(
@@ -56,6 +60,7 @@ export function CustomTextModal({
           <button
             className="button primary"
             disabled={
+              saving ||
               Array.from(text.trim()).length < 10 ||
               Array.from(text.trim()).length > MAX_CUSTOM_TEXT_LENGTH
             }
