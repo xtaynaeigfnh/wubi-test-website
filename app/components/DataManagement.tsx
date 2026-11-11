@@ -250,9 +250,9 @@ function BackupManager({ revision }: { revision: number }) {
   useEffect(refreshReminder, [revision, refreshReminder]);
   useLocalDataSync(refreshReminder, { keys: backupReminderSyncKeys, immediate: false });
 
-  const snoozeReminder = () => {
+  const snoozeReminder = async () => {
     try {
-      if (!deferBackupReminder()) {
+      if (!await withStorageWriteLock(() => deferBackupReminder())) {
         setMessage("暂缓提醒未能保存，请检查浏览器存储空间。");
         return;
       }

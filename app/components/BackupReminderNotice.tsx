@@ -9,6 +9,7 @@ import {
   type BackupReminderStatus,
 } from "../backup-reminder";
 import { PRACTICE_SAVED_EVENT } from "../pet-events";
+import { withStorageWriteLock } from "../storage-lock";
 import { STORAGE } from "../storage";
 import { useLocalDataSync } from "./hooks/useLocalDataSync";
 
@@ -28,9 +29,9 @@ export function BackupReminderNotice() {
     <aside className="backup-reminder-notice" aria-label="备份提醒">
       <p>有 {reminder.newSessionCount} 条当前保留的成绩尚未纳入本设备最近导出的备份。</p>
       <Link className="button secondary" href="/settings#settings-backup">导出备份</Link>
-      <button className="button secondary" onClick={() => {
+      <button className="button secondary" onClick={async () => {
         try {
-          if (!deferBackupReminder()) {
+          if (!await withStorageWriteLock(() => deferBackupReminder())) {
             setError("暂缓提醒未能保存，请检查浏览器存储空间。");
             return;
           }
