@@ -140,6 +140,34 @@
       "durationSeconds": 138,
       "license": "CC0 1.0 Universal",
       "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tokyo-sunset-lofi-peaceful-soft/"
+    },
+    {
+      "id": "complicated-feelings",
+      "title": "Complicated Feelings",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/complicated-feelings.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 160,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/complicated-feelings-lofi-dreamy-relaxed/"
+    },
+    {
+      "id": "lucid",
+      "title": "Lucid",
+      "artist": "HoliznaCC0",
+      "sources": [
+        {
+          "src": "/audio/tracks/lucid.mp3",
+          "type": "audio/mpeg"
+        }
+      ],
+      "durationSeconds": 145,
+      "license": "CC0 1.0 Universal",
+      "sourceUrl": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/lucid-lofi-dreamy-chill/"
     }
   ]
 }

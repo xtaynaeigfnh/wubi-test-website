@@ -68,6 +68,10 @@ Included tracks:
   https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/bubbles-lofi-bright-relaxed/
 - Tokyo Sunset:
   https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tokyo-sunset-lofi-peaceful-soft/
+- Complicated Feelings:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/complicated-feelings-lofi-dreamy-relaxed/
+- Lucid:
+  https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/lucid-lofi-dreamy-chill/
 
 CC0 1.0 legal text:
 https://creativecommons.org/publicdomain/zero/1.0/legalcode
