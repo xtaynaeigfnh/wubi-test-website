@@ -173,6 +173,7 @@ export function TypingView({
     completed && !sessionSaved
       ? "本次成绩尚未保存，请先重试保存。"
       : "本次练习尚未完成，请先完成或重来后再离开。",
+    completed && !sessionSaved ? "pending" : "practice",
   );
 
   useEffect(() => {

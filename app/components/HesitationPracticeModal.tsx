@@ -69,6 +69,7 @@ export function HesitationPracticeModal({
   usePendingSaveGuard(
     phase === "save-error" || phase === "running" || phase === "round-result",
     "本轮卡顿练习还未完成，离开会丢失进度或未保存的成绩。",
+    phase === "save-error" ? "pending" : "practice",
   );
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);

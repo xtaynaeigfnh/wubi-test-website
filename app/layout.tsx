@@ -4,6 +4,7 @@ import { MusicProvider } from "./components/MusicPlayer";
 import { PwaProvider } from "./components/PwaControl";
 import { defaultSettings } from "./practice-schema";
 import "./globals.css";
+import { DesktopBridge } from "./components/DesktopBridge";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body>
         <HydrationBoundary>
           <PwaProvider>
+            <DesktopBridge />
             <MusicProvider>{children}</MusicProvider>
           </PwaProvider>
         </HydrationBoundary>

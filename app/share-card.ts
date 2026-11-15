@@ -1,10 +1,11 @@
 "use client";
 
+import { saveFile } from "./platform";
 import { formatDuration } from "./format";
 import { truncateUnicode } from "./practice-store";
 import type { SessionResult } from "./types";
 
-export function downloadShareCard(session: SessionResult) {
+export async function downloadShareCard(session: SessionResult) {
   const usesCharacterSpeed =
     session.type === "article" ||
     session.type === "hesitation" ||
@@ -92,11 +93,13 @@ export function downloadShareCard(session: SessionResult) {
   );
   context.textAlign = "left";
 
-  const link = document.createElement("a");
-  link.download = `五笔成绩-${session.date.slice(0, 10)}.png`;
-  link.href = canvas.toDataURL("image/png");
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  return true;
+  try {
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+      (value) => value ? resolve(value) : reject(new Error("图片生成失败")), "image/png",
+    ));
+    return await saveFile(`五笔成绩-${session.date.slice(0, 10)}.png`, blob) !== "cancelled";
+  } catch {
+    window.alert("成绩图片保存失败，请检查保存位置后重试。");
+    return false;
+  }
 }

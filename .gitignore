@@ -63,3 +63,8 @@ Thumbs.db
 
 # One-off review artifacts
 docs/article-review-round*.json
+
+# Native app build artifacts
+/out-app/
+/src-tauri/target/
+/src-tauri/gen/

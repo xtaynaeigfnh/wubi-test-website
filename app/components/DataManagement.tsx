@@ -45,6 +45,7 @@ import {
   recordBackupDownload,
   type BackupReminderStatus,
 } from "../backup-reminder";
+import { saveFile } from "../platform";
 import type { BackupPayload, PracticeArticle } from "../types";
 
 const MAX_CUSTOM_TEXT_FILE_BYTES = MAX_CUSTOM_TEXT_LENGTH * 4 + 1024;
@@ -140,19 +141,14 @@ function StorageManager({
     }
   };
 
-  const exportSummary = () => {
+  const exportSummary = async () => {
     try {
       const summary = buildLightweightStatisticsSummary();
       const blob = new Blob([JSON.stringify(summary, null, 2)], {
         type: "application/json",
       });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `五笔练习轻量摘要-${localDateKey(new Date())}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      const result = await saveFile(`五笔练习轻量摘要-${localDateKey(new Date())}.json`, blob);
+      if (result === "cancelled") { setMessage("已取消导出。"); return; }
       setMessage("轻量统计摘要已导出，不含练习正文、热力图、时间线或逐键事件。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "轻量摘要导出失败");
@@ -273,13 +269,8 @@ function BackupManager({ revision }: { revision: number }) {
         setMessage("本机数据已超过单个备份文件的安全大小，请先清理部分历史记录。");
         return;
       }
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `五笔测试网站备份-${localDateKey(new Date())}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      const result = await saveFile(`五笔测试网站备份-${localDateKey(new Date())}.json`, blob);
+      if (result === "cancelled") { setMessage("已取消导出，备份提醒保持不变。"); return; }
       const recorded = await withStorageWriteLock(() => recordBackupDownload(payload));
       if (recorded) {
         try {
@@ -289,7 +280,7 @@ function BackupManager({ revision }: { revision: number }) {
           setReminder(null);
         }
       }
-      setMessage(`备份已通过恢复校验，浏览器已发起下载；请确认文件已保存。${recorded ? "" : "本设备的备份提醒记录未能保存。"}`);
+      setMessage(`备份已通过恢复校验，${result === "saved" ? "文件已保存。" : "浏览器已发起下载；请确认文件已保存。"}${recorded ? "" : "本设备的备份提醒记录未能保存。"}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "备份导出失败");
     }

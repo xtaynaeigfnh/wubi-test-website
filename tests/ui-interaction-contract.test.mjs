@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import React from "react";
+import { registerExitGuard } from "../app/desktop-exit.ts";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createSourceFile, isFunctionDeclaration, ScriptKind, ScriptTarget, transpileModule, JsxEmit } from "typescript";
 
@@ -1336,7 +1337,7 @@ test("leave guards allow same-page anchors and hash history while protecting oth
     }
     const exports = {};
     new Function("require", "exports", "window", "document", "Element", compiled)(
-      () => ({
+      (name) => name.includes("desktop-exit") ? { registerExitGuard } : ({
         useEffect(callback) { const cleanup = callback(); if (cleanup) cleanups.push(cleanup); },
         useRef(current) { return { current }; },
       }), exports, window, document, Element,
@@ -1469,7 +1470,8 @@ test("all nine v0.2 feature surfaces stay wired into the product", async () => {
   assert.match(training, /五码根专项/);
   assert.match(trends, /速度与字准/);
   assert.match(pwa, /serviceWorker/);
-  assert.match(share, /canvas\.toDataURL/);
+  assert.match(share, /canvas\.toBlob/);
+  assert.match(share, /await saveFile/);
   assert.doesNotMatch(typing, /downloadShareCard/);
   assert.match(await readFile(historyViewPath, "utf8"), /downloadShareCard/);
   assert.match(app, /TrainingCenter/);
@@ -1661,4 +1663,22 @@ test("成绩记录展示正文版本并说明当前版本完成度口径", async
   assert.match(history, /正文版本未记录/);
   assert.match(history, /当前版本文章完成度/);
   assert.match(history, /旧版及未记录版本的成绩仍保留/);
+});
+
+test("桌面版设备区说明内置离线资源与独立数据，网页版保留安装入口", async () => {
+  const source = await readFile(pwaControlPath, "utf8");
+  assert.match(source, /if \(isDesktopApp\) return;/);
+  assert.match(source, /if \(isDesktopApp\) return \(/);
+  assert.match(source, /文章、码表和内置音乐已随应用安装/);
+  assert.match(source, /App 与浏览器的数据独立保存/);
+  assert.match(source, /NEXT_PUBLIC_APP_VERSION/);
+  assert.match(source, /安装到这台设备/);
+});
+
+test("桌面退出确认复用可访问弹窗，取消与放弃有明确按钮", async () => {
+  const source = await readFile(new URL("../app/components/DesktopBridge.tsx", import.meta.url), "utf8");
+  assert.match(source, /<Modal title=/);
+  assert.match(source, /onClose=\{\(\) => settleDialog\(false\)\}/);
+  assert.match(source, /继续练习/);
+  assert.match(source, /onClick=\{\(\) => settleDialog\(true\)\}>放弃并退出/);
 });

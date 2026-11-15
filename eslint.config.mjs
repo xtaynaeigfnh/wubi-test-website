@@ -10,6 +10,9 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    "out-app/**",
+    "src-tauri/target/**",
+    "src-tauri/gen/**",
     "build/**",
     "next-env.d.ts",
   ]),

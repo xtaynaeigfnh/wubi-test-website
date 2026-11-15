@@ -1,0 +1,15 @@
+[package]
+name = "wubi-practice"
+version = "1.1.1"
+description = "离线五笔练习"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"

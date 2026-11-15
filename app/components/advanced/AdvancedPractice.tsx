@@ -74,6 +74,7 @@ export function AdvancedPractice({
     saveFailed
       ? "本次成绩尚未保存，请先重试保存。"
       : "练习正在进行，退出会丢失本次输入。",
+    saving || saveFailed ? "pending" : "practice",
   );
   const startedAtRef = useRef<number | null>(null);
   const lastCommitAtRef = useRef<number | null>(null);

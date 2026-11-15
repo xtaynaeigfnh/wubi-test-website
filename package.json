@@ -12,16 +12,23 @@
     "build:pages": "node --import ./scripts/pages-build-env.mjs node_modules/next/dist/bin/next build",
     "postbuild:pages": "node scripts/generate-offline-assets.mjs out",
     "start": "vite preview",
-    "test": "node --experimental-strip-types --test tests/dependency-security.test.mjs tests/core-logic.test.mjs tests/typing-session.test.mjs tests/v02-features.test.mjs tests/backup.test.mjs tests/practice-store.test.mjs tests/settings.test.mjs tests/pwa.test.mjs tests/build.test.mjs tests/hesitation-practice.test.mjs tests/phrase-training.test.mjs tests/spaced-review.test.mjs tests/weekly-report.test.mjs tests/advanced-training.test.mjs tests/data-maintenance.test.mjs tests/content-loader.test.mjs tests/storage.test.mjs tests/practice-schema.test.mjs tests/input-review.test.mjs tests/article-library.test.mjs tests/backup-reminder.test.mjs && node --test tests/content-data.test.mjs tests/article-style.test.mjs tests/ui-interaction-contract.test.mjs && npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "node --experimental-strip-types --test tests/dependency-security.test.mjs tests/desktop-platform.test.mjs tests/core-logic.test.mjs tests/typing-session.test.mjs tests/v02-features.test.mjs tests/backup.test.mjs tests/practice-store.test.mjs tests/settings.test.mjs tests/pwa.test.mjs tests/build.test.mjs tests/hesitation-practice.test.mjs tests/phrase-training.test.mjs tests/spaced-review.test.mjs tests/weekly-report.test.mjs tests/advanced-training.test.mjs tests/data-maintenance.test.mjs tests/content-loader.test.mjs tests/storage.test.mjs tests/practice-schema.test.mjs tests/input-review.test.mjs tests/article-library.test.mjs tests/backup-reminder.test.mjs && node --test tests/content-data.test.mjs tests/article-style.test.mjs tests/ui-interaction-contract.test.mjs && npm run build && node --test tests/rendered-html.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "data:generate": "node scripts/generate-articles.mjs && node scripts/generate-wubi-data.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "test:a11y": "node scripts/check-accessibility.mjs",
     "test:browser": "node scripts/check-browser-regression.mjs",
-    "postinstall": "node scripts/patch-braces.mjs"
+    "postinstall": "node scripts/patch-braces.mjs",
+    "build:app:web": "node --import ./scripts/app-build-env.mjs node_modules/next/dist/bin/next build",
+    "build:app": "node scripts/build-app.mjs",
+    "test:app:native": "node scripts/build-app.mjs --debug --bundles app --config scripts/native-test.conf.json && node scripts/check-native-app.mjs"
   },
   "dependencies": {
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-dialog": "2.8.4",
+    "@tauri-apps/plugin-fs": "2.7.1",
+    "@tauri-apps/plugin-opener": "2.7.3",
     "drizzle-orm": "0.45.4",
     "next": "16.4.3",
     "react": "19.3.1",
@@ -30,6 +37,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.66.0",
     "@tailwindcss/postcss": "4.3.3",
+    "@tauri-apps/cli": "2.12.4",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

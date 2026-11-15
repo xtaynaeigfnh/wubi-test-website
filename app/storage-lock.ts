@@ -1,5 +1,7 @@
 "use client";
 
+import { registerExitGuard } from "./desktop-exit.ts";
+
 // One origin-wide lock covers the complete synchronous read/modify/write unit.
 // Never await inside an operation: nested storage helpers run under this lock.
 const LOCK_NAME = "wubi-test:local-data-write:v1";
@@ -20,12 +22,17 @@ function execute<T>(operation: () => T): T {
 
 export async function withStorageWriteLock<T>(operation: () => T): Promise<T> {
   if (hasStorageWriteLock()) return operation();
-  if (typeof navigator !== "undefined" && navigator.locks) {
-    return navigator.locks.request(LOCK_NAME, () =>
-      typeof indexedDB === "undefined" ? execute(operation) : withIndexedDbWriteLock(operation),
-    );
+  const releaseExitGuard = registerExitGuard({ kind: "pending", message: "本机数据正在保存，请稍候再退出。" });
+  try {
+    if (typeof navigator !== "undefined" && navigator.locks) {
+      return await navigator.locks.request(LOCK_NAME, () =>
+        typeof indexedDB === "undefined" ? execute(operation) : withIndexedDbWriteLock(operation),
+      );
+    }
+    return await withIndexedDbWriteLock(operation);
+  } finally {
+    releaseExitGuard();
   }
-  return withIndexedDbWriteLock(operation);
 }
 
 // Keep the IndexedDB request/commit boundary even when Web Locks are available.

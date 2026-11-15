@@ -1,0 +1,10 @@
+{
+  "identifier": "com.xtay.wubi-practice.native-test",
+  "productName": "五笔练习测试",
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app"
+    ]
+  }
+}

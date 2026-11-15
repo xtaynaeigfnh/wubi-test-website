@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { registerExitGuard, type ExitGuard } from "../../desktop-exit";
 
 // 两个守卫都把一枚令牌写进当前 history 条目：popstate 回到带令牌的条目说明用户又回来了，
 // 否则就把历史前进回去，并用 beforeunload 与链接捕获兜住其它离开方式。
@@ -34,9 +35,14 @@ function isCurrentPageNavigationClick(event: MouseEvent, anchor: Element) {
 export function usePendingSaveGuard(
   blocked: boolean,
   message = "本次成绩尚未保存，请先重试保存。",
+  desktopKind: ExitGuard["kind"] = "pending",
 ) {
   useEffect(() => {
     if (!blocked) return;
+    const releaseExitGuard = registerExitGuard({
+      kind: desktopKind,
+      message: desktopKind === "practice" ? "本次练习尚未完成，确定放弃并退出吗？" : message,
+    });
     const historyToken = `${Date.now()}-${Math.random()}`;
     const originalHistoryState = window.history.state;
     const guardedHref = window.location.href;
@@ -115,6 +121,7 @@ export function usePendingSaveGuard(
     document.addEventListener("click", onDocumentClick, true);
     navigation?.addEventListener("navigate", onNavigate);
     return () => {
+      releaseExitGuard();
       if (restoreTimer !== null) window.clearTimeout(restoreTimer);
       if (alertTimer !== null) window.clearTimeout(alertTimer);
       window.removeEventListener("beforeunload", onBeforeUnload);
@@ -140,7 +147,7 @@ export function usePendingSaveGuard(
         // The guard is already inactive; restricted history access needs no retry.
       }
     };
-  }, [blocked, message]);
+  }, [blocked, message, desktopKind]);
 }
 
 /** 练习进行中离开时只询问一次；确认放弃后调用 `onDiscard` 并放行本次导航。 */
@@ -157,6 +164,7 @@ export function useInProgressLeaveGuard(
 
   useEffect(() => {
     if (!blocked) return;
+    const releaseExitGuard = registerExitGuard({ kind: "practice", message, onDiscard: () => onDiscardRef.current() });
     const historyToken = `${Date.now()}-${Math.random()}`;
     const originalHistoryState = window.history.state;
     const guardedHref = window.location.href;
@@ -233,6 +241,7 @@ export function useInProgressLeaveGuard(
     document.addEventListener("click", onDocumentClick, true);
     navigation?.addEventListener("navigate", onNavigate);
     return () => {
+      releaseExitGuard();
       if (restoreTimer !== null) window.clearTimeout(restoreTimer);
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("popstate", onPopState);
