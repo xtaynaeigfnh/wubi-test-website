@@ -262,7 +262,7 @@ npm run dev
 
 Satori 0.33.5 及其字体解析依赖固定了 `fflate@0.7.3`，仍受 GHSA-px8p-9vwx-vf98 影响；`package.json` 仅在 Satori 依赖树中覆盖为同一 minor 的修复版 `0.7.5`。上游解除旧版本固定后，评估并移除该覆盖。不要为了审计通过而降级 Vinext。
 
-PR 和 main 的质量检查执行 `npm audit --include=dev`，同时检查生产和开发依赖。独立的 `dependency-audit.yml` 每周一北京时间 14:00 重新审计锁文件，也支持手动运行；即使没有代码变更，也能发现新公布的漏洞。Dependabot 每周检查 npm 更新，React、Next 和 Vite 工具链分别分组，更新仍须经过现有质量检查，不自动合并。
+PR 和 main 的质量检查执行 `npm run audit:deps`，同时检查生产和开发依赖。独立的 `dependency-audit.yml` 每周一北京时间 14:00 重新审计锁文件，也支持手动运行；即使没有代码变更，也能发现新公布的漏洞。依赖版本由维护者手动更新。
 
 审计只识别依赖版本，不识别本地 braces 补丁。即使审计暂时没有报告该漏洞，也不能据此移除保护；只有确认上游修复或依赖移除后，才删除补丁及对应测试。
 
