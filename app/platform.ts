@@ -2,7 +2,9 @@
 
 import { registerExitGuard } from "./desktop-exit.ts";
 
-export const isDesktopApp = process.env.NEXT_PUBLIC_DESKTOP_APP === "true";
+export const isIOSApp = process.env.NEXT_PUBLIC_APP_PLATFORM === "ios";
+export const isDesktopApp = process.env.NEXT_PUBLIC_DESKTOP_APP === "true" && !isIOSApp;
+export const isNativeApp = isDesktopApp || isIOSApp;
 export type SaveResult = "saved" | "cancelled" | "download-started";
 export type NativeFileWriter = {
   choosePath: (filename: string) => Promise<string | null>;
@@ -20,7 +22,7 @@ export async function saveNativeFile(filename: string, blob: Blob, writer: Nativ
 export async function saveFile(filename: string, blob: Blob): Promise<SaveResult> {
   const release = registerExitGuard({ kind: "pending", message: "文件正在保存，请完成或取消保存后再退出。" });
   try {
-    if (isDesktopApp) {
+    if (isNativeApp) {
       const [{ save }, { writeFile }] = await Promise.all([
         import("@tauri-apps/plugin-dialog"), import("@tauri-apps/plugin-fs"),
       ]);

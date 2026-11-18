@@ -1,6 +1,10 @@
 process.env.GITHUB_PAGES = "true";
 process.env.NEXT_PUBLIC_BASE_PATH = "";
-process.env.NEXT_PUBLIC_DESKTOP_APP = "true";
+const platform = process.env.WUBI_APP_PLATFORM ?? "macos";
+if (!["macos", "ios"].includes(platform)) throw new Error(`暂不支持此 App 构建平台：${platform}`);
+process.env.NEXT_PUBLIC_APP_PLATFORM = platform;
+process.env.NEXT_PUBLIC_DESKTOP_APP = platform === "macos" ? "true" : "false";
+process.env.NEXT_PUBLIC_NATIVE_APP = "true";
 const { readFile } = await import("node:fs/promises");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 process.env.NEXT_PUBLIC_APP_VERSION = pkg.version;

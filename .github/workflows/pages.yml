@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Audit all dependencies including build tools
-        run: npm audit --include=dev
+        run: npm run audit:deps
 
       - name: Lint
         run: npm run lint

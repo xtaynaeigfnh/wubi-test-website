@@ -4,6 +4,7 @@ import { MusicProvider } from "./components/MusicPlayer";
 import { PwaProvider } from "./components/PwaControl";
 import { defaultSettings } from "./practice-schema";
 import "./globals.css";
+import { NativeBridge } from "./components/NativeBridge";
 import { DesktopBridge } from "./components/DesktopBridge";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -38,6 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  ...(process.env.NEXT_PUBLIC_APP_PLATFORM === "ios" ? { viewportFit: "cover" as const } : {}),
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f4f0" },
     { media: "(prefers-color-scheme: dark)", color: "#0d0e12" },
@@ -48,10 +50,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" data-skin={defaultSettings.skin} suppressHydrationWarning>
+    <html lang="zh-CN" data-skin={defaultSettings.skin} data-app-platform={process.env.NEXT_PUBLIC_APP_PLATFORM} suppressHydrationWarning>
       <body>
         <HydrationBoundary>
           <PwaProvider>
+            <NativeBridge />
             <DesktopBridge />
             <MusicProvider>{children}</MusicProvider>
           </PwaProvider>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./Ui";
 import { allowDesktopExit } from "../desktop-exit";
-import { isDesktopApp, isExternalUrl, openExternalUrl } from "../platform";
+import { isDesktopApp } from "../platform";
 
 export function DesktopBridge() {
   const [dialog, setDialog] = useState<{ text: string; confirm: boolean } | null>(null);
@@ -45,23 +45,11 @@ export function DesktopBridge() {
       if (disposed) { unlisten(); return; }
       await invoke("desktop_ready");
     })().catch(() => window.alert("应用退出保护初始化失败，请重新打开应用后再练习。"));
-    const onClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element)) return;
-      const anchor = event.target.closest<HTMLAnchorElement>("a[href]");
-      if (!anchor || !isExternalUrl(anchor.href, window.location.href)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      void openExternalUrl(anchor.href).catch(() => window.alert("无法打开外部链接，请稍后重试。"));
-    };
-    document.addEventListener("click", onClick, true);
-    document.addEventListener("auxclick", onClick, true);
     return () => {
       disposed = true;
       resolveDialog.current?.(false);
       resolveDialog.current = null;
       unlisten?.();
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("auxclick", onClick, true);
     };
   }, []);
   if (!dialog) return null;

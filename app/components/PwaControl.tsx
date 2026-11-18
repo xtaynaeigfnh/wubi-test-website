@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-import { isDesktopApp } from "../platform";
+import { isIOSApp, isNativeApp } from "../platform";
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -31,7 +31,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState("正在准备离线缓存…");
 
   useEffect(() => {
-    if (isDesktopApp) return;
+    if (isNativeApp) return;
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     if (!("serviceWorker" in navigator)) {
       setStatus("当前浏览器不支持离线安装。");
@@ -155,14 +155,14 @@ export function PwaControl() {
     }
   };
 
-  if (isDesktopApp) return (
+  if (isNativeApp) return (
     <section className="management-card pwa-card" id="settings-device" aria-labelledby="pwa-title">
       <span className="settings-section-key" aria-hidden="true">J</span>
       <div>
-        <span className="eyebrow">离线应用</span>
+        <span className="eyebrow">{isIOSApp ? "iPhone 离线应用" : "离线应用"}</span>
         <h2 id="pwa-title">五笔练习 · {process.env.NEXT_PUBLIC_APP_VERSION}</h2>
         <p>文章、码表和内置音乐已随应用安装，无需联网即可练习。</p>
-        <small>App 与浏览器的数据独立保存。可通过备份导入迁移成绩；更新时替换应用即可保留本机数据。</small>
+        <small>App 与浏览器的数据独立保存。可通过备份导入迁移成绩。{!isIOSApp && "更新时替换应用即可保留本机数据。"}</small>
       </div>
     </section>
   );

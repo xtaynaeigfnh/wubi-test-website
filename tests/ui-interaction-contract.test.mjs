@@ -1667,8 +1667,8 @@ test("成绩记录展示正文版本并说明当前版本完成度口径", async
 
 test("桌面版设备区说明内置离线资源与独立数据，网页版保留安装入口", async () => {
   const source = await readFile(pwaControlPath, "utf8");
-  assert.match(source, /if \(isDesktopApp\) return;/);
-  assert.match(source, /if \(isDesktopApp\) return \(/);
+  assert.match(source, /if \(isNativeApp\) return;/);
+  assert.match(source, /if \(isNativeApp\) return \(/);
   assert.match(source, /文章、码表和内置音乐已随应用安装/);
   assert.match(source, /App 与浏览器的数据独立保存/);
   assert.match(source, /NEXT_PUBLIC_APP_VERSION/);

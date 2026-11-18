@@ -38,3 +38,13 @@ for (const location of locations) {
     assert.doesNotThrow(() => braces.compile("{".repeat(32) + "a,b" + "}".repeat(32)));
   });
 }
+
+for (const location of Object.keys(lock.packages).filter((path) => path.endsWith("node_modules/picomatch"))) {
+  test(location + " rejects repeated extglobs while preserving ordinary file globs", () => {
+    const match = require("../" + location);
+    for (const op of ["+", "*"]) {
+      assert.throws(() => match.makeRe("src/" + op + "(abc).ts"), /Repeated extglobs disabled/);
+    }
+    assert(match("src/**/*.@(ts|tsx)")("src/components/Test.tsx"));
+  });
+}

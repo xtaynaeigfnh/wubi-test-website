@@ -4,6 +4,10 @@ version = "1.1.1"
 description = "离线五笔练习"
 edition = "2021"
 
+[lib]
+name = "wubi_practice_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -12,4 +16,6 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
+
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 tauri-plugin-single-instance = "2"

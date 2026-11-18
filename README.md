@@ -417,3 +417,9 @@ CC0 1.0 Universal 核对；完整曲目清单、来源页面与许可见 `THIRD_
 ## macOS 独立 App
 
 Apple Silicon 版「五笔练习」复用现有界面，内置离线文章、码表和音乐。运行 `npm run build:app` 生成 `.app` 与 `.dmg`；安装、数据迁移、构建环境和原生验证见 [macOS App 说明](docs/macos-app.md)。网站的开发、Pages 与 Vinext 构建命令保持独立。
+
+## iPhone 真机版
+
+iPhone 原生入口与手机页面适配已接入，环境检查用 `npm run ios:check`，初始化用 `npm run ios:init`，打开真机工程用 `npm run ios:open`。1.1.1 开发签名版已在 iPhone 15 Pro Max 上安装并确认首页正常。详细步骤与验证边界见 [iPhone 真机版说明](docs/ios-app.md)。
+
+对 [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)，安装脚本校验锁文件中每份 picomatch 解析器的源码哈希，并禁用重复 extglob（`+(…)`、`*(…)`）。项目 glob 请使用普通通配符或非重复分组。CI 的 `npm run audit:deps` 运行含开发依赖的 npm 审计，逐份验证补丁后仅接受这条公告及完全由它引起的间接报告。上游发布修复后应升级并移除补丁和对应审计例外。

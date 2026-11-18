@@ -1,0 +1,23 @@
+/* iPhone 包内的安全区域适配；网页及 macOS 使用原样式。 */
+html[data-app-platform="ios"] {
+  scroll-padding-top: calc(92px + env(safe-area-inset-top));
+}
+
+html[data-app-platform="ios"] body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+html[data-app-platform="ios"] .site-header {
+  top: env(safe-area-inset-top);
+}
+
+html[data-app-platform="ios"] .modal-backdrop {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+}
+
+html[data-app-platform="ios"] .modal {
+  max-height: min(760px, calc(var(--modal-viewport-height, 100dvh) - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))));
+}
