@@ -414,6 +414,10 @@ CC0 1.0 Universal 核对；完整曲目清单、来源页面与许可见 `THIRD_
 
 文章完成状态、最佳速度、错字累计与最近练习按文章 ID 和正文版本分别保存。正文更新后，新版从未练习状态开始，训练选文只使用当前版本的进度；旧版成绩和进度仍可备份与恢复。历史成绩展示练习时的正文版本。旧数据没有版本信息时保留原记录并显示“正文版本未记录”，不推断为当前版本，也不计入当前版本文章完成度。
 
+## Windows 安装包
+
+在 Windows x64 上准备好 Node.js 26.13 或更高的 26.x、Rust MSVC 工具链和 Visual Studio C++ 构建工具（含 Windows SDK）后，运行 `npm ci` 和 `npm run build:app`。生成的 NSIS 安装程序位于 `src-tauri/target/release/bundle/nsis/`，安装后通过 WebView2 加载随包提供的练习页面。
+
 ## macOS 独立 App
 
 Apple Silicon 版「五笔练习」复用现有界面，内置离线文章、码表和音乐。运行 `npm run build:app` 生成 `.app` 与 `.dmg`；安装、数据迁移、构建环境和原生验证见 [macOS App 说明](docs/macos-app.md)。网站的开发、Pages 与 Vinext 构建命令保持独立。

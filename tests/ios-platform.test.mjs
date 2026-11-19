@@ -13,6 +13,7 @@ function flags(platform) {
 test("iPhone build uses native file IO without desktop commands or deployment prefixes", () => {
   assert.deepEqual(flags("ios"), { ios: true, desktop: false, native: true, base: "" });
   assert.deepEqual(flags("macos"), { ios: false, desktop: true, native: true, base: "" });
+  assert.deepEqual(flags("windows"), { ios: false, desktop: true, native: true, base: "" });
 });
 
 test("iOS file URIs pass through unchanged and only successful writes report saved", async () => {

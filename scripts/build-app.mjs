@@ -10,12 +10,18 @@ function run(command, args, options = {}) {
 }
 
 const extraArgs = process.argv.slice(2);
-const packageDmg = extraArgs.length === 0;
+const windows = process.platform === "win32";
+const packageDmg = !windows && extraArgs.length === 0;
 run(process.execPath, [
-  "node_modules/@tauri-apps/cli/tauri.js", "build", "--target", "aarch64-apple-darwin",
+  "node_modules/@tauri-apps/cli/tauri.js", "build",
+  ...(windows ? [] : ["--target", "aarch64-apple-darwin"]),
   ...(packageDmg ? ["--bundles", "app"] : extraArgs), "--", "--locked",
 ], {
-  env: { ...process.env, PATH: `${join(homedir(), ".cargo", "bin")}${delimiter}${process.env.PATH ?? ""}` },
+  env: {
+    ...process.env,
+    WUBI_APP_PLATFORM: windows ? "windows" : "macos",
+    PATH: `${join(homedir(), ".cargo", "bin")}${delimiter}${process.env.PATH ?? ""}`,
+  },
 });
 
 if (packageDmg) {

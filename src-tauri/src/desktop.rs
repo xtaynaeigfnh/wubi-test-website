@@ -26,6 +26,7 @@ fn request_exit(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg(target_os = "macos")]
 pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
     let menu = Menu::with_items(

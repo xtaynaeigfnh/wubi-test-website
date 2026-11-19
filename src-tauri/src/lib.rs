@@ -13,7 +13,7 @@ pub fn run() {
     let builder = desktop::configure(builder);
     let app = builder
         .setup(|app| {
-            #[cfg(desktop)]
+            #[cfg(target_os = "macos")]
             desktop::setup(app)?;
             let navigation_app = app.handle().clone();
             #[cfg(desktop)]
@@ -42,6 +42,10 @@ pub fn run() {
                     return false;
                 }
                 if url.scheme() == "tauri" && url.host_str() == Some("localhost") {
+                    return true;
+                }
+                #[cfg(target_os = "windows")]
+                if url.origin().ascii_serialization() == "http://tauri.localhost" {
                     return true;
                 }
                 if matches!(url.scheme(), "http" | "https" | "mailto") {
